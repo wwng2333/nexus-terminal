@@ -3,6 +3,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "connections": "Connections",
+    "proxies": "Proxies",
     "login": "Login",
     "logout": "Logout"
   },
@@ -53,13 +54,17 @@
       "errorRequiredFields": "Please fill in all required fields.",
       "errorPasswordRequired": "Password is required for password authentication.",
       "errorPrivateKeyRequired": "Private key is required for key authentication.",
+      "errorPasswordRequiredOnSwitch": "Password is required when switching to password authentication.",
+      "errorPrivateKeyRequiredOnSwitch": "Private key is required when switching to key authentication.",
       "errorPort": "Port must be between 1 and 65535.",
       "errorAdd": "Failed to add connection: {error}",
       "titleEdit": "Edit Connection",
       "confirmEdit": "Confirm Edit",
       "saving": "Saving...",
       "errorUpdate": "Failed to update connection: {error}",
-      "keyUpdateNote": "Leave private key and passphrase blank to keep the existing key."
+      "keyUpdateNote": "Leave private key and passphrase blank to keep the existing key.",
+      "proxy": "Proxy:",
+      "noProxy": "No Proxy"
     },
     "prompts": {
         "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
@@ -69,6 +74,53 @@
     },
     "status": {
       "never": "Never"
+    }
+  },
+  "proxies": {
+    "title": "Proxy Management",
+    "addProxy": "Add New Proxy",
+    "loading": "Loading proxies...",
+    "error": "Failed to load proxies: {error}",
+    "noProxies": "No proxies yet. Click 'Add New Proxy' to create one!",
+    "table": {
+      "name": "Name",
+      "type": "Type",
+      "host": "Host",
+      "port": "Port",
+      "user": "User",
+      "updatedAt": "Updated At",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "title": "Add New Proxy",
+      "titleEdit": "Edit Proxy",
+      "name": "Name:",
+      "type": "Type:",
+      "host": "Host/IP:",
+      "port": "Port:",
+      "username": "Username:",
+      "password": "Password:",
+      "optional": "Optional",
+      "confirm": "Confirm Add",
+      "confirmEdit": "Confirm Edit",
+      "adding": "Adding...",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "errorRequiredFields": "Please fill in all required fields.",
+      "errorPort": "Port must be between 1 and 65535.",
+      "errorAdd": "Failed to add proxy: {error}",
+      "errorUpdate": "Failed to update proxy: {error}",
+      "passwordUpdateNote": "Leave password blank to keep the existing password."
+    },
+    "prompts": {
+        "confirmDelete": "Are you sure you want to delete the proxy \"{name}\"? This cannot be undone."
+    },
+    "errors": {
+        "deleteFailed": "Failed to delete proxy: {error}"
     }
   },
   "workspace": {

@@ -8,7 +8,8 @@ export interface ConnectionInfo {
     host: string;
     port: number;
     username: string;
-    auth_method: 'password' | 'key'; // 允许 key 类型
+    auth_method: 'password' | 'key';
+    proxy_id?: number | null; // 新增：关联的代理 ID (可选)
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;
@@ -58,11 +59,12 @@ export const useConnectionsStore = defineStore('connections', {
             port: number;
             username: string;
             auth_method: 'password' | 'key';
-            password?: string; // 密码变为可选
-            private_key?: string; // 私钥是可选的 (仅在 auth_method 为 key 时需要)
-            passphrase?: string; // 私钥密码是可选的
+            password?: string;
+            private_key?: string;
+            passphrase?: string;
+            proxy_id?: number | null; // 新增：允许传入 proxy_id
         }) {
-            this.isLoading = true; // 可以为添加操作单独设置加载状态，或共用 isLoading
+            this.isLoading = true;
             this.error = null;
             try {
                 const response = await axios.post<{ message: string; connection: ConnectionInfo }>('/api/v1/connections', newConnectionData);
@@ -82,7 +84,8 @@ export const useConnectionsStore = defineStore('connections', {
         },
 
         // 更新连接 Action
-        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { password?: string; private_key?: string; passphrase?: string }>) {
+        // 更新参数类型以包含 proxy_id
+        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { password?: string; private_key?: string; passphrase?: string; proxy_id?: number | null }>) {
             this.isLoading = true;
             this.error = null;
             try {

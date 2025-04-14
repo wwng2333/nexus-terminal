@@ -22,6 +22,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Connections',
     component: () => import('../views/ConnectionsView.vue')
   },
+  // 新增：代理管理页面
+  {
+    path: '/proxies',
+    name: 'Proxies',
+    component: () => import('../views/ProxiesView.vue')
+  },
   // 工作区页面，需要 connectionId 参数
   {
     path: '/workspace/:connectionId', // 使用动态路由段
@@ -42,7 +48,9 @@ router.beforeEach((to, from, next) => {
   // 在守卫内部获取 store 实例，确保 Pinia 已初始化
   const authStore = useAuthStore();
 
-  const requiresAuth = !['Login'].includes(to.name as string); // 需要认证的路由 (除了登录页)
+  // 定义不需要认证的路由名称列表
+  const publicRoutes = ['Login'];
+  const requiresAuth = !publicRoutes.includes(to.name as string);
 
   if (requiresAuth && !authStore.isAuthenticated) {
     // 如果需要认证但用户未登录，重定向到登录页

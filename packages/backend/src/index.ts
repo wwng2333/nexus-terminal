@@ -9,9 +9,10 @@ import bcrypt from 'bcrypt'; // 引入 bcrypt 用于哈希密码
 import { getDb } from './database';
 import { runMigrations } from './migrations';
 import authRouter from './auth/auth.routes'; // 导入认证路由
-import connectionsRouter from './connections/connections.routes'; // 导入连接路由
-import sftpRouter from './sftp/sftp.routes'; // 导入 SFTP 路由
-import { initializeWebSocket } from './websocket'; // 导入 WebSocket 初始化函数
+import connectionsRouter from './connections/connections.routes';
+import sftpRouter from './sftp/sftp.routes';
+import proxyRoutes from './proxies/proxies.routes'; // 导入代理路由
+import { initializeWebSocket } from './websocket';
 
 // 基础 Express 应用设置 (后续会扩展)
 const app = express();
@@ -79,9 +80,10 @@ declare module 'express-session' {
 const port = process.env.PORT || 3001; // 示例端口，可配置
 
 // --- API 路由 ---
-app.use('/api/v1/auth', authRouter); // 挂载认证相关的路由
-app.use('/api/v1/connections', connectionsRouter); // 挂载连接相关的路由
-app.use('/api/v1/sftp', sftpRouter); // 挂载 SFTP 相关的路由
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/connections', connectionsRouter);
+app.use('/api/v1/sftp', sftpRouter);
+app.use('/api/v1/proxies', proxyRoutes); // 挂载代理相关的路由
 
 // 状态检查接口
 app.get('/api/v1/status', (req: Request, res: Response) => {

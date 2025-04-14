@@ -22,17 +22,32 @@ CREATE TABLE IF NOT EXISTS connections (
     username TEXT NOT NULL,
     auth_method TEXT NOT NULL CHECK(auth_method IN ('password', 'key')), -- 更新 CHECK 约束
     encrypted_password TEXT NULL,
-    encrypted_private_key TEXT NULL, -- 取消注释
-    encrypted_passphrase TEXT NULL, -- 取消注释
-    -- proxy_id INTEGER NULL, -- 代理相关字段 (暂未实现)
+    encrypted_private_key TEXT NULL,
+    encrypted_passphrase TEXT NULL,
+    proxy_id INTEGER NULL, -- 新增：关联的代理 ID
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    last_connected_at INTEGER NULL
+    last_connected_at INTEGER NULL,
+    FOREIGN KEY (proxy_id) REFERENCES proxies(id) ON DELETE SET NULL -- 设置外键约束，删除代理时将关联设为 NULL
+);
+`;
+
+// 新增：创建 proxies 表的 SQL
+const createProxiesTableSQL = `
+CREATE TABLE IF NOT EXISTS proxies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('SOCKS5', 'HTTP')), -- 代理类型，目前支持 SOCKS5 和 HTTP
+    host TEXT NOT NULL,
+    port INTEGER NOT NULL,
+    username TEXT NULL, -- 代理认证用户名 (可选)
+    encrypted_password TEXT NULL, -- 加密存储的代理密码 (可选)
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
 );
 `;
 
 // 未来可能需要的其他表 (根据项目文档)
-// const createProxiesTableSQL = \`...\`; // 代理表
 // const createTagsTableSQL = \`...\`; // 标签表
 // const createConnectionTagsTableSQL = \`...\`; // 连接与标签的关联表
 // const createSettingsTableSQL = \`...\`; // 设置表
@@ -122,9 +137,22 @@ export const runMigrations = async (db: Database): Promise<void> => {
         await addColumnIfNotExists(db, 'connections', 'auth_method', "TEXT NOT NULL DEFAULT 'password'"); // Add default for existing rows
         await addColumnIfNotExists(db, 'connections', 'encrypted_private_key', 'TEXT NULL');
         await addColumnIfNotExists(db, 'connections', 'encrypted_passphrase', 'TEXT NULL');
+        // 新增：添加 proxy_id 列到 connections 表 (如果不存在)
+        // 注意：直接添加带 FOREIGN KEY 的列在旧版 SQLite 中可能有限制，但现代版本通常支持。
+        // 如果遇到问题，可能需要更复杂的迁移步骤（创建新表，复制数据，重命名）。
+        // 这里我们先尝试直接添加。ON DELETE SET NULL 意味着如果代理被删除，关联的连接不会被删除，只是 proxy_id 变为空。
+        await addColumnIfNotExists(db, 'connections', 'proxy_id', 'INTEGER NULL REFERENCES proxies(id) ON DELETE SET NULL');
+
+        // 创建 proxies 表 (如果不存在)
+        await new Promise<void>((resolve, reject) => {
+            db.run(createProxiesTableSQL, (err) => {
+                if (err) return reject(new Error(`创建 proxies 表时出错: ${err.message}`));
+                console.log('Proxies 表已检查/创建。');
+                resolve();
+            });
+        });
 
         // Add other tables or columns here in the future
-        // await addColumnIfNotExists(db, 'connections', 'proxy_id', 'INTEGER NULL');
 
         console.log('数据库迁移检查完成。');
 

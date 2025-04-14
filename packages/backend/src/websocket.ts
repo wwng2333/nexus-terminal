@@ -6,6 +6,8 @@ import { WriteStream } from 'fs'; // 需要 WriteStream 类型 (虽然 ssh2 的�
 import { getDb } from './database'; // 引入数据库实例
 import { decrypt } from './utils/crypto'; // 引入解密函数
 import path from 'path'; // 需要 path
+import { HttpsProxyAgent } from 'https-proxy-agent'; // 引入 HTTP 代理支持
+import { SocksClient } from 'socks'; // 引入 SOCKS 代理支持
 
 // 扩展 WebSocket 类型以包含会话和 SSH/SFTP 连接信息
 interface AuthenticatedWebSocket extends WebSocket {
@@ -25,19 +27,30 @@ export const activeSshConnections = new Map<AuthenticatedWebSocket, { client: Cl
 // 注意：WriteStream 类型来自 'fs'，但 ssh2 的流行为类似
 const activeUploads = new Map<string, WriteStream>();
 
-// 数据库连接信息接口 (包含所有可能的凭证字段)
+// 数据库连接信息接口 (包含所有可能的凭证字段和 proxy_id)
 interface DbConnectionInfo {
     id: number;
     name: string;
     host: string;
     port: number;
     username: string;
-    auth_method: 'password' | 'key'; // 支持密码或密钥
+    auth_method: 'password' | 'key';
     encrypted_password?: string | null;
     encrypted_private_key?: string | null;
     encrypted_passphrase?: string | null;
-    // proxy_id: number | null; // 待添加代理支持
+    proxy_id?: number | null; // 关联的代理 ID
     // 其他字段...
+}
+
+// 新增：数据库代理信息接口
+interface DbProxyInfo {
+    id: number;
+    name: string;
+    type: 'SOCKS5' | 'HTTP';
+    host: string;
+    port: number;
+    username?: string | null;
+    encrypted_password?: string | null;
 }
 
 
@@ -63,7 +76,7 @@ const cleanupSshConnection = (ws: AuthenticatedWebSocket) => {
 };
 
 // --- 状态获取相关 ---
-const STATUS_POLL_INTERVAL = 5000; // 每 5 秒获取一次状态
+const STATUS_POLL_INTERVAL = 1000; // 每 5 秒获取一次状态
 
 // Helper function to execute a command and return its stdout
 const executeSshCommand = (client: Client, command: string): Promise<string> => {
@@ -494,15 +507,14 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                         console.log(`WebSocket: 用户 ${ws.username} 请求连接到 ID: ${connectionId}`);
                         ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在获取连接信息...' }));
 
-                        // 1. 从数据库获取连接信息 (包括所有凭证字段)
+                        // 1. 从数据库获取连接信息 (包括 proxy_id)
                         const connInfo = await new Promise<DbConnectionInfo | null>((resolve, reject) => {
-                            // 注意：如果多用户，需要验证 connectionId 是否属于当前 userId
                             db.get(
-                                `SELECT id, name, host, port, username, auth_method,
+                                `SELECT id, name, host, port, username, auth_method, proxy_id,
                                         encrypted_password, encrypted_private_key, encrypted_passphrase
-                                 FROM connections WHERE id = ?`,
+                                 FROM connections WHERE id = ?`, // 添加 proxy_id
                                 [connectionId],
-                                (err, row: DbConnectionInfo) => {
+                                (err, row: DbConnectionInfo) => { // 类型已更新
                                     if (err) {
                                         console.error(`查询连接 ${connectionId} 详细信息时出错:`, err);
                                         return reject(new Error('查询连接信息失败'));
@@ -523,9 +535,35 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                              // return;
                         }
 
+                        // 2. 获取代理信息 (如果 connInfo.proxy_id 存在)
+                        let proxyInfo: DbProxyInfo | null = null;
+                        if (connInfo.proxy_id) {
+                            ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在获取代理 ${connInfo.proxy_id} 信息...` }));
+                            try {
+                                proxyInfo = await new Promise<DbProxyInfo | null>((resolve, reject) => {
+                                    db.get(
+                                        `SELECT id, name, type, host, port, username, encrypted_password FROM proxies WHERE id = ?`,
+                                        [connInfo.proxy_id],
+                                        (err, row: DbProxyInfo) => {
+                                            if (err) return reject(new Error(`查询代理 ${connInfo.proxy_id} 失败: ${err.message}`));
+                                            resolve(row ?? null);
+                                        }
+                                    );
+                                });
+                                if (!proxyInfo) {
+                                    throw new Error(`未找到 ID 为 ${connInfo.proxy_id} 的代理配置。`);
+                                }
+                                console.log(`使用代理: ${proxyInfo.name} (${proxyInfo.type})`);
+                            } catch (proxyError: any) {
+                                console.error(`获取代理信息失败:`, proxyError);
+                                ws.send(JSON.stringify({ type: 'ssh:error', payload: `获取代理信息失败: ${proxyError.message}` }));
+                                return; // 获取代理失败则停止连接
+                            }
+                        }
+
                         ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在连接到 ${connInfo.host}...` }));
 
-                        // 2. 解密凭证并构建连接配置
+                        // 3. 解密凭证并构建连接配置
                         let connectConfig: any = {
                             host: connInfo.host,
                             port: connInfo.port,
@@ -558,96 +596,86 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                             return;
                         }
 
-                        // 3. 建立 SSH 连接
-                        const sshClient = new Client();
-                        ws.sshClient = sshClient; // 关联 client
+                        // 4. 处理代理配置（如果存在）并建立连接
+                        const sshClient = new Client(); // 创建 SSH Client 实例
 
-                        sshClient.on('ready', () => {
-                            console.log(`SSH: 用户 ${ws.username} 到 ${connInfo.host} 连接成功！`);
-                            ws.send(JSON.stringify({ type: 'ssh:status', payload: 'SSH 连接成功，正在打开 Shell...' }));
-
-                            // 4. 请求 Shell 通道
-                            sshClient.shell((err, stream) => {
-                                if (err) {
-                                    console.error(`SSH: 用户 ${ws.username} 打开 Shell 失败:`, err);
-                                    ws.send(JSON.stringify({ type: 'ssh:error', payload: `打开 Shell 失败: ${err.message}` }));
-                                    cleanupSshConnection(ws);
-                                    return;
+                        if (proxyInfo) {
+                            console.log(`WebSocket: 检测到连接 ${connInfo.id} 使用代理 ${proxyInfo.id} (${proxyInfo.type})`);
+                            ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在应用代理 ${proxyInfo.name}...` }));
+                            try {
+                                let proxyPassword = '';
+                                if (proxyInfo.encrypted_password) {
+                                    proxyPassword = decrypt(proxyInfo.encrypted_password);
                                 }
-                                ws.sshShellStream = stream; // 关联 stream
-                                // 存储活动连接 (此时 sftp 可能还未就绪)
-                                activeSshConnections.set(ws, { client: sshClient, shell: stream });
-                                console.log(`SSH: 用户 ${ws.username} Shell 通道已打开。`);
 
-                                // 尝试初始化 SFTP 会话
-                                sshClient.sftp((sftpErr, sftp) => {
-                                    if (sftpErr) {
-                                        console.error(`SFTP: 用户 ${ws.username} 初始化失败:`, sftpErr);
-                                        // 即使 SFTP 失败，也保持 Shell 连接，但发送错误通知
-                                        ws.send(JSON.stringify({ type: 'sftp:error', payload: `SFTP 初始化失败: ${sftpErr.message}` }));
-                                        // 不再发送 ssh:connected，因为 SFTP 也是核心功能的一部分
-                                        // ws.send(JSON.stringify({ type: 'ssh:connected' }));
-                                        // 可以在这里发送一个包含错误的状态
-                                        ws.send(JSON.stringify({ type: 'ssh:status', payload: 'Shell 已连接，但 SFTP 初始化失败。' }));
-                                        return;
+                                if (proxyInfo.type === 'SOCKS5') {
+                                    const socksOptions = {
+                                        proxy: {
+                                            host: proxyInfo.host,
+                                            port: proxyInfo.port,
+                                            type: 5 as 5, // SOCKS 版本 5
+                                            userId: proxyInfo.username || undefined,
+                                            password: proxyPassword || undefined,
+                                        },
+                                        command: 'connect' as 'connect',
+                                        destination: {
+                                            host: connInfo.host,
+                                            port: connInfo.port,
+                                        },
+                                        timeout: connectConfig.readyTimeout ?? 20000, // 使用连接超时时间
+                                    };
+                                    console.log(`WebSocket: 正在通过 SOCKS5 代理 ${proxyInfo.host}:${proxyInfo.port} 连接到目标 ${connInfo.host}:${connInfo.port}...`);
+                                    ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在通过 SOCKS5 代理 ${proxyInfo.name} 连接...` }));
+
+                                    SocksClient.createConnection(socksOptions)
+                                        .then(({ socket }) => {
+                                            console.log(`WebSocket: SOCKS5 代理连接成功。正在建立 SSH 连接...`);
+                                            ws.send(JSON.stringify({ type: 'ssh:status', payload: 'SOCKS5 代理连接成功，正在建立 SSH...' }));
+                                            connectConfig.sock = socket; // 使用建立的 SOCKS socket
+                                            connectSshClient(ws, sshClient, connectConfig, connInfo); // 通过代理连接 SSH
+                                        })
+                                        .catch(socksError => {
+                                            console.error(`WebSocket: SOCKS5 代理连接失败:`, socksError);
+                                            ws.send(JSON.stringify({ type: 'ssh:error', payload: `SOCKS5 代理连接失败: ${socksError.message}` }));
+                                            cleanupSshConnection(ws);
+                                        });
+                                    // 注意：对于 SOCKS5，连接逻辑在 .then 回调中处理
+
+                                } else if (proxyInfo.type === 'HTTP') {
+                                    let proxyUrl = `http://`;
+                                    if (proxyInfo.username) {
+                                        proxyUrl += `${proxyInfo.username}`;
+                                        if (proxyPassword) {
+                                            proxyUrl += `:${proxyPassword}`;
+                                        }
+                                        proxyUrl += '@';
                                     }
-                                    console.log(`SFTP: 用户 ${ws.username} 会话已初始化。`);
-                                    // 将 SFTP 实例存入 Map
-                                    const existingConn = activeSshConnections.get(ws);
-                                    if (existingConn) {
-                                        existingConn.sftp = sftp;
-                                        // SFTP 就绪后，才真正通知前端连接完成
-                                        ws.send(JSON.stringify({ type: 'ssh:connected' }));
-                                        // 启动状态轮询
-                                        startStatusPolling(ws, sshClient);
-                                    } else {
-                                        // This case should ideally not happen if the connection was set earlier
-                                        console.error(`SFTP: 无法找到用户 ${ws.username} 的活动连接记录以存储 SFTP 或启动轮询。`);
-                                        ws.send(JSON.stringify({ type: 'ssh:error', payload: '内部服务器错误：无法关联 SFTP 会话。' }));
-                                        cleanupSshConnection(ws);
-                                    }
-                                });
-
-                                // 5. 数据转发：Shell -> WebSocket (发送 Base64 编码的数据)
-                                stream.on('data', (data: Buffer) => {
-                                    // console.log('SSH Output Buffer Length:', data.length); // Debug log
-                                    ws.send(JSON.stringify({
-                                        type: 'ssh:output',
-                                        payload: data.toString('base64'), // 将 Buffer 转为 Base64 字符串
-                                        encoding: 'base64' // 明确告知前端编码方式
-                                    }));
-                                });
-
-                                // 6. 处理 Shell 关闭
-                                stream.on('close', () => {
-                                    console.log(`SSH: 用户 ${ws.username} Shell 通道已关闭。`);
-                                    ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'Shell 通道已关闭。' }));
-                                    cleanupSshConnection(ws); // 清理资源
-                                });
-                                // Stderr 也使用 Base64 发送
-                                stream.stderr.on('data', (data: Buffer) => {
-                                     console.error(`SSH Stderr (${ws.username}): ${data.toString('utf8').substring(0,100)}...`); // 日志中尝试 utf8 解码预览
-                                     ws.send(JSON.stringify({
-                                         type: 'ssh:output', // 同样使用 ssh:output 类型
-                                         payload: data.toString('base64'),
-                                         encoding: 'base64'
-                                     }));
-                                });
-                            });
-                        }).on('error', (err) => {
-                            console.error(`SSH: 用户 ${ws.username} 连接错误:`, err);
-                            ws.send(JSON.stringify({ type: 'ssh:error', payload: `SSH 连接错误: ${err.message}` }));
-                            cleanupSshConnection(ws);
-                        }).on('close', () => {
-                            console.log(`SSH: 用户 ${ws.username} 连接已关闭。`);
-                            // 确保即使 shell 没关闭，也要通知前端并清理
-                            if (activeSshConnections.has(ws)) {
-                                ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'SSH 连接已关闭。' }));
+                                    proxyUrl += `${proxyInfo.host}:${proxyInfo.port}`;
+                                    console.log(`WebSocket: 为连接 ${connInfo.id} 配置 HTTP 代理: ${proxyUrl.replace(/:[^:]*@/, ':***@')}`);
+                                    connectConfig.agent = new HttpsProxyAgent(proxyUrl);
+                                    console.log(`WebSocket: 已配置 HTTP 代理。正在建立 SSH 连接...`);
+                                    ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在通过 HTTP 代理 ${proxyInfo.name} 连接...` }));
+                                    connectSshClient(ws, sshClient, connectConfig, connInfo); // 通过代理连接 SSH
+                                } else {
+                                     console.error(`WebSocket: 未知的代理类型: ${proxyInfo.type}`);
+                                     ws.send(JSON.stringify({ type: 'ssh:error', payload: `未知的代理类型: ${proxyInfo.type}` }));
+                                     cleanupSshConnection(ws);
+                                }
+                            } catch (proxyProcessError: any) {
+                                console.error(`处理代理 ${proxyInfo.id} 配置或凭证失败:`, proxyProcessError);
+                                ws.send(JSON.stringify({ type: 'ssh:error', payload: `无法处理代理配置: ${proxyProcessError.message}` }));
                                 cleanupSshConnection(ws);
                             }
-                        }).connect(connectConfig); // 使用前面构建的 connectConfig 对象
+                        } else {
+                            // 5. 无代理，直接连接
+                            console.log(`WebSocket: 未配置代理。正在直接建立 SSH 连接...`);
+                            ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在直接连接到 ${connInfo.host}...` }));
+                            connectSshClient(ws, sshClient, connectConfig, connInfo); // 直接连接 SSH
+                        }
                         break;
                     } // end case 'ssh:connect'
+
+                    // --- 处理 SSH 输入 ---
 
                     // --- 处理 SSH 输入 ---
                     case 'ssh:input': {
@@ -1146,3 +1174,101 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
     console.log('WebSocket 服务器初始化完成。');
     return wss;
 };
+
+// --- 辅助函数：建立 SSH 连接并处理事件 ---
+function connectSshClient(ws: AuthenticatedWebSocket, sshClient: Client, connectConfig: any, connInfo: DbConnectionInfo) {
+    ws.sshClient = sshClient; // 关联 client
+
+    sshClient.on('ready', () => {
+        console.log(`SSH: 用户 ${ws.username} 到 ${connInfo.host} 连接成功！`);
+        ws.send(JSON.stringify({ type: 'ssh:status', payload: 'SSH 连接成功，正在打开 Shell...' }));
+
+        // 请求 Shell 通道
+        sshClient.shell((err, stream) => {
+            if (err) {
+                console.error(`SSH: 用户 ${ws.username} 打开 Shell 失败:`, err);
+                ws.send(JSON.stringify({ type: 'ssh:error', payload: `打开 Shell 失败: ${err.message}` }));
+                cleanupSshConnection(ws);
+                return;
+            }
+            ws.sshShellStream = stream; // 关联 stream
+            // 存储活动连接 (此时 sftp 可能还未就绪)
+            // 确保 client 和 shell 都存在才存储
+            if (activeSshConnections.has(ws)) {
+                 // 如果已存在（例如 SOCKS 连接后），更新 shell
+                 const existing = activeSshConnections.get(ws)!;
+                 existing.shell = stream;
+            } else {
+                 activeSshConnections.set(ws, { client: sshClient, shell: stream });
+            }
+            console.log(`SSH: 用户 ${ws.username} Shell 通道已打开。`);
+
+            // 尝试初始化 SFTP 会话
+            sshClient.sftp((sftpErr, sftp) => {
+                if (sftpErr) {
+                    console.error(`SFTP: 用户 ${ws.username} 初始化失败:`, sftpErr);
+                    ws.send(JSON.stringify({ type: 'sftp:error', payload: `SFTP 初始化失败: ${sftpErr.message}` }));
+                    ws.send(JSON.stringify({ type: 'ssh:status', payload: 'Shell 已连接，但 SFTP 初始化失败。' }));
+                    // SFTP 失败不应断开整个连接，但需要标记
+                    const existingConn = activeSshConnections.get(ws);
+                    if (existingConn) {
+                        // SFTP 失败，但 Shell 仍可用，启动状态轮询
+                        startStatusPolling(ws, sshClient);
+                    }
+                    return;
+                }
+                console.log(`SFTP: 用户 ${ws.username} 会话已初始化。`);
+                const existingConn = activeSshConnections.get(ws);
+                if (existingConn) {
+                    existingConn.sftp = sftp;
+                    ws.send(JSON.stringify({ type: 'ssh:connected' })); // SFTP 就绪后通知前端
+                    startStatusPolling(ws, sshClient); // 启动状态轮询
+                } else {
+                    console.error(`SFTP: 无法找到用户 ${ws.username} 的活动连接记录以存储 SFTP 或启动轮询。`);
+                    ws.send(JSON.stringify({ type: 'ssh:error', payload: '内部服务器错误：无法关联 SFTP 会话。' }));
+                    cleanupSshConnection(ws);
+                }
+            });
+
+            // 数据转发：Shell -> WebSocket
+            stream.on('data', (data: Buffer) => {
+                ws.send(JSON.stringify({
+                    type: 'ssh:output',
+                    payload: data.toString('base64'),
+                    encoding: 'base64'
+                }));
+            });
+
+            // 处理 Shell 关闭
+            stream.on('close', () => {
+                console.log(`SSH: 用户 ${ws.username} Shell 通道已关闭。`);
+                ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'Shell 通道已关闭。' }));
+                cleanupSshConnection(ws);
+            });
+            // Stderr 转发
+            stream.stderr.on('data', (data: Buffer) => {
+                 console.error(`SSH Stderr (${ws.username}): ${data.toString('utf8').substring(0,100)}...`);
+                 ws.send(JSON.stringify({
+                     type: 'ssh:output',
+                     payload: data.toString('base64'),
+                     encoding: 'base64'
+                 }));
+            });
+        });
+    }).on('error', (err) => {
+        console.error(`SSH: 用户 ${ws.username} 连接错误:`, err);
+        // 避免在 SOCKS 错误后重复发送错误
+        if (!ws.CLOSED && !ws.CLOSING) { // 检查 WebSocket 状态
+             ws.send(JSON.stringify({ type: 'ssh:error', payload: `SSH 连接错误: ${err.message}` }));
+        }
+        cleanupSshConnection(ws);
+    }).on('close', () => {
+        console.log(`SSH: 用户 ${ws.username} 连接已关闭。`);
+        if (activeSshConnections.has(ws)) {
+             if (!ws.CLOSED && !ws.CLOSING) {
+                 ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'SSH 连接已关闭。' }));
+             }
+             cleanupSshConnection(ws);
+        }
+    }).connect(connectConfig);
+}

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed } from 'vue'; // 引入 watch 和 computed
+import { ref, reactive, watch, computed, onMounted } from 'vue'; // 引入 onMounted
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store'; // 引入 ConnectionInfo
+import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
+import { useProxiesStore } from '../stores/proxies.store'; // 引入代理 Store
 
-// 定义组件发出的事件 (添加 connection-updated)
+// 定义组件发出的事件
 const emit = defineEmits(['close', 'connection-added', 'connection-updated']);
 
 // 定义 Props
@@ -14,7 +15,9 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const connectionsStore = useConnectionsStore();
-const { isLoading, error: storeError } = storeToRefs(connectionsStore); // 重命名 error 避免冲突
+const proxiesStore = useProxiesStore(); // 获取代理 store 实例
+const { isLoading: isConnLoading, error: connStoreError } = storeToRefs(connectionsStore);
+const { proxies, isLoading: isProxyLoading, error: proxyStoreError } = storeToRefs(proxiesStore); // 获取代理列表和状态
 
 // 表单数据模型
 const initialFormData = {
@@ -26,10 +29,13 @@ const initialFormData = {
   password: '',
   private_key: '',
   passphrase: '',
+  proxy_id: null as number | null, // 新增 proxy_id 字段
 };
 const formData = reactive({ ...initialFormData });
 
 const formError = ref<string | null>(null); // 表单级别的错误信息
+const isLoading = computed(() => isConnLoading.value || isProxyLoading.value); // 合并加载状态
+const storeError = computed(() => connStoreError.value || proxyStoreError.value); // 合并错误状态
 
 // 计算属性判断是否为编辑模式
 const isEditMode = computed(() => !!props.connectionToEdit);
@@ -41,6 +47,7 @@ const formTitle = computed(() => {
 
 // 计算属性动态设置提交按钮文本
 const submitButtonText = computed(() => {
+    // 使用合并后的 isLoading
     if (isLoading.value) {
         return isEditMode.value ? t('connections.form.saving') : t('connections.form.adding');
     }
@@ -57,7 +64,8 @@ watch(() => props.connectionToEdit, (newVal) => {
         formData.port = newVal.port;
         formData.username = newVal.username;
         formData.auth_method = newVal.auth_method;
-        // 清空敏感字段，要求用户重新输入以更新
+        formData.proxy_id = newVal.proxy_id ?? null; // 填充 proxy_id
+        // 清空敏感字段
         formData.password = '';
         formData.private_key = '';
         formData.passphrase = '';
@@ -65,12 +73,18 @@ watch(() => props.connectionToEdit, (newVal) => {
         // 添加模式：重置表单
         Object.assign(formData, initialFormData);
     }
-}, { immediate: true }); // immediate: true 确保初始加载时也执行
+}, { immediate: true });
+
+// 组件挂载时获取代理列表
+onMounted(() => {
+    proxiesStore.fetchProxies();
+});
 
 // 处理表单提交
 const handleSubmit = async () => {
-  formError.value = null; // 清除之前的错误
-  connectionsStore.error = null; // 清除 store 中的旧错误
+  formError.value = null;
+  connectionsStore.error = null;
+  proxiesStore.error = null; // 同时清除代理 store 的错误
 
   // 基础前端验证 (保持不变)
   if (!formData.name || !formData.host || !formData.username) {
@@ -81,15 +95,39 @@ const handleSubmit = async () => {
       formError.value = t('connections.form.errorPort');
       return;
   }
-  // 根据认证方式验证特定字段
-  if (formData.auth_method === 'password' && !formData.password) {
-      formError.value = t('connections.form.errorPasswordRequired');
-      return;
+
+  // --- 更新后的验证逻辑 ---
+  // 1. 添加模式下，密码/密钥是必填的
+  if (!isEditMode.value) {
+      if (formData.auth_method === 'password' && !formData.password) {
+          formError.value = t('connections.form.errorPasswordRequired');
+          return;
+      }
+      if (formData.auth_method === 'key' && !formData.private_key) {
+          formError.value = t('connections.form.errorPrivateKeyRequired');
+          return;
+      }
   }
-  if (formData.auth_method === 'key' && !formData.private_key) {
-      formError.value = t('connections.form.errorPrivateKeyRequired');
-      return;
+  // 2. 编辑模式下，如果切换到密码认证，则密码必填
+  else if (isEditMode.value && formData.auth_method === 'password' && !formData.password) {
+      // 检查原始连接的认证方式，如果原始不是密码，则切换时必须提供密码
+      if (props.connectionToEdit?.auth_method !== 'password') {
+          formError.value = t('connections.form.errorPasswordRequiredOnSwitch'); // 新增翻译键
+          return;
+      }
+      // 如果原始就是密码，编辑时密码可以不填（表示不修改）
   }
+  // 3. 编辑模式下，如果切换到密钥认证，则私钥必填
+  else if (isEditMode.value && formData.auth_method === 'key' && !formData.private_key) {
+       // 检查原始连接的认证方式，如果原始不是密钥，则切换时必须提供私钥
+       if (props.connectionToEdit?.auth_method !== 'key') {
+           formError.value = t('connections.form.errorPrivateKeyRequiredOnSwitch'); // 新增翻译键
+           return;
+       }
+       // 如果原始就是密钥，编辑时私钥可以不填（表示不修改）
+  }
+  // --- 验证逻辑结束 ---
+
 
   // 构建要发送的数据 (区分添加和编辑)
   const dataToSend: any = {
@@ -98,21 +136,27 @@ const handleSubmit = async () => {
       port: formData.port,
       username: formData.username,
       auth_method: formData.auth_method,
+      proxy_id: formData.proxy_id || null,
   };
 
-  // 只有当用户输入了新的密码/密钥时才包含它们
-  if (formData.auth_method === 'password' && formData.password) {
-      dataToSend.password = formData.password;
+  // 处理敏感字段
+  if (formData.auth_method === 'password') {
+      // 仅当用户输入新密码或在编辑模式下明确清空时才发送
+      if (formData.password) {
+          dataToSend.password = formData.password;
+      } else if (isEditMode.value && formData.password === '') {
+          dataToSend.password = null; // 发送 null 表示清空密码 (后端需要能处理 null)
+      }
   } else if (formData.auth_method === 'key') {
-      if (formData.private_key) { // 只有输入了新私钥才发送
+      // 仅当用户输入新私钥时才发送
+      if (formData.private_key) {
           dataToSend.private_key = formData.private_key;
       }
-      if (formData.passphrase) { // 只有输入了新密码短语才发送
+      // 仅当用户输入新密码短语或在编辑模式下明确清空时才发送
+      if (formData.passphrase) {
           dataToSend.passphrase = formData.passphrase;
-      } else if (isEditMode.value && formData.private_key && !formData.passphrase) {
-          // 如果是编辑模式，输入了新私钥但清空了密码短语，需要显式发送空字符串或 null
-          // 取决于后端如何处理清空密码短语。假设发送空字符串。
-          dataToSend.passphrase = '';
+      } else if (isEditMode.value && formData.passphrase === '') {
+          dataToSend.passphrase = null; // 发送 null 表示清空密码短语
       }
   }
 
@@ -171,14 +215,16 @@ const handleSubmit = async () => {
         <!-- 密码输入 (条件渲染) -->
         <div class="form-group" v-if="formData.auth_method === 'password'">
           <label for="conn-password">{{ t('connections.form.password') }}</label>
-          <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password'" />
+          <!-- 编辑模式下非必填 -->
+          <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" />
         </div>
 
         <!-- 密钥输入 (条件渲染) -->
         <div v-if="formData.auth_method === 'key'">
             <div class="form-group">
                 <label for="conn-private-key">{{ t('connections.form.privateKey') }}</label>
-                <textarea id="conn-private-key" v-model="formData.private_key" rows="6" :required="formData.auth_method === 'key'"></textarea>
+                <!-- 编辑模式下非必填 -->
+                <textarea id="conn-private-key" v-model="formData.private_key" rows="6" :required="formData.auth_method === 'key' && !isEditMode"></textarea>
             </div>
             <div class="form-group">
                 <label for="conn-passphrase">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
@@ -189,16 +235,29 @@ const handleSubmit = async () => {
              </div>
         </div>
 
+        <!-- 新增：代理选择 -->
+        <div class="form-group">
+            <label for="conn-proxy">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
+            <select id="conn-proxy" v-model="formData.proxy_id">
+                <option :value="null">{{ t('connections.form.noProxy') }}</option>
+                <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">
+                    {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
+                </option>
+            </select>
+             <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
+             <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
+        </div>
+
         <!-- 显示 storeError 或 formError -->
         <div v-if="formError || storeError" class="error-message">
-          {{ formError || storeError }}
+          {{ formError || storeError }} <!-- 使用合并后的 storeError -->
         </div>
 
         <div class="form-actions">
-          <button type="submit" :disabled="isLoading">
-            {{ submitButtonText }} <!-- 使用计算属性 -->
+          <button type="submit" :disabled="isLoading"> <!-- 使用合并后的 isLoading -->
+            {{ submitButtonText }}
           </button>
-          <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button>
+          <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button> <!-- 使用合并后的 isLoading -->
         </div>
       </form>
     </div>
