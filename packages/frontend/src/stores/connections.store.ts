@@ -8,7 +8,7 @@ export interface ConnectionInfo {
     host: string;
     port: number;
     username: string;
-    auth_method: 'password';
+    auth_method: 'password' | 'key'; // 允许 key 类型
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;
@@ -51,7 +51,17 @@ export const useConnectionsStore = defineStore('connections', {
         },
 
         // 添加新连接 Action
-        async addConnection(newConnectionData: { name: string; host: string; port: number; username: string; password: string }) {
+        // 更新参数类型以接受新的认证字段
+        async addConnection(newConnectionData: {
+            name: string;
+            host: string;
+            port: number;
+            username: string;
+            auth_method: 'password' | 'key';
+            password?: string; // 密码变为可选
+            private_key?: string; // 私钥是可选的 (仅在 auth_method 为 key 时需要)
+            passphrase?: string; // 私钥密码是可选的
+        }) {
             this.isLoading = true; // 可以为添加操作单独设置加载状态，或共用 isLoading
             this.error = null;
             try {
@@ -65,6 +75,62 @@ export const useConnectionsStore = defineStore('connections', {
                  if (err.response?.status === 401) {
                     console.warn('未授权，需要登录才能添加连接。');
                 }
+                return false; // 表示失败
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // 更新连接 Action
+        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { password?: string; private_key?: string; passphrase?: string }>) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                // 发送 PUT 请求到 /api/v1/connections/:id
+                // 注意：后端 API 需要支持接收这些字段并进行更新
+                const response = await axios.put<{ message: string; connection: ConnectionInfo }>(`/api/v1/connections/${connectionId}`, updatedData);
+
+                // 更新成功后，在列表中找到并更新对应的连接信息
+                const index = this.connections.findIndex(conn => conn.id === connectionId);
+                if (index !== -1) {
+                    // 使用更新后的完整信息替换旧信息
+                    // 注意：后端返回的 connection 可能不包含敏感信息，但应包含更新后的非敏感字段
+                    this.connections[index] = { ...this.connections[index], ...response.data.connection };
+                } else {
+                    // 如果本地找不到，可能需要重新获取列表
+                    await this.fetchConnections();
+                }
+                return true; // 表示成功
+            } catch (err: any) {
+                console.error(`更新连接 ${connectionId} 失败:`, err);
+                this.error = err.response?.data?.message || err.message || `更新连接时发生未知错误。`;
+                if (err.response?.status === 401) {
+                    console.warn('未授权，需要登录才能更新连接。');
+                }
+                return false; // 表示失败
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // 删除连接 Action
+        async deleteConnection(connectionId: number) {
+            this.isLoading = true; // 可以为删除操作单独设置加载状态
+            this.error = null;
+            try {
+                // 发送 DELETE 请求到 /api/v1/connections/:id
+                await axios.delete(`/api/v1/connections/${connectionId}`);
+
+                // 删除成功后，从本地列表中移除该连接
+                this.connections = this.connections.filter(conn => conn.id !== connectionId);
+                return true; // 表示成功
+            } catch (err: any) {
+                console.error(`删除连接 ${connectionId} 失败:`, err);
+                this.error = err.response?.data?.message || err.message || `删除连接时发生未知错误。`;
+                if (err.response?.status === 401) {
+                    console.warn('未授权，需要登录才能删除连接。');
+                }
+                // 即使删除失败，也可能需要通知用户
                 return false; // 表示失败
             } finally {
                 this.isLoading = false;

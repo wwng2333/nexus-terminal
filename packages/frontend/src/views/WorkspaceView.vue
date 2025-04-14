@@ -4,7 +4,21 @@ import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n'; // 引入 useI18n
 import TerminalComponent from '../components/Terminal.vue'; // 引入终端组件
 import FileManagerComponent from '../components/FileManager.vue'; // 引入文件管理器组件
+import StatusMonitorComponent from '../components/StatusMonitor.vue'; // 引入状态监控组件
 import type { Terminal } from 'xterm'; // 引入 Terminal 类型
+
+// --- Interfaces ---
+// Updated interface to match StatusMonitor and backend
+interface ServerStatus {
+  cpuPercent?: number;
+  memPercent?: number;
+  memUsed?: number; // MB
+  memTotal?: number; // MB
+  diskPercent?: number;
+  diskUsed?: number; // KB
+  diskTotal?: number; // KB
+  cpuModel?: string;
+}
 
 const { t } = useI18n(); // 获取 t 函数
 const route = useRoute();
@@ -15,6 +29,8 @@ const ws = ref<WebSocket | null>(null); // WebSocket 实例引用
 const connectionStatus = ref<'connecting' | 'connected' | 'disconnected' | 'error'>('connecting');
 const statusMessage = ref<string>(t('workspace.status.initializing')); // 使用 i18n
 const terminalOutputBuffer = ref<string[]>([]); // 缓冲 WebSocket 消息直到终端准备好
+const serverStatus = ref<ServerStatus | null>(null); // 存储服务器状态数据
+const statusError = ref<string | null>(null); // 存储状态获取错误
 
 // 辅助函数：根据状态码获取 i18n 状态文本
 const getStatusText = (statusKey: string, params?: Record<string, any>): string => {
@@ -144,6 +160,18 @@ const initializeWebSocketConnection = () => {
              statusMessage.value = getStatusText('error', { message: message.payload });
               terminalInstance.value?.writeln(`\r\n\x1b[31m${getTerminalText('errorPrefix')} ${message.payload}\x1b[0m`);
               break;
+        // --- Handle Status Updates ---
+        case 'ssh:status:update':
+            // console.log('收到状态更新:', message.payload); // Debug log
+            serverStatus.value = message.payload;
+            statusError.value = null; // Clear previous error on successful update
+            break;
+        // Optional: Handle status errors if backend sends them
+        // case 'ssh:status:error':
+        //     console.error('获取服务器状态时出错:', message.payload);
+        //     statusError.value = message.payload || '无法获取服务器状态';
+        //     serverStatus.value = null; // Clear status data on error
+        //     break;
          // default: // Removed default case to allow other components to handle messages
          //   console.warn('WorkspaceView: 收到未处理的 WebSocket 消息类型:', message.type);
        }
@@ -171,6 +199,8 @@ const initializeWebSocketConnection = () => {
         terminalInstance.value?.writeln(`\r\n\x1b[31m${getTerminalText('wsCloseMsg', { code: event.code })}\x1b[0m`);
     }
     ws.value = null; // 清理引用
+    serverStatus.value = null; // Clear server status on disconnect
+    statusError.value = null; // Clear status error on disconnect
   };
 };
 
@@ -201,16 +231,24 @@ onBeforeUnmount(() => {
       <!-- 状态颜色仍然通过 class 绑定 -->
       <span :class="`status-${connectionStatus}`"></span>
     </div>
-    <div class="terminal-wrapper">
-      <TerminalComponent
-        @ready="onTerminalReady"
-        @data="onTerminalData"
-        @resize="onTerminalResize"
-      />
-    </div>
-    <!-- 文件管理器窗格 -->
-    <div class="file-manager-wrapper">
-       <FileManagerComponent :ws="ws" :is-connected="connectionStatus === 'connected'" />
+    <div class="main-content-area">
+      <div class="left-pane">
+        <div class="terminal-wrapper">
+          <TerminalComponent
+            @ready="onTerminalReady"
+            @data="onTerminalData"
+            @resize="onTerminalResize"
+          />
+        </div>
+        <!-- 文件管理器窗格 -->
+        <div class="file-manager-wrapper">
+           <FileManagerComponent :ws="ws" :is-connected="connectionStatus === 'connected'" />
+        </div>
+      </div>
+      <!-- 状态监控窗格 -->
+      <div class="status-monitor-wrapper">
+        <StatusMonitorComponent :status-data="serverStatus" :error="statusError" />
+      </div>
     </div>
   </div>
 </template>
@@ -237,16 +275,57 @@ onBeforeUnmount(() => {
 .status-disconnected { color: grey; }
 .status-error { color: red; }
 
+.main-content-area {
+    display: flex;
+    flex-grow: 1; /* Take remaining vertical space */
+    overflow: hidden; /* Prevent this container from scrolling */
+}
+
+.left-pane {
+    display: flex;
+    flex-direction: column;
+    width: 80%; /* Example width, adjust as needed */
+    height: 100%;
+}
+
 .terminal-wrapper {
   /* flex-grow: 1; */ /* 不再让终端独占剩余空间 */
   height: 60%; /* 示例：终端占 60% 高度 */
+  /* width: 50%; */ /* Removed width */
+  /* height: 100%; */ /* Removed height */
   background-color: #1e1e1e; /* 终端背景色 */
   overflow: hidden; /* 内部滚动由 xterm 处理 */
+  display: flex; /* Ensure TerminalComponent fills this wrapper */
+  flex-direction: column;
 }
+.terminal-wrapper > * {
+    flex-grow: 1; /* Make TerminalComponent fill the wrapper */
+}
+
 
 .file-manager-wrapper {
     height: 40%; /* 示例：文件管理器占 40% 高度 */
-    border-top: 2px solid #ccc; /* 添加分隔线 */
+    /* width: 30%; */ /* Removed width */
+    /* height: 100%; */ /* Removed height */
+    /* border-left: 2px solid #ccc; */ /* Removed left border */
+    border-top: 2px solid #ccc; /* Add top border */
     overflow: hidden; /* 防止自身滚动 */
+    display: flex; /* Ensure FileManagerComponent fills this wrapper */
+    flex-direction: column;
+}
+.file-manager-wrapper > * {
+    flex-grow: 1; /* Make FileManagerComponent fill the wrapper */
+}
+
+.status-monitor-wrapper {
+    width: 20%; /* Example width */
+    height: 100%;
+    border-left: 2px solid #ccc; /* Separator */
+    overflow: hidden; /* Prevent scrolling */
+    display: flex; /* Ensure StatusMonitorComponent fills this wrapper */
+    flex-direction: column;
+}
+.status-monitor-wrapper > * {
+    flex-grow: 1; /* Make StatusMonitorComponent fill the wrapper */
 }
 </style>

@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { isAuthenticated } from '../auth/auth.middleware'; // 引入认证中间件
-import { createConnection, getConnections } from './connections.controller';
+import {
+    createConnection,
+    getConnections,
+    getConnectionById, // 引入获取单个连接的控制器
+    updateConnection, // 引入更新连接的控制器
+    deleteConnection // 引入删除连接的控制器
+} from './connections.controller';
 
 const router = Router();
 
@@ -13,10 +19,16 @@ router.get('/', getConnections);
 // POST /api/v1/connections - 创建新连接
 router.post('/', createConnection);
 
-// 未来可以添加其他路由，如获取单个连接、更新、删除、测试连接等
-// router.get('/:id', getConnectionById);
-// router.put('/:id', updateConnection);
-// router.delete('/:id', deleteConnection);
+// GET /api/v1/connections/:id - 获取单个连接信息
+router.get('/:id', getConnectionById);
+
+// PUT /api/v1/connections/:id - 更新连接信息
+router.put('/:id', updateConnection);
+
+// DELETE /api/v1/connections/:id - 删除连接
+router.delete('/:id', deleteConnection); // 使用占位符
+
+// TODO: 添加测试连接路由
 // router.post('/:id/test', testConnection);
 
 export default router;

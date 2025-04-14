@@ -17,7 +17,7 @@
     "paths": {
       "@/*": ["src/*"] // 路径别名，例如 @/components/* 指向 src/components/*
     },
-    "types": ["vite/client"] // **关键：包含 Vite 客户端类型定义**
+    "types": ["vite/client", "pinia-plugin-persistedstate"] // **关键：包含 Vite 客户端和 Pinia 持久化插件类型定义**
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"], // 需要进行类型检查的文件
   "exclude": ["node_modules"] // 排除检查的目录

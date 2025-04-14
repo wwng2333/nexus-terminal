@@ -26,8 +26,8 @@ const props = defineProps({
   }
 });
 
-// Emits for v-model update
-const emit = defineEmits(['update:modelValue']);
+// Emits for v-model update and save request
+const emit = defineEmits(['update:modelValue', 'request-save']);
 
 const editorContainer = ref<HTMLElement | null>(null);
 let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
@@ -55,6 +55,24 @@ onMounted(() => {
         }
       }
     });
+
+    // Add Ctrl+S / Cmd+S keybinding for saving
+    editorInstance.addAction({
+      id: 'save-file',
+      label: 'Save File',
+      keybindings: [
+        monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
+      ],
+      precondition: undefined, // Fix: Use undefined instead of null
+      keybindingContext: undefined, // Fix: Use undefined instead of null
+      contextMenuGroupId: 'navigation', // Optional: where to show in context menu
+      contextMenuOrder: 1.5, // Optional: order in context menu
+      run: () => {
+        console.log('[MonacoEditor] Save action triggered (Ctrl+S / Cmd+S)');
+        emit('request-save');
+      },
+    });
+
   }
 });
 

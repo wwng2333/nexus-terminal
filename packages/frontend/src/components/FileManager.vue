@@ -57,6 +57,21 @@ const isDraggingOver = ref(false); // State for drag-over visual feedback
 const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename'); // Default sort key
 const sortDirection = ref<'asc' | 'desc'>('asc'); // Default sort direction
 
+// --- Column Resizing State ---
+const tableRef = ref<HTMLTableElement | null>(null);
+const colWidths = ref({ // Initial widths (adjust as needed)
+  type: 50,
+  name: 300,
+  size: 100,
+  permissions: 120,
+  modified: 180,
+});
+const isResizing = ref(false);
+const resizingColumnIndex = ref(-1);
+const startX = ref(0);
+const startWidth = ref(0);
+
+
 // --- Editor State ---
 const isEditorVisible = ref(false);
 const editingFilePath = ref<string | null>(null);
@@ -210,17 +225,21 @@ const showContextMenu = (event: MouseEvent, item?: FileListItem) => {
       ];
   } else if (targetItem && targetItem.filename !== '..') {
       menu = [
-          { label: t('fileManager.actions.rename'), action: () => handleRenameClick(targetItem) },
-          { label: t('fileManager.actions.changePermissions'), action: () => handleChangePermissionsClick(targetItem) },
-          { label: t('fileManager.actions.delete'), action: handleDeleteClick },
+          { label: t('fileManager.actions.newFolder'), action: handleNewFolderClick },
+          { label: t('fileManager.actions.newFile'), action: handleNewFileClick }, // 添加新建文件选项
+          { label: t('fileManager.actions.upload'), action: triggerFileUpload },
+          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) },
       ];
-      if (targetItem.attrs.isFile) {
-          menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => triggerDownload(targetItem) });
-      }
-       menu.push({ label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) });
+        if (targetItem.attrs.isFile) {
+            menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => triggerDownload(targetItem) });
+        }
+       // Add Delete option for single item
+       menu.push({ label: t('fileManager.actions.delete'), action: handleDeleteClick });
+       // Removed duplicate refresh: menu.push({ label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) });
   } else if (!targetItem) {
       menu = [
           { label: t('fileManager.actions.newFolder'), action: handleNewFolderClick },
+          { label: t('fileManager.actions.newFile'), action: handleNewFileClick }, // 添加新建文件选项
           { label: t('fileManager.actions.upload'), action: triggerFileUpload },
           { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) },
       ];
@@ -403,15 +422,26 @@ const handleWebSocketMessage = (event: MessageEvent) => {
             editingFileContent.value = `// ${editorError.value}`; // Show error in editor
         }
         // --- Handle Editor Save Status ---
-        else if (type === 'sftp:writefile:success' && path === editingFilePath.value) {
-            isSaving.value = false;
-            saveStatus.value = 'success';
-            saveError.value = null;
-            // Optionally close editor on successful save, or just show status
-            // closeEditor();
-            // Reset status after a short delay
-            setTimeout(() => { if (saveStatus.value === 'success') saveStatus.value = 'idle'; }, 2000);
-        } else if (type === 'sftp:writefile:error' && path === editingFilePath.value) {
+        else if (type === 'sftp:writefile:success') { // Handle ALL successful writes
+            // Extract parent directory
+            const parentDir = path.substring(0, path.lastIndexOf('/')) || '/';
+
+            // Refresh if the write occurred in the current directory
+            if (parentDir === currentPath.value) {
+                loadDirectory(currentPath.value);
+            }
+
+            // Update editor status ONLY if the saved file is the one being edited
+            if (path === editingFilePath.value) {
+                isSaving.value = false;
+                saveStatus.value = 'success';
+                saveError.value = null;
+                // Optionally close editor on successful save, or just show status
+                // closeEditor();
+                // Reset status after a short delay
+                setTimeout(() => { if (saveStatus.value === 'success') saveStatus.value = 'idle'; }, 2000);
+            }
+        } else if (type === 'sftp:writefile:error' && path === editingFilePath.value) { // Error only relevant if editing this file
             isSaving.value = false;
             saveStatus.value = 'error';
             saveError.value = `${t('fileManager.errors.saveFailed')}: ${payload}`;
@@ -633,8 +663,37 @@ const handleNewFolderClick = () => {
     if (folderName) {
         const newFolderPath = joinPath(currentPath.value, folderName);
         props.ws.send(JSON.stringify({ type: 'sftp:mkdir', payload: { path: newFolderPath } }));
+        // 移除立即刷新，依赖 sftp:mkdir:success 消息
+        // loadDirectory(currentPath.value);
     }
 };
+
+// 处理新建文件点击事件
+const handleNewFileClick = () => {
+    if (!props.ws || props.ws.readyState !== WebSocket.OPEN) return;
+    const fileName = prompt(t('fileManager.prompts.enterFileName'));
+    if (fileName) {
+        // 检查文件名是否已存在
+        if (fileList.value.some(item => item.filename === fileName)) {
+            alert(t('fileManager.errors.fileExists', { name: fileName }));
+            return;
+        }
+        const newFilePath = joinPath(currentPath.value, fileName);
+        // 发送创建空文件的请求到后端 (通过写入空内容)
+        props.ws.send(JSON.stringify({
+            type: 'sftp:writefile',
+            payload: {
+                path: newFilePath,
+                content: '', // 发送空内容来创建文件
+                encoding: 'utf8',
+            }
+        }));
+        // 显式调用刷新，即使成功消息处理程序也会刷新
+        loadDirectory(currentPath.value); // 确保在发送请求后立即尝试刷新
+        // 成功或失败的消息会触发 sftp:writefile:success/error，进而刷新目录
+    }
+};
+
 
 // --- Sorting Logic ---
 const sortedFileList = computed(() => {
@@ -719,6 +778,61 @@ onBeforeUnmount(() => {
     document.removeEventListener('click', hideContextMenu, { capture: true });
 });
 
+// --- Column Resizing Logic ---
+const getColumnKeyByIndex = (index: number): keyof typeof colWidths.value | null => {
+    const keys = Object.keys(colWidths.value) as Array<keyof typeof colWidths.value>;
+    return keys[index] ?? null;
+};
+
+const startResize = (event: MouseEvent, index: number) => {
+  event.preventDefault(); // Prevent text selection during drag
+  isResizing.value = true;
+  resizingColumnIndex.value = index;
+  startX.value = event.clientX;
+  const colKey = getColumnKeyByIndex(index);
+  if (colKey) {
+      startWidth.value = colWidths.value[colKey];
+  } else {
+      // Fallback or error handling if index is out of bounds
+      const thElement = (event.target as HTMLElement).closest('th');
+      startWidth.value = thElement?.offsetWidth ?? 100; // Estimate if key not found
+  }
+
+
+  document.addEventListener('mousemove', handleResize);
+  document.addEventListener('mouseup', stopResize);
+  document.body.style.cursor = 'col-resize'; // Change cursor globally
+  document.body.style.userSelect = 'none'; // Prevent text selection globally
+};
+
+const handleResize = (event: MouseEvent) => {
+  if (!isResizing.value || resizingColumnIndex.value < 0) return;
+
+  const currentX = event.clientX;
+  const diffX = currentX - startX.value;
+  const newWidth = Math.max(30, startWidth.value + diffX); // Minimum width 30px
+
+  const colKey = getColumnKeyByIndex(resizingColumnIndex.value);
+   if (colKey) {
+       colWidths.value[colKey] = newWidth;
+   }
+   // Note: Direct manipulation of <col> width via style might be needed
+   // if reactive updates to :style don't work reliably with table-layout:fixed.
+   // Let's try with reactive refs first.
+};
+
+const stopResize = () => {
+  if (isResizing.value) {
+    isResizing.value = false;
+    resizingColumnIndex.value = -1;
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', stopResize);
+    document.body.style.cursor = ''; // Reset cursor
+    document.body.style.userSelect = ''; // Reset text selection
+  }
+};
+
+
 </script>
 
 <template>
@@ -734,6 +848,7 @@ onBeforeUnmount(() => {
              <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
              <button @click="triggerFileUpload" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
              <button @click="handleNewFolderClick" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button>
+             <button @click="handleNewFileClick" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button> <!-- 新建文件按钮 -->
         </div>
     </div>
 
@@ -749,25 +864,40 @@ onBeforeUnmount(() => {
         <div v-if="isLoading && fileList.length === 0" class="loading">{{ t('fileManager.loading') }}</div>
         <div v-else-if="error" class="error">{{ t('fileManager.errors.generic') }}: {{ error }}</div>
 
-        <table v-if="sortedFileList.length > 0 || currentPath !== '/'" @contextmenu.prevent>
+        <table v-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
+           <colgroup>
+             <col :style="{ width: `${colWidths.type}px` }">
+             <col :style="{ width: `${colWidths.name}px` }">
+             <col :style="{ width: `${colWidths.size}px` }">
+             <col :style="{ width: `${colWidths.permissions}px` }">
+             <col :style="{ width: `${colWidths.modified}px` }">
+             <!-- Add more cols if needed -->
+           </colgroup>
           <thead>
             <tr>
               <th @click="handleSort('type')" class="sortable">
                 {{ t('fileManager.headers.type') }}
                 <span v-if="sortKey === 'type'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span class="resizer" @mousedown.prevent="startResize($event, 0)" @click.stop></span>
               </th>
               <th @click="handleSort('filename')" class="sortable">
                 {{ t('fileManager.headers.name') }}
                 <span v-if="sortKey === 'filename'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span class="resizer" @mousedown.prevent="startResize($event, 1)" @click.stop></span>
               </th>
               <th @click="handleSort('size')" class="sortable">
                 {{ t('fileManager.headers.size') }}
                 <span v-if="sortKey === 'size'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span class="resizer" @mousedown.prevent="startResize($event, 2)" @click.stop></span>
               </th>
-              <th>{{ t('fileManager.headers.permissions') }}</th> <!-- Permissions not sortable for now -->
-              <th @click="handleSort('mtime')" class="sortable">
+              <th> <!-- Permissions not sortable for now -->
+                {{ t('fileManager.headers.permissions') }}
+                <span class="resizer" @mousedown.prevent="startResize($event, 3)" @click.stop></span>
+              </th>
+              <th @click="handleSort('mtime')" class="sortable"> <!-- Last column doesn't need a resizer -->
                 {{ t('fileManager.headers.modified') }}
                 <span v-if="sortKey === 'mtime'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <!-- No resizer on the last column -->
               </th>
               <!-- Removed Actions Header -->
             </tr>
@@ -853,6 +983,7 @@ onBeforeUnmount(() => {
         :language="editingFileLanguage"
         theme="vs-dark"
         class="editor-instance"
+        @request-save="handleSaveFile"
       />
       <!-- Save button added above -->
     </div>
@@ -898,14 +1029,28 @@ onBeforeUnmount(() => {
     pointer-events: none; /* Allow drop event to pass through */
     z-index: 2; /* Above table */
 }
-table { width: 100%; border-collapse: collapse; }
+table.resizable-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Crucial for resizing */
+  overflow: hidden; /* Prevent resizer overflow */
+}
 thead { background-color: #f8f8f8; position: sticky; top: 0; z-index: 1; }
-th, td { border: 1px solid #eee; padding: 0.4rem 0.6rem; text-align: left; white-space: nowrap; }
+th, td {
+    border: 1px solid #eee;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden; /* Hide overflow text */
+    text-overflow: ellipsis; /* Show ellipsis for overflow */
+}
+th {
+    position: relative; /* Needed for absolute positioning of resizer */
+}
 th.sortable { cursor: pointer; }
 th.sortable:hover { background-color: #e9e9e9; }
-/* Set a smaller default width for the first column (Type) */
-th:first-child, td:first-child {
-  width: 40px; /* Adjust as needed */
+/* Removed fixed width for first column, handled by colgroup */
+td:first-child {
   text-align: center; /* Center the icon */
 }
 tbody tr:hover { background-color: #f5f5f5; }
@@ -918,6 +1063,22 @@ tbody tr.selected:hover { background-color: #b8daff; }
 .context-menu li { padding: 8px 12px; cursor: pointer; }
 .context-menu li:hover { background-color: #eee; }
 .context-menu li.disabled { color: #aaa; cursor: not-allowed; background-color: white; }
+
+/* Resizer Handle Styles */
+.resizer {
+  position: absolute;
+  top: 0;
+  right: -3px; /* Position slightly outside the cell border */
+  width: 6px; /* Hit area width */
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2; /* Above cell content */
+  /* background-color: rgba(0, 0, 255, 0.1); */ /* Optional: Make handle visible for debugging */
+}
+.resizer:hover {
+    background-color: rgba(0, 100, 255, 0.2); /* Visual feedback on hover */
+}
+
 
 /* Editor Styles */
 .editor-overlay {

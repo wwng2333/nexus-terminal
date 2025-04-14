@@ -40,13 +40,32 @@
       "host": "主机/IP:",
       "port": "端口:",
       "username": "用户名:",
+      "authMethod": "认证方式:",
+      "authMethodPassword": "密码",
+      "authMethodKey": "SSH 密钥",
       "password": "密码:",
+      "privateKey": "私钥:",
+      "passphrase": "私钥密码:",
+      "optional": "可选",
       "confirm": "确认添加",
       "adding": "正在添加...",
       "cancel": "取消",
-      "errorRequired": "所有字段均为必填项。",
+      "errorRequiredFields": "请填写所有必填字段。",
+      "errorPasswordRequired": "使用密码认证时，密码为必填项。",
+      "errorPrivateKeyRequired": "使用密钥认证时，私钥为必填项。",
       "errorPort": "端口号必须在 1 到 65535 之间。",
-      "errorAdd": "添加连接失败: {error}"
+      "errorAdd": "添加连接失败: {error}",
+      "titleEdit": "编辑连接",
+      "confirmEdit": "确认编辑",
+      "saving": "正在保存...",
+      "errorUpdate": "更新连接失败: {error}",
+      "keyUpdateNote": "将私钥和密码短语留空以保留现有密钥。"
+    },
+    "prompts": {
+        "confirmDelete": "确定要删除连接 \"{name}\" 吗？此操作不可撤销。"
+    },
+    "errors": {
+        "deleteFailed": "删除连接失败: {error}"
     },
     "status": {
       "never": "从未"
@@ -94,6 +113,7 @@
       "uploadFile": "上传文件",
       "upload": "上传",
       "newFolder": "新建文件夹",
+      "newFile": "新建文件",
       "rename": "重命名",
       "changePermissions": "修改权限",
       "delete": "删除",
@@ -131,7 +151,8 @@
       "readFileFailed": "读取文件失败",
       "fileDecodeError": "文件解码失败 (可能不是 UTF-8 编码)",
       "saveFailed": "保存文件失败",
-      "saveTimeout": "保存超时"
+      "saveTimeout": "保存超时",
+      "fileExists": "文件 \"{name}\" 已存在。"
     },
     "prompts": {
       "enterFolderName": "请输入新文件夹的名称:",
@@ -140,7 +161,8 @@
       "confirmDeleteFolder": "确定要删除目录 \"{name}\" 及其所有内容吗？此操作不可撤销。",
       "confirmDeleteFile": "确定要删除文件 \"{name}\" 吗？此操作不可撤销。",
       "enterNewName": "请输入 \"{oldName}\" 的新名称:",
-      "enterNewPermissions": "请输入 \"{name}\" 的新权限 (八进制, 例如 755):"
+      "enterNewPermissions": "请输入 \"{name}\" 的新权限 (八进制, 例如 755):",
+      "enterFileName": "请输入新文件的名称:"
     },
     "editingFile": "正在编辑",
     "loadingFile": "正在加载文件...",

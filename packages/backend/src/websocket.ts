@@ -15,24 +15,28 @@ interface AuthenticatedWebSocket extends WebSocket {
     sshClient?: Client; // 关联的 SSH Client 实例
     sshShellStream?: ClientChannel; // 关联的 SSH Shell Stream
     sftpStream?: SFTPWrapper; // 关联的 SFTP Stream
+    statusIntervalId?: NodeJS.Timeout; // 用于存储状态轮询的 Interval ID
 }
 
 // 存储活跃的 SSH/SFTP 连接 (导出以便其他模块访问)
-export const activeSshConnections = new Map<AuthenticatedWebSocket, { client: Client, shell: ClientChannel, sftp?: SFTPWrapper }>();
+export const activeSshConnections = new Map<AuthenticatedWebSocket, { client: Client, shell: ClientChannel, sftp?: SFTPWrapper, statusIntervalId?: NodeJS.Timeout }>();
 
 // 存储正在进行的 SFTP 上传操作 (key: uploadId, value: WriteStream)
 // 注意：WriteStream 类型来自 'fs'，但 ssh2 的流行为类似
 const activeUploads = new Map<string, WriteStream>();
 
-// 数据库连接信息接口 (包含加密密码)
+// 数据库连接信息接口 (包含所有可能的凭证字段)
 interface DbConnectionInfo {
     id: number;
     name: string;
     host: string;
     port: number;
     username: string;
-    auth_method: 'password';
-    encrypted_password?: string; // 注意是可选的，因为可能没有密码 (虽然 MVP 要求有)
+    auth_method: 'password' | 'key'; // 支持密码或密钥
+    encrypted_password?: string | null;
+    encrypted_private_key?: string | null;
+    encrypted_passphrase?: string | null;
+    // proxy_id: number | null; // 待添加代理支持
     // 其他字段...
 }
 
@@ -48,11 +52,355 @@ const cleanupSshConnection = (ws: AuthenticatedWebSocket) => {
         // 注意：SFTP 流通常不需要显式关闭，它依赖于 SSH Client 的关闭
         // connection.sftp?.end(); // SFTPWrapper 没有 end 方法
         connection.shell?.end(); // 尝试结束 shell 流
+        // 清除状态轮询定时器
+        if (connection.statusIntervalId) {
+            clearInterval(connection.statusIntervalId);
+            console.log(`WebSocket: 清理用户 ${ws.username} 的状态轮询定时器。`);
+        }
         connection.client?.end(); // 结束 SSH 客户端连接会隐式关闭 SFTP
         activeSshConnections.delete(ws); // 从 Map 中移除
     }
 };
 
+// --- 状态获取相关 ---
+const STATUS_POLL_INTERVAL = 5000; // 每 5 秒获取一次状态
+
+// Helper function to execute a command and return its stdout
+const executeSshCommand = (client: Client, command: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        let output = '';
+        let stderrOutput = ''; // Capture stderr too
+        client.exec(command, (err, stream) => {
+            if (err) {
+                 console.error(`SSH Command (${command}) exec error:`, err);
+                 return reject(err); // Reject on initial exec error
+            }
+            stream.on('data', (data: Buffer) => {
+                output += data.toString();
+            }).stderr.on('data', (data: Buffer) => {
+                stderrOutput += data.toString(); // Capture stderr
+                // Log stderr as warning, but don't reject based on it unless needed
+                // console.warn(`SSH Command (${command}) stderr: ${data.toString().trim()}`);
+            }).on('close', (code: number | null | undefined, signal: string | null) => {
+                const trimmedOutput = output.trim();
+                const trimmedStderr = stderrOutput.trim();
+
+                if (signal) {
+                    console.error(`Command "${command}" terminated by signal: ${signal}. Stderr: ${trimmedStderr}`);
+                    return reject(new Error(`Command "${command}" terminated by signal: ${signal}`));
+                }
+
+                // **Crucial Change:** Prioritize resolving if we have ANY stdout, regardless of exit code.
+                if (trimmedOutput) {
+                    if (code !== 0 && code != null) {
+                         console.warn(`Command "${command}" exited with code ${code} but produced output. Resolving with output. Stderr: ${trimmedStderr}`);
+                    } else if (code == null) {
+                         console.warn(`Command "${command}" exited with code undefined but produced output. Resolving with output. Stderr: ${trimmedStderr}`);
+                    }
+                    return resolve(trimmedOutput);
+                }
+
+                // If NO stdout, then reject based on error code or lack thereof.
+                if (code !== 0 && code != null) {
+                    console.error(`Command "${command}" failed with code ${code} and no output. Stderr: ${trimmedStderr}`);
+                    return reject(new Error(`Command "${command}" failed with code ${code} and no output. Stderr: ${trimmedStderr}`));
+                }
+                if (code == null) {
+                    // This case now specifically means no output AND undefined code - likely a genuine failure
+                    console.error(`Command "${command}" failed with code undefined and no output. Stderr: ${trimmedStderr}`);
+                    return reject(new Error(`Command "${command}" failed with code undefined and no output. Stderr: ${trimmedStderr}`));
+                }
+
+                // If code is 0 and no output, resolve with empty string (command succeeded but printed nothing)
+                resolve('');
+
+            }).on('error', (streamErr: Error) => { // Handle stream-specific errors
+                reject(streamErr);
+            });
+        });
+    });
+};
+
+// Interface for the detailed status object
+interface ServerStatusDetails {
+    cpuPercent?: number; // Percentage
+    memPercent?: number; // Percentage
+    memUsed?: number; // MB
+    memTotal?: number; // MB
+    swapPercent?: number; // Percentage
+    swapUsed?: number; // MB
+    swapTotal?: number; // MB
+    diskPercent?: number; // Percentage for /
+    diskUsed?: number; // KB
+    diskTotal?: number; // KB
+    cpuModel?: string;
+    netRxRate?: number; // Bytes per second
+    netTxRate?: number; // Bytes per second
+    netInterface?: string; // Detected network interface
+    osName?: string; // Added OS Name
+}
+
+// Store previous network stats for rate calculation
+interface NetStats {
+    rx: number;
+    tx: number;
+    timestamp: number;
+}
+const previousNetStats = new Map<AuthenticatedWebSocket, NetStats>();
+
+
+// Function to fetch server status metrics
+const fetchServerStatus = async (ws: AuthenticatedWebSocket, client: Client): Promise<ServerStatusDetails> => {
+    const status: ServerStatusDetails = {};
+    const connection = activeSshConnections.get(ws); // Needed for network stats
+
+    try {
+        // CPU Usage (%) using vmstat (100 - idle)
+        // Try vmstat first
+        try {
+            const cpuCmd = `vmstat 1 2 | tail -1 | awk '{print 100-$15}'`;
+            const cpuOutput = await executeSshCommand(client, cpuCmd);
+            const cpuUsage = parseFloat(cpuOutput);
+            if (!isNaN(cpuUsage)) status.cpuPercent = parseFloat(cpuUsage.toFixed(1));
+        } catch (vmstatError) {
+             console.warn(`获取 CPU 使用率失败 (vmstat):`, vmstatError, `尝试 top...`);
+             // Fallback attempt using top if vmstat failed
+             try {
+                const cpuCmdFallback = `top -bn1 | grep '%Cpu(s)' | head -1 | awk '{print $2+$4}'`; // Sum User + System CPU %
+                const cpuOutputFallback = await executeSshCommand(client, cpuCmdFallback);
+                const cpuUsageFallback = parseFloat(cpuOutputFallback);
+                if (!isNaN(cpuUsageFallback)) status.cpuPercent = parseFloat(cpuUsageFallback.toFixed(1));
+             } catch (topError) {
+                 console.warn(`获取 CPU 使用率失败 (top fallback):`, topError);
+             }
+        }
+    } catch (error) { // Catch potential outer errors, though unlikely now
+        console.error(`获取 CPU 使用率时发生意外错误:`, error);
+    }
+
+    // --- Corrected CPU Model Fetch ---
+    try {
+        // CPU Model Name from /proc/cpuinfo
+        const cpuModelCmd = `cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d ':' -f 2 | sed 's/^[ \t]*//'`;
+        const cpuModelOutput = await executeSshCommand(client, cpuModelCmd); // Use correct command and variable
+        if (cpuModelOutput) status.cpuModel = cpuModelOutput;
+    } catch (error) { // Use standard 'error' variable name and remove the incorrect logic/extra brace
+        console.warn(`获取 CPU 型号失败:`, error);
+    }
+    // Removed duplicated CPU Model fetch block here (Comment remains from previous step, actual change is above)
+
+    // --- Fetch OS Name ---
+    try {
+        const osCmd = `cat /etc/os-release`;
+        const osOutput = await executeSshCommand(client, osCmd);
+        const lines = osOutput.split('\n');
+        const prettyNameLine = lines.find(line => line.startsWith('PRETTY_NAME='));
+        if (prettyNameLine) {
+            // Extract value, remove potential quotes
+            status.osName = prettyNameLine.split('=')[1]?.trim().replace(/^"(.*)"$/, '$1');
+        } else {
+            // Fallback or alternative methods if needed (e.g., uname -a)
+            const unameCmd = `uname -a`; // Less pretty, but usually available
+            const unameOutput = await executeSshCommand(client, unameCmd);
+            if (unameOutput) status.osName = unameOutput.trim(); // Trim uname output
+        }
+    } catch (error) {
+        console.warn(`获取操作系统名称失败:`, error);
+        // Attempt uname as a last resort even if os-release failed
+        try {
+            const unameCmd = `uname -a`;
+            const unameOutput = await executeSshCommand(client, unameCmd);
+            if (unameOutput) status.osName = unameOutput.trim(); // Trim uname output
+        } catch (unameError) {
+             console.warn(`获取操作系统名称失败 (uname fallback):`, unameError);
+        }
+    }
+
+
+    try {
+        // Memory Usage (Total and Used in MB, and Percentage)
+        const memCmd = `free -m | awk 'NR==2{print $2 " " $3}'`; // Output: "total used"
+        const memOutput = await executeSshCommand(client, memCmd);
+        const memValues = memOutput.split(' ');
+        if (memValues.length === 2) {
+            const total = parseInt(memValues[0], 10);
+            const used = parseInt(memValues[1], 10);
+            if (!isNaN(total) && !isNaN(used) && total > 0) {
+                status.memTotal = total;
+                status.memUsed = used;
+                status.memPercent = parseFloat(((used / total) * 100).toFixed(1));
+            }
+        }
+    } catch (error) {
+        console.warn(`获取内存状态失败:`, error);
+    }
+    // Removed duplicated Memory fetch block here
+
+     try {
+        // Swap Usage (Total and Used in MB, and Percentage)
+        const swapCmd = `free -m | awk 'NR==3{print $2 " " $3}'`; // Output: "total used" for swap
+        const swapOutput = await executeSshCommand(client, swapCmd);
+        const swapValues = swapOutput.split(' ');
+        if (swapValues.length === 2) {
+            const total = parseInt(swapValues[0], 10);
+            const used = parseInt(swapValues[1], 10);
+            // Only report swap if total > 0
+            if (!isNaN(total) && !isNaN(used) && total > 0) {
+                status.swapTotal = total;
+                status.swapUsed = used;
+                status.swapPercent = parseFloat(((used / total) * 100).toFixed(1));
+            } else if (!isNaN(total) && total === 0) {
+                 status.swapTotal = 0;
+                 status.swapUsed = 0;
+                 status.swapPercent = 0;
+            }
+        }
+    } catch (error) {
+        console.warn(`获取 Swap 状态失败:`, error);
+    }
+
+
+    try {
+        // Disk Usage - Using POSIX standard output 'df -Pk /' for reliable parsing
+        const diskCmd = `df -Pk /`; // Use -P flag for POSIX standard output
+        const diskOutput = await executeSshCommand(client, diskCmd);
+        const lines = diskOutput.trim().split('\n'); // Trim output and split into lines
+
+        if (lines.length >= 2) {
+            // Skip header line (usually the first line)
+            let dataLine = '';
+            // Find the line ending with ' /' (mount point)
+            for (let i = 1; i < lines.length; i++) {
+                // Trim the line before checking the ending
+                if (lines[i].trim().endsWith(' /')) {
+                    dataLine = lines[i].trim();
+                    break;
+                }
+            }
+
+            // The second line (index 1) should contain the data in POSIX format
+            if (lines.length >= 2) {
+                const dataLine = lines[1].trim();
+                console.log(`[Disk P Debug] dataLine: "${dataLine}"`); // Log the line
+                const parts = dataLine.split(/\s+/);
+                console.log(`[Disk P Debug] parts:`, parts); // Log the split parts
+                // POSIX format: Filesystem, 1024-blocks (Total), Used, Available, Capacity, Mounted on
+                if (parts.length >= 4) { // Need at least up to 'Available' column
+                    const totalKb = parseInt(parts[1], 10);
+                    const usedKb = parseInt(parts[2], 10);
+                    // const availableKb = parseInt(parts[3], 10); // Available if needed
+                    // const capacityPercent = parts[4]; // Percentage string like "20%"
+
+                    if (!isNaN(totalKb) && !isNaN(usedKb) && totalKb >= 0) {
+                        status.diskTotal = totalKb;
+                        status.diskUsed = usedKb;
+                        // Calculate percent only if total > 0 to avoid division by zero
+                        status.diskPercent = totalKb > 0 ? parseFloat(((usedKb / totalKb) * 100).toFixed(1)) : 0;
+                        // Optional: Could also try parsing parts[4] if calculation seems off
+                    } else {
+                        console.warn(`无法从 'df -Pk /' 行解析有效的磁盘大小 (Total=${parts[1]}, Used=${parts[2]}):`, dataLine);
+                    }
+                } else {
+                     console.warn(`'df -Pk /' 数据行格式不符合预期 (列数不足):`, dataLine);
+                }
+            } else {
+                console.warn(`无法从 'df -k /' 输出中找到根目录 ('/') 的数据行:`, diskOutput);
+            }
+        } else {
+            console.warn(`'df -k /' 命令输出格式不符合预期 (行数不足):`, diskOutput);
+        }
+    } catch (error) {
+        console.warn(`获取磁盘状态失败 (df -k):`, error);
+    }
+
+    // Network Rate Calculation
+    let defaultInterface = '';
+    try {
+        const routeCmd = `ip route | grep default | awk '{print $5}' | head -1`;
+        defaultInterface = await executeSshCommand(client, routeCmd);
+        status.netInterface = defaultInterface; // Store detected interface
+    } catch (error) {
+        console.warn(`获取默认网络接口失败:`, error);
+    }
+
+    if (defaultInterface && connection) {
+        try {
+            const netCmd = `cat /proc/net/dev | grep '${defaultInterface}:' | awk '{print $2 " " $10}'`; // RX bytes (col 2), TX bytes (col 10)
+            const netOutput = await executeSshCommand(client, netCmd);
+            const netValues = netOutput.split(' ');
+            if (netValues.length === 2) {
+                const currentRx = parseInt(netValues[0], 10);
+                const currentTx = parseInt(netValues[1], 10);
+                const currentTime = Date.now();
+
+                const prevStats = previousNetStats.get(ws);
+
+                if (prevStats && !isNaN(currentRx) && !isNaN(currentTx)) {
+                    const timeDiffSeconds = (currentTime - prevStats.timestamp) / 1000;
+                    if (timeDiffSeconds > 0) {
+                        status.netRxRate = Math.max(0, Math.round((currentRx - prevStats.rx) / timeDiffSeconds)); // Corrected property name
+                        status.netTxRate = Math.max(0, Math.round((currentTx - prevStats.tx) / timeDiffSeconds)); // Corrected property name
+                    }
+                }
+
+                // Store current stats for next calculation
+                if (!isNaN(currentRx) && !isNaN(currentTx)) {
+                     previousNetStats.set(ws, { rx: currentRx, tx: currentTx, timestamp: currentTime });
+                }
+            }
+        } catch (error) {
+            console.warn(`获取网络速率失败 (${defaultInterface}):`, error);
+        }
+    } else if (!defaultInterface) {
+         console.warn(`无法计算网络速率，因为未找到默认接口。`);
+    }
+
+    return status;
+};
+
+// Function to start status polling for a connection
+const startStatusPolling = (ws: AuthenticatedWebSocket, client: Client) => {
+    const connection = activeSshConnections.get(ws);
+    if (!connection || connection.statusIntervalId) {
+        console.warn(`用户 ${ws.username} 的状态轮询已启动或连接不存在。`);
+        return; // Already polling or connection gone
+    }
+
+    console.log(`WebSocket: 为用户 ${ws.username} 启动状态轮询 (间隔: ${STATUS_POLL_INTERVAL}ms)...`);
+
+    const intervalId = setInterval(async () => {
+        // Double check connection still exists before fetching
+        const currentConnection = activeSshConnections.get(ws);
+        if (!currentConnection || !currentConnection.client || !ws || ws.readyState !== WebSocket.OPEN) {
+            console.log(`WebSocket: 用户 ${ws.username} 连接已关闭或无效，停止状态轮询。`);
+            if (intervalId) clearInterval(intervalId); // Clear interval if connection is gone
+             // Also ensure it's cleared from the map if cleanup didn't catch it
+             if (currentConnection?.statusIntervalId === intervalId) {
+                 delete currentConnection.statusIntervalId;
+             }
+             previousNetStats.delete(ws); // Clear previous stats on disconnect/error
+            return;
+        }
+
+        try {
+            const status = await fetchServerStatus(ws, currentConnection.client); // Pass ws for net stats map
+            // Send status only if we got at least one metric
+            if (Object.keys(status).length > 0) {
+                 // console.log(`[Status Poll] Sending status for ${ws.username}:`, status); // Debug log
+                 ws.send(JSON.stringify({ type: 'ssh:status:update', payload: status }));
+            }
+        } catch (error) {
+            console.error(`用户 ${ws.username} 状态轮询时出错:`, error);
+            // Optionally send an error message to the client
+            // ws.send(JSON.stringify({ type: 'ssh:status:error', payload: '无法获取服务器状态' }));
+            // Consider stopping polling if errors persist? For now, continue polling.
+        }
+    }, STATUS_POLL_INTERVAL);
+
+    connection.statusIntervalId = intervalId; // Store the interval ID
+    // Initialize previous network stats
+    previousNetStats.set(ws, { rx: 0, tx: 0, timestamp: Date.now() - STATUS_POLL_INTERVAL }); // Initialize with dummy past data
+};
 
 export const initializeWebSocket = (server: http.Server, sessionParser: RequestHandler): WebSocketServer => {
     const wss = new WebSocketServer({ noServer: true });
@@ -146,13 +494,22 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                         console.log(`WebSocket: 用户 ${ws.username} 请求连接到 ID: ${connectionId}`);
                         ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在获取连接信息...' }));
 
-                        // 1. 从数据库获取连接信息
+                        // 1. 从数据库获取连接信息 (包括所有凭证字段)
                         const connInfo = await new Promise<DbConnectionInfo | null>((resolve, reject) => {
                             // 注意：如果多用户，需要验证 connectionId 是否属于当前 userId
-                            db.get('SELECT * FROM connections WHERE id = ?', [connectionId], (err, row: DbConnectionInfo) => {
-                                if (err) return reject(new Error('查询连接信息失败'));
-                                resolve(row ?? null);
-                            });
+                            db.get(
+                                `SELECT id, name, host, port, username, auth_method,
+                                        encrypted_password, encrypted_private_key, encrypted_passphrase
+                                 FROM connections WHERE id = ?`,
+                                [connectionId],
+                                (err, row: DbConnectionInfo) => {
+                                    if (err) {
+                                        console.error(`查询连接 ${connectionId} 详细信息时出错:`, err);
+                                        return reject(new Error('查询连接信息失败'));
+                                    }
+                                    resolve(row ?? null);
+                                }
+                            );
                         });
 
                         if (!connInfo) {
@@ -161,18 +518,43 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                         }
                         if (!connInfo.encrypted_password) {
                              ws.send(JSON.stringify({ type: 'ssh:error', payload: '连接配置缺少密码信息。' }));
-                             return;
+                             // This check might be too early if key auth is used
+                             // ws.send(JSON.stringify({ type: 'ssh:error', payload: '连接配置缺少密码信息。' }));
+                             // return;
                         }
 
                         ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在连接到 ${connInfo.host}...` }));
 
-                        // 2. 解密密码
-                        let password = '';
+                        // 2. 解密凭证并构建连接配置
+                        let connectConfig: any = {
+                            host: connInfo.host,
+                            port: connInfo.port,
+                            username: connInfo.username,
+                            keepaliveInterval: 30000, // Send keep-alive every 30 seconds (milliseconds)
+                            keepaliveCountMax: 3,     // Disconnect after 3 missed keep-alives
+                            readyTimeout: 20000 // 连接超时时间 (毫秒)
+                        };
+
                         try {
-                            password = decrypt(connInfo.encrypted_password);
+                            if (connInfo.auth_method === 'password') {
+                                if (!connInfo.encrypted_password) {
+                                    throw new Error('连接配置缺少密码信息。');
+                                }
+                                connectConfig.password = decrypt(connInfo.encrypted_password);
+                            } else if (connInfo.auth_method === 'key') {
+                                if (!connInfo.encrypted_private_key) {
+                                    throw new Error('连接配置缺少私钥信息。');
+                                }
+                                connectConfig.privateKey = decrypt(connInfo.encrypted_private_key);
+                                if (connInfo.encrypted_passphrase) {
+                                    connectConfig.passphrase = decrypt(connInfo.encrypted_passphrase);
+                                }
+                            } else {
+                                throw new Error(`不支持的认证方式: ${connInfo.auth_method}`);
+                            }
                         } catch (decryptError: any) {
-                            console.error(`解密连接 ${connectionId} 密码失败:`, decryptError);
-                            ws.send(JSON.stringify({ type: 'ssh:error', payload: '无法解密连接凭证。' }));
+                            console.error(`处理连接 ${connectionId} 凭证失败:`, decryptError);
+                            ws.send(JSON.stringify({ type: 'ssh:error', payload: `无法处理连接凭证: ${decryptError.message}` }));
                             return;
                         }
 
@@ -214,11 +596,17 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                                     const existingConn = activeSshConnections.get(ws);
                                     if (existingConn) {
                                         existingConn.sftp = sftp;
+                                        // SFTP 就绪后，才真正通知前端连接完成
+                                        ws.send(JSON.stringify({ type: 'ssh:connected' }));
+                                        // 启动状态轮询
+                                        startStatusPolling(ws, sshClient);
+                                    } else {
+                                        // This case should ideally not happen if the connection was set earlier
+                                        console.error(`SFTP: 无法找到用户 ${ws.username} 的活动连接记录以存储 SFTP 或启动轮询。`);
+                                        ws.send(JSON.stringify({ type: 'ssh:error', payload: '内部服务器错误：无法关联 SFTP 会话。' }));
+                                        cleanupSshConnection(ws);
                                     }
-                                    // SFTP 就绪后，才真正通知前端连接完成
-                                    ws.send(JSON.stringify({ type: 'ssh:connected' }));
                                 });
-
 
                                 // 5. 数据转发：Shell -> WebSocket (发送 Base64 编码的数据)
                                 stream.on('data', (data: Buffer) => {
@@ -257,18 +645,7 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                                 ws.send(JSON.stringify({ type: 'ssh:disconnected', payload: 'SSH 连接已关闭。' }));
                                 cleanupSshConnection(ws);
                             }
-                        }).connect({
-                            host: connInfo.host,
-                            port: connInfo.port,
-                            username: connInfo.username,
-                            password: password, // 使用解密后的密码
-                            // TODO: 添加对密钥认证的支持
-                                // privateKey: require('fs').readFileSync('/path/to/key'),
-                                // passphrase: 'key passphrase'
-                                keepaliveInterval: 30000, // Send keep-alive every 30 seconds (milliseconds)
-                                keepaliveCountMax: 3,     // Disconnect after 3 missed keep-alives
-                                readyTimeout: 20000 // 连接超时时间 (毫秒)
-                            });
+                        }).connect(connectConfig); // 使用前面构建的 connectConfig 对象
                         break;
                     } // end case 'ssh:connect'
 

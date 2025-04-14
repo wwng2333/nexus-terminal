@@ -40,13 +40,32 @@
       "host": "Host/IP:",
       "port": "Port:",
       "username": "Username:",
+      "authMethod": "Authentication Method:",
+      "authMethodPassword": "Password",
+      "authMethodKey": "SSH Key",
       "password": "Password:",
+      "privateKey": "Private Key:",
+      "passphrase": "Passphrase:",
+      "optional": "Optional",
       "confirm": "Confirm Add",
       "adding": "Adding...",
       "cancel": "Cancel",
-      "errorRequired": "All fields are required.",
+      "errorRequiredFields": "Please fill in all required fields.",
+      "errorPasswordRequired": "Password is required for password authentication.",
+      "errorPrivateKeyRequired": "Private key is required for key authentication.",
       "errorPort": "Port must be between 1 and 65535.",
-      "errorAdd": "Failed to add connection: {error}"
+      "errorAdd": "Failed to add connection: {error}",
+      "titleEdit": "Edit Connection",
+      "confirmEdit": "Confirm Edit",
+      "saving": "Saving...",
+      "errorUpdate": "Failed to update connection: {error}",
+      "keyUpdateNote": "Leave private key and passphrase blank to keep the existing key."
+    },
+    "prompts": {
+        "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
+    },
+    "errors": {
+        "deleteFailed": "Failed to delete connection: {error}"
     },
     "status": {
       "never": "Never"

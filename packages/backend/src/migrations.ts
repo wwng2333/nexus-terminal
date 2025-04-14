@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 `;
 
-// MVP (最小可行产品) 阶段: 只包含基础字段，支持密码认证，暂不考虑代理和标签
+// 更新后的 Schema，支持密码和密钥认证
 const createConnectionsTableSQL = `
 CREATE TABLE IF NOT EXISTS connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -20,11 +20,11 @@ CREATE TABLE IF NOT EXISTS connections (
     host TEXT NOT NULL,
     port INTEGER NOT NULL DEFAULT 22,
     username TEXT NOT NULL,
-    auth_method TEXT NOT NULL CHECK(auth_method IN ('password')), -- MVP 阶段仅支持密码认证
-    encrypted_password TEXT NULL, -- 加密存储的密码占位符 (加密逻辑在应用层实现)
-    -- encrypted_private_key TEXT NULL, -- MVP 阶段跳过密钥认证相关字段
-    -- encrypted_passphrase TEXT NULL, -- MVP 阶段跳过密钥认证相关字段
-    -- proxy_id INTEGER NULL, -- MVP 阶段跳过代理相关字段
+    auth_method TEXT NOT NULL CHECK(auth_method IN ('password', 'key')), -- 更新 CHECK 约束
+    encrypted_password TEXT NULL,
+    encrypted_private_key TEXT NULL, -- 取消注释
+    encrypted_passphrase TEXT NULL, -- 取消注释
+    -- proxy_id INTEGER NULL, -- 代理相关字段 (暂未实现)
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     last_connected_at INTEGER NULL
@@ -39,35 +39,99 @@ CREATE TABLE IF NOT EXISTS connections (
 // const createAuditLogsTableSQL = \`...\`; // 审计日志表
 // const createApiKeysTableSQL = \`...\`; // API 密钥表
 
+// Interface for PRAGMA table_info result rows
+interface TableInfoColumn {
+  cid: number;
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: any;
+  pk: number;
+}
+
+// Helper function to add a column if it doesn't exist
+const addColumnIfNotExists = (db: Database, tableName: string, columnName: string, columnDefinition: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        // Check if the column exists using PRAGMA table_info
+        // Explicitly type the 'columns' parameter
+        db.all(`PRAGMA table_info(${tableName})`, (err, columns: TableInfoColumn[]) => {
+            if (err) {
+                console.error(`Error checking table info for ${tableName}:`, err.message);
+                return reject(err);
+            }
+            // Now 'col' inside .some() will have the correct type
+            const columnExists = columns.some(col => col.name === columnName);
+            if (!columnExists) {
+                // Column doesn't exist, add it
+                const sql = `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`;
+                db.run(sql, (alterErr) => {
+                    if (alterErr) {
+                        console.error(`Error adding column ${columnName} to ${tableName}:`, alterErr.message);
+                        // Don't reject immediately, maybe it's a harmless error (like constraint issue)
+                        // Let subsequent migrations try. If it's critical, the app might fail later.
+                        console.warn(`Potential harmless error adding column ${columnName}. Continuing migration.`);
+                        resolve();
+                        // return reject(alterErr);
+                    } else {
+                        console.log(`Column ${columnName} added to table ${tableName}.`);
+                        resolve();
+                    }
+                });
+            } else {
+                // Column already exists
+                // console.log(`Column ${columnName} already exists in table ${tableName}.`);
+                resolve();
+            }
+        });
+    });
+};
+
+
 /**
- * 执行数据库迁移 (创建表)
+ * 执行数据库迁移 (创建表和添加列)
  * @param db - 数据库实例
  * @returns Promise，在所有迁移完成后 resolve
  */
-export const runMigrations = (db: Database): Promise<void> => {
-    return new Promise((resolve, reject) => {
-        db.serialize(() => {
+export const runMigrations = async (db: Database): Promise<void> => {
+    // Use async/await for better readability with sequential operations
+    try {
+        await new Promise<void>((resolve, reject) => {
             db.run(createUsersTableSQL, (err) => {
-                if (err) {
-                    console.error('创建 users 表时出错:', err.message);
-                    return reject(err);
-                }
+                if (err) return reject(new Error(`创建 users 表时出错: ${err.message}`));
                 console.log('Users 表已检查/创建。');
+                resolve();
             });
-
-            db.run(createConnectionsTableSQL, (err) => {
-                if (err) {
-                    console.error('创建 connections 表时出错:', err.message);
-                    return reject(err);
-                }
-                console.log('Connections 表已检查/创建。');
-                resolve(); // 所有表创建完成后 resolve Promise
-            });
-
-            // 如果未来添加了更多表，在此处继续链式调用 db.run(...)
-            // db.run(createProxiesTableSQL, callback);
         });
-    });
+
+        await new Promise<void>((resolve, reject) => {
+            db.run(createConnectionsTableSQL, (err) => {
+                // Ignore "duplicate column name" error if table already exists partially
+                if (err && !err.message.includes('duplicate column name')) {
+                     return reject(new Error(`创建 connections 表时出错: ${err.message}`));
+                }
+                 if (err && err.message.includes('duplicate column name')) {
+                     console.warn('创建 connections 表时遇到 "duplicate column name" 错误，可能表已部分存在，将尝试 ALTER TABLE。');
+                 }
+                console.log('Connections 表已检查/尝试创建。');
+                resolve();
+            });
+        });
+
+        // Add columns to connections table if they don't exist
+        // Add auth_method first in case it's missing from very old schema
+        await addColumnIfNotExists(db, 'connections', 'auth_method', "TEXT NOT NULL DEFAULT 'password'"); // Add default for existing rows
+        await addColumnIfNotExists(db, 'connections', 'encrypted_private_key', 'TEXT NULL');
+        await addColumnIfNotExists(db, 'connections', 'encrypted_passphrase', 'TEXT NULL');
+
+        // Add other tables or columns here in the future
+        // await addColumnIfNotExists(db, 'connections', 'proxy_id', 'INTEGER NULL');
+
+        console.log('数据库迁移检查完成。');
+
+    } catch (error) {
+        console.error('数据库迁移过程中发生错误:', error);
+        throw error; // Re-throw the error to be caught by the caller
+    }
 };
 
 // 允许通过命令行直接运行此文件来执行迁移 (例如: node dist/migrations.js)

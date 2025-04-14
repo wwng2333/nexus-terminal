@@ -11,6 +11,9 @@ const connectionsStore = useConnectionsStore();
 // 使用 storeToRefs 来保持 state 属性的响应性
 const { connections, isLoading, error } = storeToRefs(connectionsStore);
 
+// 定义组件发出的事件 (添加 edit-connection)
+const emit = defineEmits(['edit-connection']);
+
 // 组件挂载时获取连接列表
 onMounted(() => {
   connectionsStore.fetchConnections();
@@ -22,6 +25,22 @@ const formatTimestamp = (timestamp: number | null): string => {
   // TODO: 可以考虑使用更专业的日期格式化库 (如 date-fns 或 dayjs) 并结合 i18n locale
   return new Date(timestamp * 1000).toLocaleString(); // 乘以 1000 转换为毫秒
 };
+
+// 新增：处理删除连接的方法
+const handleDelete = async (conn: ConnectionInfo) => {
+    // 使用 i18n 获取确认消息
+    const confirmMessage = t('connections.prompts.confirmDelete', { name: conn.name });
+    if (window.confirm(confirmMessage)) {
+        const success = await connectionsStore.deleteConnection(conn.id);
+        if (!success) {
+            // 如果删除失败，显示 store 中的错误信息 (或自定义错误)
+            // 可以考虑使用更友好的提示方式，例如 toast 通知库
+            alert(t('connections.errors.deleteFailed', { error: connectionsStore.error || '未知错误' }));
+        }
+        // 成功时列表会自动更新，无需额外操作
+    }
+};
+
 </script>
 
 <template>
@@ -54,8 +73,8 @@ const formatTimestamp = (timestamp: number | null): string => {
           <td>{{ formatTimestamp(conn.last_connected_at) }}</td>
           <td>
             <button @click="connectToServer(conn.id)">{{ t('connections.actions.connect') }}</button>
-            <button @click="">{{ t('connections.actions.edit') }}</button> <!-- TODO: 实现编辑逻辑 -->
-            <button @click="">{{ t('connections.actions.delete') }}</button> <!-- TODO: 实现删除逻辑 -->
+            <button @click="emit('edit-connection', conn)">{{ t('connections.actions.edit') }}</button>
+            <button @click="handleDelete(conn)">{{ t('connections.actions.delete') }}</button>
           </td>
         </tr>
       </tbody>

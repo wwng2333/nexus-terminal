@@ -75,8 +75,32 @@ export const useAuthStore = defineStore('auth', {
         },
 
         // TODO: 添加检查登录状态的 Action (例如应用启动时调用)
-        // async checkAuthStatus() { ... }
+        // TODO: 添加检查登录状态的 Action (例如应用启动时调用)
+        // async checkAuthStatus() {
+        //     const token = localStorage.getItem('authToken'); // 假设 token 存储在 localStorage
+        //     if (token) {
+        //         try {
+        //             // 可选: 向后端发送请求验证 token 有效性
+        //             // const response = await axios.get('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+        //             // this.isAuthenticated = true;
+        //             // this.user = response.data.user;
+        //
+        //             // 暂时只基于 localStorage 状态恢复
+        //             const storedAuth = localStorage.getItem('auth'); // pinia-plugin-persistedstate 默认 key
+        //             if (storedAuth) {
+        //                 const parsedAuth = JSON.parse(storedAuth);
+        //                 if (parsedAuth.isAuthenticated && parsedAuth.user) {
+        //                     this.isAuthenticated = true;
+        //                     this.user = parsedAuth.user;
+        //                     console.log('Auth status restored from localStorage');
+        //                 }
+        //             }
+        //         } catch (error) {
+        //             console.error('Failed to restore auth status:', error);
+        //             this.logout(); // 如果验证失败或出错，则登出
+        //         }
+        //     }
+        // }
     },
-    // 可选：开启持久化 (例如使用 pinia-plugin-persistedstate)
-    // persist: true,
+    persist: true, // 使用默认持久化配置 (localStorage, 持久化所有 state)
 });
