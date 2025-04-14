@@ -47,8 +47,17 @@ CREATE TABLE IF NOT EXISTS proxies (
 );
 `;
 
+// 新增：创建 tags 表的 SQL
+const createTagsTableSQL = `
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE, -- 标签名称，唯一
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+`;
+
 // 未来可能需要的其他表 (根据项目文档)
-// const createTagsTableSQL = \`...\`; // 标签表
 // const createConnectionTagsTableSQL = \`...\`; // 连接与标签的关联表
 // const createSettingsTableSQL = \`...\`; // 设置表
 // const createAuditLogsTableSQL = \`...\`; // 审计日志表
@@ -148,6 +157,15 @@ export const runMigrations = async (db: Database): Promise<void> => {
             db.run(createProxiesTableSQL, (err) => {
                 if (err) return reject(new Error(`创建 proxies 表时出错: ${err.message}`));
                 console.log('Proxies 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 新增：创建 tags 表 (如果不存在)
+        await new Promise<void>((resolve, reject) => {
+            db.run(createTagsTableSQL, (err) => {
+                if (err) return reject(new Error(`创建 tags 表时出错: ${err.message}`));
+                console.log('Tags 表已检查/创建。');
                 resolve();
             });
         });
