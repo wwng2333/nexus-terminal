@@ -1,0 +1,27 @@
+{
+  "name": "nexus-terminal",
+  "version": "1.0.0",
+  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Heavrnl/nexus-terminal.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Heavrnl/nexus-terminal/issues"
+  },
+  "homepage": "https://github.com/Heavrnl/nexus-terminal#readme",
+  "description": ""
+}

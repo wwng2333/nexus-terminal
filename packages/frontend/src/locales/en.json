@@ -1,0 +1,151 @@
+{
+  "appName": "Nexus Terminal",
+  "nav": {
+    "dashboard": "Dashboard",
+    "connections": "Connections",
+    "login": "Login",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "User Login",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "loggingIn": "Logging in...",
+    "error": "Login failed. Please check your username and password."
+  },
+  "connections": {
+    "title": "Connection Management",
+    "addConnection": "Add New Connection",
+    "loading": "Loading connections...",
+    "error": "Failed to load connections: {error}",
+    "noConnections": "No connections yet. Click 'Add New Connection' to create one!",
+    "table": {
+      "name": "Name",
+      "host": "Host",
+      "port": "Port",
+      "user": "User",
+      "authMethod": "Auth Method",
+      "lastConnected": "Last Connected",
+      "actions": "Actions"
+    },
+    "actions": {
+      "connect": "Connect",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "title": "Add New Connection",
+      "name": "Name:",
+      "host": "Host/IP:",
+      "port": "Port:",
+      "username": "Username:",
+      "password": "Password:",
+      "confirm": "Confirm Add",
+      "adding": "Adding...",
+      "cancel": "Cancel",
+      "errorRequired": "All fields are required.",
+      "errorPort": "Port must be between 1 and 65535.",
+      "errorAdd": "Failed to add connection: {error}"
+    },
+    "status": {
+      "never": "Never"
+    }
+  },
+  "workspace": {
+    "statusBar": "Status: {status} (Connection ID: {id})",
+    "status": {
+      "initializing": "Initializing...",
+      "connectingWs": "Connecting to {url}...",
+      "wsConnected": "WebSocket connected, requesting SSH session...",
+      "connectingSsh": "Connecting to {host}...",
+      "sshConnected": "SSH connected, opening shell...",
+      "connected": "Connected",
+      "disconnected": "Disconnected: {reason}",
+      "wsClosed": "WebSocket closed (Code: {code})",
+      "error": "Error: {message}",
+      "wsError": "WebSocket connection error",
+      "sshError": "SSH Error: {message}",
+      "decryptError": "Cannot decrypt credentials.",
+      "noConnInfo": "Connection config not found for ID {id}.",
+      "noPassword": "Connection config is missing password.",
+       "shellError": "Failed to open shell: {message}",
+       "alreadyConnected": "An active SSH connection already exists.",
+       "unknown": "Unknown status"
+     },
+     "terminal": {
+      "infoPrefix": "[INFO]",
+      "errorPrefix": "[ERROR]",
+      "disconnectMsg": "--- SSH Connection Closed ({reason}) ---",
+      "wsCloseMsg": "--- WebSocket Connection Closed (Code: {code}) ---",
+      "wsErrorMsg": "--- WebSocket Connection Error ---",
+      "decryptErrorMsg": "--- Error: Cannot decrypt credentials ---",
+      "genericErrorMsg": "--- Error: {message} ---"
+    }
+  },
+  "fileManager": {
+    "currentPath": "Current Path",
+    "loading": "Loading directory...",
+    "emptyDirectory": "Directory is empty",
+    "uploadTasks": "Upload Tasks",
+    "actions": {
+      "refresh": "Refresh",
+      "parentDirectory": "Parent Directory",
+      "uploadFile": "Upload File",
+      "upload": "Upload",
+      "newFolder": "New Folder",
+      "rename": "Rename",
+      "changePermissions": "Change Permissions",
+      "delete": "Delete",
+      "deleteMultiple": "Delete {count} items",
+      "download": "Download",
+      "cancel": "Cancel",
+      "save": "Save"
+    },
+    "headers": {
+      "type": "Type",
+      "name": "Name",
+      "size": "Size",
+      "permissions": "Permissions",
+      "modified": "Modified",
+      "actions": "Actions"
+    },
+    "uploadStatus": {
+      "pending": "Pending",
+      "uploading": "Uploading",
+      "paused": "Paused",
+      "success": "Success",
+      "error": "Error",
+      "cancelled": "Cancelled"
+    },
+    "errors": {
+      "generic": "Error",
+      "websocketNotConnected": "WebSocket not connected",
+      "missingConnectionId": "Cannot get current connection ID",
+      "createFolderFailed": "Failed to create folder",
+      "deleteFailed": "Failed to delete",
+      "renameFailed": "Failed to rename",
+      "chmodFailed": "Failed to change permissions",
+      "invalidPermissionsFormat": "Invalid permissions format. Please enter 3 or 4 octal digits (e.g., 755 or 0755).",
+      "readFileError": "Error reading file",
+      "readFileFailed": "Failed to read file",
+      "fileDecodeError": "File decoding failed (likely not UTF-8)",
+      "saveFailed": "Failed to save file",
+      "saveTimeout": "Save timed out"
+    },
+    "prompts": {
+      "enterFolderName": "Enter the name for the new folder:",
+      "confirmOverwrite": "File \"{name}\" already exists. Overwrite?",
+      "confirmDeleteMultiple": "Are you sure you want to delete the selected {count} items? This cannot be undone.",
+      "confirmDeleteFolder": "Are you sure you want to delete the directory \"{name}\" and all its contents? This cannot be undone.",
+      "confirmDeleteFile": "Are you sure you want to delete the file \"{name}\"? This cannot be undone.",
+      "enterNewName": "Enter the new name for \"{oldName}\":",
+      "enterNewPermissions": "Enter new permissions for \"{name}\" (octal, e.g., 755):"
+    },
+    "editingFile": "Editing",
+    "loadingFile": "Loading file...",
+    "saving": "Saving",
+    "saveSuccess": "Save successful",
+    "saveError": "Save error"
+  }
+}

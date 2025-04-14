@@ -1,0 +1,151 @@
+{
+  "appName": "星枢终端",
+  "nav": {
+    "dashboard": "仪表盘",
+    "connections": "连接管理",
+    "login": "登录",
+    "logout": "登出"
+  },
+  "login": {
+    "title": "用户登录",
+    "username": "用户名",
+    "password": "密码",
+    "loginButton": "登录",
+    "loggingIn": "正在登录...",
+    "error": "登录失败，请检查用户名或密码。"
+  },
+  "connections": {
+    "title": "连接管理",
+    "addConnection": "添加新连接",
+    "loading": "正在加载连接...",
+    "error": "加载连接失败: {error}",
+    "noConnections": "还没有任何连接。点击“添加新连接”来创建一个吧！",
+    "table": {
+      "name": "名称",
+      "host": "主机",
+      "port": "端口",
+      "user": "用户名",
+      "authMethod": "认证方式",
+      "lastConnected": "上次连接",
+      "actions": "操作"
+    },
+    "actions": {
+      "connect": "连接",
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "form": {
+      "title": "添加新连接",
+      "name": "名称:",
+      "host": "主机/IP:",
+      "port": "端口:",
+      "username": "用户名:",
+      "password": "密码:",
+      "confirm": "确认添加",
+      "adding": "正在添加...",
+      "cancel": "取消",
+      "errorRequired": "所有字段均为必填项。",
+      "errorPort": "端口号必须在 1 到 65535 之间。",
+      "errorAdd": "添加连接失败: {error}"
+    },
+    "status": {
+      "never": "从未"
+    }
+  },
+  "workspace": {
+    "statusBar": "状态: {status} (连接 ID: {id})",
+    "status": {
+      "initializing": "正在初始化...",
+      "connectingWs": "正在连接到 {url}...",
+      "wsConnected": "WebSocket 已连接，正在请求 SSH 会话...",
+      "connectingSsh": "正在连接到 {host}...",
+      "sshConnected": "SSH 连接成功，正在打开 Shell...",
+      "connected": "已连接",
+      "disconnected": "已断开: {reason}",
+      "wsClosed": "WebSocket 已关闭 (代码: {code})",
+      "error": "错误: {message}",
+      "wsError": "WebSocket 连接错误",
+      "sshError": "SSH 错误: {message}",
+      "decryptError": "无法解密连接凭证。",
+      "noConnInfo": "未找到 ID 为 {id} 的连接配置。",
+      "noPassword": "连接配置缺少密码信息。",
+       "shellError": "打开 Shell 失败: {message}",
+       "alreadyConnected": "已存在活动的 SSH 连接。",
+       "unknown": "未知状态"
+     },
+     "terminal": {
+      "infoPrefix": "[信息]",
+      "errorPrefix": "[错误]",
+      "disconnectMsg": "--- SSH 连接已关闭 ({reason}) ---",
+      "wsCloseMsg": "--- WebSocket 连接已关闭 (代码: {code}) ---",
+      "wsErrorMsg": "--- WebSocket 连接错误 ---",
+      "decryptErrorMsg": "--- 错误：无法解密连接凭证 ---",
+      "genericErrorMsg": "--- 错误: {message} ---"
+    }
+  },
+  "fileManager": {
+    "currentPath": "当前路径",
+    "loading": "正在加载目录...",
+    "emptyDirectory": "目录为空",
+    "uploadTasks": "上传任务",
+    "actions": {
+      "refresh": "刷新",
+      "parentDirectory": "上一级",
+      "uploadFile": "上传文件",
+      "upload": "上传",
+      "newFolder": "新建文件夹",
+      "rename": "重命名",
+      "changePermissions": "修改权限",
+      "delete": "删除",
+      "deleteMultiple": "删除 {count} 个项目",
+      "download": "下载",
+      "cancel": "取消",
+      "save": "保存"
+    },
+    "headers": {
+      "type": "类型",
+      "name": "名称",
+      "size": "大小",
+      "permissions": "权限",
+      "modified": "修改时间",
+      "actions": "操作"
+    },
+    "uploadStatus": {
+      "pending": "等待中",
+      "uploading": "上传中",
+      "paused": "已暂停",
+      "success": "成功",
+      "error": "错误",
+      "cancelled": "已取消"
+    },
+    "errors": {
+      "generic": "错误",
+      "websocketNotConnected": "WebSocket 未连接",
+      "missingConnectionId": "无法获取当前连接 ID",
+      "createFolderFailed": "创建文件夹失败",
+      "deleteFailed": "删除失败",
+      "renameFailed": "重命名失败",
+      "chmodFailed": "修改权限失败",
+      "invalidPermissionsFormat": "无效的权限格式。请输入 3 或 4 位八进制数字 (例如 755 或 0755)。",
+      "readFileError": "读取文件时出错",
+      "readFileFailed": "读取文件失败",
+      "fileDecodeError": "文件解码失败 (可能不是 UTF-8 编码)",
+      "saveFailed": "保存文件失败",
+      "saveTimeout": "保存超时"
+    },
+    "prompts": {
+      "enterFolderName": "请输入新文件夹的名称:",
+      "confirmOverwrite": "文件 \"{name}\" 已存在。是否覆盖？",
+      "confirmDeleteMultiple": "确定要删除选定的 {count} 个项目吗？此操作不可撤销。",
+      "confirmDeleteFolder": "确定要删除目录 \"{name}\" 及其所有内容吗？此操作不可撤销。",
+      "confirmDeleteFile": "确定要删除文件 \"{name}\" 吗？此操作不可撤销。",
+      "enterNewName": "请输入 \"{oldName}\" 的新名称:",
+      "enterNewPermissions": "请输入 \"{name}\" 的新权限 (八进制, 例如 755):"
+    },
+    "editingFile": "正在编辑",
+    "loadingFile": "正在加载文件...",
+    "saving": "正在保存",
+    "saveSuccess": "保存成功",
+    "saveError": "保存出错"
+  }
+}
