@@ -5,7 +5,8 @@
     "connections": "连接管理",
     "proxies": "代理管理",
     "login": "登录",
-    "logout": "登出"
+    "logout": "登出",
+    "tags": "标签管理"
   },
   "login": {
     "title": "用户登录",
@@ -221,5 +222,43 @@
     "saving": "正在保存",
     "saveSuccess": "保存成功",
     "saveError": "保存出错"
+  },
+  "tags": {
+    "title": "标签管理",
+    "addTag": "添加新标签",
+    "loading": "正在加载标签...",
+    "error": "加载标签列表失败: {error}",
+    "noTags": "还没有任何标签。点击“添加新标签”来创建一个吧！",
+    "table": {
+      "name": "名称",
+      "updatedAt": "更新时间",
+      "actions": "操作"
+    },
+    "actions": {
+      "edit": "编辑",
+      "delete": "删除"
+    },
+    "form": {
+      "title": "添加新标签",
+      "titleEdit": "编辑标签",
+      "name": "标签名称:",
+      "confirm": "确认添加",
+      "confirmEdit": "确认编辑",
+      "adding": "正在添加...",
+      "saving": "正在保存...",
+      "cancel": "取消",
+      "errorNameRequired": "标签名称不能为空。",
+      "errorAdd": "添加标签失败: {error}",
+      "errorUpdate": "更新标签失败: {error}"
+    },
+    "prompts": {
+        "confirmDelete": "确定要删除标签 \"{name}\" 吗？此操作不可撤销。"
+    },
+    "errors": {
+        "deleteFailed": "删除标签失败: {error}"
+    },
+     "status": {
+      "never": "从未"
+    }
   }
 }

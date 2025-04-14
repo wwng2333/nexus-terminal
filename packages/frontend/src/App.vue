@@ -20,6 +20,7 @@ const handleLogout = () => {
         <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> |
         <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink> |
         <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink> | <!-- 新增代理链接 -->
+        <RouterLink to="/tags">{{ t('nav.tags') }}</RouterLink> | <!-- 新增标签链接 -->
         <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
         <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
       </nav>

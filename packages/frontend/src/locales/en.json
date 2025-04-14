@@ -5,7 +5,8 @@
     "connections": "Connections",
     "proxies": "Proxies",
     "login": "Login",
-    "logout": "Logout"
+    "logout": "Logout",
+    "tags": "Tags"
   },
   "login": {
     "title": "User Login",
@@ -218,5 +219,43 @@
     "saving": "Saving",
     "saveSuccess": "Save successful",
     "saveError": "Save error"
+  },
+  "tags": {
+    "title": "Tag Management",
+    "addTag": "Add New Tag",
+    "loading": "Loading tags...",
+    "error": "Failed to load tags: {error}",
+    "noTags": "No tags yet. Click 'Add New Tag' to create one!",
+    "table": {
+      "name": "Name",
+      "updatedAt": "Updated At",
+      "actions": "Actions"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "title": "Add New Tag",
+      "titleEdit": "Edit Tag",
+      "name": "Tag Name:",
+      "confirm": "Confirm Add",
+      "confirmEdit": "Confirm Edit",
+      "adding": "Adding...",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "errorNameRequired": "Tag name cannot be empty.",
+      "errorAdd": "Failed to add tag: {error}",
+      "errorUpdate": "Failed to update tag: {error}"
+    },
+    "prompts": {
+        "confirmDelete": "Are you sure you want to delete the tag \"{name}\"? This cannot be undone."
+    },
+    "errors": {
+        "deleteFailed": "Failed to delete tag: {error}"
+    },
+     "status": {
+      "never": "Never"
+    }
   }
 }

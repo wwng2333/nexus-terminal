@@ -28,6 +28,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Proxies',
     component: () => import('../views/ProxiesView.vue')
   },
+  // 新增：标签管理页面
+  {
+    path: '/tags',
+    name: 'Tags',
+    component: () => import('../views/TagsView.vue')
+  },
   // 工作区页面，需要 connectionId 参数
   {
     path: '/workspace/:connectionId', // 使用动态路由段
