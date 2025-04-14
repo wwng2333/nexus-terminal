@@ -23,8 +23,8 @@ interface ConnectionInfoBase {
  * 创建新连接 (POST /api/v1/connections)
  */
 export const createConnection = async (req: Request, res: Response): Promise<void> => {
-    // 新增 proxy_id
-    const { name, host, port = 22, username, auth_method, password, private_key, passphrase, proxy_id } = req.body;
+    // 新增 proxy_id 和 tag_ids
+    const { name, host, port = 22, username, auth_method, password, private_key, passphrase, proxy_id, tag_ids } = req.body;
     const userId = req.session.userId; // 从会话获取用户 ID
 
     // 输入验证 (基础)
@@ -88,14 +88,42 @@ export const createConnection = async (req: Request, res: Response): Promise<voi
             stmt.finalize(); // 完成语句执行
         });
 
-        // 返回成功响应 (不包含敏感信息)
-        // 返回成功响应 (包含 proxy_id)
+        const newConnectionId = result.lastID;
+
+        // 处理标签关联
+        if (Array.isArray(tag_ids) && tag_ids.length > 0) {
+            const insertTagStmt = db.prepare(`INSERT INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`);
+            // 使用事务确保原子性
+            db.serialize(() => {
+                db.run('BEGIN TRANSACTION');
+                try {
+                    tag_ids.forEach((tagId: any) => {
+                        if (typeof tagId === 'number' && tagId > 0) {
+                            insertTagStmt.run(newConnectionId, tagId);
+                        } else {
+                            console.warn(`创建连接 ${newConnectionId} 时，提供的 tag_id 无效: ${tagId}`);
+                        }
+                    });
+                    db.run('COMMIT');
+                } catch (tagError: any) {
+                    console.error(`为连接 ${newConnectionId} 添加标签时出错:`, tagError);
+                    db.run('ROLLBACK'); // 出错时回滚
+                    // 可以选择抛出错误或仅记录警告
+                    // throw new Error('处理标签关联失败');
+                } finally {
+                     insertTagStmt.finalize();
+                }
+            });
+        }
+
+        // 返回成功响应 (包含 proxy_id 和 tag_ids)
         res.status(201).json({
             message: '连接创建成功。',
             connection: {
-                id: result.lastID,
+                id: newConnectionId,
                 name, host, port, username, auth_method,
-                proxy_id: proxy_id ?? null, // 返回 proxy_id
+                proxy_id: proxy_id ?? null,
+                tag_ids: Array.isArray(tag_ids) ? tag_ids.filter(id => typeof id === 'number' && id > 0) : [], // 返回有效的 tag_ids
                 created_at: now, updated_at: now, last_connected_at: null
             }
         });
@@ -113,20 +141,28 @@ export const getConnections = async (req: Request, res: Response): Promise<void>
     const userId = req.session.userId; // 虽然 MVP 只有一个用户，但保留以备将来使用
 
     try {
-        // 查询数据库，排除敏感字段 encrypted_password, encrypted_private_key, encrypted_passphrase
-        // 注意：如果未来支持多用户，需要添加 WHERE user_id = ? 条件
-        // 新增：包含 proxy_id
-        const connections = await new Promise<(ConnectionInfoBase & { proxy_id: number | null })[]>((resolve, reject) => {
+        // 更新查询以包含关联的标签 ID (使用 GROUP_CONCAT)
+        const connections = await new Promise<(ConnectionInfoBase & { proxy_id: number | null, tag_ids: number[] })[]>((resolve, reject) => {
             db.all(
-                `SELECT id, name, host, port, username, auth_method, proxy_id, created_at, updated_at, last_connected_at
-                 FROM connections
-                 ORDER BY name ASC`,
-                (err, rows: (ConnectionInfoBase & { proxy_id: number | null })[]) => {
+                `SELECT
+                    c.id, c.name, c.host, c.port, c.username, c.auth_method, c.proxy_id,
+                    c.created_at, c.updated_at, c.last_connected_at,
+                    GROUP_CONCAT(ct.tag_id) as tag_ids_str
+                 FROM connections c
+                 LEFT JOIN connection_tags ct ON c.id = ct.connection_id
+                 GROUP BY c.id
+                 ORDER BY c.name ASC`,
+                (err, rows: any[]) => { // 使用 any[] 因为 tag_ids_str 是字符串
                     if (err) {
                         console.error('查询连接列表时出错:', err.message);
                         return reject(new Error('获取连接列表失败'));
                     }
-                    resolve(rows);
+                    // 处理 tag_ids_str，将其转换为数字数组
+                    const processedRows = rows.map(row => ({
+                        ...row,
+                        tag_ids: row.tag_ids_str ? row.tag_ids_str.split(',').map(Number) : []
+                    }));
+                    resolve(processedRows);
                 }
             );
         });
@@ -152,21 +188,29 @@ export const getConnectionById = async (req: Request, res: Response): Promise<vo
     }
 
     try {
-        // 查询数据库，排除敏感字段
-        // 注意：如果未来支持多用户，需要添加 AND user_id = ? 条件
-        // 新增：包含 proxy_id
-        const connection = await new Promise<(ConnectionInfoBase & { proxy_id: number | null }) | null>((resolve, reject) => {
+        // 更新查询以包含关联的标签 ID (使用 GROUP_CONCAT)
+        const connection = await new Promise<(ConnectionInfoBase & { proxy_id: number | null, tag_ids: number[] }) | null>((resolve, reject) => {
             db.get(
-                `SELECT id, name, host, port, username, auth_method, proxy_id, created_at, updated_at, last_connected_at
-                 FROM connections
-                 WHERE id = ?`,
+                `SELECT
+                    c.id, c.name, c.host, c.port, c.username, c.auth_method, c.proxy_id,
+                    c.created_at, c.updated_at, c.last_connected_at,
+                    GROUP_CONCAT(ct.tag_id) as tag_ids_str
+                 FROM connections c
+                 LEFT JOIN connection_tags ct ON c.id = ct.connection_id
+                 WHERE c.id = ?
+                 GROUP BY c.id`, // GROUP BY 仍然需要，即使只有一行
                 [connectionId],
-                (err, row: (ConnectionInfoBase & { proxy_id: number | null })) => {
+                (err, row: any) => { // 使用 any[] 因为 tag_ids_str 是字符串
                     if (err) {
                         console.error(`查询连接 ${connectionId} 时出错:`, err.message);
                         return reject(new Error('获取连接信息失败'));
                     }
-                    resolve(row || null); // 如果找不到则返回 null
+                     if (row) {
+                        // 处理 tag_ids_str
+                        row.tag_ids = row.tag_ids_str ? row.tag_ids_str.split(',').map(Number) : [];
+                        delete row.tag_ids_str; // 移除临时字段
+                    }
+                    resolve(row || null);
                 }
             );
         });
@@ -188,8 +232,8 @@ export const getConnectionById = async (req: Request, res: Response): Promise<vo
  */
 export const updateConnection = async (req: Request, res: Response): Promise<void> => {
     const connectionId = parseInt(req.params.id, 10);
-    // 新增 proxy_id
-    const { name, host, port, username, auth_method, password, private_key, passphrase, proxy_id } = req.body;
+    // 新增 proxy_id 和 tag_ids
+    const { name, host, port, username, auth_method, password, private_key, passphrase, proxy_id, tag_ids } = req.body;
     const userId = req.session.userId;
 
     if (isNaN(connectionId)) {
@@ -357,6 +401,61 @@ export const updateConnection = async (req: Request, res: Response): Promise<voi
                     (err, row: ConnectionInfoBase & { proxy_id: number | null }) => err ? reject(err) : resolve(row || null)
                 );
             });
+
+            // 处理标签关联更新
+            if (tag_ids !== undefined && Array.isArray(tag_ids)) { // 仅当提供了 tag_ids 时才处理
+                const deleteStmt = db.prepare(`DELETE FROM connection_tags WHERE connection_id = ?`);
+                const insertStmt = db.prepare(`INSERT INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`);
+
+                await new Promise<void>((resolve, reject) => {
+                    db.serialize(() => {
+                        db.run('BEGIN TRANSACTION');
+                        try {
+                            // 1. 删除旧关联
+                            deleteStmt.run(connectionId, (err: Error | null) => { // 添加 err 类型
+                                if (err) throw err; // 抛出错误以触发 rollback
+                            });
+                            deleteStmt.finalize(); // finalize delete statement
+
+                            // 2. 插入新关联 (如果 tag_ids 不为空)
+                            if (tag_ids.length > 0) {
+                                tag_ids.forEach((tagId: any) => {
+                                    if (typeof tagId === 'number' && tagId > 0) {
+                                        insertStmt.run(connectionId, tagId, (err: Error | null) => { // 添加 err 类型
+                                             if (err) throw err; // 抛出错误以触发 rollback
+                                        });
+                                    } else {
+                                         console.warn(`更新连接 ${connectionId} 时，提供的 tag_id 无效: ${tagId}`);
+                                    }
+                                });
+                            }
+                            insertStmt.finalize(); // finalize insert statement
+                            db.run('COMMIT', (commitErr: Error | null) => { // 添加 commitErr 类型
+                                if (commitErr) throw commitErr;
+                                resolve(); // 事务成功
+                            });
+                        } catch (tagError: any) {
+                            console.error(`更新连接 ${connectionId} 的标签关联时出错:`, tagError);
+                            db.run('ROLLBACK');
+                            // 将标签处理错误附加到主错误或单独处理
+                            reject(new Error('处理标签关联失败'));
+                        }
+                    });
+                });
+            } // 结束标签处理
+
+            // 在返回的 updatedConnection 中添加 tag_ids
+            if (updatedConnection) {
+                 // 查询最新的 tag_ids
+                  const currentTagIds = await new Promise<number[]>((resolve, reject) => {
+                     db.all('SELECT tag_id FROM connection_tags WHERE connection_id = ?', [connectionId], (err: Error | null, rows: { tag_id: number }[]) => { // 添加 err 类型
+                         if (err) return reject(err);
+                         resolve(rows.map(r => r.tag_id));
+                     });
+                });
+                (updatedConnection as any).tag_ids = currentTagIds; // 添加 tag_ids 字段
+            }
+
              res.status(200).json({ message: '连接更新成功。', connection: updatedConnection });
         }
 

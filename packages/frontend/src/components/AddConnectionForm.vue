@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useProxiesStore } from '../stores/proxies.store'; // 引入代理 Store
+import { useTagsStore } from '../stores/tags.store'; // 引入标签 Store
 
 // 定义组件发出的事件
 const emit = defineEmits(['close', 'connection-added', 'connection-updated']);
@@ -16,8 +17,10 @@ const props = defineProps<{
 const { t } = useI18n();
 const connectionsStore = useConnectionsStore();
 const proxiesStore = useProxiesStore(); // 获取代理 store 实例
+const tagsStore = useTagsStore(); // 获取标签 store 实例
 const { isLoading: isConnLoading, error: connStoreError } = storeToRefs(connectionsStore);
 const { proxies, isLoading: isProxyLoading, error: proxyStoreError } = storeToRefs(proxiesStore); // 获取代理列表和状态
+const { tags, isLoading: isTagLoading, error: tagStoreError } = storeToRefs(tagsStore); // 获取标签列表和状态
 
 // 表单数据模型
 const initialFormData = {
@@ -29,13 +32,15 @@ const initialFormData = {
   password: '',
   private_key: '',
   passphrase: '',
-  proxy_id: null as number | null, // 新增 proxy_id 字段
+  proxy_id: null as number | null,
+  tag_ids: [] as number[], // 新增 tag_ids 字段
 };
 const formData = reactive({ ...initialFormData });
 
 const formError = ref<string | null>(null); // 表单级别的错误信息
-const isLoading = computed(() => isConnLoading.value || isProxyLoading.value); // 合并加载状态
-const storeError = computed(() => connStoreError.value || proxyStoreError.value); // 合并错误状态
+// 合并所有 store 的加载和错误状态
+const isLoading = computed(() => isConnLoading.value || isProxyLoading.value || isTagLoading.value);
+const storeError = computed(() => connStoreError.value || proxyStoreError.value || tagStoreError.value);
 
 // 计算属性判断是否为编辑模式
 const isEditMode = computed(() => !!props.connectionToEdit);
@@ -64,7 +69,8 @@ watch(() => props.connectionToEdit, (newVal) => {
         formData.port = newVal.port;
         formData.username = newVal.username;
         formData.auth_method = newVal.auth_method;
-        formData.proxy_id = newVal.proxy_id ?? null; // 填充 proxy_id
+        formData.proxy_id = newVal.proxy_id ?? null;
+        formData.tag_ids = newVal.tag_ids ? [...newVal.tag_ids] : []; // 填充 tag_ids (深拷贝)
         // 清空敏感字段
         formData.password = '';
         formData.private_key = '';
@@ -75,9 +81,10 @@ watch(() => props.connectionToEdit, (newVal) => {
     }
 }, { immediate: true });
 
-// 组件挂载时获取代理列表
+// 组件挂载时获取代理和标签列表
 onMounted(() => {
     proxiesStore.fetchProxies();
+    tagsStore.fetchTags(); // 获取标签列表
 });
 
 // 处理表单提交
@@ -137,6 +144,7 @@ const handleSubmit = async () => {
       username: formData.username,
       auth_method: formData.auth_method,
       proxy_id: formData.proxy_id || null,
+      tag_ids: formData.tag_ids || [], // 发送 tag_ids
   };
 
   // 处理敏感字段
@@ -248,6 +256,20 @@ const handleSubmit = async () => {
              <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
         </div>
 
+        <!-- 新增：标签选择 (多选框) -->
+        <div class="form-group">
+            <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
+            <div class="tag-checkbox-group">
+                 <div v-if="isTagLoading" class="loading-small">{{ t('tags.loading') }}</div>
+                 <div v-else-if="tagStoreError" class="error-small">{{ t('tags.error', { error: tagStoreError }) }}</div>
+                 <div v-else-if="tags.length === 0" class="info-small">{{ t('tags.noTags') }}</div>
+                 <label v-for="tag in tags" :key="tag.id" class="tag-checkbox-label">
+                     <input type="checkbox" :value="tag.id" v-model="formData.tag_ids">
+                     {{ tag.name }}
+                 </label>
+            </div>
+        </div>
+
         <!-- 显示 storeError 或 formError -->
         <div v-if="formError || storeError" class="error-message">
           {{ formError || storeError }} <!-- 使用合并后的 storeError -->
@@ -314,6 +336,38 @@ textarea {
   border-radius: 4px;
   box-sizing: border-box; /* Include padding and border in element's total width and height */
 }
+
+/* 标签选择样式 */
+.tag-checkbox-group {
+    max-height: 150px; /* 限制高度，出现滚动条 */
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}
+
+.tag-checkbox-label {
+    display: block; /* 每个标签占一行 */
+    margin-bottom: 0.3rem;
+    font-weight: normal; /* 普通字体 */
+    cursor: pointer;
+}
+
+.tag-checkbox-label input[type="checkbox"] {
+    margin-right: 0.5rem;
+    width: auto; /* 恢复复选框默认宽度 */
+}
+
+.loading-small, .error-small, .info-small {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 0.2rem;
+}
+.error-small {
+    color: red;
+}
+
 
 .error-message {
   color: red;

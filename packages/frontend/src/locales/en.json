@@ -28,6 +28,7 @@
       "port": "Port",
       "user": "User",
       "authMethod": "Auth Method",
+      "tags": "Tags",
       "lastConnected": "Last Connected",
       "actions": "Actions"
     },
@@ -65,7 +66,8 @@
       "errorUpdate": "Failed to update connection: {error}",
       "keyUpdateNote": "Leave private key and passphrase blank to keep the existing key.",
       "proxy": "Proxy:",
-      "noProxy": "No Proxy"
+      "noProxy": "No Proxy",
+      "tags": "Tags:"
     },
     "prompts": {
         "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."

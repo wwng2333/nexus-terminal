@@ -10,6 +10,7 @@ export interface ConnectionInfo {
     username: string;
     auth_method: 'password' | 'key';
     proxy_id?: number | null; // 新增：关联的代理 ID (可选)
+    tag_ids?: number[]; // 新增：关联的标签 ID 数组 (可选)
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;
@@ -62,7 +63,8 @@ export const useConnectionsStore = defineStore('connections', {
             password?: string;
             private_key?: string;
             passphrase?: string;
-            proxy_id?: number | null; // 新增：允许传入 proxy_id
+            proxy_id?: number | null;
+            tag_ids?: number[]; // 新增：允许传入 tag_ids
         }) {
             this.isLoading = true;
             this.error = null;
@@ -84,8 +86,8 @@ export const useConnectionsStore = defineStore('connections', {
         },
 
         // 更新连接 Action
-        // 更新参数类型以包含 proxy_id
-        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { password?: string; private_key?: string; passphrase?: string; proxy_id?: number | null }>) {
+        // 更新参数类型以包含 proxy_id 和 tag_ids
+        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { password?: string; private_key?: string; passphrase?: string; proxy_id?: number | null; tag_ids?: number[] }>) {
             this.isLoading = true;
             this.error = null;
             try {

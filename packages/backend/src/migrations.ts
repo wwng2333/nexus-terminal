@@ -57,8 +57,18 @@ CREATE TABLE IF NOT EXISTS tags (
 );
 `;
 
+// 新增：创建 connection_tags 关联表的 SQL
+const createConnectionTagsTableSQL = `
+CREATE TABLE IF NOT EXISTS connection_tags (
+    connection_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (connection_id, tag_id),
+    FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE, -- 删除连接时，自动删除关联
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE -- 删除标签时，自动删除关联
+);
+`;
+
 // 未来可能需要的其他表 (根据项目文档)
-// const createConnectionTagsTableSQL = \`...\`; // 连接与标签的关联表
 // const createSettingsTableSQL = \`...\`; // 设置表
 // const createAuditLogsTableSQL = \`...\`; // 审计日志表
 // const createApiKeysTableSQL = \`...\`; // API 密钥表
@@ -166,6 +176,15 @@ export const runMigrations = async (db: Database): Promise<void> => {
             db.run(createTagsTableSQL, (err) => {
                 if (err) return reject(new Error(`创建 tags 表时出错: ${err.message}`));
                 console.log('Tags 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 新增：创建 connection_tags 表 (如果不存在)
+        await new Promise<void>((resolve, reject) => {
+            db.run(createConnectionTagsTableSQL, (err) => {
+                if (err) return reject(new Error(`创建 connection_tags 表时出错: ${err.message}`));
+                console.log('Connection_Tags 表已检查/创建。');
                 resolve();
             });
         });

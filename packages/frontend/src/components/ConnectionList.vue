@@ -1,23 +1,46 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, computed } from 'vue'; // 引入 computed
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router'; // 引入 useRouter
 import { useI18n } from 'vue-i18n'; // 引入 useI18n
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store'; // 引入 ConnectionInfo 类型
+import { useTagsStore } from '../stores/tags.store'; // 引入 Tags Store
 
 const { t } = useI18n(); // 获取 t 函数
 const router = useRouter(); // 获取 router 实例
 const connectionsStore = useConnectionsStore();
+const tagsStore = useTagsStore(); // 获取 Tags Store 实例
 // 使用 storeToRefs 来保持 state 属性的响应性
 const { connections, isLoading, error } = storeToRefs(connectionsStore);
+const { tags: allTags } = storeToRefs(tagsStore); // 获取所有标签
 
 // 定义组件发出的事件 (添加 edit-connection)
 const emit = defineEmits(['edit-connection']);
 
-// 组件挂载时获取连接列表
+// 组件挂载时获取连接和标签列表
 onMounted(() => {
   connectionsStore.fetchConnections();
+  tagsStore.fetchTags(); // 获取标签列表
 });
+
+// 创建标签 ID 到名称的映射
+const tagMap = computed(() => {
+    const map = new Map<number, string>();
+    allTags.value.forEach(tag => {
+        map.set(tag.id, tag.name);
+    });
+    return map;
+});
+
+// 获取连接的标签名称数组
+const getConnectionTagNames = (conn: ConnectionInfo): string[] => {
+    if (!conn.tag_ids || conn.tag_ids.length === 0) {
+        return [];
+    }
+    return conn.tag_ids
+        .map(tagId => tagMap.value.get(tagId)) // 使用映射获取名称
+        .filter((name): name is string => !!name); // 过滤掉未找到的标签并确保类型为 string
+};
 
 // 辅助函数：格式化时间戳
 const formatTimestamp = (timestamp: number | null): string => {
@@ -59,6 +82,7 @@ const handleDelete = async (conn: ConnectionInfo) => {
           <th>{{ t('connections.table.port') }}</th>
           <th>{{ t('connections.table.user') }}</th>
           <th>{{ t('connections.table.authMethod') }}</th>
+          <th>{{ t('connections.table.tags') }}</th> <!-- 新增标签列 -->
           <th>{{ t('connections.table.lastConnected') }}</th>
           <th>{{ t('connections.table.actions') }}</th>
         </tr>
@@ -70,6 +94,14 @@ const handleDelete = async (conn: ConnectionInfo) => {
           <td>{{ conn.port }}</td>
           <td>{{ conn.username }}</td>
           <td>{{ conn.auth_method }}</td>
+          <td> <!-- 显示标签 -->
+            <span v-if="getConnectionTagNames(conn).length > 0" class="tag-list">
+                <span v-for="tagName in getConnectionTagNames(conn)" :key="tagName" class="tag-item">
+                    {{ tagName }}
+                </span>
+            </span>
+            <span v-else class="no-tags">-</span>
+          </td>
           <td>{{ formatTimestamp(conn.last_connected_at) }}</td>
           <td>
             <button @click="connectToServer(conn.id)">{{ t('connections.actions.connect') }}</button>
@@ -136,5 +168,24 @@ button {
   margin-right: 0.5rem;
   padding: 0.2rem 0.5rem;
   cursor: pointer;
+}
+
+/* 标签样式 */
+.tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+}
+.tag-item {
+    background-color: #e0e0e0;
+    color: #333;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+.no-tags {
+    color: #999;
+    font-style: italic;
 }
 </style>
