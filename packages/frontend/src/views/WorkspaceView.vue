@@ -161,10 +161,15 @@ const initializeWebSocketConnection = () => {
               terminalInstance.value?.writeln(`\r\n\x1b[31m${getTerminalText('errorPrefix')} ${message.payload}\x1b[0m`);
               break;
         // --- Handle Status Updates ---
-        case 'ssh:status:update':
-            // console.log('收到状态更新:', message.payload); // Debug log
-            serverStatus.value = message.payload;
-            statusError.value = null; // Clear previous error on successful update
+        case 'status_update': // Corrected message type
+            // console.log('收到状态更新:', message.payload.status); // Debug log
+            // Ensure payload and status exist before assigning
+            if (message.payload && message.payload.status) {
+                 serverStatus.value = message.payload.status; // Assign the nested status object
+                 statusError.value = null; // Clear previous error on successful update
+            } else {
+                 console.warn('WorkspaceView: Received status_update message with missing payload.status');
+            }
             break;
         // Optional: Handle status errors if backend sends them
         // case 'ssh:status:error':

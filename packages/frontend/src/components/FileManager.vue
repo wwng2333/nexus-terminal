@@ -86,6 +86,10 @@ const saveError = ref<string | null>(null);
 
 
 // --- Helper Functions ---
+const generateRequestId = (): string => {
+    return `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+};
+
 const joinPath = (base: string, name: string): string => {
     if (base === '/') return `/${name}`;
     return `${base}/${name}`;
@@ -162,19 +166,13 @@ const handleSaveFile = () => {
   saveStatus.value = 'saving';
   saveError.value = null;
 
-  // Determine encoding: prefer original encoding if possible, otherwise default to utf8
-  // For simplicity now, we always send as utf8. If base64 was received,
-  // it means the backend couldn't decode it, so sending back utf8 might be problematic.
-  // A more robust solution would involve detecting if content was modified from original base64.
-  // For now, assume content is valid UTF-8 after editing.
   const contentToSave = editingFileContent.value;
   const encodingToSend: 'utf8' | 'base64' = 'utf8'; // Always send UTF8 for now
-
-  // If the original was base64 and content hasn't changed significantly (heuristic),
-  // maybe send base64 back? This is complex. Let's stick to UTF-8 for V1.1.
+  const requestId = generateRequestId(); // Generate request ID
 
   props.ws.send(JSON.stringify({
     type: 'sftp:writefile',
+    requestId: requestId, // Add request ID
     payload: {
       path: editingFilePath.value,
       content: contentToSave,
@@ -182,18 +180,7 @@ const handleSaveFile = () => {
     }
   }));
 
-  // Timeout for saving status display
-  setTimeout(() => {
-    if (saveStatus.value === 'saving') { // If still saving after timeout, assume error (no response)
-        saveStatus.value = 'error';
-        saveError.value = t('fileManager.errors.saveTimeout');
-        isSaving.value = false;
-        // Reset status after a while
-        setTimeout(() => {
-            if (saveStatus.value === 'error') saveStatus.value = 'idle'; saveError.value = null;
-        }, 3000);
-    }
-  }, 20000); // Increased to 20 second timeout
+  // The save status will now be updated solely based on the sftp:writefile:success or sftp:writefile:error messages received via WebSocket.
 };
 
 
@@ -321,7 +308,7 @@ watch(() => props.isConnected, (connected) => {
 });
 
 const handleWebSocketMessage = (event: MessageEvent) => {
-    console.log('[FileManager] Received WebSocket message:', event.data.substring(0, 200)); // Log incoming message
+    // console.log('[FileManager] Received WebSocket message:', event.data.substring(0, 200)); // Moved logging inside specific cases
     try {
         const message = JSON.parse(event.data);
         // Destructure only common top-level keys
@@ -329,11 +316,10 @@ const handleWebSocketMessage = (event: MessageEvent) => {
         // Extract uploadId specifically where needed from payload or top-level
         const uploadIdFromPayload = message.uploadId || payload?.uploadId; // Check top-level first, then payload
 
-        // Log specific message types relevant to FileManager
+        // Log and process specific message types relevant to FileManager
         if (type.startsWith('sftp:')) {
              console.log(`[FileManager] Processing SFTP message: ${type}`, { path, uploadId: uploadIdFromPayload, payload: type === 'sftp:readfile:success' ? '...' : payload });
         }
-
 
         if (type === 'sftp:readdir:success' && path === currentPath.value) {
             fileList.value = payload.sort(sortFiles); selectedItems.value.clear(); lastClickedIndex.value = -1; error.value = null; isLoading.value = false;
@@ -450,6 +436,16 @@ const handleWebSocketMessage = (event: MessageEvent) => {
                 if (saveStatus.value === 'error') saveStatus.value = 'idle'; saveError.value = null;
             }, 5000);
         }
+        // --- Handle SFTP Ready ---
+        else if (type === 'sftp_ready') {
+            console.log('[FileManager] Received sftp_ready message.');
+            // If the file list is empty and we are connected, it might mean the initial load failed. Retry.
+            // Also check if there's currently an error displayed, indicating a previous load failure.
+            if (props.isConnected && !isLoading.value && (fileList.value.length === 0 || error.value)) {
+                console.log('[FileManager] SFTP is ready and file list is empty or has error, retrying loadDirectory.');
+                loadDirectory(currentPath.value);
+            }
+        }
 
 
     } catch (e) { console.error("Error handling WebSocket message:", e); /* Log other errors */ }
@@ -459,7 +455,8 @@ const handleWebSocketMessage = (event: MessageEvent) => {
 const loadDirectory = (path: string) => {
     if (!props.ws || props.ws.readyState !== WebSocket.OPEN) { error.value = t('fileManager.errors.websocketNotConnected'); return; }
     isLoading.value = true; error.value = null;
-    props.ws.send(JSON.stringify({ type: 'sftp:readdir', payload: { path } }));
+    const requestId = generateRequestId(); // Generate request ID
+    props.ws.send(JSON.stringify({ type: 'sftp:readdir', requestId: requestId, payload: { path } })); // Add request ID
     currentPath.value = path;
 };
 
@@ -511,7 +508,8 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => {
             isEditorLoading.value = true;
             editorError.value = null;
             isEditorVisible.value = true;
-            props.ws.send(JSON.stringify({ type: 'sftp:readfile', payload: { path: filePath } }));
+            const requestId = generateRequestId(); // Generate request ID
+            props.ws.send(JSON.stringify({ type: 'sftp:readfile', requestId: requestId, payload: { path: filePath } })); // Add request ID
         }
     }
 };
@@ -633,7 +631,8 @@ const handleDeleteClick = () => {
         itemsToDelete.forEach(item => {
             const targetPath = joinPath(currentPath.value, item.filename);
             const actionType = item.attrs.isDirectory ? 'sftp:rmdir' : 'sftp:unlink';
-            props.ws!.send(JSON.stringify({ type: actionType, payload: { path: targetPath } }));
+            const requestId = generateRequestId(); // Generate request ID
+            props.ws!.send(JSON.stringify({ type: actionType, requestId: requestId, payload: { path: targetPath } })); // Add request ID
         });
     }
 };
@@ -643,7 +642,8 @@ const handleRenameClick = (item: FileListItem) => {
     if (newName && newName !== item.filename) {
         const oldPath = joinPath(currentPath.value, item.filename);
         const newPath = joinPath(currentPath.value, newName);
-        props.ws.send(JSON.stringify({ type: 'sftp:rename', payload: { oldPath, newPath } }));
+        const requestId = generateRequestId(); // Generate request ID
+        props.ws.send(JSON.stringify({ type: 'sftp:rename', requestId: requestId, payload: { oldPath, newPath } })); // Add request ID
     }
 };
 const handleChangePermissionsClick = (item: FileListItem) => {
@@ -654,7 +654,9 @@ const handleChangePermissionsClick = (item: FileListItem) => {
         if (!/^[0-7]{3,4}$/.test(newModeStr)) { alert(t('fileManager.errors.invalidPermissionsFormat')); return; }
         const newMode = parseInt(newModeStr, 8);
         const targetPath = joinPath(currentPath.value, item.filename);
-        props.ws.send(JSON.stringify({ type: 'sftp:chmod', payload: { targetPath, mode: newMode } }));
+        const requestId = generateRequestId(); // Generate request ID
+        // Note: Backend expects 'path' in payload for chmod, not 'targetPath'
+        props.ws.send(JSON.stringify({ type: 'sftp:chmod', requestId: requestId, payload: { path: targetPath, mode: newMode } })); // Add request ID, fix payload key
     }
 };
 const handleNewFolderClick = () => {
@@ -662,9 +664,9 @@ const handleNewFolderClick = () => {
     const folderName = prompt(t('fileManager.prompts.enterFolderName'));
     if (folderName) {
         const newFolderPath = joinPath(currentPath.value, folderName);
-        props.ws.send(JSON.stringify({ type: 'sftp:mkdir', payload: { path: newFolderPath } }));
+        const requestId = generateRequestId(); // Generate request ID
+        props.ws.send(JSON.stringify({ type: 'sftp:mkdir', requestId: requestId, payload: { path: newFolderPath } })); // Add request ID
         // 移除立即刷新，依赖 sftp:mkdir:success 消息
-        // loadDirectory(currentPath.value);
     }
 };
 
@@ -679,18 +681,19 @@ const handleNewFileClick = () => {
             return;
         }
         const newFilePath = joinPath(currentPath.value, fileName);
+        const requestId = generateRequestId(); // Generate request ID
         // 发送创建空文件的请求到后端 (通过写入空内容)
         props.ws.send(JSON.stringify({
             type: 'sftp:writefile',
+            requestId: requestId, // Add request ID
             payload: {
                 path: newFilePath,
                 content: '', // 发送空内容来创建文件
                 encoding: 'utf8',
             }
         }));
-        // 显式调用刷新，即使成功消息处理程序也会刷新
-        loadDirectory(currentPath.value); // 确保在发送请求后立即尝试刷新
-        // 成功或失败的消息会触发 sftp:writefile:success/error，进而刷新目录
+        // 移除显式刷新，依赖 sftp:writefile:success 消息
+        // loadDirectory(currentPath.value);
     }
 };
 
