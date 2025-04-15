@@ -298,7 +298,8 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                     case 'sftp:rmdir':
                     case 'sftp:unlink':
                     case 'sftp:rename':
-                    case 'sftp:chmod': {
+                    case 'sftp:chmod':
+                    case 'sftp:realpath': { // Add realpath case
                         if (!sessionId || !state) {
                             console.warn(`WebSocket: 收到来自 ${ws.username} 的 SFTP 请求 (${type})，但无活动会话。`);
                             // 尝试包含 requestId 发送错误，如果 requestId 存在的话
@@ -370,6 +371,11 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                                          sftpService.chmod(sessionId, payload.path, payload.mode, requestId);
                                      } else { throw new Error("Missing 'path' or invalid 'mode' in payload for chmod"); }
                                      break;
+                                case 'sftp:realpath': // Add realpath handler
+                                    if (payload?.path) {
+                                        sftpService.realpath(sessionId, payload.path, requestId);
+                                    } else { throw new Error("Missing 'path' in payload for realpath"); }
+                                    break;
                                 default:
                                     // Should not happen if already checked type, but as a safeguard
                                     throw new Error(`Unhandled SFTP type: ${type}`);
@@ -380,17 +386,49 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                         }
                         break;
                     }
-                     // --- SFTP 文件上传 (保持部分逻辑，因为涉及分块) ---
-                     // TODO: 考虑将上传逻辑也移入 SftpService
-                     case 'sftp:upload:start':
-                     case 'sftp:upload:chunk':
-                     case 'sftp:upload:cancel': {
-                         console.warn(`WebSocket: SFTP 上传功能 (${type}) 尚未完全迁移到 SftpService。`);
-                         // 可以在这里调用 SftpService 的对应方法，或者暂时保留旧逻辑
-                         ws.send(JSON.stringify({ type: 'error', payload: `SFTP 上传功能正在重构中。` }));
-                         break;
-                     }
-
+                    // --- SFTP 文件上传 (委托给 SftpService) ---
+                    case 'sftp:upload:start': {
+                        if (!sessionId || !state) {
+                            console.warn(`WebSocket: 收到来自 ${ws.username} 的 SFTP 请求 (${type})，但无活动会话。`);
+                            ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId: payload?.uploadId, message: '无效的会话' } }));
+                            return;
+                        }
+                        if (!payload?.uploadId || !payload?.remotePath || typeof payload?.size !== 'number') {
+                            console.error(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但缺少 uploadId, remotePath 或 size。`);
+                            ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId: payload?.uploadId, message: '缺少 uploadId, remotePath 或 size' } }));
+                            return;
+                        }
+                        sftpService.startUpload(sessionId, payload.uploadId, payload.remotePath, payload.size);
+                        break;
+                    }
+                    case 'sftp:upload:chunk': {
+                        if (!sessionId || !state) {
+                            // Don't warn repeatedly for chunks if session is gone
+                            return;
+                        }
+                         if (!payload?.uploadId || typeof payload?.chunkIndex !== 'number' || !payload?.data) {
+                            console.error(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但缺少 uploadId, chunkIndex 或 data。`);
+                            // Avoid flooding with errors for every chunk if something is wrong
+                            // Consider sending a single error and potentially cancelling on the service side
+                            return;
+                        }
+                        // Assuming data is base64 encoded string from frontend
+                        sftpService.handleUploadChunk(sessionId, payload.uploadId, payload.chunkIndex, payload.data);
+                        break;
+                    }
+                    case 'sftp:upload:cancel': {
+                         if (!sessionId || !state) {
+                            // Don't warn if session is already gone
+                            return;
+                        }
+                         if (!payload?.uploadId) {
+                            console.error(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但缺少 uploadId。`);
+                            ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId: payload?.uploadId, message: '缺少 uploadId' } }));
+                            return;
+                        }
+                        sftpService.cancelUpload(sessionId, payload.uploadId);
+                        break;
+                    }
 
                     default:
                         console.warn(`WebSocket：收到来自 ${ws.username} (会话: ${sessionId}) 的未知消息类型: ${type}`);

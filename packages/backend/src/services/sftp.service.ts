@@ -1,4 +1,4 @@
-import { Client, SFTPWrapper, Stats } from 'ssh2';
+import { Client, SFTPWrapper, Stats, WriteStream } from 'ssh2'; // Import WriteStream
 import { WebSocket } from 'ws';
 import { ClientState } from '../websocket'; // 导入统一的 ClientState
 
@@ -37,11 +37,22 @@ interface NetworkStats {
 const DEFAULT_POLLING_INTERVAL = 1000;
 const previousNetStats = new Map<string, { rx: number, tx: number, timestamp: number }>();
 
+// Interface for tracking active uploads
+interface ActiveUpload {
+    remotePath: string;
+    totalSize: number;
+    bytesWritten: number;
+    stream: WriteStream;
+    sessionId: string; // Link back to the session for cleanup
+}
+
 export class SftpService {
     private clientStates: Map<string, ClientState>; // 使用导入的 ClientState
+    private activeUploads: Map<string, ActiveUpload>; // Map<uploadId, ActiveUpload>
 
     constructor(clientStates: Map<string, ClientState>) {
         this.clientStates = clientStates;
+        this.activeUploads = new Map(); // Initialize the map
     }
 
     /**
@@ -98,6 +109,13 @@ export class SftpService {
             state.sftp.end();
             state.sftp = undefined;
         }
+        // Also clean up any active uploads associated with this session
+        this.activeUploads.forEach((upload, uploadId) => {
+            if (upload.sessionId === sessionId) {
+                console.warn(`[SFTP] Cleaning up active upload ${uploadId} for session ${sessionId} due to SFTP session cleanup.`);
+                this.cancelUploadInternal(uploadId, 'SFTP session ended'); // Internal cancel without sending message
+            }
+        });
     }
 
     // --- SFTP 操作方法 ---
@@ -368,4 +386,208 @@ export class SftpService {
     // async uploadFile(...)
     // async downloadFile(...)
 
+    /** 获取路径的绝对表示 */
+    async realpath(sessionId: string, path: string, requestId: string): Promise<void> {
+        const state = this.clientStates.get(sessionId);
+        if (!state || !state.sftp) {
+            console.warn(`[SFTP] SFTP 未准备好，无法在 ${sessionId} 上执行 realpath (ID: ${requestId})`);
+            state?.ws.send(JSON.stringify({ type: 'sftp:realpath:error', path: path, payload: 'SFTP 会话未就绪', requestId: requestId }));
+            return;
+        }
+        console.debug(`[SFTP ${sessionId}] Received realpath request for ${path} (ID: ${requestId})`);
+        try {
+            state.sftp.realpath(path, (err, absPath) => {
+                if (err) {
+                    console.error(`[SFTP ${sessionId}] realpath ${path} failed (ID: ${requestId}):`, err);
+                    state.ws.send(JSON.stringify({ type: 'sftp:realpath:error', path: path, payload: `获取绝对路径失败: ${err.message}`, requestId: requestId }));
+                } else {
+                    console.log(`[SFTP ${sessionId}] realpath ${path} -> ${absPath} success (ID: ${requestId})`);
+                    // 在 payload 中同时发送请求的路径和绝对路径
+            state.ws.send(JSON.stringify({ type: 'sftp:realpath:success', path: path, payload: { requestedPath: path, absolutePath: absPath }, requestId: requestId }));
+                }
+            });
+        } catch (error: any) {
+            console.error(`[SFTP ${sessionId}] realpath ${path} caught unexpected error (ID: ${requestId}):`, error);
+            state.ws.send(JSON.stringify({ type: 'sftp:realpath:error', path: path, payload: `获取绝对路径时发生意外错误: ${error.message}`, requestId: requestId }));
+        }
+    }
+
+    // --- File Upload Methods ---
+
+    /** Start a new file upload */
+    startUpload(sessionId: string, uploadId: string, remotePath: string, totalSize: number): void {
+        const state = this.clientStates.get(sessionId);
+        if (!state || !state.sftp) {
+            console.warn(`[SFTP Upload ${uploadId}] SFTP not ready for session ${sessionId}.`);
+            state?.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: 'SFTP 会话未就绪' } }));
+            return;
+        }
+        if (this.activeUploads.has(uploadId)) {
+            console.warn(`[SFTP Upload ${uploadId}] Upload already in progress for session ${sessionId}.`);
+            state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: 'Upload already started' } }));
+            return;
+        }
+
+        console.log(`[SFTP Upload ${uploadId}] Starting upload for ${remotePath} (${totalSize} bytes) in session ${sessionId}`);
+
+        try {
+            const stream = state.sftp.createWriteStream(remotePath);
+            const uploadState: ActiveUpload = {
+                remotePath,
+                totalSize,
+                bytesWritten: 0,
+                stream,
+                sessionId,
+            };
+            this.activeUploads.set(uploadId, uploadState);
+
+            stream.on('error', (err: Error) => {
+                console.error(`[SFTP Upload ${uploadId}] Write stream error for ${remotePath}:`, err);
+                state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: `写入流错误: ${err.message}` } }));
+                this.activeUploads.delete(uploadId); // Clean up state on error
+            });
+
+            stream.on('close', () => {
+                // This 'close' event now primarily handles cleanup after the stream is fully closed.
+                // The success message is sent earlier in handleUploadChunk.
+                const finalState = this.activeUploads.get(uploadId);
+                if (finalState) {
+                     // Check if bytes written match total size upon close, log warning if not (could indicate cancellation after success msg sent)
+                     if (finalState.bytesWritten !== finalState.totalSize) {
+                         console.warn(`[SFTP Upload ${uploadId}] Write stream closed for ${remotePath}, but written bytes (${finalState.bytesWritten}) != total size (${finalState.totalSize}). This might happen if cancelled after success message was sent.`);
+                         // Optionally send an error if this state is unexpected, but success might have already been sent.
+                         // state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: '文件大小不匹配或上传未完成' } }));
+                     } else {
+                         console.log(`[SFTP Upload ${uploadId}] Write stream closed successfully for ${remotePath}. State cleaned up.`);
+                     }
+                    this.activeUploads.delete(uploadId); // Clean up state when stream is closed
+                } else {
+                     console.log(`[SFTP Upload ${uploadId}] Write stream closed for ${remotePath}, but upload state was already removed.`);
+                }
+            });
+
+             stream.on('finish', () => {
+                 // The 'finish' event fires when stream.end() is called and all data has been flushed to the underlying system.
+                 // This might be a slightly earlier point than 'close'. Let's log it.
+                 console.log(`[SFTP Upload ${uploadId}] Write stream finished for ${remotePath}. Waiting for close.`);
+             });
+
+
+            // Notify client that we are ready for chunks
+            state.ws.send(JSON.stringify({ type: 'sftp:upload:ready', payload: { uploadId } }));
+
+        } catch (error: any) {
+            console.error(`[SFTP Upload ${uploadId}] Error starting upload for ${remotePath}:`, error);
+            state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: `开始上传时出错: ${error.message}` } }));
+            this.activeUploads.delete(uploadId); // Clean up if start failed
+        }
+    }
+
+    /** Handle an incoming file chunk */
+    handleUploadChunk(sessionId: string, uploadId: string, chunkIndex: number, dataBase64: string): void {
+        const state = this.clientStates.get(sessionId);
+        const uploadState = this.activeUploads.get(uploadId);
+
+        if (!state || !state.sftp) {
+            // Session or SFTP gone, can't process chunk. Upload might be cleaned up elsewhere.
+            console.warn(`[SFTP Upload ${uploadId}] Received chunk ${chunkIndex}, but session ${sessionId} or SFTP is invalid.`);
+            this.cancelUploadInternal(uploadId, 'Session or SFTP invalid');
+            return;
+        }
+        if (!uploadState) {
+            console.warn(`[SFTP Upload ${uploadId}] Received chunk ${chunkIndex}, but no active upload found.`);
+            // Send error back to client? Might flood if many chunks arrive after cancellation.
+            // state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: '无效的上传 ID 或上传已取消/完成' } }));
+            return;
+        }
+
+        try {
+            const chunkBuffer = Buffer.from(dataBase64, 'base64');
+            // console.debug(`[SFTP Upload ${uploadId}] Writing chunk ${chunkIndex} (${chunkBuffer.length} bytes) to ${uploadState.remotePath}`);
+
+            // Write the chunk. The 'drain' event is handled automatically by Node.js streams
+            // if the write buffer is full. We just write.
+            const writeSuccess = uploadState.stream.write(chunkBuffer, (err) => {
+                 if (err) {
+                     // This callback handles errors specifically related to *this* write operation.
+                     console.error(`[SFTP Upload ${uploadId}] Error writing chunk ${chunkIndex} to ${uploadState.remotePath}:`, err);
+                     state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: `写入块 ${chunkIndex} 失败: ${err.message}` } }));
+                     // Consider cancelling the upload on write error
+                     this.cancelUploadInternal(uploadId, `Write error on chunk ${chunkIndex}`);
+                 }
+                 // else { console.debug(`[SFTP Upload ${uploadId}] Chunk ${chunkIndex} write callback success.`); }
+            });
+
+            if (!writeSuccess) {
+                // This indicates the buffer is full and we should wait for 'drain'.
+                // However, for simplicity in this WebSocket context, we might rely on TCP backpressure
+                // or simply continue writing, letting the stream buffer handle it.
+                // Adding explicit 'drain' handling can add complexity.
+                console.warn(`[SFTP Upload ${uploadId}] Write stream buffer full after chunk ${chunkIndex}. Waiting for drain is recommended for large files/slow connections.`);
+            }
+
+
+            uploadState.bytesWritten += chunkBuffer.length;
+
+            // Send progress (optional, consider throttling)
+            // const progress = Math.round((uploadState.bytesWritten / uploadState.totalSize) * 100);
+            // state.ws.send(JSON.stringify({ type: 'sftp:upload:progress', payload: { uploadId, progress } }));
+
+            // Check if upload is complete
+            if (uploadState.bytesWritten > uploadState.totalSize) {
+                 console.error(`[SFTP Upload ${uploadId}] Bytes written (${uploadState.bytesWritten}) exceeded total size (${uploadState.totalSize}) for ${uploadState.remotePath}.`);
+                 state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: '写入字节数超过文件总大小' } }));
+                 this.cancelUploadInternal(uploadId, 'Bytes written exceeded total size');
+
+            } else if (uploadState.bytesWritten === uploadState.totalSize) {
+                console.log(`[SFTP Upload ${uploadId}] All bytes (${uploadState.bytesWritten}) received for ${uploadState.remotePath}. Sending success and ending stream.`);
+                // Send success message IMMEDIATELY upon receiving the last expected byte
+                state.ws.send(JSON.stringify({ type: 'sftp:upload:success', payload: { uploadId, remotePath: uploadState.remotePath } }));
+                // Now end the stream. The 'close' event will handle cleanup.
+                uploadState.stream.end();
+            }
+
+        } catch (error: any) {
+            console.error(`[SFTP Upload ${uploadId}] Error handling chunk ${chunkIndex} for ${uploadState?.remotePath}:`, error);
+            state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: `处理块 ${chunkIndex} 时出错: ${error.message}` } }));
+            this.cancelUploadInternal(uploadId, `Error handling chunk ${chunkIndex}`);
+        }
+    }
+
+    /** Cancel an ongoing upload */
+    cancelUpload(sessionId: string, uploadId: string): void {
+        const state = this.clientStates.get(sessionId);
+        const uploadState = this.activeUploads.get(uploadId);
+
+        if (!state) {
+            console.warn(`[SFTP Upload ${uploadId}] Request to cancel, but session ${sessionId} not found.`);
+            // Can't send message back if session is gone
+            this.cancelUploadInternal(uploadId, 'Session not found'); // Clean up if state exists
+            return;
+        }
+        if (!uploadState) {
+            console.warn(`[SFTP Upload ${uploadId}] Request to cancel, but no active upload found.`);
+            state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: '无效的上传 ID 或上传已取消/完成' } }));
+            return;
+        }
+
+        console.log(`[SFTP Upload ${uploadId}] Cancelling upload for ${uploadState.remotePath}`);
+        this.cancelUploadInternal(uploadId, 'User cancelled');
+        state.ws.send(JSON.stringify({ type: 'sftp:upload:cancelled', payload: { uploadId } }));
+    }
+
+    /** Internal helper to clean up an upload */
+    private cancelUploadInternal(uploadId: string, reason: string): void {
+        const uploadState = this.activeUploads.get(uploadId);
+        if (uploadState) {
+            console.log(`[SFTP Upload ${uploadId}] Internal cancel (${reason}): Closing stream for ${uploadState.remotePath}`);
+            // End the stream. The 'close' handler should ideally detect the size mismatch or see the state is gone.
+            // Using destroy might be more immediate but could lead to unclosed file descriptors on the server in some cases.
+            uploadState.stream.end(); // Gracefully try to end
+            // uploadState.stream.destroy(); // More forceful, might be needed
+            this.activeUploads.delete(uploadId);
+        } else {
+            // console.log(`[SFTP Upload ${uploadId}] Internal cancel called, but upload state already removed.`);
+        }
+    }
 }

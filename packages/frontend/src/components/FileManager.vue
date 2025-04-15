@@ -1,61 +1,89 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed, onBeforeUnmount, nextTick } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect } from 'vue'; // Import watchEffect
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import MonacoEditor from './MonacoEditor.vue'; // 导入 Monaco Editor 组件
+// 移除 MonacoEditor 直接导入，因为它现在在 FileEditorOverlay 中
+// import MonacoEditor from './MonacoEditor.vue';
+import { useSftpActions } from '../composables/useSftpActions';
+import { useFileUploader } from '../composables/useFileUploader';
+import { useFileEditor } from '../composables/useFileEditor';
+import { useWebSocketConnection } from '../composables/useWebSocketConnection'; // 导入 WebSocket composable
+// 导入新拆分的 UI 组件
+import FileUploadPopup from './FileUploadPopup.vue';
+import FileEditorOverlay from './FileEditorOverlay.vue';
+// 从类型文件导入所需类型
+import type { FileListItem, FileAttributes } from '../types/sftp.types';
+import type { UploadItem } from '../types/upload.types';
+import type { WebSocketMessage } from '../types/websocket.types'; // 导入 WebSocketMessage
 
-// --- Interfaces ---
-interface FileAttributes {
-    size: number;
-    uid: number;
-    gid: number;
-    mode: number;
-    atime: number;
-    mtime: number;
-    isDirectory: boolean;
-    isFile: boolean;
-    isSymbolicLink: boolean;
-}
 
-interface FileListItem {
-    filename: string;
-    longname: string;
-    attrs: FileAttributes;
-}
-
-interface UploadItem {
-    id: string;
-    file: File;
-    filename: string;
-    progress: number;
-    error?: string;
-    status: 'pending' | 'uploading' | 'paused' | 'success' | 'error' | 'cancelled';
-}
+// --- 接口定义 (已移至类型文件) ---
 
 // --- Props ---
 const props = defineProps<{
-  ws: WebSocket | null;
-  isConnected: boolean;
+  // ws: WebSocket | null; // 移除 ws prop
+  isConnected: boolean; // 保留 isConnected prop，用于禁用操作
 }>();
 
-// --- Composables & Refs ---
+// --- 核心 Composables ---
 const { t } = useI18n();
 const route = useRoute();
-const currentPath = ref<string>('.');
-const fileList = ref<FileListItem[]>([]);
-const isLoading = ref<boolean>(false);
-const error = ref<string | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const uploads = ref<Record<string, UploadItem>>({});
-const selectedItems = ref(new Set<string>());
-const lastClickedIndex = ref(-1);
-const contextMenuVisible = ref(false);
-const contextMenuPosition = ref({ x: 0, y: 0 });
-const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]);
-const contextTargetItem = ref<FileListItem | null>(null);
-const isDraggingOver = ref(false); // State for drag-over visual feedback
-const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename'); // Default sort key
-const sortDirection = ref<'asc' | 'desc'>('asc'); // Default sort direction
+// 导入 sendMessage 和 onMessage 用于 realpath 请求
+const { isSftpReady, sendMessage, onMessage } = useWebSocketConnection();
+const currentPath = ref<string>('.'); // 当前路径状态保留在组件中，传递给 composables
+
+// SFTP 操作模块
+const {
+    fileList, // 从 composable 获取文件列表
+    isLoading, // 从 composable 获取加载状态
+    error,     // 从 composable 获取错误状态
+    loadDirectory,
+    createDirectory,
+    createFile,
+    deleteItems,
+    renameItem,
+    changePermissions,
+    readFile, // 暴露给 useFileEditor
+    writeFile, // 暴露给 useFileEditor
+    joinPath, // 从 composable 获取 joinPath
+} = useSftpActions(currentPath); // 传入 currentPath ref
+
+// 文件上传模块
+const {
+    uploads, // 从 composable 获取上传列表
+    startFileUpload,
+    cancelUpload,
+} = useFileUploader(currentPath, fileList, () => loadDirectory(currentPath.value)); // 传入依赖
+
+// 文件编辑器模块
+const {
+    isEditorVisible,
+    editingFilePath,
+    editingFileLanguage,
+    isEditorLoading,
+    editorError,
+    isSaving,
+    saveStatus,
+    saveError,
+    editingFileContent, // v-model 绑定
+    openFile,
+    saveFile,
+    closeEditor,
+} = useFileEditor(readFile, writeFile); // 传入依赖
+
+// --- UI 状态 Refs ---
+const fileInputRef = ref<HTMLInputElement | null>(null); // 用于触发文件选择
+const selectedItems = ref(new Set<string>()); // 文件选择状态
+const lastClickedIndex = ref(-1); // 用于 Shift 多选
+const contextMenuVisible = ref(false); // 右键菜单可见性
+const contextMenuPosition = ref({ x: 0, y: 0 }); // 右键菜单位置
+const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]); // 右键菜单项
+const contextTargetItem = ref<FileListItem | null>(null); // 右键菜单目标项
+const isDraggingOver = ref(false); // 拖拽覆盖状态
+const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename'); // 排序字段
+const sortDirection = ref<'asc' | 'desc'>('asc'); // 排序方向
+const initialLoadDone = ref(false); // Track if the initial load has been triggered
+const isFetchingInitialPath = ref(false); // Track if fetching realpath
 
 // --- Column Resizing State ---
 const tableRef = ref<HTMLTableElement | null>(null);
@@ -71,36 +99,21 @@ const resizingColumnIndex = ref(-1);
 const startX = ref(0);
 const startWidth = ref(0);
 
+// --- Editor State (已移至 useFileEditor) ---
+// const isEditorVisible = ref(false);
+// ... 其他编辑器状态 ...
 
-// --- Editor State ---
-const isEditorVisible = ref(false);
-const editingFilePath = ref<string | null>(null);
-const editingFileContent = ref<string>('');
-const editingFileLanguage = ref<string>('plaintext'); // Language for Monaco
-const editingFileEncoding = ref<'utf8' | 'base64'>('utf8'); // How content was received
-const isEditorLoading = ref<boolean>(false);
-const editorError = ref<string | null>(null);
-const isSaving = ref<boolean>(false);
-const saveStatus = ref<'idle' | 'saving' | 'success' | 'error'>('idle');
-const saveError = ref<string | null>(null);
-
-
-// --- Helper Functions ---
+// --- 辅助函数 (部分移至 composables) ---
+// generateRequestId 已移至 composables 内部使用
+// joinPath 从 useSftpActions 获取
+// sortFiles 已移至 useSftpActions 内部使用
+// Helper function (Copied from useSftpActions) - needed for realpath request
 const generateRequestId = (): string => {
     return `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 };
 
-const joinPath = (base: string, name: string): string => {
-    if (base === '/') return `/${name}`;
-    return `${base}/${name}`;
-};
 
-const sortFiles = (a: FileListItem, b: FileListItem): number => {
-    if (a.attrs.isDirectory && !b.attrs.isDirectory) return -1;
-    if (!a.attrs.isDirectory && b.attrs.isDirectory) return 1;
-    return a.filename.localeCompare(b.filename);
-};
-
+// 保留 UI 格式化函数
 const formatSize = (size: number): string => {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
@@ -113,78 +126,16 @@ const formatMode = (mode: number): string => {
   str += (perm & 0o400) ? 'r' : '-'; str += (perm & 0o200) ? 'w' : '-'; str += (perm & 0o100) ? 'x' : '-';
   str += (perm & 0o040) ? 'r' : '-'; str += (perm & 0o020) ? 'w' : '-'; str += (perm & 0o010) ? 'x' : '-';
   str += (perm & 0o004) ? 'r' : '-'; str += (perm & 0o002) ? 'w' : '-'; str += (perm & 0o001) ? 'x' : '-';
-  return str;
+    return str;
 };
 
-// --- Editor Helper Functions ---
-const getLanguageFromFilename = (filename: string): string => {
-  const extension = filename.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'js': return 'javascript';
-    case 'ts': return 'typescript';
-    case 'json': return 'json';
-    case 'html': return 'html';
-    case 'css': return 'css';
-    case 'scss': return 'scss';
-    case 'less': return 'less';
-    case 'py': return 'python';
-    case 'java': return 'java';
-    case 'c': return 'c';
-    case 'cpp': return 'cpp';
-    case 'cs': return 'csharp';
-    case 'go': return 'go';
-    case 'php': return 'php';
-    case 'rb': return 'ruby';
-    case 'rs': return 'rust';
-    case 'sql': return 'sql';
-    case 'sh': return 'shell';
-    case 'yaml': case 'yml': return 'yaml';
-    case 'md': return 'markdown';
-    case 'xml': return 'xml';
-    case 'ini': return 'ini';
-    case 'bat': return 'bat';
-    case 'dockerfile': return 'dockerfile';
-    default: return 'plaintext';
-  }
-};
-
-const closeEditor = () => {
-  isEditorVisible.value = false;
-  editingFilePath.value = null;
-  editingFileContent.value = '';
-  editorError.value = null;
-  isEditorLoading.value = false;
-  saveStatus.value = 'idle'; // Reset save status on close
-  saveError.value = null;
-};
-
-const handleSaveFile = () => {
-  if (!props.ws || props.ws.readyState !== WebSocket.OPEN || !editingFilePath.value || isSaving.value) {
-    return;
-  }
-  isSaving.value = true;
-  saveStatus.value = 'saving';
-  saveError.value = null;
-
-  const contentToSave = editingFileContent.value;
-  const encodingToSend: 'utf8' | 'base64' = 'utf8'; // Always send UTF8 for now
-  const requestId = generateRequestId(); // Generate request ID
-
-  props.ws.send(JSON.stringify({
-    type: 'sftp:writefile',
-    requestId: requestId, // Add request ID
-    payload: {
-      path: editingFilePath.value,
-      content: contentToSave,
-      encoding: encodingToSend,
-    }
-  }));
-
-  // The save status will now be updated solely based on the sftp:writefile:success or sftp:writefile:error messages received via WebSocket.
-};
+// --- 编辑器辅助函数 (已移至 useFileEditor) ---
+// getLanguageFromFilename 已移至 useFileEditor
+// closeEditor 由 useFileEditor 提供
+// handleSaveFile 由 useFileEditor 提供
 
 
-// --- Context Menu Logic ---
+// --- 上下文菜单逻辑 (部分操作现在调用 composable 方法) ---
 const showContextMenu = (event: MouseEvent, item?: FileListItem) => {
   event.preventDefault();
   const targetItem = item || null;
@@ -204,34 +155,42 @@ const showContextMenu = (event: MouseEvent, item?: FileListItem) => {
   const selectionSize = selectedItems.value.size;
   const clickedItemIsSelected = targetItem && selectedItems.value.has(targetItem.filename);
 
-  // Build context menu items
+  // 构建上下文菜单项
   if (selectionSize > 1 && clickedItemIsSelected) {
+      // 多选时的菜单
       menu = [
-          { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: handleDeleteClick },
-          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) },
+          { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: handleDeleteSelectedClick }, // 修改为调用新的处理函数
+          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) }, // 调用 useSftpActions 的方法
       ];
   } else if (targetItem && targetItem.filename !== '..') {
+      // 单个项目（非 '..'）的菜单
       menu = [
-          { label: t('fileManager.actions.newFolder'), action: handleNewFolderClick },
-          { label: t('fileManager.actions.newFile'), action: handleNewFileClick }, // 添加新建文件选项
-          { label: t('fileManager.actions.upload'), action: triggerFileUpload },
-          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) },
+          { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick }, // 修改为调用新的处理函数
+          { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick }, // 修改为调用新的处理函数
+          { label: t('fileManager.actions.upload'), action: triggerFileUpload }, // 调用组件内的方法触发 input
+          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) }, // 调用 useSftpActions 的方法
       ];
         if (targetItem.attrs.isFile) {
+            // 如果是文件，添加下载选项
             menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => triggerDownload(targetItem) });
         }
-       // Add Delete option for single item
-       menu.push({ label: t('fileManager.actions.delete'), action: handleDeleteClick });
-       // Removed duplicate refresh: menu.push({ label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) });
+       // 添加删除选项
+       menu.push({ label: t('fileManager.actions.delete'), action: handleDeleteSelectedClick }); // 修改为调用新的处理函数
+       // 添加重命名选项
+       menu.push({ label: t('fileManager.actions.rename'), action: () => handleRenameContextMenuClick(targetItem) }); // 调用新的处理函数
+       // 添加修改权限选项
+       menu.push({ label: t('fileManager.actions.changePermissions'), action: () => handleChangePermissionsContextMenuClick(targetItem) }); // 调用新的处理函数
+
   } else if (!targetItem) {
+      // 在空白处右键的菜单
       menu = [
-          { label: t('fileManager.actions.newFolder'), action: handleNewFolderClick },
-          { label: t('fileManager.actions.newFile'), action: handleNewFileClick }, // 添加新建文件选项
-          { label: t('fileManager.actions.upload'), action: triggerFileUpload },
-          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) },
+          { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick }, // 修改为调用新的处理函数
+          { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick }, // 修改为调用新的处理函数
+          { label: t('fileManager.actions.upload'), action: triggerFileUpload }, // 调用组件内的方法触发 input
+          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) }, // 调用 useSftpActions 的方法
       ];
-  } else { // Clicked on '..'
-        menu = [ { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) } ];
+  } else { // 点击 '..' 时的菜单
+        menu = [ { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) } ]; // 调用 useSftpActions 的方法
    }
 
    contextMenuItems.value = menu;
@@ -276,191 +235,15 @@ const hideContextMenu = () => {
 };
 
 
-// --- WebSocket Message Handling ---
-watch(() => props.ws, (newWs, oldWs) => {
-    console.log('[FileManager] WebSocket prop changed.');
-    if (oldWs) {
-        console.log('[FileManager] Removing message listener from old WebSocket.');
-        oldWs.removeEventListener('message', handleWebSocketMessage);
-    }
-    if (newWs) {
-        console.log('[FileManager] Adding message listener to new WebSocket.');
-        newWs.addEventListener('message', handleWebSocketMessage);
-        if (props.isConnected) {
-            console.log('[FileManager] WebSocket connected, loading initial directory.');
-            loadDirectory(currentPath.value);
-        }
-    } else {
-        console.log('[FileManager] WebSocket prop is now null.');
-    }
-}, { immediate: true });
+// --- WebSocket 消息处理 (已移至 composables) ---
+// watch(() => props.ws, ...) 已移除
+// watch(() => props.isConnected, ...) 已移除 (部分逻辑移至 onMounted 和 isConnected watch)
+// handleWebSocketMessage 已移除
 
-watch(() => props.isConnected, (connected) => {
-    if (connected && props.ws && fileList.value.length === 0) loadDirectory(currentPath.value);
-    else if (!connected) {
-        fileList.value = []; selectedItems.value.clear(); lastClickedIndex.value = -1;
-        error.value = t('fileManager.errors.websocketNotConnected'); isLoading.value = false;
-        Object.keys(uploads.value).forEach(uploadId => {
-            const upload = uploads.value[uploadId];
-            if (upload && ['pending', 'uploading', 'paused'].includes(upload.status)) cancelUpload(uploadId, false);
-        });
-    }
-});
+// --- 目录加载与导航 ---
+// loadDirectory 由 useSftpActions 提供
 
-const handleWebSocketMessage = (event: MessageEvent) => {
-    // console.log('[FileManager] Received WebSocket message:', event.data.substring(0, 200)); // Moved logging inside specific cases
-    try {
-        const message = JSON.parse(event.data);
-        // Destructure only common top-level keys
-        const { type, payload, path } = message;
-        // Extract uploadId specifically where needed from payload or top-level
-        const uploadIdFromPayload = message.uploadId || payload?.uploadId; // Check top-level first, then payload
-
-        // Log and process specific message types relevant to FileManager
-        if (type.startsWith('sftp:')) {
-             console.log(`[FileManager] Processing SFTP message: ${type}`, { path, uploadId: uploadIdFromPayload, payload: type === 'sftp:readfile:success' ? '...' : payload });
-        }
-
-        if (type === 'sftp:readdir:success' && path === currentPath.value) {
-            fileList.value = payload.sort(sortFiles); selectedItems.value.clear(); lastClickedIndex.value = -1; error.value = null; isLoading.value = false;
-        } else if (type === 'sftp:readdir:error' && path === currentPath.value) {
-            error.value = payload; isLoading.value = false; fileList.value = []; selectedItems.value.clear(); lastClickedIndex.value = -1;
-        }
-        // Use uploadIdFromPayload for all upload-related messages
-        else if (type === 'sftp:upload:ready' && uploadIdFromPayload) {
-            const upload = uploads.value[uploadIdFromPayload];
-            if (upload && upload.status === 'pending') {
-                if (upload.file.size === 0) { upload.status = 'uploading'; props.ws?.send(JSON.stringify({ type: 'sftp:upload:chunk', payload: { uploadId: uploadIdFromPayload, data: '', isLast: true } })); upload.progress = 100; }
-                else { upload.status = 'uploading'; sendFileChunks(uploadIdFromPayload, upload.file); }
-            }
-        } else if (type === 'sftp:upload:success' && uploadIdFromPayload) {
-            const upload = uploads.value[uploadIdFromPayload];
-            // *** Log entry into the success block ***
-            console.log(`[FileManager] Entered sftp:upload:success block for ID: ${uploadIdFromPayload}`);
-            if (upload) {
-                console.log(`[FileManager] Found upload task for ID: ${uploadIdFromPayload}. Current status: ${upload.status}`);
-                upload.status = 'success'; // Mark as success
-                upload.progress = 100;
-                loadDirectory(currentPath.value); // Refresh directory list
-
-                console.log(`[FileManager] Before removal - uploads[${uploadIdFromPayload}]:`, uploads.value[uploadIdFromPayload]);
-                console.log(`[FileManager] Before removal - All upload keys:`, Object.keys(uploads.value));
-
-                // Create a new object excluding the completed upload to ensure reactivity update
-                const newUploads = { ...uploads.value };
-                delete newUploads[uploadIdFromPayload];
-                uploads.value = newUploads; // Assign the new object back
-
-                nextTick(() => {
-                    console.log(`[FileManager] After removal (nextTick) - uploads[${uploadIdFromPayload}]:`, uploads.value[uploadIdFromPayload]); // Should be undefined
-                    console.log(`[FileManager] After removal (nextTick) - All upload keys:`, Object.keys(uploads.value));
-                });
-
-            } else {
-                 console.warn(`[FileManager] Received upload success for unknown ID: ${uploadIdFromPayload}`);
-            }
-        } else if (type === 'sftp:upload:error' && uploadIdFromPayload) {
-             const upload = uploads.value[uploadIdFromPayload];
-             if (upload) {
-                 upload.status = 'error';
-                 upload.error = payload;
-                 // Keep the error message visible for a while
-                 setTimeout(() => { if (uploads.value[uploadIdFromPayload]?.status === 'error') delete uploads.value[uploadIdFromPayload]; }, 5000);
-             }
-        } else if (type === 'sftp:upload:pause' && uploadIdFromPayload) {
-             const upload = uploads.value[uploadIdFromPayload]; if (upload && upload.status === 'uploading') upload.status = 'paused';
-        } else if (type === 'sftp:upload:resume' && uploadIdFromPayload) {
-             const upload = uploads.value[uploadIdFromPayload]; if (upload && upload.status === 'paused') { upload.status = 'uploading'; console.warn("Resuming upload..."); sendFileChunks(uploadIdFromPayload, upload.file); }
-        } else if (type === 'sftp:upload:cancelled' && uploadIdFromPayload) {
-             const upload = uploads.value[uploadIdFromPayload];
-             if (upload) {
-                 upload.status = 'cancelled';
-                 // Keep the cancelled message visible for a while
-                 setTimeout(() => { if (uploads.value[uploadIdFromPayload]?.status === 'cancelled') delete uploads.value[uploadIdFromPayload]; }, 3000);
-             }
-        }
-        else if (type === 'sftp:mkdir:success' || type === 'sftp:rmdir:success' || type === 'sftp:unlink:success' || type === 'sftp:rename:success' || type === 'sftp:chmod:success') {
-            loadDirectory(currentPath.value); error.value = null;
-        } else if (type === 'sftp:mkdir:error') { error.value = `${t('fileManager.errors.createFolderFailed')}: ${payload}`; }
-        else if (type === 'sftp:rmdir:error' || type === 'sftp:unlink:error') { error.value = `${t('fileManager.errors.deleteFailed')}: ${payload}`; }
-        else if (type === 'sftp:rename:error') { error.value = `${t('fileManager.errors.renameFailed')}: ${payload}`; }
-        else if (type === 'sftp:chmod:error') { error.value = `${t('fileManager.errors.chmodFailed')}: ${payload}`; }
-        // --- Handle Editor File Content ---
-        else if (type === 'sftp:readfile:success' && path === editingFilePath.value) {
-            isEditorLoading.value = false;
-            editorError.value = null;
-            editingFileEncoding.value = payload.encoding;
-            if (payload.encoding === 'base64') {
-                try {
-                    // Try decoding base64 content
-                    editingFileContent.value = atob(payload.content);
-                } catch (decodeError) {
-                    console.error("Base64 decode error:", decodeError);
-                    editorError.value = t('fileManager.errors.fileDecodeError');
-                    editingFileContent.value = `// ${t('fileManager.errors.fileDecodeError')}\n${payload.content}`; // Show raw base64 as fallback
-                }
-            } else {
-                editingFileContent.value = payload.content;
-            }
-        } else if (type === 'sftp:readfile:error' && path === editingFilePath.value) {
-            isEditorLoading.value = false;
-            editorError.value = `${t('fileManager.errors.readFileFailed')}: ${payload}`;
-            editingFileContent.value = `// ${editorError.value}`; // Show error in editor
-        }
-        // --- Handle Editor Save Status ---
-        else if (type === 'sftp:writefile:success') { // Handle ALL successful writes
-            // Extract parent directory
-            const parentDir = path.substring(0, path.lastIndexOf('/')) || '/';
-
-            // Refresh if the write occurred in the current directory
-            if (parentDir === currentPath.value) {
-                loadDirectory(currentPath.value);
-            }
-
-            // Update editor status ONLY if the saved file is the one being edited
-            if (path === editingFilePath.value) {
-                isSaving.value = false;
-                saveStatus.value = 'success';
-                saveError.value = null;
-                // Optionally close editor on successful save, or just show status
-                // closeEditor();
-                // Reset status after a short delay
-                setTimeout(() => { if (saveStatus.value === 'success') saveStatus.value = 'idle'; }, 2000);
-            }
-        } else if (type === 'sftp:writefile:error' && path === editingFilePath.value) { // Error only relevant if editing this file
-            isSaving.value = false;
-            saveStatus.value = 'error';
-            saveError.value = `${t('fileManager.errors.saveFailed')}: ${payload}`;
-             // Reset status after a while
-            setTimeout(() => {
-                if (saveStatus.value === 'error') saveStatus.value = 'idle'; saveError.value = null;
-            }, 5000);
-        }
-        // --- Handle SFTP Ready ---
-        else if (type === 'sftp_ready') {
-            console.log('[FileManager] Received sftp_ready message.');
-            // If the file list is empty and we are connected, it might mean the initial load failed. Retry.
-            // Also check if there's currently an error displayed, indicating a previous load failure.
-            if (props.isConnected && !isLoading.value && (fileList.value.length === 0 || error.value)) {
-                console.log('[FileManager] SFTP is ready and file list is empty or has error, retrying loadDirectory.');
-                loadDirectory(currentPath.value);
-            }
-        }
-
-
-    } catch (e) { console.error("Error handling WebSocket message:", e); /* Log other errors */ }
-};
-
-// --- Directory Loading & Navigation ---
-const loadDirectory = (path: string) => {
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN) { error.value = t('fileManager.errors.websocketNotConnected'); return; }
-    isLoading.value = true; error.value = null;
-    const requestId = generateRequestId(); // Generate request ID
-    props.ws.send(JSON.stringify({ type: 'sftp:readdir', requestId: requestId, payload: { path } })); // Add request ID
-    currentPath.value = path;
-};
-
-// --- Item Click & Selection Logic ---
+// --- 列表项点击与选择逻辑 ---
 const handleItemClick = (event: MouseEvent, item: FileListItem) => {
     // Do not hide context menu here, let the global listener or menu item click handle it.
 
@@ -490,35 +273,33 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => {
         }
 
         if (item.attrs.isDirectory) {
+            // 处理目录点击：导航
             const newPath = item.filename === '..'
                 ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/'
-                : joinPath(currentPath.value, item.filename);
-            loadDirectory(newPath);
+                : joinPath(currentPath.value, item.filename); // 使用 composable 的 joinPath
+            loadDirectory(newPath); // 使用 composable 的 loadDirectory
         } else if (item.attrs.isFile) {
-            // --- Open file in editor ---
-            if (!props.ws || props.ws.readyState !== WebSocket.OPEN) {
-                editorError.value = t('fileManager.errors.websocketNotConnected');
-                isEditorVisible.value = true; // Show editor pane with error
-                return;
-            }
-            const filePath = joinPath(currentPath.value, item.filename);
-            editingFilePath.value = filePath;
-            editingFileLanguage.value = getLanguageFromFilename(item.filename);
-            editingFileContent.value = ''; // Clear previous content
-            isEditorLoading.value = true;
-            editorError.value = null;
-            isEditorVisible.value = true;
-            const requestId = generateRequestId(); // Generate request ID
-            props.ws.send(JSON.stringify({ type: 'sftp:readfile', requestId: requestId, payload: { path: filePath } })); // Add request ID
+            // 处理文件点击：打开编辑器
+            const filePath = joinPath(currentPath.value, item.filename); // 使用 composable 的 joinPath
+            openFile(filePath); // 使用 useFileEditor 的 openFile
         }
     }
 };
 
+// --- 下载逻辑 ---
+
 const triggerDownload = (item: FileListItem) => {
     const currentConnectionId = route.params.connectionId as string;
-    if (!currentConnectionId) { error.value = t('fileManager.errors.missingConnectionId'); return; }
-    const downloadPath = joinPath(currentPath.value, item.filename);
+    if (!currentConnectionId) {
+        // error.value = t('fileManager.errors.missingConnectionId'); // 错误状态由 useSftpActions 管理
+        console.error("无法下载：缺少连接 ID"); // 或者显示一个临时的 alert
+        alert(t('fileManager.errors.missingConnectionId'));
+        return;
+    }
+    const downloadPath = joinPath(currentPath.value, item.filename); // 使用 composable 的 joinPath
+    // TODO: 考虑将 API URL 基础部分提取到配置或环境变量中
     const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
+    console.log(`[文件管理器] 触发下载: ${downloadUrl}`);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.setAttribute('download', item.filename);
@@ -527,7 +308,7 @@ const triggerDownload = (item: FileListItem) => {
     document.body.removeChild(link);
 };
 
-// --- Drag and Drop Upload Logic ---
+// --- 拖放上传逻辑 ---
 const handleDragEnter = (event: DragEvent) => {
     // Check if files are being dragged
     if (event.dataTransfer?.types.includes('Files')) {
@@ -557,148 +338,100 @@ const handleDragLeave = (event: DragEvent) => {
 
 const handleDrop = (event: DragEvent) => {
     isDraggingOver.value = false;
-    if (!event.dataTransfer?.files || !props.ws || props.ws.readyState !== WebSocket.OPEN) {
+    if (!event.dataTransfer?.files || !props.isConnected) { // 使用 props.isConnected
         return;
     }
     const files = Array.from(event.dataTransfer.files);
     if (files.length > 0) {
-        console.log(`[FileManager] Dropped ${files.length} files.`);
-        files.forEach(startFileUpload); // Use existing function to handle each file
+        console.log(`[文件管理器] 拖放了 ${files.length} 个文件。`);
+        files.forEach(startFileUpload); // 调用 useFileUploader 的方法
     }
 };
 
-// --- File Upload Logic ---
-const triggerFileUpload = () => { fileInputRef.value?.click(); };
+// --- 文件上传逻辑 (已移至 useFileUploader) ---
+const triggerFileUpload = () => { fileInputRef.value?.click(); }; // 保留触发器
 const handleFileSelected = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    if (!input.files || !props.ws || props.ws.readyState !== WebSocket.OPEN) return;
-    Array.from(input.files).forEach(startFileUpload);
-    input.value = '';
+    if (!input.files || !props.isConnected) return; // 使用 props.isConnected
+    Array.from(input.files).forEach(startFileUpload); // 调用 useFileUploader 的方法
+    input.value = ''; // 清空 input 以允许再次选择相同文件
 };
-const startFileUpload = (file: File) => {
-    if (!props.ws) return;
-    const uploadId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    const remotePath = joinPath(currentPath.value, file.name);
-    if (fileList.value.some(item => item.filename === file.name && !item.attrs.isDirectory)) {
-        if (!confirm(t('fileManager.prompts.confirmOverwrite', { name: file.name }))) return;
-    }
-    uploads.value[uploadId] = { id: uploadId, file, filename: file.name, progress: 0, status: 'pending' };
-    props.ws.send(JSON.stringify({ type: 'sftp:upload:start', payload: { uploadId, remotePath, size: file.size } }));
-};
-const sendFileChunks = (uploadId: string, file: File, startByte = 0) => {
-    const upload = uploads.value[uploadId];
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN || !upload || upload.status !== 'uploading') return;
-    const chunkSize = 1024 * 64;
-    const reader = new FileReader();
-    let offset = startByte;
-    reader.onload = (e) => {
-        const currentUpload = uploads.value[uploadId];
-        if (!props.ws || props.ws.readyState !== WebSocket.OPEN || !currentUpload || currentUpload.status !== 'uploading') return;
-        const chunkBase64 = (e.target?.result as string).split(',')[1];
-        const isLast = offset + chunkSize >= file.size;
-        props.ws.send(JSON.stringify({ type: 'sftp:upload:chunk', payload: { uploadId, data: chunkBase64, isLast } }));
-        offset += chunkSize;
-        currentUpload.progress = Math.min(100, Math.round((offset / file.size) * 100));
-        if (!isLast) nextTick(readNextChunk);
-    };
-    reader.onerror = () => { if (uploads.value[uploadId]) { uploads.value[uploadId].status = 'error'; uploads.value[uploadId].error = t('fileManager.errors.readFileError'); } };
-    const readNextChunk = () => { if (offset < file.size && uploads.value[uploadId]?.status === 'uploading') reader.readAsDataURL(file.slice(offset, offset + chunkSize)); };
-    if (file.size > 0) readNextChunk();
-};
-const cancelUpload = (uploadId: string, notifyBackend = true) => {
-    const upload = uploads.value[uploadId];
-    if (upload && ['pending', 'uploading', 'paused'].includes(upload.status)) {
-        upload.status = 'cancelled';
-        if (notifyBackend && props.ws?.readyState === WebSocket.OPEN) props.ws.send(JSON.stringify({ type: 'sftp:upload:cancel', payload: { uploadId } }));
-        setTimeout(() => { if (uploads.value[uploadId]?.status === 'cancelled') delete uploads.value[uploadId]; }, 3000);
-    }
-};
+// startFileUpload 已移至 useFileUploader
+// sendFileChunks 已移至 useFileUploader
+// cancelUpload 由 useFileUploader 提供
 
-// --- SFTP Action Handlers ---
-const handleDeleteClick = () => {
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN || selectedItems.value.size === 0) return;
+// --- SFTP 操作处理函数 (现在调用 composable 方法) ---
+const handleDeleteSelectedClick = () => {
+    if (!props.isConnected || selectedItems.value.size === 0) return;
+    // 从 composable 获取 fileList 来查找选中的项
     const itemsToDelete = Array.from(selectedItems.value)
                                .map(filename => fileList.value.find(f => f.filename === filename))
                                .filter((item): item is FileListItem => item !== undefined);
     if (itemsToDelete.length === 0) return;
+
     const names = itemsToDelete.map(i => i.filename).join(', ');
     const confirmMsg = itemsToDelete.length > 1
         ? t('fileManager.prompts.confirmDeleteMultiple', { count: itemsToDelete.length, names: names })
         : itemsToDelete[0].attrs.isDirectory
             ? t('fileManager.prompts.confirmDeleteFolder', { name: itemsToDelete[0].filename })
             : t('fileManager.prompts.confirmDeleteFile', { name: itemsToDelete[0].filename });
+
     if (confirm(confirmMsg)) {
-        itemsToDelete.forEach(item => {
-            const targetPath = joinPath(currentPath.value, item.filename);
-            const actionType = item.attrs.isDirectory ? 'sftp:rmdir' : 'sftp:unlink';
-            const requestId = generateRequestId(); // Generate request ID
-            props.ws!.send(JSON.stringify({ type: actionType, requestId: requestId, payload: { path: targetPath } })); // Add request ID
-        });
-    }
-};
-const handleRenameClick = (item: FileListItem) => {
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN || !item) return;
-    const newName = prompt(t('fileManager.prompts.enterNewName', { oldName: item.filename }), item.filename);
-    if (newName && newName !== item.filename) {
-        const oldPath = joinPath(currentPath.value, item.filename);
-        const newPath = joinPath(currentPath.value, newName);
-        const requestId = generateRequestId(); // Generate request ID
-        props.ws.send(JSON.stringify({ type: 'sftp:rename', requestId: requestId, payload: { oldPath, newPath } })); // Add request ID
-    }
-};
-const handleChangePermissionsClick = (item: FileListItem) => {
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN || !item) return;
-    const currentModeOctal = (item.attrs.mode & 0o777).toString(8).padStart(3, '0');
-    const newModeStr = prompt(t('fileManager.prompts.enterNewPermissions', { name: item.filename, currentMode: currentModeOctal }), currentModeOctal);
-    if (newModeStr) {
-        if (!/^[0-7]{3,4}$/.test(newModeStr)) { alert(t('fileManager.errors.invalidPermissionsFormat')); return; }
-        const newMode = parseInt(newModeStr, 8);
-        const targetPath = joinPath(currentPath.value, item.filename);
-        const requestId = generateRequestId(); // Generate request ID
-        // Note: Backend expects 'path' in payload for chmod, not 'targetPath'
-        props.ws.send(JSON.stringify({ type: 'sftp:chmod', requestId: requestId, payload: { path: targetPath, mode: newMode } })); // Add request ID, fix payload key
-    }
-};
-const handleNewFolderClick = () => {
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN) return;
-    const folderName = prompt(t('fileManager.prompts.enterFolderName'));
-    if (folderName) {
-        const newFolderPath = joinPath(currentPath.value, folderName);
-        const requestId = generateRequestId(); // Generate request ID
-        props.ws.send(JSON.stringify({ type: 'sftp:mkdir', requestId: requestId, payload: { path: newFolderPath } })); // Add request ID
-        // 移除立即刷新，依赖 sftp:mkdir:success 消息
+        deleteItems(itemsToDelete); // 调用 useSftpActions 的方法
+        selectedItems.value.clear(); // 清空选择
     }
 };
 
-// 处理新建文件点击事件
-const handleNewFileClick = () => {
-    if (!props.ws || props.ws.readyState !== WebSocket.OPEN) return;
+const handleRenameContextMenuClick = (item: FileListItem) => {
+    if (!props.isConnected || !item) return;
+    const newName = prompt(t('fileManager.prompts.enterNewName', { oldName: item.filename }), item.filename);
+    if (newName && newName !== item.filename) {
+        renameItem(item, newName); // 调用 useSftpActions 的方法
+    }
+};
+
+const handleChangePermissionsContextMenuClick = (item: FileListItem) => {
+    if (!props.isConnected || !item) return;
+    const currentModeOctal = (item.attrs.mode & 0o777).toString(8).padStart(3, '0');
+    const newModeStr = prompt(t('fileManager.prompts.enterNewPermissions', { name: item.filename, currentMode: currentModeOctal }), currentModeOctal);
+    if (newModeStr) {
+        if (!/^[0-7]{3,4}$/.test(newModeStr)) {
+            alert(t('fileManager.errors.invalidPermissionsFormat'));
+            return;
+        }
+        const newMode = parseInt(newModeStr, 8);
+        changePermissions(item, newMode); // 调用 useSftpActions 的方法
+    }
+};
+
+const handleNewFolderContextMenuClick = () => {
+    if (!props.isConnected) return;
+    const folderName = prompt(t('fileManager.prompts.enterFolderName'));
+    if (folderName) {
+        // 可以在这里添加客户端的文件名验证（例如，是否已存在）
+        if (fileList.value.some(item => item.filename === folderName)) {
+             alert(t('fileManager.errors.folderExists', { name: folderName })); // 假设有这个翻译
+             return;
+        }
+        createDirectory(folderName); // 调用 useSftpActions 的方法
+    }
+};
+
+const handleNewFileContextMenuClick = () => {
+    if (!props.isConnected) return;
     const fileName = prompt(t('fileManager.prompts.enterFileName'));
     if (fileName) {
-        // 检查文件名是否已存在
+        // 可以在这里添加客户端的文件名验证
         if (fileList.value.some(item => item.filename === fileName)) {
             alert(t('fileManager.errors.fileExists', { name: fileName }));
             return;
         }
-        const newFilePath = joinPath(currentPath.value, fileName);
-        const requestId = generateRequestId(); // Generate request ID
-        // 发送创建空文件的请求到后端 (通过写入空内容)
-        props.ws.send(JSON.stringify({
-            type: 'sftp:writefile',
-            requestId: requestId, // Add request ID
-            payload: {
-                path: newFilePath,
-                content: '', // 发送空内容来创建文件
-                encoding: 'utf8',
-            }
-        }));
-        // 移除显式刷新，依赖 sftp:writefile:success 消息
-        // loadDirectory(currentPath.value);
+        createFile(fileName); // 调用 useSftpActions 的方法
     }
 };
 
 
-// --- Sorting Logic ---
+// --- 排序逻辑 (现在作用于从 composable 获取的 fileList) ---
 const sortedFileList = computed(() => {
     const list = [...fileList.value]; // Create a shallow copy to avoid mutating original
     const key = sortKey.value;
@@ -747,9 +480,11 @@ const sortedFileList = computed(() => {
 
         return 0;
     });
+    // 返回排序后的列表副本
     return list;
 });
 
+// 处理表头点击排序
 const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
     if (sortKey.value === key) {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -759,29 +494,102 @@ const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
     }
 };
 
-// --- Lifecycle Hooks ---
+// --- 生命周期钩子 ---
 onMounted(() => {
-    console.log('[FileManager] Component mounted.');
-    if (props.isConnected && props.ws) {
-        console.log('[FileManager] Mounted with active connection, loading initial directory.');
-        loadDirectory(currentPath.value);
+    console.log('[文件管理器] 组件已挂载。');
+    // 初始加载逻辑现在由 isConnected 的 watch 处理
+    // if (props.isConnected) {
+    //     console.log('[文件管理器] 挂载时连接已激活，加载初始目录。');
+    //     loadDirectory(currentPath.value); // 调用 composable 的方法
+    // }
+});
+
+// 使用 watchEffect 监听连接和 SFTP 就绪状态以触发初始加载
+watchEffect((onCleanup) => {
+    let unregisterSuccess: (() => void) | undefined;
+    let unregisterError: (() => void) | undefined;
+    let timeoutId: number | undefined; // Use number for browser timeout ID
+
+    // 清理函数，用于注销监听器和清除超时
+    const cleanupListeners = () => {
+        unregisterSuccess?.();
+        unregisterError?.();
+        if (timeoutId) clearTimeout(timeoutId);
+        // Only reset isFetchingInitialPath if it was set by this effect instance
+        if (isFetchingInitialPath.value) {
+             isFetchingInitialPath.value = false;
+        }
+    };
+
+    // 注册清理回调
+    onCleanup(cleanupListeners);
+
+    // 条件判断：连接、SFTP就绪、不在加载、初始加载未完成、未在获取初始路径
+    // Note: Removed fileList.value.length === 0 check to allow re-fetching if needed after disconnect/reconnect
+    if (props.isConnected && isSftpReady.value && !isLoading.value && !initialLoadDone.value && !isFetchingInitialPath.value) {
+        console.log('[文件管理器] 连接已建立，SFTP 已就绪，触发初始路径获取。');
+        isFetchingInitialPath.value = true; // 标记正在获取初始路径
+
+        const requestId = generateRequestId();
+        const requestedPath = '.'; // Always request the real path for '.'
+
+        // 设置成功回调
+        unregisterSuccess = onMessage('sftp:realpath:success', (payload, message: WebSocketMessage) => {
+            if (message.requestId === requestId && payload.requestedPath === requestedPath) {
+                const absolutePath = payload.absolutePath;
+                console.log(`[文件管理器] 收到 "." 的绝对路径: ${absolutePath}，开始加载目录。`);
+                currentPath.value = absolutePath; // 更新当前路径
+                loadDirectory(absolutePath); // 加载实际路径
+                initialLoadDone.value = true; // 标记初始加载完成
+                cleanupListeners(); // 清理监听器和超时
+            }
+        });
+
+        // 设置错误回调
+        unregisterError = onMessage('sftp:realpath:error', (payload, message: WebSocketMessage) => {
+            // Check if the error corresponds to *this* specific realpath request
+            if (message.requestId === requestId && message.path === requestedPath) {
+                console.error(`[文件管理器] 获取初始路径 "." 失败:`, payload);
+                // Display error via console or a dedicated UI element, cannot assign to readonly 'error'
+                console.error(t('fileManager.errors.getInitialPathFailed', { message: payload?.message || payload || 'Unknown error' }));
+                // Do NOT set initialLoadDone = true, allowing retry if conditions change
+                // Do NOT call loadDirectory('.') as it might loop on error
+                cleanupListeners(); // Clean up listeners and timeout
+            }
+        });
+
+        // 发送 realpath 请求
+        console.log(`[文件管理器] 发送 sftp:realpath 请求 (ID: ${requestId}) for path: ${requestedPath}`);
+        sendMessage({ type: 'sftp:realpath', requestId: requestId, payload: { path: requestedPath } });
+
+        // 设置超时
+        timeoutId = setTimeout(() => {
+            console.error(`[文件管理器] 获取初始路径 "." 超时 (ID: ${requestId})。`);
+            // Display error via console or a dedicated UI element
+            console.error(t('fileManager.errors.getInitialPathTimeout'));
+            cleanupListeners(); // 清理监听器
+        }, 10000); // 10 秒超时
+
+    } else if (!props.isConnected) {
+        // 连接断开时的清理
+        console.log('[文件管理器] 连接已断开 (watchEffect)，重置 initialLoadDone 和 isFetchingInitialPath。');
+        selectedItems.value.clear();
+        lastClickedIndex.value = -1;
+        initialLoadDone.value = false; // 重置初始加载状态，允许下次连接时重新获取
+        isFetchingInitialPath.value = false; // 重置获取状态
+        cleanupListeners(); // 确保断开连接时清理监听器和超时
     }
 });
+
+
 onBeforeUnmount(() => {
-    console.log('[FileManager] Component unmounting.');
-    if (props.ws) {
-        console.log('[FileManager] Removing message listener on unmount.');
-        props.ws.removeEventListener('message', handleWebSocketMessage);
-    }
-    Object.keys(uploads.value).forEach(uploadId => {
-        const upload = uploads.value[uploadId];
-        if (upload && ['pending', 'uploading', 'paused'].includes(upload.status)) cancelUpload(uploadId);
-    });
-    // Ensure listener is removed on unmount if it somehow persists
+    console.log('[文件管理器] 组件将卸载。');
+    // WebSocket 监听器和上传任务的清理由各自的 composable 处理
+    // 确保上下文菜单监听器被移除
     document.removeEventListener('click', hideContextMenu, { capture: true });
 });
 
-// --- Column Resizing Logic ---
+// --- 列宽调整逻辑 (保持不变) ---
 const getColumnKeyByIndex = (index: number): keyof typeof colWidths.value | null => {
     const keys = Object.keys(colWidths.value) as Array<keyof typeof colWidths.value>;
     return keys[index] ?? null;
@@ -849,9 +657,9 @@ const stopResize = () => {
         </div>
         <div class="actions-bar">
              <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
-             <button @click="triggerFileUpload" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
-             <button @click="handleNewFolderClick" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button>
-             <button @click="handleNewFileClick" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button> <!-- 新建文件按钮 -->
+             <button @click="triggerFileUpload" :disabled="isLoading || !props.isConnected" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
+             <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.isConnected" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button> <!-- 调用修改后的函数 -->
+             <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.isConnected" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button> <!-- 调用修改后的函数 -->
         </div>
     </div>
 
@@ -864,18 +672,15 @@ const stopResize = () => {
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
     >
-        <div v-if="isLoading && fileList.length === 0" class="loading">{{ t('fileManager.loading') }}</div>
-        <div v-else-if="error" class="error">{{ t('fileManager.errors.generic') }}: {{ error }}</div>
+        <!-- 1. Initial Loading Indicator -->
+        <div v-if="isLoading && !initialLoadDone" class="loading">{{ t('fileManager.loading') }}</div>
 
-        <table v-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
-           <colgroup>
-             <col :style="{ width: `${colWidths.type}px` }">
-             <col :style="{ width: `${colWidths.name}px` }">
-             <col :style="{ width: `${colWidths.size}px` }">
-             <col :style="{ width: `${colWidths.permissions}px` }">
-             <col :style="{ width: `${colWidths.modified}px` }">
-             <!-- Add more cols if needed -->
-           </colgroup>
+        <!-- 2. Error Indicator -->
+        <div v-else-if="error" class="error">{{ error }}</div>
+
+        <!-- 3. File Table (Show if not initial loading, no error, and there's something to display: either files or '..') -->
+        <table v-else-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
+           <!-- Temporarily removed colgroup for debugging -->
           <thead>
             <tr>
               <th @click="handleSort('type')" class="sortable">
@@ -893,29 +698,26 @@ const stopResize = () => {
                 <span v-if="sortKey === 'size'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
                 <span class="resizer" @mousedown.prevent="startResize($event, 2)" @click.stop></span>
               </th>
-              <th> <!-- Permissions not sortable for now -->
+              <th>
                 {{ t('fileManager.headers.permissions') }}
                 <span class="resizer" @mousedown.prevent="startResize($event, 3)" @click.stop></span>
               </th>
-              <th @click="handleSort('mtime')" class="sortable"> <!-- Last column doesn't need a resizer -->
+              <th @click="handleSort('mtime')" class="sortable">
                 {{ t('fileManager.headers.modified') }}
                 <span v-if="sortKey === 'mtime'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                <!-- No resizer on the last column -->
               </th>
-              <!-- Removed Actions Header -->
             </tr>
           </thead>
           <tbody @contextmenu.prevent="showContextMenu($event)">
-            <!-- '..' entry -->
+            <!-- '..' 条目 -->
             <tr v-if="currentPath !== '/'"
                 class="clickable"
-                @click="handleItemClick($event, { filename: '..', attrs: { isDirectory: true } } as FileListItem)"
-                @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', attrs: { isDirectory: true } } as FileListItem)" >
+                @click="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
+                @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" >
               <td>📁</td>
               <td>..</td>
-              <td></td><td></td><td></td><td></td> <!-- Empty cells -->
+              <td></td><td></td><td></td>
             </tr>
-            <!-- File list entries -->
             <tr v-for="(item, index) in sortedFileList"
                 :key="item.filename"
                 @click="handleItemClick($event, item)"
@@ -926,34 +728,21 @@ const stopResize = () => {
               <td>{{ item.attrs.isFile ? formatSize(item.attrs.size) : '' }}</td>
               <td>{{ formatMode(item.attrs.mode) }}</td>
               <td>{{ new Date(item.attrs.mtime).toLocaleString() }}</td>
-              <!-- Removed Actions Cell -->
             </tr>
           </tbody>
         </table>
-         <div v-else-if="!isLoading && !error" class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
+
+        <!-- 4. Empty Directory Message (Show if not initial loading, no error, list is empty, and at root) -->
+         <div v-else class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
      </div>
 
-     <!-- Upload Popup -->
-     <div v-if="Object.keys(uploads).length > 0" class="upload-popup">
-        <h4>{{ t('fileManager.uploadTasks') }}:</h4>
-        <ul>
-            <li v-for="upload in uploads" :key="upload.id">
-                <span>{{ upload.filename }} ({{ t(`fileManager.uploadStatus.${upload.status}`) }})</span>
-                <progress v-if="upload.status === 'uploading' || upload.status === 'pending'" :value="upload.progress" max="100"></progress>
-                <span v-if="upload.status === 'uploading'"> {{ upload.progress }}%</span>
-                <span v-if="upload.status === 'error'" class="error"> {{ t('fileManager.errors.generic') }}: {{ upload.error }}</span>
-                <span v-if="upload.status === 'success'"> ✅</span>
-                <span v-if="upload.status === 'cancelled'"> ❌ {{ t('fileManager.uploadStatus.cancelled') }}</span>
-                <button v-if="['pending', 'uploading', 'paused'].includes(upload.status)" @click="cancelUpload(upload.id)" class="cancel-btn">{{ t('fileManager.actions.cancel') }}</button>
-            </li>
-        </ul>
-    </div>
+     <!-- 使用 FileUploadPopup 组件 -->
+     <FileUploadPopup :uploads="uploads" @cancel-upload="cancelUpload" />
 
-    <!-- Context Menu -->
     <div v-if="contextMenuVisible"
          class="context-menu"
          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
-         @click.stop> <!-- Add @click.stop here -->
+         @click.stop>
       <ul>
         <li v-for="(menuItem, index) in contextMenuItems"
             :key="index"
@@ -964,32 +753,20 @@ const stopResize = () => {
       </ul>
     </div>
 
-    <!-- Monaco Editor Overlay -->
-    <div v-if="isEditorVisible" class="editor-overlay">
-      <div class="editor-header">
-        <span>{{ t('fileManager.editingFile') }}: {{ editingFilePath }}</span>
-        <div class="editor-actions">
-           <span v-if="saveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
-           <span v-if="saveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
-           <span v-if="saveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ saveError }}</span>
-           <button @click="handleSaveFile" :disabled="isSaving || isEditorLoading || !!editorError" class="save-btn">
-             {{ isSaving ? t('fileManager.saving') : t('fileManager.actions.save') }}
-           </button>
-           <button @click="closeEditor" class="close-editor-btn">✖</button>
-        </div>
-      </div>
-      <div v-if="isEditorLoading" class="editor-loading">{{ t('fileManager.loadingFile') }}</div>
-      <div v-else-if="editorError" class="editor-error">{{ editorError }}</div>
-      <MonacoEditor
-        v-else
-        v-model="editingFileContent"
-        :language="editingFileLanguage"
-        theme="vs-dark"
-        class="editor-instance"
-        @request-save="handleSaveFile"
-      />
-      <!-- Save button added above -->
-    </div>
+    <!-- 使用 FileEditorOverlay 组件 -->
+    <FileEditorOverlay
+      :is-visible="isEditorVisible"
+      :file-path="editingFilePath"
+      :language="editingFileLanguage"
+      :is-loading="isEditorLoading"
+      :loading-error="editorError"
+      :is-saving="isSaving"
+      :save-status="saveStatus"
+      :save-error="saveError"
+      v-model="editingFileContent"
+      @request-save="saveFile"
+      @close="closeEditor"
+    />
 
   </div>
 </template>
