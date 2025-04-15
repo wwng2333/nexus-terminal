@@ -15,7 +15,9 @@
     "password": "Password",
     "loginButton": "Login",
     "loggingIn": "Logging in...",
-    "error": "Login failed. Please check your username and password."
+    "error": "Login failed. Please check your username and password.",
+    "twoFactorPrompt": "Enter your two-factor authentication code:",
+    "verifyButton": "Verify"
   },
   "connections": {
     "title": "Connection Management",
@@ -291,9 +293,41 @@
         "passwordsDoNotMatch": "New password and confirmation do not match.",
         "generic": "Failed to change password. Please try again later."
       }
+    },
+    "twoFactor": {
+      "title": "Two-Factor Authentication (TOTP)",
+      "status": {
+        "enabled": "Two-factor authentication is enabled.",
+        "disabled": "Two-factor authentication is currently disabled."
+      },
+      "enable": {
+        "button": "Enable Two-Factor Authentication"
+      },
+      "setup": {
+        "scanQrCode": "Scan the QR code below with your authenticator app:",
+        "orEnterSecret": "Or manually enter the secret key:",
+        "enterCode": "Enter the 6-digit code from your authenticator app:",
+        "verifyButton": "Verify & Activate"
+      },
+      "disable": {
+        "button": "Disable Two-Factor Authentication",
+        "passwordPrompt": "Enter your current password to confirm disabling:"
+      },
+      "success": {
+        "activated": "Two-factor authentication activated successfully!",
+        "disabled": "Two-factor authentication disabled successfully."
+      },
+      "error": {
+        "setupFailed": "Failed to get two-factor setup information.",
+        "codeRequired": "Please enter the verification code.",
+        "verificationFailed": "Invalid or expired verification code.",
+        "passwordRequiredForDisable": "Current password is required to disable.",
+        "disableFailed": "Failed to disable two-factor authentication."
+      }
     }
   },
   "common": {
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "cancel": "Cancel"
   }
 }

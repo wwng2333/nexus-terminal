@@ -15,7 +15,9 @@
     "password": "密码",
     "loginButton": "登录",
     "loggingIn": "正在登录...",
-    "error": "登录失败，请检查用户名或密码。"
+    "error": "登录失败，请检查用户名或密码。",
+    "twoFactorPrompt": "请输入两步验证码:",
+    "verifyButton": "验证"
   },
   "connections": {
     "title": "连接管理",
@@ -294,9 +296,41 @@
         "passwordsDoNotMatch": "新密码和确认密码不匹配。",
         "generic": "修改密码失败，请稍后重试。"
       }
+    },
+    "twoFactor": {
+      "title": "两步验证 (TOTP)",
+      "status": {
+        "enabled": "两步验证已启用。",
+        "disabled": "两步验证当前未启用。"
+      },
+      "enable": {
+        "button": "启用两步验证"
+      },
+      "setup": {
+        "scanQrCode": "请使用您的 Authenticator 应用扫描下方的二维码:",
+        "orEnterSecret": "或者手动输入密钥:",
+        "enterCode": "请输入应用生成的 6 位验证码:",
+        "verifyButton": "验证并启用"
+      },
+      "disable": {
+        "button": "禁用两步验证",
+        "passwordPrompt": "请输入当前登录密码以确认禁用:"
+      },
+      "success": {
+        "activated": "两步验证已成功激活！",
+        "disabled": "两步验证已成功禁用。"
+      },
+      "error": {
+        "setupFailed": "获取两步验证设置信息失败。",
+        "codeRequired": "请输入验证码。",
+        "verificationFailed": "验证码无效或已过期。",
+        "passwordRequiredForDisable": "需要输入当前密码才能禁用。",
+        "disableFailed": "禁用两步验证失败。"
+      }
     }
   },
   "common": {
-    "loading": "加载中..."
+    "loading": "加载中...",
+    "cancel": "取消"
   }
 }

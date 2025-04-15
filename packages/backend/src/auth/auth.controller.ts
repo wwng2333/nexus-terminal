@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { getDb } from '../database';
 import sqlite3, { RunResult } from 'sqlite3'; // 导入 RunResult 类型
+import speakeasy from 'speakeasy'; // 导入 speakeasy
+import qrcode from 'qrcode'; // 导入 qrcode
 
 const db = getDb(); // 获取数据库实例
 
@@ -10,77 +12,192 @@ interface User {
     id: number;
     username: string;
     hashed_password: string; // 数据库中存储的哈希密码
+    two_factor_secret?: string | null; // 2FA 密钥 (数据库中可能为 NULL)
     // 其他可能的字段...
 }
+
+// 扩展 SessionData 接口以包含临时的 2FA 密钥
+declare module 'express-session' {
+    interface SessionData {
+        userId?: number;
+        username?: string;
+        tempTwoFactorSecret?: string; // 用于存储设置过程中的临时密钥
+        requiresTwoFactor?: boolean; // 标记登录流程是否需要 2FA 验证
+    }
+}
+
 
 /**
  * 处理用户登录请求 (POST /api/v1/auth/login)
  */
 export const login = async (req: Request, res: Response): Promise<void> => {
-    const { username, password } = req.body; // 从请求体获取用户名和密码
+    const { username, password } = req.body;
 
-    // 基础输入验证
     if (!username || !password) {
         res.status(400).json({ message: '用户名和密码不能为空。' });
         return;
     }
 
     try {
-        // 根据用户名查询用户
         const user = await new Promise<User | undefined>((resolve, reject) => {
-            // 从 users 表中选择需要的字段
-            db.get('SELECT id, username, hashed_password FROM users WHERE username = ?', [username], (err, row: User) => {
+            // 查询用户，包含 2FA 密钥
+            db.get('SELECT id, username, hashed_password, two_factor_secret FROM users WHERE username = ?', [username], (err, row: User) => {
                 if (err) {
                     console.error('查询用户时出错:', err.message);
-                    // 返回通用错误信息，避免泄露数据库细节
                     return reject(new Error('数据库查询失败'));
                 }
-                resolve(row); // 如果找到用户，则 resolve 用户对象；否则 resolve undefined
+                resolve(row);
             });
         });
 
-        // 如果未找到用户
         if (!user) {
             console.log(`登录尝试失败: 用户未找到 - ${username}`);
-            // 返回 401 未授权状态码和通用错误信息
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
 
-        // 比较用户提交的密码和数据库中存储的哈希密码
         const isMatch = await bcrypt.compare(password, user.hashed_password);
 
-        // 如果密码不匹配
         if (!isMatch) {
             console.log(`登录尝试失败: 密码错误 - ${username}`);
-            // 返回 401 未授权状态码和通用错误信息
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
 
-        // --- 认证成功 ---
-        console.log(`登录成功: ${username}`);
-
-        // 在 session 中存储用户信息
-        req.session.userId = user.id;
-        req.session.username = user.username;
-
-        // 返回成功响应 (可以包含一些非敏感的用户信息)
-        res.status(200).json({
-            message: '登录成功。',
-            user: { id: user.id, username: user.username } // 不返回密码哈希
-        });
+        // 检查是否启用了 2FA
+        if (user.two_factor_secret) {
+            console.log(`用户 ${username} 已启用 2FA，需要进行二次验证。`);
+            // 不设置完整 session，只标记需要 2FA
+            req.session.userId = user.id; // 临时存储 userId 以便 2FA 验证
+            req.session.requiresTwoFactor = true;
+            res.status(200).json({ message: '需要进行两步验证。', requiresTwoFactor: true });
+        } else {
+            // --- 认证成功 (未启用 2FA) ---
+            console.log(`登录成功 (无 2FA): ${username}`);
+            req.session.userId = user.id;
+            req.session.username = user.username;
+            req.session.requiresTwoFactor = false; // 明确标记不需要 2FA
+            res.status(200).json({
+                message: '登录成功。',
+                user: { id: user.id, username: user.username }
+            });
+        }
 
     } catch (error) {
-        // 捕获数据库查询或其他异步操作中的错误
         console.error('登录时出错:', error);
         res.status(500).json({ message: '登录过程中发生内部服务器错误。' });
     }
 };
 
-// 其他认证相关函数的占位符 (登出, 管理员设置等)
-// export const logout = ...
-// export const setupAdmin = ...
+/**
+ * 获取当前用户的认证状态 (GET /api/v1/auth/status)
+ */
+export const getAuthStatus = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+    const username = req.session.username;
+
+    if (!userId || !username || req.session.requiresTwoFactor) {
+        // 如果 session 无效或 2FA 未完成，视为未认证
+        res.status(401).json({ isAuthenticated: false });
+        return;
+    }
+
+    try {
+        // 查询用户的 2FA 状态
+        const user = await new Promise<{ two_factor_secret: string | null } | undefined>((resolve, reject) => {
+            db.get('SELECT two_factor_secret FROM users WHERE id = ?', [userId], (err, row: { two_factor_secret: string | null }) => {
+                if (err) {
+                    console.error(`查询用户 ${userId} 2FA 状态时出错:`, err.message);
+                    return reject(new Error('数据库查询失败'));
+                }
+                resolve(row);
+            });
+        });
+
+        // 如果找不到用户（理论上不应发生），也视为未认证
+        if (!user) {
+             res.status(401).json({ isAuthenticated: false });
+             return;
+        }
+
+        res.status(200).json({
+            isAuthenticated: true,
+            user: {
+                id: userId,
+                username: username,
+                isTwoFactorEnabled: !!user.two_factor_secret // 返回 2FA 是否启用
+            }
+        });
+
+    } catch (error) {
+        console.error(`获取用户 ${userId} 状态时发生内部错误:`, error);
+        res.status(500).json({ message: '获取认证状态时发生内部服务器错误。' });
+    }
+};
+/**
+ * 处理登录时的 2FA 验证 (POST /api/v1/auth/login/2fa)
+ */
+export const verifyLogin2FA = async (req: Request, res: Response): Promise<void> => {
+    const { token } = req.body;
+    const userId = req.session.userId; // 获取之前临时存储的 userId
+
+    // 检查 session 状态
+    if (!userId || !req.session.requiresTwoFactor) {
+        res.status(400).json({ message: '无效的请求或会话状态。' });
+        return;
+    }
+
+    if (!token) {
+        res.status(400).json({ message: '验证码不能为空。' });
+        return;
+    }
+
+    try {
+        // 获取用户的 2FA 密钥
+        const user = await new Promise<User | undefined>((resolve, reject) => {
+            db.get('SELECT id, username, two_factor_secret FROM users WHERE id = ?', [userId], (err, row: User) => {
+                if (err) {
+                    console.error(`查询用户 ${userId} 的 2FA 密钥时出错:`, err.message);
+                    return reject(new Error('数据库查询失败'));
+                }
+                resolve(row);
+            });
+        });
+
+        if (!user || !user.two_factor_secret) {
+            console.error(`2FA 验证错误: 未找到用户 ${userId} 或未设置密钥。`);
+            res.status(400).json({ message: '无法验证，请重新登录。' });
+            return;
+        }
+
+        // 验证 TOTP 令牌
+        const verified = speakeasy.totp.verify({
+            secret: user.two_factor_secret,
+            encoding: 'base32',
+            token: token,
+            window: 1 // 允许前后一个时间窗口 (30秒) 的容错
+        });
+
+        if (verified) {
+            console.log(`用户 ${user.username} 2FA 验证成功。`);
+            // 验证成功，建立完整会话
+            req.session.username = user.username;
+            req.session.requiresTwoFactor = false; // 标记 2FA 已完成
+            res.status(200).json({
+                message: '登录成功。',
+                user: { id: user.id, username: user.username }
+            });
+        } else {
+            console.log(`用户 ${user.username} 2FA 验证失败: 验证码错误。`);
+            res.status(401).json({ message: '验证码无效。' });
+        }
+
+    } catch (error) {
+        console.error(`用户 ${userId} 2FA 验证时发生内部错误:`, error);
+        res.status(500).json({ message: '两步验证过程中发生内部服务器错误。' });
+    }
+};
+
 
 /**
  * 处理修改密码请求 (PUT /api/v1/auth/password)
@@ -89,9 +206,9 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     const { currentPassword, newPassword } = req.body;
     const userId = req.session.userId; // 从会话中获取用户 ID
 
-    // 检查用户是否登录
-    if (!userId) {
-        res.status(401).json({ message: '用户未认证，请先登录。' });
+    // 检查用户是否登录且 2FA 已完成 (如果需要)
+    if (!userId || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成，请先登录。' });
         return;
     }
 
@@ -100,8 +217,6 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         res.status(400).json({ message: '当前密码和新密码不能为空。' });
         return;
     }
-
-    // 可选：添加新密码复杂度要求
     if (newPassword.length < 8) {
         res.status(400).json({ message: '新密码长度至少需要 8 位。' });
         return;
@@ -111,9 +226,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         return;
     }
 
-
     try {
-        // 1. 获取当前用户的哈希密码
         const user = await new Promise<User | undefined>((resolve, reject) => {
             db.get('SELECT id, hashed_password FROM users WHERE id = ?', [userId], (err, row: User) => {
                 if (err) {
@@ -125,13 +238,11 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         });
 
         if (!user) {
-            // 理论上不应该发生，因为 userId 来自 session
             console.error(`修改密码错误: 未找到 ID 为 ${userId} 的用户。`);
             res.status(404).json({ message: '用户不存在。' });
             return;
         }
 
-        // 2. 验证当前密码
         const isMatch = await bcrypt.compare(currentPassword, user.hashed_password);
         if (!isMatch) {
             console.log(`修改密码尝试失败: 当前密码错误 - 用户 ID ${userId}`);
@@ -139,24 +250,20 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // 3. 哈希新密码
         const saltRounds = 10;
         const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
         const now = Math.floor(Date.now() / 1000);
 
-        // 4. 更新数据库中的密码
         await new Promise<void>((resolveUpdate, rejectUpdate) => {
             const stmt = db.prepare(
                 'UPDATE users SET hashed_password = ?, updated_at = ? WHERE id = ?'
             );
-            // 在回调函数中明确 this 的类型为 RunResult
             stmt.run(newHashedPassword, now, userId, function (this: RunResult, err: Error | null) {
                 if (err) {
                     console.error(`更新用户 ${userId} 密码时出错:`, err.message);
                     return rejectUpdate(new Error('更新密码失败'));
                 }
                 if (this.changes === 0) {
-                    // 理论上不应该发生
                      console.error(`修改密码错误: 更新影响行数为 0 - 用户 ID ${userId}`);
                      return rejectUpdate(new Error('未找到要更新的用户'));
                 }
@@ -166,11 +273,201 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
             stmt.finalize();
         });
 
-        // 5. 返回成功响应
         res.status(200).json({ message: '密码已成功修改。' });
 
     } catch (error) {
         console.error(`修改用户 ${userId} 密码时发生内部错误:`, error);
         res.status(500).json({ message: '修改密码过程中发生内部服务器错误。' });
+    }
+};
+
+/**
+ * 开始 2FA 设置流程 (POST /api/v1/auth/2fa/setup)
+ * 生成临时密钥和二维码
+ */
+export const setup2FA = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+    const username = req.session.username; // 获取用户名用于 OTP URL
+
+    if (!userId || !username || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    try {
+        // 检查用户是否已启用 2FA
+        const existingSecret = await new Promise<string | null>((resolve, reject) => {
+            db.get('SELECT two_factor_secret FROM users WHERE id = ?', [userId], (err, row: { two_factor_secret: string | null }) => {
+                if (err) reject(err);
+                else resolve(row ? row.two_factor_secret : null);
+            });
+        });
+
+        if (existingSecret) {
+            res.status(400).json({ message: '两步验证已启用。如需重置，请先禁用。' });
+            return;
+        }
+
+        // 生成新的 2FA 密钥
+        const secret = speakeasy.generateSecret({
+            length: 20,
+            name: `NexusTerminal (${username})` // 应用名称和用户名，显示在 Authenticator 应用中
+        });
+
+        // 将临时密钥存储在 session 中，等待验证
+        req.session.tempTwoFactorSecret = secret.base32;
+
+        // 生成 OTP Auth URL (用于生成二维码)
+        if (!secret.otpauth_url) {
+            throw new Error('无法生成 OTP Auth URL');
+        }
+
+        // 生成二维码 Data URL
+        qrcode.toDataURL(secret.otpauth_url, (err, data_url) => {
+            if (err) {
+                console.error('生成二维码时出错:', err);
+                throw new Error('生成二维码失败');
+            }
+            // 返回密钥 (base32) 和二维码数据 URL 给前端
+            res.json({
+                secret: secret.base32, // 供用户手动输入
+                qrCodeUrl: data_url    // 用于显示二维码图片
+            });
+        });
+
+    } catch (error: any) {
+        console.error(`用户 ${userId} 设置 2FA 时出错:`, error);
+        res.status(500).json({ message: '设置两步验证时发生错误。', error: error.message });
+    }
+};
+
+/**
+ * 验证并激活 2FA (POST /api/v1/auth/2fa/verify)
+ */
+export const verifyAndActivate2FA = async (req: Request, res: Response): Promise<void> => {
+    const { token } = req.body;
+    const userId = req.session.userId;
+    const tempSecret = req.session.tempTwoFactorSecret; // 获取存储在 session 中的临时密钥
+
+    if (!userId || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    if (!tempSecret) {
+        res.status(400).json({ message: '未找到临时密钥，请重新开始设置流程。' });
+        return;
+    }
+
+    if (!token) {
+        res.status(400).json({ message: '验证码不能为空。' });
+        return;
+    }
+
+    try {
+        // 使用临时密钥验证用户提交的令牌
+        const verified = speakeasy.totp.verify({
+            secret: tempSecret,
+            encoding: 'base32',
+            token: token,
+            window: 1 // 允许一定的时钟漂移
+        });
+
+        if (verified) {
+            // 验证成功，将密钥永久存储到数据库
+            const now = Math.floor(Date.now() / 1000);
+            await new Promise<void>((resolveUpdate, rejectUpdate) => {
+                const stmt = db.prepare(
+                    'UPDATE users SET two_factor_secret = ?, updated_at = ? WHERE id = ?'
+                );
+                stmt.run(tempSecret, now, userId, function (this: RunResult, err: Error | null) {
+                    if (err) {
+                        console.error(`更新用户 ${userId} 的 2FA 密钥时出错:`, err.message);
+                        return rejectUpdate(new Error('激活两步验证失败'));
+                    }
+                    if (this.changes === 0) {
+                         console.error(`激活 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
+                         return rejectUpdate(new Error('未找到要更新的用户'));
+                    }
+                    console.log(`用户 ${userId} 已成功激活两步验证。`);
+                    resolveUpdate();
+                });
+                stmt.finalize();
+            });
+
+            // 清除 session 中的临时密钥
+            delete req.session.tempTwoFactorSecret;
+
+            res.status(200).json({ message: '两步验证已成功激活！' });
+        } else {
+            // 验证失败
+            console.log(`用户 ${userId} 2FA 激活失败: 验证码错误。`);
+            res.status(400).json({ message: '验证码无效。' });
+        }
+
+    } catch (error: any) {
+        console.error(`用户 ${userId} 验证并激活 2FA 时出错:`, error);
+        res.status(500).json({ message: '验证两步验证码时发生错误。', error: error.message });
+    }
+};
+
+/**
+ * 禁用 2FA (DELETE /api/v1/auth/2fa)
+ */
+export const disable2FA = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+    const { password } = req.body; // 需要验证当前密码以禁用
+
+    if (!userId || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    if (!password) {
+        res.status(400).json({ message: '需要提供当前密码才能禁用两步验证。' });
+        return;
+    }
+
+    try {
+        // 1. 验证当前密码
+        const user = await new Promise<User | undefined>((resolve, reject) => {
+            db.get('SELECT id, hashed_password FROM users WHERE id = ?', [userId], (err, row: User) => {
+                if (err) reject(err); else resolve(row);
+            });
+        });
+        if (!user) {
+            res.status(404).json({ message: '用户不存在。' }); return;
+        }
+        const isMatch = await bcrypt.compare(password, user.hashed_password);
+        if (!isMatch) {
+            res.status(400).json({ message: '当前密码不正确。' }); return;
+        }
+
+        // 2. 清除数据库中的 2FA 密钥
+        const now = Math.floor(Date.now() / 1000);
+        await new Promise<void>((resolveUpdate, rejectUpdate) => {
+            const stmt = db.prepare(
+                'UPDATE users SET two_factor_secret = NULL, updated_at = ? WHERE id = ?'
+            );
+            stmt.run(now, userId, function (this: RunResult, err: Error | null) {
+                if (err) {
+                    console.error(`清除用户 ${userId} 的 2FA 密钥时出错:`, err.message);
+                    return rejectUpdate(new Error('禁用两步验证失败'));
+                }
+                if (this.changes === 0) {
+                     console.error(`禁用 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
+                     return rejectUpdate(new Error('未找到要更新的用户'));
+                }
+                console.log(`用户 ${userId} 已成功禁用两步验证。`);
+                resolveUpdate();
+            });
+            stmt.finalize();
+        });
+
+        res.status(200).json({ message: '两步验证已成功禁用。' });
+
+    } catch (error: any) {
+        console.error(`用户 ${userId} 禁用 2FA 时出错:`, error);
+        res.status(500).json({ message: '禁用两步验证时发生错误。', error: error.message });
     }
 };

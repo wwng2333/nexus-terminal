@@ -1,24 +1,32 @@
 <script setup lang="ts">
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue'; // 导入 ref
 import { storeToRefs } from 'pinia';
-import { useI18n } from 'vue-i18n'; // 引入 useI18n
+import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth.store';
 
-const { t } = useI18n(); // 获取 t 函数
+const { t } = useI18n();
 const authStore = useAuthStore();
-const { isLoading, error } = storeToRefs(authStore); // 获取加载和错误状态
+// 获取 loginRequires2FA 状态
+const { isLoading, error, loginRequires2FA } = storeToRefs(authStore);
 
 // 表单数据
 const credentials = reactive({
   username: '',
   password: '',
 });
+const twoFactorToken = ref(''); // 用于存储 2FA 验证码
 
-// 处理登录提交
-const handleLogin = async () => {
-  await authStore.login(credentials);
-  // 登录成功会自动重定向 (在 store action 中处理)
-  // 登录失败会在模板中显示错误信息
+// 处理登录或 2FA 验证提交
+const handleSubmit = async () => {
+  if (loginRequires2FA.value) {
+    // 如果需要 2FA，则调用 2FA 验证 action
+    await authStore.verifyLogin2FA(twoFactorToken.value);
+  } else {
+    // 否则，调用常规登录 action
+    await authStore.login(credentials);
+  }
+  // 成功后的重定向由 store action 处理
+  // 失败会更新 error 状态并在模板中显示
 };
 </script>
 
@@ -26,23 +34,31 @@ const handleLogin = async () => {
   <div class="login-view">
     <div class="login-form-container">
       <h2>{{ t('login.title') }}</h2>
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="username">{{ t('login.username') }}:</label>
-          <input type="text" id="username" v-model="credentials.username" required :disabled="isLoading" />
+      <form @submit.prevent="handleSubmit">
+        <!-- 常规登录字段 -->
+        <div v-if="!loginRequires2FA">
+          <div class="form-group">
+            <label for="username">{{ t('login.username') }}:</label>
+            <input type="text" id="username" v-model="credentials.username" required :disabled="isLoading" />
+          </div>
+          <div class="form-group">
+            <label for="password">{{ t('login.password') }}:</label>
+            <input type="password" id="password" v-model="credentials.password" required :disabled="isLoading" />
+          </div>
         </div>
-        <div class="form-group">
-          <label for="password">{{ t('login.password') }}:</label>
-          <input type="password" id="password" v-model="credentials.password" required :disabled="isLoading" />
+
+        <!-- 2FA 验证码输入 -->
+        <div v-if="loginRequires2FA" class="form-group">
+          <label for="twoFactorToken">{{ t('login.twoFactorPrompt') }}</label>
+          <input type="text" id="twoFactorToken" v-model="twoFactorToken" required :disabled="isLoading" pattern="\d{6}" title="请输入 6 位数字验证码" />
         </div>
 
         <div v-if="error" class="error-message">
-          <!-- 可以直接显示后端返回的错误，或者映射到特定的 i18n key -->
-          {{ error }} <!-- 保持显示后端错误，或者 t('login.error') -->
+          {{ error }}
         </div>
 
         <button type="submit" :disabled="isLoading">
-          {{ isLoading ? t('login.loggingIn') : t('login.loginButton') }}
+          {{ isLoading ? t('login.loggingIn') : (loginRequires2FA ? t('login.verifyButton') : t('login.loginButton')) }}
         </button>
       </form>
     </div>

@@ -26,5 +26,11 @@
   "description": "",
   "dependencies": {
     "pinia-plugin-persistedstate": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.5",
+    "@types/speakeasy": "^2.0.10",
+    "qrcode": "^1.5.4",
+    "speakeasy": "^2.0.0"
   }
 }
