@@ -63,6 +63,8 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
   overflow-x: auto; /* 如果标签过多则允许水平滚动 */
   white-space: nowrap;
   padding: 0 0.5rem; /* 左右留出一点空间 */
+  height: 2.5rem; /* 固定标签栏高度 */
+  box-sizing: border-box; /* 确保 padding 不会增加总高度 */
 }
 
 .tab-list {
@@ -75,14 +77,16 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
 .tab-item {
   display: flex;
   align-items: center;
-  padding: 0.5rem 0.8rem;
+  padding: 0 0.8rem; /* 基础内边距 */
+  height: 100%;
   cursor: pointer;
   border-right: 1px solid #bdbdbd;
+  box-sizing: border-box;
   background-color: #f0f0f0; /* 未激活标签背景 */
   color: #616161; /* 未激活标签文字颜色 */
   transition: background-color 0.2s ease, color 0.2s ease;
   max-width: 200px; /* 限制标签最大宽度 */
-  position: relative; /* 为了关闭按钮定位 */
+  position: relative; /* 保持相对定位，以防万一需要定位子元素 */
 }
 
 .tab-item:hover {
@@ -92,19 +96,21 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
 .tab-item.active {
   background-color: #ffffff; /* 激活标签背景 */
   color: #333333; /* 激活标签文字颜色 */
-  border-bottom: 1px solid #ffffff; /* 覆盖底部边框，使其看起来与下方内容区域连接 */
+  /* 移除所有可能影响高度的边框或伪元素 */
   position: relative;
-  z-index: 1; /* 确保激活标签在上方 */
+  z-index: 1;
 }
 
 .tab-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 0.8rem; /* 与关闭按钮的间距 */
+  margin-right: 1.5rem; /* 为关闭按钮留出足够空间 */
+  line-height: normal; /* 默认行高 */
 }
 
 .close-tab-button {
+  /* 恢复简单布局 */
   background: none;
   border: none;
   color: #9e9e9e;
@@ -113,7 +119,12 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
   padding: 0 0.3rem;
   line-height: 1;
   border-radius: 50%;
-  margin-left: auto; /* 将按钮推到右侧 */
+  margin-left: auto; /* 推到右侧 */
+  /* 移除绝对定位 */
+  /* position: absolute; */
+  /* top: 50%; */
+  /* right: 0.5rem; */
+  /* transform: translateY(-50%); */
 }
 
 .close-tab-button:hover {
@@ -122,7 +133,7 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
 }
 
 .tab-item.active .close-tab-button {
-    color: #757575; /* 激活标签上的关闭按钮颜色 */
+    color: #757575;
 }
 .tab-item.active .close-tab-button:hover {
     background-color: #e0e0e0;

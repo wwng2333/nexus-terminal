@@ -50,8 +50,15 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
     };
 
     const handleTerminalResize = (dimensions: { cols: number; rows: number }) => {
-        console.log(`[会话 ${sessionId}][SSH终端模块] 发送终端大小调整:`, dimensions);
-        sendMessage({ type: 'ssh:resize', sessionId, payload: dimensions });
+        // 添加日志，确认从 WorkspaceView 收到的尺寸
+        console.log(`[SSH ${sessionId}] handleTerminalResize called with:`, dimensions);
+        // 只有在连接状态下才发送 resize 命令给后端
+        if (isConnected.value) {
+            console.log(`[SSH ${sessionId}] Sending ssh:resize to backend:`, dimensions);
+            sendMessage({ type: 'ssh:resize', sessionId, payload: dimensions });
+        } else {
+            console.log(`[SSH ${sessionId}] WebSocket not connected, skipping ssh:resize.`);
+        }
     };
 
     // --- WebSocket 消息处理 ---

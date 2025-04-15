@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue'; // 移除 nextTick
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'; // 重新导入 nextTick
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -38,12 +38,29 @@ const debounce = (func: Function, delay: number) => {
   };
 };
 
-// 防抖处理 resize 事件的函数
+// 防抖处理由 ResizeObserver 触发的 resize 事件
 const debouncedEmitResize = debounce((term: Terminal) => {
-    if (term) {
-        emit('resize', { cols: term.cols, rows: term.rows });
+    if (term && props.isActive) { // 仅当标签仍处于活动状态时才发送防抖后的 resize
+        const dimensions = { cols: term.cols, rows: term.rows };
+        console.log(`[Terminal ${props.sessionId}] Debounced resize emit (from ResizeObserver):`, dimensions);
+        emit('resize', dimensions);
+    } else {
+        console.log(`[Terminal ${props.sessionId}] Debounced resize skipped (inactive).`);
     }
 }, 150); // 150ms 防抖延迟
+
+// 立即执行 Fit 并发送 Resize 的函数
+const fitAndEmitResizeNow = (term: Terminal) => {
+    if (!term) return;
+    try {
+        fitAddon?.fit();
+        const dimensions = { cols: term.cols, rows: term.rows };
+        console.log(`[Terminal ${props.sessionId}] Immediate resize emit:`, dimensions);
+        emit('resize', dimensions);
+    } catch (e) {
+        console.warn("Immediate fit/resize failed:", e);
+    }
+};
 
 // 初始化终端
 onMounted(() => {
@@ -79,27 +96,37 @@ onMounted(() => {
       emit('data', data);
     });
 
-    // 监听终端大小变化 (通过 ResizeObserver)
+    // 监听终端大小变化 (通过 ResizeObserver) - 主要处理浏览器窗口大小变化等
     if (terminalRef.value) {
         const container = terminalRef.value; // 捕获引用
-        resizeObserver = new ResizeObserver(() => {
-            // 检查容器是否实际可见
-            if (container.offsetHeight > 0) {
-                try {
-                    fitAddon?.fit(); // 让 xterm 适应容器
-                    // 只有当终端是活动的，才触发防抖的 resize 事件发送
-                    if (props.isActive && terminal) {
-                        debouncedEmitResize(terminal);
-                    }
-                } catch (e) {
-                    console.warn("Fit addon resize failed:", e);
-                }
+        resizeObserver = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            const { height } = entry.contentRect;
+            // console.log(`[Terminal ${props.sessionId}] ResizeObserver triggered. Height: ${height}, isActive: ${props.isActive}`);
+            if (height > 0 && terminal) { // 仅在可见时调整
+                 try {
+                    fitAddon?.fit(); // 视觉上适应
+                    // 触发防抖的 resize 发送，主要应对窗口 resize
+                    debouncedEmitResize(terminal);
+                 } catch (e) {
+                    console.warn("Fit addon resize failed (observer):", e);
+                 }
             }
         });
         resizeObserver.observe(container);
     }
 
-    // 不再需要重写 fitAddon.fit 方法来 emit resize
+    // 监听 isActive prop 的变化，当标签变为活动时立即 fit 并发送 resize
+    watch(() => props.isActive, (newValue) => {
+        if (newValue && terminal && terminalRef.value && terminalRef.value.offsetHeight > 0) {
+            console.log(`[Terminal ${props.sessionId}] Tab became active, performing immediate fit and resize.`);
+            // 使用 nextTick 确保 DOM 更新完成
+            nextTick(() => {
+                fitAndEmitResizeNow(terminal!);
+            });
+        }
+    });
+
     // // 监听 fitAddon 的 resize 事件，获取新的尺寸并触发 emit
     // // 注意：fitAddon 本身不直接触发 resize 事件，我们需要在 fit() 后手动获取
     // const originalFit = fitAddon.fit.bind(fitAddon);

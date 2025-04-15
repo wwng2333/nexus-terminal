@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
                   :is-active="tabInfo.sessionId === activeSessionId"
                   @ready="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalReady"
                   @data="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalData"
-                  @resize="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalResize"
+                  @resize="(dims) => { console.log(`[WorkspaceView ${tabInfo.sessionId}] Received resize event:`, dims); sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalResize(dims); }"
                 />
               </div>
               <div class="file-manager-wrapper">
@@ -185,7 +185,7 @@ onBeforeUnmount(() => {
 .workspace-view {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 60px - 30px - 60px - 2rem); /* 调整以适应布局 */
+  height: calc(100vh - 60px - 30px - 60px - 2rem);
   overflow: hidden;
 }
 
@@ -204,7 +204,7 @@ onBeforeUnmount(() => {
 
 .main-content-area {
     display: flex;
-    flex-grow: 1;
+    flex: 1;
     overflow: hidden;
     border-top: 1px solid #ccc;
 }
@@ -215,74 +215,64 @@ onBeforeUnmount(() => {
     height: 100%;
     border-right: 2px solid #ccc;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-}
-.left-sidebar > * {
-    flex-grow: 1;
 }
 
 .main-workspace-container {
-    flex-grow: 1;
-    position: relative;
-    overflow: hidden;
+    flex: 1;
     display: flex;
+    overflow: hidden;
+    position: relative;
 }
 
 .main-workspace-area-session {
-    width: 100%;
-    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     overflow: hidden;
 }
 
 .left-pane {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    flex-grow: 1;
-    height: 100%;
     min-width: 300px;
+    overflow: hidden;
 }
 
 .terminal-wrapper {
-  height: 60%;
-  background-color: #1e1e1e;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.terminal-wrapper > * {
-    flex-grow: 1;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #1e1e1e;
+    overflow: hidden;
 }
 
 .file-manager-wrapper {
-    height: 40%;
-    border-top: 2px solid #ccc;
-    overflow: hidden;
+    flex: 1;
     display: flex;
     flex-direction: column;
-}
-.file-manager-wrapper > * {
-    flex-grow: 1;
+    border-top: 2px solid #ccc;
+    overflow: hidden;
 }
 
 .status-monitor-wrapper {
-    flex-basis: 250px;
+    width: 250px;
     min-width: 200px;
-    height: 100%;
     border-left: 2px solid #ccc;
     overflow: hidden;
     display: flex;
     flex-direction: column;
 }
-.status-monitor-wrapper > * {
-    flex-grow: 1;
-}
 
 .main-workspace-area.placeholder {
-    width: 100%;
-    height: 100%;
-    box-sizing: border-box;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
