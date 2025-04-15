@@ -99,15 +99,86 @@
 
     <!-- 其他设置项可以在这里添加 -->
 
+    <hr>
+
+    <!-- IP 黑名单管理 -->
+    <div class="settings-section">
+      <h2>IP 黑名单管理</h2>
+      <p>配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。</p>
+
+      <!-- 黑名单配置表单 -->
+      <form @submit.prevent="handleUpdateBlacklistSettings" class="blacklist-settings-form">
+         <div class="form-group inline-group">
+           <label for="maxLoginAttempts">最大失败次数:</label>
+           <input type="number" id="maxLoginAttempts" v-model="blacklistSettings.maxLoginAttempts" min="1" required>
+         </div>
+         <div class="form-group inline-group">
+           <label for="loginBanDuration">封禁时长 (秒):</label>
+           <input type="number" id="loginBanDuration" v-model="blacklistSettings.loginBanDuration" min="1" required>
+         </div>
+         <button type="submit" :disabled="blacklistSettings.loading">{{ blacklistSettings.loading ? '保存中...' : '保存配置' }}</button>
+         <p v-if="blacklistSettings.message" :class="{ 'success-message': blacklistSettings.success, 'error-message': !blacklistSettings.success }">{{ blacklistSettings.message }}</p>
+      </form>
+
+      <hr style="margin-top: 20px; margin-bottom: 20px;">
+
+      <h3>当前已封禁的 IP 地址</h3>
+      <div v-if="ipBlacklist.loading" class="loading-message">正在加载黑名单...</div>
+      <div v-if="ipBlacklist.error" class="error-message">{{ ipBlacklist.error }}</div>
+
+      <div v-if="!ipBlacklist.loading && !ipBlacklist.error">
+        <table v-if="ipBlacklist.entries.length > 0" class="blacklist-table">
+          <thead>
+            <tr>
+              <th>IP 地址</th>
+              <th>失败次数</th>
+              <th>最后尝试时间</th>
+              <th>封禁截止时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="entry in ipBlacklist.entries" :key="entry.ip">
+              <td>{{ entry.ip }}</td>
+              <td>{{ entry.attempts }}</td>
+              <td>{{ new Date(entry.last_attempt_at * 1000).toLocaleString() }}</td>
+              <td>{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : 'N/A' }}</td>
+              <td>
+                <button
+                  @click="handleDeleteIp(entry.ip)"
+                  :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
+                  class="btn-danger"
+                >
+                  {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? '删除中...' : '移除' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else>当前没有 IP 地址在黑名单中。</p>
+
+        <!-- 分页控件 (如果需要) -->
+        <!--
+        <div class="pagination" v-if="ipBlacklist.total > ipBlacklist.limit">
+          <button @click="fetchIpBlacklist(ipBlacklist.currentPage - 1)" :disabled="ipBlacklist.currentPage <= 1">上一页</button>
+          <span>第 {{ ipBlacklist.currentPage }} 页 / 共 {{ Math.ceil(ipBlacklist.total / ipBlacklist.limit) }} 页</span>
+          <button @click="fetchIpBlacklist(ipBlacklist.currentPage + 1)" :disabled="ipBlacklist.currentPage * ipBlacklist.limit >= ipBlacklist.total">下一页</button>
+        </div>
+        -->
+         <p v-if="blacklistDeleteError" class="error-message">{{ blacklistDeleteError }}</p>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, reactive } from 'vue'; // 导入 computed 和 reactive
 import { useAuthStore } from '../stores/auth.store';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios'; // 导入 axios
 import { startRegistration } from '@simplewebauthn/browser'; // 导入 simplewebauthn
+// import NotificationSettings from '../components/NotificationSettings.vue'; // 确认移除或根据需要取消注释
 
 const authStore = useAuthStore();
 const { t } = useI18n();
@@ -187,6 +258,29 @@ const ipWhitelistInput = ref(''); // 用于编辑的文本区域内容
 const ipWhitelistLoading = ref(false);
 const ipWhitelistMessage = ref('');
 const ipWhitelistSuccess = ref(false);
+
+// --- IP 黑名单状态 ---
+const ipBlacklist = reactive({
+    entries: [] as any[], // TODO: Define proper type
+    total: 0,
+    loading: false,
+    error: null as string | null,
+    currentPage: 1,
+    limit: 10, // 每页显示数量
+});
+const blacklistToDeleteIp = ref<string | null>(null); // 存储待确认删除的 IP
+const blacklistDeleteLoading = ref(false);
+const blacklistDeleteError = ref<string | null>(null);
+
+// --- 黑名单配置状态 ---
+const blacklistSettings = reactive({
+    maxLoginAttempts: '5', // 默认值
+    loginBanDuration: '300', // 默认值 (秒)
+    loading: false,
+    message: '',
+    success: false,
+});
+
 
 // 计算属性判断当前是否处于 2FA 设置流程中
 const isSettingUp2FA = computed(() => setupData.value !== null);
@@ -353,6 +447,102 @@ const handleUpdateIpWhitelist = async () => {
     }
 };
 
+// --- IP 黑名单相关方法 ---
+const fetchIpBlacklist = async (page = 1) => {
+    ipBlacklist.loading = true;
+    ipBlacklist.error = null;
+    const offset = (page - 1) * ipBlacklist.limit;
+    try {
+        const data = await authStore.fetchIpBlacklist(ipBlacklist.limit, offset);
+        ipBlacklist.entries = data.entries;
+        ipBlacklist.total = data.total;
+        ipBlacklist.currentPage = page;
+    } catch (error: any) {
+        ipBlacklist.error = error.message || '获取黑名单失败';
+    } finally {
+        ipBlacklist.loading = false;
+    }
+};
+
+const handleDeleteIp = async (ip: string) => {
+    blacklistToDeleteIp.value = ip; // 设置待确认的 IP
+    // 可以在这里添加一个确认对话框
+    if (confirm(`确定要从黑名单中移除 IP 地址 "${ip}" 吗？`)) {
+        blacklistDeleteLoading.value = true;
+        blacklistDeleteError.value = null;
+        try {
+            await authStore.deleteIpFromBlacklist(ip);
+            // 成功后刷新列表
+            await fetchIpBlacklist(ipBlacklist.currentPage);
+        } catch (error: any) {
+            blacklistDeleteError.value = error.message || '删除失败';
+        } finally {
+            blacklistDeleteLoading.value = false;
+            blacklistToDeleteIp.value = null; // 清除待确认 IP
+        }
+    } else {
+        blacklistToDeleteIp.value = null; // 用户取消，清除待确认 IP
+    }
+};
+
+// 获取黑名单配置
+const fetchBlacklistSettings = async () => {
+    blacklistSettings.loading = true;
+    blacklistSettings.message = '';
+    try {
+        const response = await axios.get<Record<string, string>>('/api/v1/settings');
+        blacklistSettings.maxLoginAttempts = response.data['maxLoginAttempts'] || '5';
+        blacklistSettings.loginBanDuration = response.data['loginBanDuration'] || '300';
+    } catch (error: any) {
+        console.error('获取黑名单配置失败:', error);
+        blacklistSettings.message = '获取黑名单配置失败';
+        blacklistSettings.success = false;
+    } finally {
+        blacklistSettings.loading = false;
+    }
+};
+
+// 更新黑名单配置
+const handleUpdateBlacklistSettings = async () => {
+    blacklistSettings.loading = true;
+    blacklistSettings.message = '';
+    blacklistSettings.success = false;
+    try {
+        // 验证输入是否为有效数字
+        const maxAttempts = parseInt(blacklistSettings.maxLoginAttempts, 10);
+        const banDuration = parseInt(blacklistSettings.loginBanDuration, 10);
+        if (isNaN(maxAttempts) || maxAttempts <= 0) {
+            throw new Error('最大失败次数必须是正整数。');
+        }
+        if (isNaN(banDuration) || banDuration <= 0) {
+            throw new Error('封禁时长必须是正整数（秒）。');
+        }
+
+        await axios.put('/api/v1/settings', {
+            maxLoginAttempts: blacklistSettings.maxLoginAttempts,
+            loginBanDuration: blacklistSettings.loginBanDuration,
+        });
+        blacklistSettings.message = '黑名单配置已成功更新。';
+        blacklistSettings.success = true;
+    } catch (error: any) {
+        console.error('更新黑名单配置失败:', error);
+        blacklistSettings.message = error.message || '更新黑名单配置失败';
+        blacklistSettings.success = false;
+    } finally {
+        blacklistSettings.loading = false;
+    }
+};
+
+
+// 在 onMounted 中调用 fetchIpBlacklist 和 fetchBlacklistSettings
+onMounted(async () => { // 使 onMounted 异步
+  await checkTwoFactorStatus(); // 等待状态检查完成
+  await fetchIpWhitelist(); // 获取 IP 白名单设置
+  await fetchIpBlacklist(); // 获取 IP 黑名单列表
+  await fetchBlacklistSettings(); // 获取黑名单配置
+});
+
+
 </script>
 
 <style scoped>
@@ -439,4 +629,85 @@ img {
   color: red;
   margin-top: 10px;
 }
+
+/* Blacklist Table Styles */
+.blacklist-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+
+.blacklist-table th,
+.blacklist-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+.blacklist-table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+.blacklist-table .btn-danger {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.blacklist-table .btn-danger:disabled {
+  background-color: #f8d7da;
+  cursor: not-allowed;
+}
+
+.loading-message {
+    margin-top: 15px;
+    color: #666;
+}
+
+/* Pagination Styles (Optional) */
+.pagination {
+    margin-top: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.pagination button {
+    margin: 0 5px;
+}
+.pagination span {
+    margin: 0 10px;
+}
+
+/* Blacklist Settings Form Styles */
+.blacklist-settings-form {
+    margin-top: 15px;
+}
+.blacklist-settings-form .inline-group {
+    display: inline-block; /* 让 label 和 input 在一行显示 */
+    margin-right: 20px; /* 组之间的间距 */
+    margin-bottom: 10px; /* 增加底部间距 */
+}
+.blacklist-settings-form .inline-group label {
+    display: inline-block; /* 行内块 */
+    margin-right: 5px; /* label 和 input 之间的间距 */
+    width: auto; /* 覆盖默认的 block 宽度 */
+    margin-bottom: 0; /* 移除默认的底部间距 */
+}
+.blacklist-settings-form .inline-group input[type="number"] {
+    width: 80px; /* 设置一个合适的宽度 */
+    display: inline-block; /* 行内块 */
+    padding: 6px; /* 调整内边距 */
+}
+.blacklist-settings-form button {
+    vertical-align: bottom; /* 对齐按钮和输入框 */
+}
+.blacklist-settings-form p { /* 消息样式 */
+    margin-top: 10px;
+}
+
+
 </style>

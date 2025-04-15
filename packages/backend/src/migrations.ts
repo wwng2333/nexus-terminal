@@ -41,6 +41,99 @@ CREATE TABLE IF NOT EXISTS passkeys (
 );
 `;
 
+const createNotificationSettingsTableSQL = `
+CREATE TABLE IF NOT EXISTS notification_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_type TEXT NOT NULL CHECK(channel_type IN ('webhook', 'email', 'telegram')),
+    name TEXT NOT NULL DEFAULT '',
+    enabled BOOLEAN NOT NULL DEFAULT false,
+    config TEXT NOT NULL DEFAULT '{}', -- JSON string for channel-specific config
+    enabled_events TEXT NOT NULL DEFAULT '[]', -- JSON array of event names
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
+
+// --- 新增表结构定义 ---
+
+const createUsersTableSQL = `
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    hashed_password TEXT NOT NULL,
+    two_factor_secret TEXT NULL, -- 添加 2FA 密钥列，允许为空
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
+
+const createProxiesTableSQL = `
+CREATE TABLE IF NOT EXISTS proxies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL CHECK(type IN ('SOCKS5', 'HTTP')),
+    host TEXT NOT NULL,
+    port INTEGER NOT NULL,
+    username TEXT NULL,
+    auth_method TEXT NOT NULL DEFAULT 'none' CHECK(auth_method IN ('none', 'password', 'key')),
+    encrypted_password TEXT NULL,
+    encrypted_private_key TEXT NULL,
+    encrypted_passphrase TEXT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    UNIQUE(name, type, host, port)
+);
+`;
+
+const createConnectionsTableSQL = `
+CREATE TABLE IF NOT EXISTS connections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    host TEXT NOT NULL,
+    port INTEGER NOT NULL,
+    username TEXT NOT NULL,
+    auth_method TEXT NOT NULL CHECK(auth_method IN ('password', 'key')),
+    encrypted_password TEXT NULL,
+    encrypted_private_key TEXT NULL,
+    encrypted_passphrase TEXT NULL,
+    proxy_id INTEGER NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    last_connected_at INTEGER NULL,
+    FOREIGN KEY (proxy_id) REFERENCES proxies(id) ON DELETE SET NULL
+);
+`;
+
+const createTagsTableSQL = `
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
+
+const createConnectionTagsTableSQL = `
+CREATE TABLE IF NOT EXISTS connection_tags (
+    connection_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (connection_id, tag_id),
+    FOREIGN KEY (connection_id) REFERENCES connections(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+);
+`;
+
+const createIpBlacklistTableSQL = `
+CREATE TABLE IF NOT EXISTS ip_blacklist (
+    ip TEXT PRIMARY KEY NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 1,
+    last_attempt_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    blocked_until INTEGER NULL -- 封禁截止时间戳 (秒)，NULL 表示未封禁或永久封禁 (根据逻辑决定)
+);
+`;
+// --- 结束新增表结构定义 ---
+
+
 export const runMigrations = async (db: Database): Promise<void> => {
     try {
         // 创建 settings 表 (如果不存在)
@@ -95,6 +188,74 @@ export const runMigrations = async (db: Database): Promise<void> => {
                 resolve();
             });
         });
+
+        // 创建 notification_settings 表 (如果不存在)
+        await new Promise<void>((resolve, reject) => {
+            db.run(createNotificationSettingsTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 notification_settings 表时出错: ${err.message}`));
+                console.log('Notification_Settings 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // --- 新增表创建逻辑 ---
+
+        // 创建 users 表
+        await new Promise<void>((resolve, reject) => {
+            db.run(createUsersTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 users 表时出错: ${err.message}`));
+                console.log('Users 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 proxies 表
+        await new Promise<void>((resolve, reject) => {
+            db.run(createProxiesTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 proxies 表时出错: ${err.message}`));
+                console.log('Proxies 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 connections 表 (依赖 proxies)
+        await new Promise<void>((resolve, reject) => {
+            db.run(createConnectionsTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 connections 表时出错: ${err.message}`));
+                console.log('Connections 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 tags 表
+        await new Promise<void>((resolve, reject) => {
+            db.run(createTagsTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 tags 表时出错: ${err.message}`));
+                console.log('Tags 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 connection_tags 表 (依赖 connections, tags)
+        await new Promise<void>((resolve, reject) => {
+            db.run(createConnectionTagsTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 connection_tags 表时出错: ${err.message}`));
+                console.log('Connection_Tags 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 ip_blacklist 表
+        await new Promise<void>((resolve, reject) => {
+            db.run(createIpBlacklistTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 ip_blacklist 表时出错: ${err.message}`));
+                console.log('Ip_Blacklist 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // --- 结束新增表创建逻辑 ---
+
 
         console.log('所有数据库迁移已完成。');
     } catch (error) {

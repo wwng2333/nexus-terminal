@@ -47,6 +47,18 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Settings',
     component: () => import('../views/SettingsView.vue')
   },
+  // 新增：通知管理页面
+  {
+    path: '/notifications',
+    name: 'Notifications',
+    component: () => import('../views/NotificationsView.vue')
+  },
+  // 新增：审计日志页面
+  {
+    path: '/audit-logs',
+    name: 'AuditLogs',
+    component: () => import('../views/AuditLogView.vue')
+  },
   // 其他路由...
 ];
 

@@ -5,9 +5,14 @@ import sqlite3, { RunResult } from 'sqlite3';
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { PasskeyService } from '../services/passkey.service'; // 导入 PasskeyService
+import { NotificationService } from '../services/notification.service'; // 导入 NotificationService
+import { AuditLogService } from '../services/audit.service'; // 导入 AuditLogService
+import { ipBlacklistService } from '../services/ip-blacklist.service'; // 导入 IP 黑名单服务
 
 const db = getDb();
 const passkeyService = new PasskeyService(); // 实例化 PasskeyService
+const notificationService = new NotificationService(); // 实例化 NotificationService
+const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
 // 用户数据结构占位符 (理想情况下应定义在共享的 types 文件中)
 interface User {
@@ -26,6 +31,7 @@ declare module 'express-session' {
         tempTwoFactorSecret?: string;
         requiresTwoFactor?: boolean;
         currentChallenge?: string; // 用于存储 Passkey 操作的挑战
+        rememberMe?: boolean; // 新增：临时存储“记住我”选项
     }
 }
 
@@ -34,7 +40,8 @@ declare module 'express-session' {
  * 处理用户登录请求 (POST /api/v1/auth/login)
  */
 export const login = async (req: Request, res: Response): Promise<void> => {
-    const { username, password } = req.body;
+    // 从请求体中解构 username, password 和可选的 rememberMe
+    const { username, password, rememberMe } = req.body;
 
     if (!username || !password) {
         res.status(400).json({ message: '用户名和密码不能为空。' });
@@ -55,6 +62,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         if (!user) {
             console.log(`登录尝试失败: 用户未找到 - ${username}`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            // 记录失败尝试
+            ipBlacklistService.recordFailedAttempt(clientIp);
+            // 记录审计日志 (添加 IP)
+            auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
+            // 发送登录失败通知
+            notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
@@ -63,6 +77,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
         if (!isMatch) {
             console.log(`登录尝试失败: 密码错误 - ${username}`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            // 记录失败尝试
+            ipBlacklistService.recordFailedAttempt(clientIp);
+            // 记录审计日志 (添加 IP)
+            auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
+            // 发送登录失败通知
+            notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
@@ -73,13 +94,30 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             // 不设置完整 session，只标记需要 2FA
             req.session.userId = user.id; // 临时存储 userId 以便 2FA 验证
             req.session.requiresTwoFactor = true;
+            req.session.rememberMe = rememberMe; // 临时存储 rememberMe 状态
             res.status(200).json({ message: '需要进行两步验证。', requiresTwoFactor: true });
         } else {
             // --- 认证成功 (未启用 2FA) ---
             console.log(`登录成功 (无 2FA): ${username}`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            // 重置失败尝试次数
+            ipBlacklistService.resetAttempts(clientIp);
+            // 记录审计日志 (添加 IP)
+            auditLogService.logAction('LOGIN_SUCCESS', { userId: user.id, username, ip: clientIp });
             req.session.userId = user.id;
             req.session.username = user.username;
             req.session.requiresTwoFactor = false; // 明确标记不需要 2FA
+
+            // 根据 rememberMe 设置 cookie maxAge
+            if (rememberMe) {
+                // 如果记住我，使用默认的 maxAge (在 index.ts 中设置，通常是 7 天)
+                // 如果需要强制覆盖为 7 天，取消下一行注释
+                // req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7;
+            } else {
+                // 如果不记住我，设置为会话 cookie (浏览器关闭时过期)
+                req.session.cookie.maxAge = undefined; // 使用 undefined 表示会话 cookie
+            }
+
             res.status(200).json({
                 message: '登录成功。',
                 user: { id: user.id, username: user.username }
@@ -183,15 +221,37 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
 
         if (verified) {
             console.log(`用户 ${user.username} 2FA 验证成功。`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            // 重置失败尝试次数
+            ipBlacklistService.resetAttempts(clientIp);
+            // 记录审计日志 (2FA 成功也算登录成功) (添加 IP)
+            auditLogService.logAction('LOGIN_SUCCESS', { userId: user.id, username: user.username, ip: clientIp, twoFactor: true });
             // 验证成功，建立完整会话
             req.session.username = user.username;
             req.session.requiresTwoFactor = false; // 标记 2FA 已完成
+
+            // 根据之前存储在 session 中的 rememberMe 设置 cookie maxAge
+            if (req.session.rememberMe) {
+                // 如果记住我，使用默认的 maxAge
+                // req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7;
+            } else {
+                // 如果不记住我，设置为会话 cookie
+                req.session.cookie.maxAge = undefined;
+            }
+            // 清除临时的 rememberMe 状态
+            delete req.session.rememberMe;
+
             res.status(200).json({
                 message: '登录成功。',
                 user: { id: user.id, username: user.username }
             });
         } else {
             console.log(`用户 ${user.username} 2FA 验证失败: 验证码错误。`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            // 记录失败尝试
+            ipBlacklistService.recordFailedAttempt(clientIp);
+            // 记录审计日志 (添加 IP)
+            auditLogService.logAction('LOGIN_FAILURE', { userId: user.id, username: user.username, reason: 'Invalid 2FA token', ip: clientIp });
             res.status(401).json({ message: '验证码无效。' });
         }
 
@@ -268,9 +328,12 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
                 }
                 if (this.changes === 0) {
                      console.error(`修改密码错误: 更新影响行数为 0 - 用户 ID ${userId}`);
-                     return rejectUpdate(new Error('未找到要更新的用户'));
+                 return rejectUpdate(new Error('未找到要更新的用户'));
                 }
                 console.log(`用户 ${userId} 密码已成功修改。`);
+                const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+                // 记录审计日志 (添加 IP)
+                auditLogService.logAction('PASSWORD_CHANGED', { userId, ip: clientIp });
                 resolveUpdate();
             });
             stmt.finalize();
@@ -405,7 +468,13 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
             name
         );
 
-        if (verification.verified) {
+        // Check if verification was successful and registrationInfo is present
+        if (verification.verified && verification.registrationInfo) {
+             const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+             // 记录审计日志 (添加 IP)
+            // Use type assertion 'as any' to bypass persistent TS error for now
+            const regInfo: any = verification.registrationInfo;
+            auditLogService.logAction('PASSKEY_REGISTERED', { userId, passkeyId: regInfo.credentialID, name, ip: clientIp });
             res.status(201).json({ message: 'Passkey 注册成功！', verified: true });
         } else {
             console.error(`用户 ${userId} Passkey 注册验证失败:`, verification);
@@ -463,9 +532,12 @@ export const verifyAndActivate2FA = async (req: Request, res: Response): Promise
                     }
                     if (this.changes === 0) {
                          console.error(`激活 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
-                         return rejectUpdate(new Error('未找到要更新的用户'));
+                     return rejectUpdate(new Error('未找到要更新的用户'));
                     }
                     console.log(`用户 ${userId} 已成功激活两步验证。`);
+                    const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+                    // 记录审计日志 (添加 IP)
+                    auditLogService.logAction('2FA_ENABLED', { userId, ip: clientIp });
                     resolveUpdate();
                 });
                 stmt.finalize();
@@ -535,6 +607,9 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
                      return rejectUpdate(new Error('未找到要更新的用户'));
                 }
                 console.log(`用户 ${userId} 已成功禁用两步验证。`);
+                const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+                // 记录审计日志 (添加 IP)
+                auditLogService.logAction('2FA_DISABLED', { userId, ip: clientIp });
                 resolveUpdate();
             });
             stmt.finalize();

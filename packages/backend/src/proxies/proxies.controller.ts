@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import * as ProxyService from '../services/proxy.service';
+import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
+
+const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
 // Helper function to remove sensitive fields for response
 const sanitizeProxy = (proxy: ProxyService.ProxyData | null): Partial<ProxyService.ProxyData> | null => {
@@ -54,6 +57,8 @@ export const createProxy = async (req: Request, res: Response) => {
         }
 
         const newProxy = await ProxyService.createProxy(req.body);
+        // 记录审计日志
+        auditLogService.logAction('PROXY_CREATED', { proxyId: newProxy.id, name: newProxy.name, type: newProxy.type });
         res.status(201).json({
             message: '代理创建成功',
             proxy: sanitizeProxy(newProxy) // Return sanitized proxy
@@ -92,6 +97,8 @@ export const updateProxy = async (req: Request, res: Response) => {
         const updatedProxy = await ProxyService.updateProxy(proxyId, req.body);
 
         if (updatedProxy) {
+            // 记录审计日志
+            auditLogService.logAction('PROXY_UPDATED', { proxyId, updatedFields: Object.keys(req.body) });
             res.status(200).json({ message: '代理更新成功', proxy: sanitizeProxy(updatedProxy) });
         } else {
             res.status(404).json({ message: `未找到 ID 为 ${id} 的代理进行更新` });
@@ -121,6 +128,8 @@ export const deleteProxy = async (req: Request, res: Response) => {
         const deleted = await ProxyService.deleteProxy(proxyId);
 
         if (deleted) {
+            // 记录审计日志
+            auditLogService.logAction('PROXY_DELETED', { proxyId });
             res.status(200).json({ message: `代理 ${id} 删除成功` });
         } else {
             res.status(404).json({ message: `未找到 ID 为 ${id} 的代理进行删除` });

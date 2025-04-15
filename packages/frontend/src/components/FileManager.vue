@@ -46,6 +46,7 @@ const {
     readFile, // 暴露给 useFileEditor
     writeFile, // 暴露给 useFileEditor
     joinPath, // 从 composable 获取 joinPath
+    clearSftpError, // 导入清除错误的函数
 } = useSftpActions(currentPath); // 传入 currentPath ref
 
 // 文件上传模块
@@ -84,6 +85,9 @@ const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename');
 const sortDirection = ref<'asc' | 'desc'>('asc'); // 排序方向
 const initialLoadDone = ref(false); // Track if the initial load has been triggered
 const isFetchingInitialPath = ref(false); // Track if fetching realpath
+const isEditingPath = ref(false); // State for path editing mode
+const pathInputRef = ref<HTMLInputElement | null>(null); // Ref for the path input element
+const editablePath = ref(''); // Temp storage for the path being edited
 
 // --- Column Resizing State ---
 const tableRef = ref<HTMLTableElement | null>(null);
@@ -273,6 +277,11 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => {
         }
 
         if (item.attrs.isDirectory) {
+            // 检查是否已在加载，防止快速重复点击
+            if (isLoading.value) {
+                console.log('[文件管理器] 忽略目录点击，因为正在加载...');
+                return;
+            }
             // 处理目录点击：导航
             const newPath = item.filename === '..'
                 ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/'
@@ -596,6 +605,7 @@ const getColumnKeyByIndex = (index: number): keyof typeof colWidths.value | null
 };
 
 const startResize = (event: MouseEvent, index: number) => {
+  event.stopPropagation(); // Stop the event from bubbling up to the th's click handler
   event.preventDefault(); // Prevent text selection during drag
   isResizing.value = true;
   resizingColumnIndex.value = index;
@@ -639,21 +649,77 @@ const stopResize = () => {
     document.removeEventListener('mousemove', handleResize);
     document.removeEventListener('mouseup', stopResize);
     document.body.style.cursor = ''; // Reset cursor
-    document.body.style.userSelect = ''; // Reset text selection
+  document.body.style.userSelect = ''; // Reset text selection
   }
+};
+
+// --- Path Editing Logic ---
+const startPathEdit = () => {
+    if (isLoading.value || !props.isConnected) return; // Don't allow edit while loading or disconnected
+    editablePath.value = currentPath.value; // Initialize input with current path
+    isEditingPath.value = true;
+    nextTick(() => {
+        pathInputRef.value?.focus(); // Focus the input after it becomes visible
+        pathInputRef.value?.select(); // Select the text
+    });
+};
+
+const handlePathInput = async (event?: Event) => {
+    // Check if triggered by blur or Enter key
+    if (event && event instanceof KeyboardEvent && event.key !== 'Enter') {
+        return; // Ignore other key presses
+    }
+
+    const newPath = editablePath.value.trim();
+    isEditingPath.value = false; // Exit editing mode immediately
+
+    if (newPath === currentPath.value || !newPath) {
+        return; // No change or empty path, do nothing
+    }
+
+    console.log(`[文件管理器] 尝试导航到新路径: ${newPath}`);
+    // Call loadDirectory which handles path validation via backend
+    await loadDirectory(newPath);
+
+    // If loadDirectory resulted in an error (handled within useSftpActions),
+    // the currentPath will not have changed, effectively reverting the UI.
+    // If successful, currentPath is updated by loadDirectory, and the UI reflects the new path.
+};
+
+const cancelPathEdit = () => {
+    isEditingPath.value = false;
+    // No need to reset editablePath, it will be set on next edit start
+};
+
+// Function to clear the error message - now calls the composable's function
+const clearError = () => {
+    clearSftpError();
 };
 
 
 </script>
 
 <template>
-  <div class="file-manager"> <!-- Removed @click handler -->
+  <div class="file-manager">
     <div class="toolbar">
         <div class="path-bar">
-          {{ t('fileManager.currentPath') }}: <strong>{{ currentPath }}</strong>
-          <button @click="loadDirectory(currentPath)" :disabled="isLoading || !isConnected" :title="t('fileManager.actions.refresh')">🔄</button>
+          <span v-show="!isEditingPath"> 
+            {{ t('fileManager.currentPath') }}: <strong @click="startPathEdit" :title="t('fileManager.editPathTooltip')" class="editable-path">{{ currentPath }}</strong>
+          </span>
+          <input
+            v-show="isEditingPath" 
+            ref="pathInputRef"
+            type="text"
+            v-model="editablePath"
+            class="path-input"
+            @keyup.enter="handlePathInput"
+            @blur="handlePathInput"
+            @keyup.esc="cancelPathEdit"
+            
+          />
+          <button @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !isConnected || isEditingPath" :title="t('fileManager.actions.refresh')">🔄</button>
           <!-- Pass event to handleItemClick for '..' -->
-          <button @click="handleItemClick($event, { filename: '..', longname: '', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !isConnected || currentPath === '/'" :title="t('fileManager.actions.parentDirectory')">⬆️</button>
+          <button @click.stop="handleItemClick($event, { filename: '..', longname: '', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !isConnected || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')">⬆️</button>
         </div>
         <div class="actions-bar">
              <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
@@ -672,17 +738,28 @@ const stopResize = () => {
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
     >
+        <!-- Error Alert Box -->
+        <div v-if="error" class="error-alert">
+            <span>{{ error }}</span>
+            <button @click="clearError" class="close-error-btn" :title="t('common.dismiss')">&times;</button> <!-- Use clearSftpError -->
+        </div>
+
         <!-- 1. Initial Loading Indicator -->
         <div v-if="isLoading && !initialLoadDone" class="loading">{{ t('fileManager.loading') }}</div>
 
-        <!-- 2. Error Indicator -->
-        <div v-else-if="error" class="error">{{ error }}</div>
-
-        <!-- 3. File Table (Show if not initial loading, no error, and there's something to display: either files or '..') -->
+        <!-- 2. File Table (Show if not initial loading) -->
+        <!-- Removed the error condition here, table shows regardless of error -->
         <table v-else-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
-           <!-- Temporarily removed colgroup for debugging -->
+           <colgroup>
+                <col :style="{ width: `${colWidths.type}px` }">
+                <col :style="{ width: `${colWidths.name}px` }">
+                <col :style="{ width: `${colWidths.size}px` }">
+                <col :style="{ width: `${colWidths.permissions}px` }">
+                <col :style="{ width: `${colWidths.modified}px` }">
+           </colgroup>
           <thead>
             <tr>
+              <!-- Remove width style from th, controlled by colgroup -->
               <th @click="handleSort('type')" class="sortable">
                 {{ t('fileManager.headers.type') }}
                 <span v-if="sortKey === 'type'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
@@ -733,7 +810,11 @@ const stopResize = () => {
         </table>
 
         <!-- 4. Empty Directory Message (Show if not initial loading, no error, list is empty, and at root) -->
-         <div v-else class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
+         <!-- 3. Empty Directory Message (Show only if not loading AND list is empty AND not at root) -->
+         <div v-else-if="!isLoading && sortedFileList.length === 0 && currentPath === '/'" class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
+         <!-- Note: If there's an error, the table will still render (potentially empty if initial load failed),
+              but the error message will be shown above. The "Empty Directory" message
+              is now only shown if explicitly empty and not loading. -->
      </div>
 
      <!-- 使用 FileUploadPopup 组件 -->
@@ -775,8 +856,28 @@ const stopResize = () => {
 /* Styles remain the same, but add .selected style */
 .file-manager { height: 100%; display: flex; flex-direction: column; font-family: sans-serif; font-size: 0.9rem; overflow: hidden; }
 .toolbar { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background-color: #f0f0f0; border-bottom: 1px solid #ccc; flex-wrap: wrap; }
-.path-bar { white-space: nowrap; overflow-x: auto; flex-grow: 1; margin-right: 1rem; }
-.path-bar button { margin-left: 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0.1rem 0.3rem; }
+.path-bar { white-space: nowrap; overflow-x: auto; flex-grow: 1; margin-right: 1rem; padding: 0.2rem 0.4rem; border-radius: 3px; } /* Remove cursor:text and hover */
+.path-bar strong.editable-path {
+    font-weight: normal;
+    background-color: #e0e0e0;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    margin-left: 0.3rem;
+    cursor: text; /* Add cursor only to the clickable part */
+}
+.path-bar strong.editable-path:hover {
+    background-color: #d0d0d0; /* Slightly darker hover for the path */
+}
+.path-input {
+    font-family: inherit;
+    font-size: inherit;
+    border: 1px solid #ccc;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    width: calc(100% - 70px); /* Adjust width based on button sizes */
+    box-sizing: border-box;
+}
+.path-bar button { margin-left: 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0.1rem 0.3rem; vertical-align: middle; }
 .path-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
 .actions-bar button { padding: 0.3rem 0.6rem; cursor: pointer; margin-left: 0.5rem; }
 .actions-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -787,8 +888,29 @@ const stopResize = () => {
 .upload-popup progress { margin: 0 0.5rem; width: 80px; height: 0.8em; }
 .upload-popup .error { color: red; margin-left: 0.5rem; flex-basis: 100%; font-size: 0.8em; }
 .upload-popup .cancel-btn { margin-left: auto; padding: 0.1rem 0.4rem; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; cursor: pointer; }
-.loading, .error, .no-files { padding: 1rem; text-align: center; color: #666; }
-.error { color: red; }
+.loading, .no-files { padding: 1rem; text-align: center; color: #666; }
+/* Removed .error style for the main container */
+.error-alert {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+    padding: 0.75rem 1.25rem;
+    margin: 0.5rem;
+    border-radius: 0.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.close-error-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 0.5rem;
+    line-height: 1;
+}
 .file-list-container { flex-grow: 1; overflow-y: auto; position: relative; /* Needed for overlay */ }
 .file-list-container.drag-over {
   outline: 2px dashed #007bff; /* Blue dashed outline */

@@ -9,6 +9,13 @@ interface UserInfo {
     isTwoFactorEnabled?: boolean; // 后端 /status 接口会返回这个
 }
 
+// 新增：登录请求的载荷接口
+interface LoginPayload {
+    username: string;
+    password: string;
+    rememberMe?: boolean; // 可选的“记住我”标志
+}
+
 // Auth Store State 接口
 interface AuthState {
     isAuthenticated: boolean;
@@ -16,6 +23,11 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
     loginRequires2FA: boolean; // 新增状态：标记登录是否需要 2FA
+    // 新增：存储 IP 黑名单数据
+    ipBlacklist: {
+        entries: any[]; // TODO: Define a proper type for blacklist entries
+        total: number;
+    };
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -25,20 +37,22 @@ export const useAuthStore = defineStore('auth', {
         isLoading: false,
         error: null,
         loginRequires2FA: false, // 初始为不需要
+        ipBlacklist: { entries: [], total: 0 }, // 初始化黑名单状态
     }),
     getters: {
         // 可以添加一些 getter，例如获取用户名
         loggedInUser: (state) => state.user?.username,
     },
     actions: {
-        // 登录 Action
-        async login(credentials: { username: string; password: string }) {
+        // 登录 Action - 更新为接受 LoginPayload
+        async login(payload: LoginPayload) {
             this.isLoading = true;
             this.error = null;
             this.loginRequires2FA = false; // 重置 2FA 状态
             try {
                 // 后端可能返回 user 或 requiresTwoFactor
-                const response = await axios.post<{ message: string; user?: UserInfo; requiresTwoFactor?: boolean }>('/api/v1/auth/login', credentials);
+                // 将完整的 payload (包含 rememberMe) 发送给后端
+                const response = await axios.post<{ message: string; user?: UserInfo; requiresTwoFactor?: boolean }>('/api/v1/auth/login', payload);
 
                 if (response.data.requiresTwoFactor) {
                     // 需要 2FA 验证
@@ -194,6 +208,56 @@ export const useAuthStore = defineStore('auth', {
                 this.error = err.response?.data?.message || err.message || '修改密码时发生未知错误。';
                 // 抛出错误，以便组件可以捕获并显示 (提供默认消息以防 this.error 为 null)
                 throw new Error(this.error ?? '修改密码时发生未知错误。');
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        // --- IP 黑名单管理 Actions ---
+        /**
+         * 获取 IP 黑名单列表
+         * @param limit 每页数量
+         * @param offset 偏移量
+         */
+        async fetchIpBlacklist(limit: number = 50, offset: number = 0) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                const response = await axios.get('/api/v1/settings/ip-blacklist', {
+                    params: { limit, offset }
+                });
+                // 注意：这里需要将获取到的数据存储在 state 中，
+                // 但当前 AuthState 没有定义相关字段。
+                // 暂时只返回数据，需要在 state 中添加 ipBlacklist 字段。
+                console.log('获取 IP 黑名单成功:', response.data);
+                return response.data; // { entries: [], total: number }
+            } catch (err: any) {
+                console.error('获取 IP 黑名单失败:', err);
+                this.error = err.response?.data?.message || err.message || '获取 IP 黑名单时发生未知错误。';
+                // 确保抛出 Error 时提供字符串消息
+                throw new Error(this.error ?? '获取 IP 黑名单时发生未知错误。');
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        /**
+         * 从 IP 黑名单中删除一个 IP
+         * @param ip 要删除的 IP 地址
+         */
+        async deleteIpFromBlacklist(ip: string) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                await axios.delete(`/api/v1/settings/ip-blacklist/${encodeURIComponent(ip)}`);
+                console.log(`IP ${ip} 已从黑名单删除`);
+                // 成功后需要重新获取列表或从本地 state 中移除
+                return true;
+            } catch (err: any) {
+                console.error(`删除 IP ${ip} 失败:`, err);
+                this.error = err.response?.data?.message || err.message || '删除 IP 时发生未知错误。';
+                 // 确保抛出 Error 时提供字符串消息
+                throw new Error(this.error ?? '删除 IP 时发生未知错误。');
             } finally {
                 this.isLoading = false;
             }

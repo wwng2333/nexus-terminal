@@ -104,7 +104,6 @@ export const findFullConnectionById = async (id: number): Promise<any | null> =>
                  c.*, -- 选择 connections 表所有列
                  p.id as proxy_db_id, p.name as proxy_name, p.type as proxy_type,
                  p.host as proxy_host, p.port as proxy_port, p.username as proxy_username,
-                 p.auth_method as proxy_auth_method, -- 包含代理的 auth_method
                  p.encrypted_password as proxy_encrypted_password,
                  p.encrypted_private_key as proxy_encrypted_private_key, -- 包含代理的 key
                  p.encrypted_passphrase as proxy_encrypted_passphrase -- 包含代理的 passphrase

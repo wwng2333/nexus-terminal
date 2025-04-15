@@ -11,17 +11,19 @@ import {
   verifyPasskeyRegistration           // 导入 Passkey 方法
 } from './auth.controller';
 import { isAuthenticated } from './auth.middleware';
+import { ipBlacklistCheckMiddleware } from './ipBlacklistCheck.middleware'; // 导入 IP 黑名单检查中间件
 
 const router = Router();
 
-// POST /api/v1/auth/login - 用户登录接口
-router.post('/login', login);
+// POST /api/v1/auth/login - 用户登录接口 (添加黑名单检查)
+router.post('/login', ipBlacklistCheckMiddleware, login);
 
 // PUT /api/v1/auth/password - 修改密码接口 (需要认证)
 router.put('/password', isAuthenticated, changePassword);
 
-// POST /api/v1/auth/login/2fa - 登录时的 2FA 验证接口 (不需要单独的 isAuthenticated，依赖 login 接口设置的临时 session)
-router.post('/login/2fa', verifyLogin2FA);
+// POST /api/v1/auth/login/2fa - 登录时的 2FA 验证接口 (添加黑名单检查)
+// (不需要单独的 isAuthenticated，依赖 login 接口设置的临时 session)
+router.post('/login/2fa', ipBlacklistCheckMiddleware, verifyLogin2FA);
 
 // --- 2FA 管理接口 (都需要认证) ---
 // POST /api/v1/auth/2fa/setup - 开始 2FA 设置，生成密钥和二维码

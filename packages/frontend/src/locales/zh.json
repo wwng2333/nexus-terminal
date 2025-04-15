@@ -7,6 +7,8 @@
     "login": "登录",
     "logout": "登出",
     "tags": "标签管理",
+    "notifications": "通知管理",
+    "auditLogs": "审计日志",
     "settings": "设置"
   },
   "login": {
@@ -17,7 +19,8 @@
     "loggingIn": "正在登录...",
     "error": "登录失败，请检查用户名或密码。",
     "twoFactorPrompt": "请输入两步验证码:",
-    "verifyButton": "验证"
+    "verifyButton": "验证",
+    "rememberMe": "记住我 (7 天)"
   },
   "connections": {
     "title": "连接管理",
@@ -243,7 +246,8 @@
     "loadingFile": "正在加载文件...",
     "saving": "正在保存",
     "saveSuccess": "保存成功",
-    "saveError": "保存出错"
+    "saveError": "保存出错",
+    "editPathTooltip": "点击路径进行编辑"
   },
   "tags": {
     "title": "标签管理",
@@ -361,10 +365,132 @@
       "success": {
         "registered": "Passkey 注册成功！"
       }
+    },
+    "notifications": {
+      "title": "通知设置",
+      "addChannel": "添加通知渠道",
+      "noChannels": "尚未配置任何通知渠道。",
+      "triggers": "触发事件",
+      "noEventsEnabled": "未启用任何事件",
+      "confirmDelete": "确定要删除通知渠道 \"{name}\" 吗？此操作不可撤销。",
+      "types": {
+        "webhook": "Webhook",
+        "email": "邮件",
+        "telegram": "Telegram"
+      },
+      "form": {
+        "addTitle": "添加通知渠道",
+        "editTitle": "编辑通知渠道",
+        "name": "渠道名称:",
+        "channelType": "渠道类型:",
+        "channelTypeEditNote": "创建后无法修改渠道类型。",
+        "webhookMethod": "HTTP 方法:",
+        "webhookHeaders": "自定义 Headers",
+        "webhookBodyTemplate": "请求体模板 (可选)",
+        "webhookBodyPlaceholder": "默认: JSON 格式负载。可使用 {{event}}, {{timestamp}}, {{details}}。",
+        "emailTo": "收件人邮箱:",
+        "emailToHelp": "多个邮箱用逗号分隔。",
+        "emailSubjectTemplate": "邮件主题模板 (可选)",
+        "emailSubjectPlaceholder": "默认: 通知: {{event}}",
+        "smtpHost": "SMTP 主机:",
+        "smtpPort": "SMTP 端口:",
+        "smtpSecure": "使用 TLS/SSL",
+        "smtpUser": "SMTP 用户名:",
+        "smtpPass": "SMTP 密码:",
+        "smtpFrom": "发件人邮箱:",
+        "smtpFromHelp": "用于邮件 'From' 字段的地址。",
+        "testButton": "测试通知",
+        "testSuccess": "测试邮件发送成功！",
+        "testFailed": "测试邮件发送失败",
+        "saveToTest": "请先保存设置再进行测试。",
+        "telegramToken": "机器人 Token:",
+        "telegramTokenHelp": "请安全存储。建议使用环境变量。",
+        "telegramChatId": "聊天 ID:",
+        "telegramMessageTemplate": "消息模板 (可选)",
+        "telegramMessagePlaceholder": "默认: Markdown 格式。可使用 {{event}}, {{timestamp}}, {{details}}。",
+        "enabledEvents": "启用的事件:",
+        "templateHelp": "可用占位符: {{event}}, {{timestamp}}, {{details}} (JSON 字符串)",
+        "invalidJson": "无效的 JSON 格式"
+      },
+      "events": {
+        "LOGIN_SUCCESS": "登录成功",
+        "LOGIN_FAILURE": "登录失败",
+        "CONNECTION_ADDED": "连接已添加",
+        "CONNECTION_UPDATED": "连接已更新",
+        "CONNECTION_DELETED": "连接已删除",
+        "SETTINGS_UPDATED": "设置已更新",
+        "PROXY_ADDED": "代理已添加",
+        "PROXY_UPDATED": "代理已更新",
+        "PROXY_DELETED": "代理已删除",
+        "TAG_ADDED": "标签已添加",
+        "TAG_UPDATED": "标签已更新",
+        "TAG_DELETED": "标签已删除",
+        "API_KEY_ADDED": "API 密钥已添加",
+        "API_KEY_DELETED": "API 密钥已删除",
+        "PASSKEY_ADDED": "Passkey 已添加",
+        "PASSKEY_DELETED": "Passkey 已删除",
+        "SERVER_ERROR": "服务器错误"
+      }
     }
   },
   "common": {
     "loading": "加载中...",
-    "cancel": "取消"
+    "cancel": "取消",
+    "save": "保存",
+    "saving": "保存中...",
+    "testing": "测试中...",
+    "edit": "编辑",
+    "delete": "删除",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "settings": "设置",
+    "errorOccurred": "发生错误。",
+    "dismiss": "关闭"
+  },
+  "auditLog": {
+    "title": "审计日志",
+    "noLogs": "未找到审计日志记录。",
+    "table": {
+      "timestamp": "时间戳",
+      "actionType": "操作类型",
+      "details": "详细信息"
+    },
+    "paginationInfo": "第 {currentPage} 页 / 共 {totalPages} 页 (总计 {totalLogs} 条记录)",
+    "actions": {
+        "LOGIN_SUCCESS": "登录成功",
+        "LOGIN_FAILURE": "登录失败",
+        "LOGOUT": "登出",
+        "PASSWORD_CHANGED": "密码已修改",
+        "2FA_ENABLED": "两步验证已启用",
+        "2FA_DISABLED": "两步验证已禁用",
+        "PASSKEY_REGISTERED": "Passkey 已注册",
+        "PASSKEY_DELETED": "Passkey 已删除",
+        "CONNECTION_CREATED": "连接已创建",
+        "CONNECTION_UPDATED": "连接已更新",
+        "CONNECTION_DELETED": "连接已删除",
+        "CONNECTION_TESTED": "连接已测试",
+        "CONNECTIONS_IMPORTED": "连接已导入",
+        "CONNECTIONS_EXPORTED": "连接已导出",
+        "PROXY_CREATED": "代理已创建",
+        "PROXY_UPDATED": "代理已更新",
+        "PROXY_DELETED": "代理已删除",
+        "TAG_CREATED": "标签已创建",
+        "TAG_UPDATED": "标签已更新",
+        "TAG_DELETED": "标签已删除",
+        "SETTINGS_UPDATED": "设置已更新",
+        "IP_WHITELIST_UPDATED": "IP 白名单已更新",
+        "NOTIFICATION_SETTING_CREATED": "通知设置已创建",
+        "NOTIFICATION_SETTING_UPDATED": "通知设置已更新",
+        "NOTIFICATION_SETTING_DELETED": "通知设置已删除",
+        "API_KEY_CREATED": "API 密钥已创建",
+        "API_KEY_DELETED": "API 密钥已删除",
+        "SFTP_ACTION": "SFTP 操作",
+        "SSH_CONNECT_SUCCESS": "SSH 连接成功",
+        "SSH_CONNECT_FAILURE": "SSH 连接失败",
+        "SSH_SHELL_FAILURE": "SSH Shell 打开失败",
+        "SERVER_STARTED": "服务器已启动",
+        "SERVER_ERROR": "服务器错误",
+        "DATABASE_MIGRATION": "数据库迁移"
+    }
   }
 }

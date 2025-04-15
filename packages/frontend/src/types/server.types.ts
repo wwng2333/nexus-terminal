@@ -13,3 +13,93 @@ export interface ServerStatus {
 }
 
 // 可以根据需要添加其他与服务器或连接状态相关的类型
+
+// --- Notification Settings Types (Mirrors backend/src/types/notification.types.ts) ---
+
+export type NotificationChannelType = 'webhook' | 'email' | 'telegram';
+
+export type NotificationEvent =
+  | 'LOGIN_SUCCESS'
+  | 'LOGIN_FAILURE'
+  | 'CONNECTION_ADDED'
+  | 'CONNECTION_UPDATED'
+  | 'CONNECTION_DELETED'
+  | 'SETTINGS_UPDATED'
+  | 'PROXY_ADDED'
+  | 'PROXY_UPDATED'
+  | 'PROXY_DELETED'
+  | 'TAG_ADDED'
+  | 'TAG_UPDATED'
+  | 'TAG_DELETED'
+  | 'API_KEY_ADDED'
+  | 'API_KEY_DELETED'
+  | 'PASSKEY_ADDED'
+  | 'PASSKEY_DELETED'
+  | 'SERVER_ERROR';
+
+export interface WebhookConfig {
+  url: string;
+  method?: 'POST' | 'GET' | 'PUT';
+  headers?: Record<string, string>;
+  bodyTemplate?: string;
+}
+
+export interface EmailConfig {
+  to: string;
+  subjectTemplate?: string;
+  // SMTP settings are global on the backend
+}
+
+export interface TelegramConfig {
+  botToken: string; // Consider masking this in the UI
+  chatId: string;
+  messageTemplate?: string;
+}
+
+export type NotificationChannelConfig = WebhookConfig | EmailConfig | TelegramConfig;
+
+export interface NotificationSetting {
+  id?: number;
+  channel_type: NotificationChannelType;
+  name: string;
+  enabled: boolean;
+  config: NotificationChannelConfig;
+  enabled_events: NotificationEvent[];
+  created_at?: number | string; // Represented as string or number (timestamp)
+  updated_at?: number | string;
+}
+
+// Helper type for creating/updating settings, omitting generated fields
+export type NotificationSettingData = Omit<NotificationSetting, 'id' | 'created_at' | 'updated_at'>;
+
+// --- Audit Log Types (Mirrors backend/src/types/audit.types.ts) ---
+
+// Keep action types aligned with backend for potential filtering
+export type AuditLogActionType =
+  | 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'LOGOUT' | 'PASSWORD_CHANGED'
+  | '2FA_ENABLED' | '2FA_DISABLED' | 'PASSKEY_REGISTERED' | 'PASSKEY_DELETED'
+  | 'CONNECTION_CREATED' | 'CONNECTION_UPDATED' | 'CONNECTION_DELETED' | 'CONNECTION_TESTED'
+  | 'CONNECTIONS_IMPORTED' | 'CONNECTIONS_EXPORTED'
+  | 'PROXY_CREATED' | 'PROXY_UPDATED' | 'PROXY_DELETED'
+  | 'TAG_CREATED' | 'TAG_UPDATED' | 'TAG_DELETED'
+  | 'SETTINGS_UPDATED' | 'IP_WHITELIST_UPDATED'
+  | 'NOTIFICATION_SETTING_CREATED' | 'NOTIFICATION_SETTING_UPDATED' | 'NOTIFICATION_SETTING_DELETED'
+  | 'API_KEY_CREATED' | 'API_KEY_DELETED'
+  | 'SFTP_ACTION'
+  | 'SERVER_STARTED' | 'SERVER_ERROR' | 'DATABASE_MIGRATION';
+
+// Structure for a single log entry received from the API
+export interface AuditLogEntry {
+    id: number;
+    timestamp: number; // Unix timestamp (seconds)
+    action_type: AuditLogActionType;
+    details: Record<string, any> | { raw: string; parseError: boolean } | null; // Parsed JSON or raw string with error flag
+}
+
+// Structure for the API response when fetching logs
+export interface AuditLogApiResponse {
+    logs: AuditLogEntry[];
+    total: number;
+    limit: number;
+    offset: number;
+}

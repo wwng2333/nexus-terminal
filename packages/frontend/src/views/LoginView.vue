@@ -15,6 +15,7 @@ const credentials = reactive({
   password: '',
 });
 const twoFactorToken = ref(''); // 用于存储 2FA 验证码
+const rememberMe = ref(false); // 新增：记住我状态，默认为 false
 
 // 处理登录或 2FA 验证提交
 const handleSubmit = async () => {
@@ -22,8 +23,8 @@ const handleSubmit = async () => {
     // 如果需要 2FA，则调用 2FA 验证 action
     await authStore.verifyLogin2FA(twoFactorToken.value);
   } else {
-    // 否则，调用常规登录 action
-    await authStore.login(credentials);
+    // 否则，调用常规登录 action，并传递 rememberMe 状态
+    await authStore.login({ ...credentials, rememberMe: rememberMe.value });
   }
   // 成功后的重定向由 store action 处理
   // 失败会更新 error 状态并在模板中显示
@@ -44,6 +45,11 @@ const handleSubmit = async () => {
           <div class="form-group">
             <label for="password">{{ t('login.password') }}:</label>
             <input type="password" id="password" v-model="credentials.password" required :disabled="isLoading" />
+          </div>
+          <!-- 新增：记住我复选框 -->
+          <div class="form-group form-group-checkbox">
+            <input type="checkbox" id="rememberMe" v-model="rememberMe" :disabled="isLoading" />
+            <label for="rememberMe">{{ t('login.rememberMe') }}</label>
           </div>
         </div>
 
@@ -92,6 +98,26 @@ h2 {
 .form-group {
   margin-bottom: 1.5rem;
 }
+
+/* Specific style for checkbox group */
+.form-group-checkbox {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem; /* Keep consistent margin */
+}
+
+.form-group-checkbox input[type="checkbox"] {
+  width: auto; /* Override default width */
+  margin-right: 0.5rem; /* Space between checkbox and label */
+  accent-color: #007bff; /* Optional: Style the checkmark color */
+}
+
+.form-group-checkbox label {
+  margin-bottom: 0; /* Remove bottom margin for inline label */
+  font-weight: normal; /* Optional: Make label less bold */
+  cursor: pointer; /* Indicate it's clickable */
+}
+
 
 label {
   display: block;

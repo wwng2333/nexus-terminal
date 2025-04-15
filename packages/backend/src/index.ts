@@ -14,12 +14,20 @@ import sftpRouter from './sftp/sftp.routes';
 import proxyRoutes from './proxies/proxies.routes'; // 导入代理路由
 import tagsRouter from './tags/tags.routes'; // 导入标签路由
 import settingsRoutes from './settings/settings.routes'; // 导入设置路由
+import notificationRoutes from './notifications/notification.routes'; // 导入通知路由
+import auditRoutes from './audit/audit.routes'; // 导入审计路由
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
 
 // 基础 Express 应用设置 (后续会扩展)
 const app = express();
 const server = http.createServer(app); // 创建 HTTP 服务器实例
+
+// --- 信任代理设置 (用于正确获取 req.ip) ---
+// 如果应用部署在反向代理后面，需要设置此项
+// 'true' 信任直接连接的代理；更安全的做法是配置具体的代理 IP 或子网
+app.set('trust proxy', true);
+// --- 结束信任代理设置 ---
 
 // --- 会话存储设置 ---
 const SQLiteStore = connectSqlite3(session);
@@ -92,6 +100,8 @@ app.use('/api/v1/sftp', sftpRouter);
 app.use('/api/v1/proxies', proxyRoutes); // 挂载代理相关的路由
 app.use('/api/v1/tags', tagsRouter); // 挂载标签相关的路由
 app.use('/api/v1/settings', settingsRoutes); // 挂载设置相关的路由
+app.use('/api/v1/notifications', notificationRoutes); // 挂载通知相关的路由
+app.use('/api/v1/audit-logs', auditRoutes); // 挂载审计日志相关的路由
 
 // 状态检查接口
 app.get('/api/v1/status', (req: Request, res: Response) => {

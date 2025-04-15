@@ -37,6 +37,11 @@ export function useSftpActions(currentPathRef: Ref<string>) {
     const isLoading = ref<boolean>(false);
     const error = ref<string | null>(null);
 
+    // Function to clear the error state
+    const clearSftpError = () => {
+        error.value = null;
+    };
+
     // --- Action Methods ---
 
     const loadDirectory = (path: string) => {
@@ -227,9 +232,9 @@ export function useSftpActions(currentPathRef: Ref<string>) {
     const onSftpReaddirError = (payload: string, message: WebSocketMessage) => {
         if (message.path === currentPathRef.value) {
             console.error(`[useSftpActions] Error loading directory ${message.path}:`, payload);
-            error.value = payload;
+            error.value = payload; // Set the error message
             isLoading.value = false;
-            fileList.value = []; // Clear list on error
+            // Do NOT clear fileList.value here, keep the previous list visible
         }
     };
 
@@ -316,5 +321,6 @@ export function useSftpActions(currentPathRef: Ref<string>) {
         readFile, // Expose if needed by editor composable
         writeFile, // Expose if needed by editor composable
         joinPath, // Expose helper if needed externally
+        clearSftpError, // Expose the clear error function
     };
 }

@@ -3,6 +3,9 @@ import { Request, Response } from 'express';
 import * as ConnectionService from '../services/connection.service';
 import * as SshService from '../services/ssh.service'; // 引入 SshService
 import * as ImportExportService from '../services/import-export.service'; // 引入 ImportExportService
+import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
+
+const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
 // --- 移除所有不再需要的导入和变量 ---
 // import { Statement } from 'sqlite3';
@@ -33,6 +36,8 @@ export const createConnection = async (req: Request, res: Response): Promise<voi
 
         // 将请求体传递给服务层处理
         const newConnection = await ConnectionService.createConnection(req.body);
+        // 记录审计日志
+        auditLogService.logAction('CONNECTION_CREATED', { connectionId: newConnection.id, name: newConnection.name, host: newConnection.host });
         res.status(201).json({ message: '连接创建成功。', connection: newConnection });
 
     } catch (error: any) {
@@ -107,6 +112,8 @@ export const updateConnection = async (req: Request, res: Response): Promise<voi
         if (!updatedConnection) {
             res.status(404).json({ message: '连接未找到。' });
         } else {
+            // 记录审计日志
+            auditLogService.logAction('CONNECTION_UPDATED', { connectionId, updatedFields: Object.keys(req.body) });
             res.status(200).json({ message: '连接更新成功。', connection: updatedConnection });
         }
     } catch (error: any) {
@@ -136,6 +143,8 @@ export const deleteConnection = async (req: Request, res: Response): Promise<voi
         if (!deleted) {
             res.status(404).json({ message: '连接未找到。' });
         } else {
+            // 记录审计日志
+            auditLogService.logAction('CONNECTION_DELETED', { connectionId });
             res.status(200).json({ message: '连接删除成功。' }); // 或使用 204 No Content
         }
     } catch (error: any) {
@@ -160,9 +169,13 @@ export const testConnection = async (req: Request, res: Response): Promise<void>
         await SshService.testConnection(connectionId);
 
         // 如果 SshService.testConnection 没有抛出错误，则表示成功
+        // 记录审计日志 (可选，看是否需要记录测试操作)
+        // auditLogService.logAction('CONNECTION_TESTED', { connectionId, success: true });
         res.status(200).json({ success: true, message: '连接测试成功。' });
 
     } catch (error: any) {
+        // 记录审计日志 (可选)
+        // auditLogService.logAction('CONNECTION_TESTED', { connectionId, success: false, error: error.message });
         console.error(`Controller: 测试连接 ${req.params.id} 时发生错误:`, error);
         // SshService 会抛出包含具体原因的 Error
         res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
@@ -182,6 +195,8 @@ export const exportConnections = async (req: Request, res: Response): Promise<vo
         const filename = `nexus-terminal-connections-${timestamp}.json`;
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Type', 'application/json');
+        // 记录审计日志 - 使用数组长度
+        auditLogService.logAction('CONNECTIONS_EXPORTED', { count: exportedData.length });
         res.status(200).json(exportedData);
 
     } catch (error: any) {
@@ -213,6 +228,8 @@ export const importConnections = async (req: Request, res: Response): Promise<vo
              });
         } else {
             // Complete success
+            // 记录审计日志
+            auditLogService.logAction('CONNECTIONS_IMPORTED', { successCount: result.successCount, failureCount: result.failureCount });
             res.status(200).json({
                 message: `导入成功完成。共导入 ${result.successCount} 条连接。`,
                 successCount: result.successCount,
