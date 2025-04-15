@@ -34,12 +34,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Tags',
     component: () => import('../views/TagsView.vue')
   },
-  // 工作区页面，需要 connectionId 参数
+  // 工作区页面 (不再需要 connectionId 参数)
   {
-    path: '/workspace/:connectionId', // 使用动态路由段
+    path: '/workspace', // 移除动态路由段
     name: 'Workspace',
     component: () => import('../views/WorkspaceView.vue'),
-    props: true // 将路由参数作为 props 传递给组件
+    // props: true // 不再需要传递 props
   },
   // 新增：设置页面
   {

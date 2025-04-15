@@ -93,9 +93,9 @@ const handleSubmit = async () => {
   connectionsStore.error = null;
   proxiesStore.error = null; // 同时清除代理 store 的错误
 
-  // 基础前端验证 (保持不变)
-  if (!formData.name || !formData.host || !formData.username) {
-    formError.value = t('connections.form.errorRequiredFields'); // 更通用的错误消息
+  // 基础前端验证 (移除名称验证)
+  if (!formData.host || !formData.username) { // 移除 !formData.name
+    formError.value = t('connections.form.errorRequiredFields'); // 保持通用错误消息，或可以细化
     return;
   }
   if (formData.port <= 0 || formData.port > 65535) {
@@ -195,8 +195,8 @@ const handleSubmit = async () => {
       <h3>{{ formTitle }}</h3> <!-- 使用计算属性 -->
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
-          <label for="conn-name">{{ t('connections.form.name') }}</label>
-          <input type="text" id="conn-name" v-model="formData.name" required />
+          <label for="conn-name">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label> <!-- 添加可选提示 -->
+          <input type="text" id="conn-name" v-model="formData.name" /> <!-- 移除 required -->
         </div>
         <div class="form-group">
           <label for="conn-host">{{ t('connections.form.host') }}</label>

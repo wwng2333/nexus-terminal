@@ -6,7 +6,7 @@ import { encrypt, decrypt } from '../utils/crypto';
 // For now, let's reuse the interfaces from the repository (adjust as needed)
 export interface ConnectionBase {
     id: number;
-    name: string;
+    name: string | null; // Allow name to be null
     host: string;
     port: number;
     username: string;
@@ -23,7 +23,7 @@ export interface ConnectionWithTags extends ConnectionBase {
 
 // Input type for creating a connection (from controller)
 export interface CreateConnectionInput {
-    name: string;
+    name?: string; // Name is now optional
     host: string;
     port?: number; // Optional, defaults in service/repo
     username: string;
@@ -70,8 +70,9 @@ export const getConnectionById = async (id: number): Promise<ConnectionWithTags 
  */
 export const createConnection = async (input: CreateConnectionInput): Promise<ConnectionWithTags> => {
     // 1. Validate input (basic validation, more complex validation can be added)
-    if (!input.name || !input.host || !input.username || !input.auth_method) {
-        throw new Error('缺少必要的连接信息 (name, host, username, auth_method)。');
+    // Removed name validation: if (!input.name || !input.host || !input.username || !input.auth_method) {
+    if (!input.host || !input.username || !input.auth_method) { // Validate required fields except name
+        throw new Error('缺少必要的连接信息 (host, username, auth_method)。');
     }
     if (input.auth_method === 'password' && !input.password) {
         throw new Error('密码认证方式需要提供 password。');
@@ -97,7 +98,7 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
 
     // 3. Prepare data for repository
     const connectionData = {
-        name: input.name,
+        name: input.name || '', // Use empty string '' if name is empty or undefined
         host: input.host,
         port: input.port ?? 22, // Default port
         username: input.username,
@@ -142,7 +143,7 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
     let newAuthMethod = input.auth_method || currentFullConnection.auth_method;
 
     // Update non-credential fields
-    if (input.name !== undefined) dataToUpdate.name = input.name;
+    if (input.name !== undefined) dataToUpdate.name = input.name || ''; // Use empty string '' if name is empty string or null/undefined
     if (input.host !== undefined) dataToUpdate.host = input.host;
     if (input.port !== undefined) dataToUpdate.port = input.port;
     if (input.username !== undefined) dataToUpdate.username = input.username;

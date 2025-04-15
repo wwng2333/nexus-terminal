@@ -3,6 +3,7 @@
   "nav": {
     "dashboard": "仪表盘",
     "connections": "连接管理",
+    "terminal": "终端",
     "proxies": "代理管理",
     "login": "登录",
     "logout": "登出",
@@ -170,6 +171,8 @@
        "alreadyConnected": "已存在活动的 SSH 连接。",
        "unknown": "未知状态"
      },
+     "selectConnectionPrompt": "请选择一个连接",
+     "selectConnectionHint": "从左侧列表中选择一个连接以开始。",
      "terminal": {
       "infoPrefix": "[信息]",
       "errorPrefix": "[错误]",
@@ -506,5 +509,8 @@
         "SERVER_ERROR": "服务器错误",
         "DATABASE_MIGRATION": "数据库迁移"
     }
+  },
+  "workspaceConnectionList": {
+    "untagged": "未标记"
   }
 }

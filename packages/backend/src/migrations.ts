@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS proxies (
 const createConnectionsTableSQL = `
 CREATE TABLE IF NOT EXISTS connections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
+    name TEXT NULL, -- 允许 name 为空
     host TEXT NOT NULL,
     port INTEGER NOT NULL,
     username TEXT NOT NULL,

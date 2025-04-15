@@ -20,9 +20,10 @@ const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 export const createConnection = async (req: Request, res: Response): Promise<void> => {
     try {
         // 基本输入验证（更复杂的验证可以在服务层或使用中间件）
-        const { name, host, username, auth_method, password, private_key } = req.body;
-        if (!name || !host || !username || !auth_method) {
-            res.status(400).json({ message: '缺少必要的连接信息 (name, host, username, auth_method)。' });
+        // 移除控制器层对 name 的验证，服务层会处理
+        const { host, username, auth_method, password, private_key } = req.body;
+        if (!host || !username || !auth_method) { // 移除 !name 检查
+            res.status(400).json({ message: '缺少必要的连接信息 (host, username, auth_method)。' }); // 更新错误消息
             return;
         }
         if (auth_method === 'password' && !password) {

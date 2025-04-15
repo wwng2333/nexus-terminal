@@ -19,6 +19,7 @@ const handleLogout = () => {
       <nav>
         <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> |
         <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink> |
+        <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink> | <!-- 新增终端链接 -->
         <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink> | <!-- 新增代理链接 -->
         <RouterLink to="/tags">{{ t('nav.tags') }}</RouterLink> | <!-- 新增标签链接 -->
         <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink> | <!-- 新增通知链接 -->

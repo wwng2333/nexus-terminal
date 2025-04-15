@@ -7,12 +7,14 @@
     <div v-else class="status-grid">
       <div class="status-item cpu-model">
         <label>CPU 型号:</label>
-        <span class="cpu-model-value" :title="statusData.cpuModel">{{ statusData.cpuModel ?? 'N/A' }}</span>
+        <!-- 使用 displayCpuModel 计算属性 -->
+        <span class="cpu-model-value" :title="displayCpuModel">{{ displayCpuModel }}</span>
       </div>
       <!-- Added OS Name Display -->
       <div class="status-item os-name">
         <label>系统:</label>
-        <span class="os-name-value" :title="statusData.osName">{{ statusData.osName ?? 'N/A' }}</span>
+        <!-- 使用 displayOsName 计算属性 -->
+        <span class="os-name-value" :title="displayOsName">{{ displayOsName }}</span>
       </div>
       <div class="status-item">
         <label>CPU:</label>
@@ -56,9 +58,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue'; // 引入 watch
 
-// Interface matching the backend's ServerStatusDetails
+// 接口定义，与后端 ServerStatusDetails 匹配
 interface ServerStatus {
   cpuPercent?: number;
   memPercent?: number;
@@ -74,16 +76,46 @@ interface ServerStatus {
   netRxRate?: number; // Bytes per second
   netTxRate?: number; // Bytes per second
   netInterface?: string;
-  osName?: string; // Added OS Name
+  osName?: string; // 操作系统名称
 }
 
-// Props to receive status data from parent
+// Props 用于接收父组件传递的状态数据和错误信息
 const props = defineProps<{
   statusData: ServerStatus | null;
   error?: string | null;
 }>();
 
-// Helper function to format bytes into appropriate units (B, KB, MB, GB) /s
+// --- 缓存状态 ---
+const cachedCpuModel = ref<string | null>(null);
+const cachedOsName = ref<string | null>(null);
+
+// 监听传入的 statusData 变化以更新缓存
+watch(() => props.statusData, (newData) => {
+  if (newData) {
+    // 仅当新数据有效时更新缓存
+    if (newData.cpuModel !== undefined && newData.cpuModel !== null && newData.cpuModel !== '') {
+      cachedCpuModel.value = newData.cpuModel;
+    }
+    if (newData.osName !== undefined && newData.osName !== null && newData.osName !== '') {
+      cachedOsName.value = newData.osName;
+    }
+  }
+  // 如果 newData 为 null (例如断开连接)，不清除缓存
+}, { immediate: true }); // 立即执行一次以初始化缓存
+
+// --- 显示计算属性 (包含缓存逻辑) ---
+const displayCpuModel = computed(() => {
+  // 优先使用当前有效数据，否则回退到缓存，最后是 'N/A'
+  return (props.statusData?.cpuModel ?? cachedCpuModel.value) || 'N/A';
+});
+
+const displayOsName = computed(() => {
+  // 优先使用当前有效数据，否则回退到缓存，最后是 'N/A'
+  return (props.statusData?.osName ?? cachedOsName.value) || 'N/A';
+});
+
+
+// 辅助函数：格式化字节/秒为合适的单位 (B, KB, MB, GB)
 const formatBytesPerSecond = (bytes?: number): string => {
     if (bytes === undefined || bytes === null || isNaN(bytes)) return 'N/A';
     if (bytes < 1024) return `${bytes} B/s`;
@@ -93,37 +125,39 @@ const formatBytesPerSecond = (bytes?: number): string => {
 };
 
 
-// Helper function to format bytes (KB from backend) into GB
+// 辅助函数：格式化 KB 为 GB
 const formatKbToGb = (kb?: number): string => {
-    if (kb === undefined || kb === null) return 'N/A';
-    if (kb === 0) return '0.0 GB';
+    if (kb === undefined || kb === null) return 'N/A'; // 处理无效输入
+    if (kb === 0) return '0.0 GB'; // 处理 0 的情况
     const gb = kb / 1024 / 1024;
     return `${gb.toFixed(1)} GB`;
 };
 
-// Computed properties for display
+// 计算属性用于显示内存信息
 const memDisplay = computed(() => {
     const data = props.statusData;
-    if (!data || data.memUsed === undefined || data.memTotal === undefined) return 'N/A';
+    if (!data || data.memUsed === undefined || data.memTotal === undefined) return 'N/A'; // 检查数据有效性
     const percent = data.memPercent !== undefined ? `(${data.memPercent.toFixed(1)}%)` : '';
-    // Ensure MB values are displayed without decimals if they are integers
+    // 确保 MB 值在是整数时不显示小数
     const usedMb = Number.isInteger(data.memUsed) ? data.memUsed : data.memUsed.toFixed(1);
     const totalMb = Number.isInteger(data.memTotal) ? data.memTotal : data.memTotal.toFixed(1);
     return `${usedMb} MB / ${totalMb} MB ${percent}`;
 });
 
+// 计算属性用于显示磁盘信息
 const diskDisplay = computed(() => {
     const data = props.statusData;
-    if (!data || data.diskUsed === undefined || data.diskTotal === undefined) return 'N/A';
-    // Percentage represents used space
+    if (!data || data.diskUsed === undefined || data.diskTotal === undefined) return 'N/A'; // 检查数据有效性
+    // 百分比代表已用空间
     const percent = data.diskPercent !== undefined ? `(${data.diskPercent.toFixed(1)}%)` : '';
-    // Display Used / Total
+    // 显示 已用 / 总量
     return `${formatKbToGb(data.diskUsed)} / ${formatKbToGb(data.diskTotal)} ${percent}`;
 });
 
+// 计算属性用于显示 Swap 信息
 const swapDisplay = computed(() => {
     const data = props.statusData;
-    // Handle cases where swap might be undefined or 0
+    // 处理 swap 可能为 undefined 或 0 的情况
     const used = data?.swapUsed ?? 0;
     const total = data?.swapTotal ?? 0;
     const percentVal = data?.swapPercent ?? 0;

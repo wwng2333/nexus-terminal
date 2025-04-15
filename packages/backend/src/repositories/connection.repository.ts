@@ -7,7 +7,7 @@ const db = getDb();
 // 注意：这里不包含加密字段，因为 Repository 不应处理解密
 interface ConnectionBase {
     id: number;
-    name: string;
+    name: string | null; // 允许 name 为 null
     host: string;
     port: number;
     username: string;
@@ -126,15 +126,17 @@ export const findFullConnectionById = async (id: number): Promise<any | null> =>
 /**
  * 创建新连接
  */
-export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'>): Promise<number> => {
+// Update function signature to accept name as string | null
+export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { name: string | null }): Promise<number> => {
     return new Promise((resolve, reject) => {
         const now = Math.floor(Date.now() / 1000);
         const stmt = db.prepare(
             `INSERT INTO connections (name, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
         stmt.run(
-            data.name, data.host, data.port, data.username, data.auth_method,
+            data.name ?? null, // Ensure null is passed if name is null/undefined
+            data.host, data.port, data.username, data.auth_method,
             data.encrypted_password ?? null, data.encrypted_private_key ?? null, data.encrypted_passphrase ?? null,
             data.proxy_id ?? null,
             now, now,
@@ -153,7 +155,8 @@ export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'cr
 /**
  * 更新连接信息
  */
-export const updateConnection = async (id: number, data: Partial<Omit<FullConnectionData, 'id' | 'created_at' | 'last_connected_at'>>): Promise<boolean> => {
+// Update function signature to accept name as string | null | undefined
+export const updateConnection = async (id: number, data: Partial<Omit<FullConnectionData, 'id' | 'created_at' | 'last_connected_at'> & { name?: string | null }>): Promise<boolean> => {
     const fieldsToUpdate: { [key: string]: any } = { ...data };
     const params: any[] = [];
 

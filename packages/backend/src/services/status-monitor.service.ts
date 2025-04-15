@@ -223,8 +223,17 @@ export class StatusMonitorService {
      * @returns Promise<NetworkStats | null> 解析后的网络统计信息或 null
      */
     private async parseProcNetDev(sshClient: Client): Promise<NetworkStats | null> {
+        let output: string;
         try {
-            const output = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
+            // 将命令执行放入 try...catch
+            output = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
+        } catch (error) {
+            // 如果命令失败，记录警告并返回 null
+            console.warn("[StatusMonitor] Failed to execute 'cat /proc/net/dev':", error);
+            return null;
+        }
+        // 如果命令成功，继续解析
+        try {
             const lines = output.split('\n').slice(2); // Skip header lines
             const stats: NetworkStats = {};
             for (const line of lines) {
@@ -238,8 +247,9 @@ export class StatusMonitorService {
                 }
             }
             return Object.keys(stats).length > 0 ? stats : null;
-        } catch (error) {
-            console.error("[StatusMonitor] Error parsing /proc/net/dev:", error);
+        } catch (parseError) {
+            // 如果解析失败，记录错误并返回 null
+            console.error("[StatusMonitor] Error parsing /proc/net/dev output:", parseError);
             return null;
         }
     }
@@ -253,14 +263,18 @@ export class StatusMonitorService {
         try {
             // 使用 ip route 命令查找默认路由对应的接口
             const output = await this.executeSshCommand(sshClient, "ip route get 1.1.1.1 | grep -oP 'dev\\s+\\K\\S+'");
-            return output.trim() || null;
+            const interfaceName = output.trim();
+            if (interfaceName) return interfaceName;
+            // 如果 ip route 没返回有效接口名，也尝试 fallback
+            console.warn("[StatusMonitor] 'ip route' did not return a valid interface name. Falling back...");
+
         } catch (error) {
-            console.warn("[StatusMonitor] Failed to get default interface using 'ip route':", error);
-            // Fallback: 尝试查找第一个非 lo 接口
-            try {
-                 const netDevOutput = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
-                 const lines = netDevOutput.split('\n').slice(2);
-                 for (const line of lines) {
+            console.warn("[StatusMonitor] Failed to get default interface using 'ip route', falling back:", error);
+        // Fallback: 尝试查找第一个非 lo 接口
+        try {
+             const netDevOutput = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
+             const lines = netDevOutput.split('\n').slice(2);
+             for (const line of lines) {
                      const iface = line.trim().split(':')[0];
                      if (iface && iface !== 'lo') {
                          return iface;
@@ -269,8 +283,12 @@ export class StatusMonitorService {
             } catch (fallbackError) {
                  console.error("[StatusMonitor] Failed to fallback to /proc/net/dev for interface:", fallbackError);
             }
+            // Ensure null is returned if both primary and fallback fail within the outer catch
             return null;
         }
+        // This part should ideally not be reached if the first try succeeded or the catch block returned.
+        // Adding a final return null for safety and to satisfy TS if logic paths are complex.
+        return null;
     }
 
     /**
