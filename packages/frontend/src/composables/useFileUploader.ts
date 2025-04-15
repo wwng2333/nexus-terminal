@@ -1,5 +1,5 @@
-import { ref, reactive, nextTick, onUnmounted, type Ref } from 'vue';
-import { useWebSocketConnection } from './useWebSocketConnection'; // 只导入 hook
+import { ref, reactive, nextTick, onUnmounted, readonly, type Ref } from 'vue'; // 再次修正导入，移除大写 Readonly
+import { createWebSocketConnectionManager } from './useWebSocketConnection'; // 导入工厂函数
 import { useI18n } from 'vue-i18n';
 import type { FileListItem } from '../types/sftp.types'; // 从 sftp 类型文件导入
 import type { UploadItem } from '../types/upload.types'; // 从 upload 类型文件导入
@@ -20,14 +20,16 @@ const joinPath = (base: string, name: string): string => {
     return `${base}/${name}`;
 };
 
-
 export function useFileUploader(
     currentPathRef: Ref<string>,
-    fileListRef: Ref<Readonly<FileListItem[]>>, // 传入 fileList 用于检查覆盖
-    refreshDirectory: () => void // 上传成功后刷新目录的回调函数
+    fileListRef: Readonly<Ref<readonly FileListItem[]>>, // 使用 Readonly 类型
+    refreshDirectory: () => void, // 上传成功后刷新目录的回调函数
+    sessionId: string,
+    dbConnectionId: string
 ) {
     const { t } = useI18n();
-    const { sendMessage, onMessage, isConnected } = useWebSocketConnection();
+    // 使用工厂函数创建WebSocket连接管理器，并传入t函数
+    const { sendMessage, onMessage, isConnected } = createWebSocketConnectionManager(sessionId, dbConnectionId, t);
 
     // 对 uploads 字典使用 reactive 以获得更好的深度响应性
     const uploads = reactive<Record<string, UploadItem>>({});
@@ -128,8 +130,8 @@ export function useFileUploader(
         const remotePath = joinPath(currentPathRef.value, file.name);
 
         // 使用传入的 fileListRef 检查是否覆盖
-        // 为 item 添加显式类型 FileListItem
-        if (fileListRef.value.some((item: FileListItem) => item.filename === file.name && !item.attrs.isDirectory)) {
+        // fileListRef.value 现在是 readonly FileListItem[]
+        if (fileListRef.value.some((item: FileListItem) => item.filename === file.name && !item.attrs.isDirectory)) { // 添加 item 类型注解
             if (!confirm(t('fileManager.prompts.confirmOverwrite', { name: file.name }))) {
                 console.log(`[文件上传模块] 用户取消了 ${file.name} 的上传`);
                 return; // 用户取消覆盖

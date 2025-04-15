@@ -50,14 +50,14 @@ export class StatusMonitorService {
     startStatusPolling(sessionId: string, interval: number = DEFAULT_POLLING_INTERVAL): void {
         const state = this.clientStates.get(sessionId);
         if (!state || !state.sshClient) {
-            console.warn(`[StatusMonitor] 无法为会话 ${sessionId} 启动状态轮询：状态无效或 SSH 客户端不存在。`);
+            //console.warn(`[StatusMonitor] 无法为会话 ${sessionId} 启动状态轮询：状态无效或 SSH 客户端不存在。`);
             return;
         }
         if (state.statusIntervalId) {
-            console.warn(`[StatusMonitor] 会话 ${sessionId} 的状态轮询已在运行中。`);
+            //console.warn(`[StatusMonitor] 会话 ${sessionId} 的状态轮询已在运行中。`);
             return;
         }
-        console.log(`[StatusMonitor] 为会话 ${sessionId} 启动状态轮询，间隔 ${interval}ms`);
+        //console.warn(`[StatusMonitor] 为会话 ${sessionId} 启动状态轮询，间隔 ${interval}ms`);
         this.fetchAndSendServerStatus(sessionId); // 立即执行一次
         state.statusIntervalId = setInterval(() => {
             this.fetchAndSendServerStatus(sessionId);
@@ -71,7 +71,7 @@ export class StatusMonitorService {
     stopStatusPolling(sessionId: string): void {
         const state = this.clientStates.get(sessionId);
         if (state?.statusIntervalId) {
-            console.log(`[StatusMonitor] 停止会话 ${sessionId} 的状态轮询。`);
+            //console.warn(`[StatusMonitor] 停止会话 ${sessionId} 的状态轮询。`);
             clearInterval(state.statusIntervalId);
             state.statusIntervalId = undefined;
             previousNetStats.delete(sessionId); // 清理网络统计缓存
@@ -85,7 +85,7 @@ export class StatusMonitorService {
     private async fetchAndSendServerStatus(sessionId: string): Promise<void> {
         const state = this.clientStates.get(sessionId);
         if (!state || !state.sshClient || state.ws.readyState !== WebSocket.OPEN) {
-            console.warn(`[StatusMonitor] 无法获取会话 ${sessionId} 的状态，停止轮询。原因：状态无效、SSH断开或WS关闭。`);
+            //console.warn(`[StatusMonitor] 无法获取会话 ${sessionId} 的状态，停止轮询。原因：状态无效、SSH断开或WS关闭。`);
             this.stopStatusPolling(sessionId);
             return;
         }
@@ -94,7 +94,7 @@ export class StatusMonitorService {
             const status = await this.fetchServerStatus(state.sshClient, sessionId);
             state.ws.send(JSON.stringify({ type: 'status_update', payload: { connectionId: state.dbConnectionId, status } }));
         } catch (error: any) {
-            console.error(`[StatusMonitor] 获取会话 ${sessionId} 服务器状态失败:`, error);
+            //console.warn(`[StatusMonitor] 获取会话 ${sessionId} 服务器状态失败:`, error);
             state.ws.send(JSON.stringify({ type: 'status_error', payload: { connectionId: state.dbConnectionId, message: `获取状态失败: ${error.message}` } }));
         }
     }
@@ -308,13 +308,13 @@ export class StatusMonitorService {
                 stream.on('close', (code: number, signal?: string) => {
                     // Don't reject on non-zero exit code, as some commands might return non-zero normally
                     // if (code !== 0) {
-                    //     console.warn(`[StatusMonitor] Command '${command}' exited with code ${code}`);
+                    //     //console.warn(`[StatusMonitor] Command '${command}' exited with code ${code}`);
                     // }
                     resolve(output.trim());
                 }).on('data', (data: Buffer) => {
                     output += data.toString('utf8');
                 }).stderr.on('data', (data: Buffer) => {
-                    console.warn(`[StatusMonitor] Command '${command}' stderr: ${data.toString('utf8').trim()}`);
+                    //console.warn(`[StatusMonitor] Command '${command}' stderr: ${data.toString('utf8').trim()}`);
                 });
             });
         });

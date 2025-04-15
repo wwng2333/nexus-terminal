@@ -14,4 +14,4 @@ export interface WebSocketMessage {
 }
 
 // 消息处理器函数类型
-export type MessageHandler = (payload: MessagePayload, message: WebSocketMessage) => void;
+export type MessageHandler = (payload: MessagePayload, message: WebSocketMessage) => void; // 恢复 message 参数为必需

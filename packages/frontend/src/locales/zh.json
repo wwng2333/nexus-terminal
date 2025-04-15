@@ -28,7 +28,7 @@
     "addConnection": "添加新连接",
     "loading": "正在加载连接...",
     "error": "加载连接失败: {error}",
-    "noConnections": "还没有任何连接。点击“添加新连接”来创建一个吧！",
+    "noConnections": "还没有任何连接。点击'添加新连接'来创建一个吧！",
     "table": {
       "name": "名称",
       "host": "主机",
@@ -108,7 +108,7 @@
     "addProxy": "添加新代理",
     "loading": "正在加载代理...",
     "error": "加载代理列表失败: {error}",
-    "noProxies": "还没有任何代理配置。点击“添加新代理”来创建一个吧！",
+    "noProxies": "还没有任何代理配置。点击'添加新代理'来创建一个吧！",
     "table": {
       "name": "名称",
       "type": "类型",
@@ -151,7 +151,8 @@
     }
   },
   "workspace": {
-    "statusBar": "状态: {status} (连接 ID: {id})",
+    "noActiveSession": "无活动会话",
+    "statusBar": "状态: {status} | 连接: {id}",
     "status": {
       "initializing": "正在初始化...",
       "connectingWs": "正在连接到 {url}...",
@@ -172,7 +173,7 @@
        "unknown": "未知状态"
      },
      "selectConnectionPrompt": "请选择一个连接",
-     "selectConnectionHint": "从左侧列表中选择一个连接以开始。",
+     "selectConnectionHint": "从左侧列表中选择一个连接，或点击'添加新连接'按钮创建一个新连接。",
      "terminal": {
       "infoPrefix": "[信息]",
       "errorPrefix": "[错误]",
@@ -257,7 +258,7 @@
     "addTag": "添加新标签",
     "loading": "正在加载标签...",
     "error": "加载标签列表失败: {error}",
-    "noTags": "还没有任何标签。点击“添加新标签”来创建一个吧！",
+    "noTags": "还没有任何标签。点击'添加新标签'来创建一个吧！",
     "table": {
       "name": "名称",
       "updatedAt": "更新时间",

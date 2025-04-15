@@ -1,7 +1,7 @@
 <template>
   <div class="status-monitor">
     <h4>服务器状态</h4>
-    <div v-if="!statusData" class="loading-status">
+    <div v-if="!serverStatus" class="loading-status">
       等待数据...
     </div>
     <div v-else class="status-grid">
@@ -19,14 +19,14 @@
       <div class="status-item">
         <label>CPU:</label>
         <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${statusData.cpuPercent ?? 0}%` }"></div>
+          <div class="progress-bar" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
         </div>
-        <span>{{ statusData.cpuPercent?.toFixed(1) ?? 'N/A' }}%</span>
+        <span>{{ serverStatus.cpuPercent?.toFixed(1) ?? 'N/A' }}%</span>
       </div>
       <div class="status-item">
         <label>内存:</label>
         <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${statusData.memPercent ?? 0}%` }"></div>
+          <div class="progress-bar" :style="{ width: `${serverStatus.memPercent ?? 0}%` }"></div>
         </div>
         <span class="mem-disk-details">{{ memDisplay }}</span>
       </div>
@@ -34,25 +34,25 @@
        <div class="status-item">
         <label>Swap:</label>
         <div class="progress-bar-container">
-          <div class="progress-bar swap-bar" :style="{ width: `${statusData.swapPercent ?? 0}%` }"></div>
+          <div class="progress-bar swap-bar" :style="{ width: `${serverStatus.swapPercent ?? 0}%` }"></div>
         </div>
         <span class="mem-disk-details">{{ swapDisplay }}</span>
       </div>
       <div class="status-item">
         <label>磁盘 (/):</label>
         <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${statusData.diskPercent ?? 0}%` }"></div>
+          <div class="progress-bar" :style="{ width: `${serverStatus.diskPercent ?? 0}%` }"></div>
         </div>
         <span class="mem-disk-details">{{ diskDisplay }}</span>
       </div>
       <div class="status-item network-rate">
-          <label>网络 ({{ statusData.netInterface || '...' }}):</label>
-          <span class="rate down">⬇ {{ formatBytesPerSecond(statusData.netRxRate) }}</span>
-          <span class="rate up">⬆ {{ formatBytesPerSecond(statusData.netTxRate) }}</span>
+          <label>网络 ({{ serverStatus.netInterface || '...' }}):</label>
+          <span class="rate down">⬇ {{ formatBytesPerSecond(serverStatus.netRxRate) }}</span>
+          <span class="rate up">⬆ {{ formatBytesPerSecond(serverStatus.netTxRate) }}</span>
       </div>
     </div>
-     <div v-if="error" class="status-error">
-        错误: {{ error }}
+     <div v-if="statusError" class="status-error">
+        错误: {{ statusError }}
      </div>
   </div>
 </template>
@@ -79,18 +79,19 @@ interface ServerStatus {
   osName?: string; // 操作系统名称
 }
 
-// Props 用于接收父组件传递的状态数据和错误信息
+// 更新 Props 定义
 const props = defineProps<{
-  statusData: ServerStatus | null;
-  error?: string | null;
+  sessionId: string; // 添加会话 ID
+  serverStatus: ServerStatus | null; // 更改名称从 statusData 到 serverStatus
+  statusError?: string | null; // 更改名称从 error 到 statusError
 }>();
 
 // --- 缓存状态 ---
 const cachedCpuModel = ref<string | null>(null);
 const cachedOsName = ref<string | null>(null);
 
-// 监听传入的 statusData 变化以更新缓存
-watch(() => props.statusData, (newData) => {
+// 监听传入的 serverStatus 变化以更新缓存 (更新引用)
+watch(() => props.serverStatus, (newData) => {
   if (newData) {
     // 仅当新数据有效时更新缓存
     if (newData.cpuModel !== undefined && newData.cpuModel !== null && newData.cpuModel !== '') {
@@ -103,15 +104,15 @@ watch(() => props.statusData, (newData) => {
   // 如果 newData 为 null (例如断开连接)，不清除缓存
 }, { immediate: true }); // 立即执行一次以初始化缓存
 
-// --- 显示计算属性 (包含缓存逻辑) ---
+// --- 显示计算属性 (包含缓存逻辑) - 更新引用 ---
 const displayCpuModel = computed(() => {
   // 优先使用当前有效数据，否则回退到缓存，最后是 'N/A'
-  return (props.statusData?.cpuModel ?? cachedCpuModel.value) || 'N/A';
+  return (props.serverStatus?.cpuModel ?? cachedCpuModel.value) || 'N/A';
 });
 
 const displayOsName = computed(() => {
   // 优先使用当前有效数据，否则回退到缓存，最后是 'N/A'
-  return (props.statusData?.osName ?? cachedOsName.value) || 'N/A';
+  return (props.serverStatus?.osName ?? cachedOsName.value) || 'N/A';
 });
 
 
@@ -133,9 +134,9 @@ const formatKbToGb = (kb?: number): string => {
     return `${gb.toFixed(1)} GB`;
 };
 
-// 计算属性用于显示内存信息
+// 计算属性用于显示内存信息 (更新引用)
 const memDisplay = computed(() => {
-    const data = props.statusData;
+    const data = props.serverStatus;
     if (!data || data.memUsed === undefined || data.memTotal === undefined) return 'N/A'; // 检查数据有效性
     const percent = data.memPercent !== undefined ? `(${data.memPercent.toFixed(1)}%)` : '';
     // 确保 MB 值在是整数时不显示小数
@@ -144,9 +145,9 @@ const memDisplay = computed(() => {
     return `${usedMb} MB / ${totalMb} MB ${percent}`;
 });
 
-// 计算属性用于显示磁盘信息
+// 计算属性用于显示磁盘信息 (更新引用)
 const diskDisplay = computed(() => {
-    const data = props.statusData;
+    const data = props.serverStatus;
     if (!data || data.diskUsed === undefined || data.diskTotal === undefined) return 'N/A'; // 检查数据有效性
     // 百分比代表已用空间
     const percent = data.diskPercent !== undefined ? `(${data.diskPercent.toFixed(1)}%)` : '';
@@ -154,9 +155,9 @@ const diskDisplay = computed(() => {
     return `${formatKbToGb(data.diskUsed)} / ${formatKbToGb(data.diskTotal)} ${percent}`;
 });
 
-// 计算属性用于显示 Swap 信息
+// 计算属性用于显示 Swap 信息 (更新引用)
 const swapDisplay = computed(() => {
-    const data = props.statusData;
+    const data = props.serverStatus;
     // 处理 swap 可能为 undefined 或 0 的情况
     const used = data?.swapUsed ?? 0;
     const total = data?.swapTotal ?? 0;

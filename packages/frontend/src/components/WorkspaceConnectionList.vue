@@ -7,7 +7,12 @@ import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store
 import { useTagsStore, TagInfo } from '../stores/tags.store';
 
 // 定义事件
-const emit = defineEmits(['connect-request', 'request-add-connection', 'request-edit-connection']); // 添加新事件
+const emit = defineEmits([
+  'connect-request',        // 左键单击 - 请求激活或替换当前标签
+  'open-new-session',       // 中键单击 - 请求在新标签中打开
+  'request-add-connection', // 右键菜单 - 添加
+  'request-edit-connection' // 右键菜单 - 编辑
+]);
 
 const { t } = useI18n();
 // const router = useRouter(); // 不再需要
@@ -127,6 +132,12 @@ onMounted(() => {
   connectionsStore.fetchConnections();
   tagsStore.fetchTags();
 });
+
+// 处理中键点击（在新标签页打开）
+const handleOpenInNewTab = (connectionId: number) => {
+  emit('open-new-session', connectionId);
+  closeContextMenu(); // 如果右键菜单是打开的，也关闭它
+};
 </script>
 
 <template>
@@ -156,7 +167,9 @@ onMounted(() => {
             v-for="conn in group.connections"
             :key="conn.id"
             class="connection-item"
-            @click="handleConnect(conn.id)"
+            @click.left="handleConnect(conn.id)"
+            @click.middle.prevent="handleOpenInNewTab(conn.id)"
+            @auxclick.prevent="handleOpenInNewTab(conn.id)"
             @contextmenu.prevent="showContextMenu($event, conn)"
           >
             <i class="fas fa-server connection-icon"></i>

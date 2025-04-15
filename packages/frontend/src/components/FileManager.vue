@@ -1,62 +1,85 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect } from 'vue'; // Import watchEffect
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watchEffect, type PropType, readonly } from 'vue'; // 恢复导入
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
-// 移除 MonacoEditor 直接导入，因为它现在在 FileEditorOverlay 中
-// import MonacoEditor from './MonacoEditor.vue';
-import { useSftpActions } from '../composables/useSftpActions';
+import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
+// 导入 SFTP Actions 工厂函数和所需的类型
+import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions'; // 恢复 WebSocketDependencies
 import { useFileUploader } from '../composables/useFileUploader';
 import { useFileEditor } from '../composables/useFileEditor';
-import { useWebSocketConnection } from '../composables/useWebSocketConnection'; // 导入 WebSocket composable
-// 导入新拆分的 UI 组件
+// WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
 import FileEditorOverlay from './FileEditorOverlay.vue';
 // 从类型文件导入所需类型
-import type { FileListItem, FileAttributes } from '../types/sftp.types';
-import type { UploadItem } from '../types/upload.types';
+import type { FileListItem } from '../types/sftp.types';
+// 从 websocket 类型文件导入所需类型
 import type { WebSocketMessage } from '../types/websocket.types'; // 导入 WebSocketMessage
 
+// 定义 SftpManagerInstance 类型，基于 createSftpActionsManager 的返回类型
+type SftpManagerInstance = ReturnType<typeof createSftpActionsManager>;
 
-// --- 接口定义 (已移至类型文件) ---
 
 // --- Props ---
-const props = defineProps<{
-  // ws: WebSocket | null; // 移除 ws prop
-  isConnected: boolean; // 保留 isConnected prop，用于禁用操作
-}>();
+const props = defineProps({
+  sessionId: {
+    type: String,
+    required: true,
+  },
+  // 注入此会话特定的 SFTP 管理器实例
+  sftpManager: {
+    type: Object as PropType<SftpManagerInstance>,
+    required: true,
+  },
+  // 注入数据库连接 ID
+  dbConnectionId: {
+    type: String,
+    required: true,
+  },
+  // 注入此组件及其子 composables 所需的 WebSocket 依赖项
+  wsDeps: {
+    type: Object as PropType<WebSocketDependencies>,
+    required: true,
+  },
+});
 
 // --- 核心 Composables ---
 const { t } = useI18n();
-const route = useRoute();
-// 导入 sendMessage 和 onMessage 用于 realpath 请求
-const { isSftpReady, sendMessage, onMessage } = useWebSocketConnection();
-const currentPath = ref<string>('.'); // 当前路径状态保留在组件中，传递给 composables
+const route = useRoute(); // Keep for download URL generation for now
+const currentPath = ref<string>('.'); // Current path state remains local, passed to manager if needed
 
-// SFTP 操作模块
+// Access SFTP state and methods from the injected manager instance
 const {
-    fileList, // 从 composable 获取文件列表
-    isLoading, // 从 composable 获取加载状态
-    error,     // 从 composable 获取错误状态
+    fileList,
+    isLoading,
+    error,
     loadDirectory,
     createDirectory,
     createFile,
     deleteItems,
     renameItem,
     changePermissions,
-    readFile, // 暴露给 useFileEditor
-    writeFile, // 暴露给 useFileEditor
-    joinPath, // 从 composable 获取 joinPath
-    clearSftpError, // 导入清除错误的函数
-} = useSftpActions(currentPath); // 传入 currentPath ref
+    readFile, // Provided by the manager
+    writeFile, // Provided by the manager
+    joinPath,
+    clearSftpError,
+    cleanup: cleanupSftpHandlers, // Get the cleanup function from the manager
+} = props.sftpManager; // 直接从 props 获取
 
-// 文件上传模块
+// 文件上传模块 - Needs WebSocket dependencies and session context
 const {
-    uploads, // 从 composable 获取上传列表
+    uploads,
     startFileUpload,
     cancelUpload,
-} = useFileUploader(currentPath, fileList, () => loadDirectory(currentPath.value)); // 传入依赖
+    // cleanup: cleanupUploader, // 假设 uploader 也提供 cleanup
+} = useFileUploader(
+    currentPath,
+    fileList, // 传递来自 sftpManager 的 fileList ref
+    () => loadDirectory(currentPath.value), // Refresh function uses manager's loadDirectory
+    props.sessionId, // 传递 sessionId
+    props.dbConnectionId // 传递 dbConnectionId
+    // useFileUploader 内部创建自己的 ws 连接, 不需要 wsDeps
+);
 
-// 文件编辑器模块
+// 文件编辑器模块 - Needs file operations from sftpManager
 const {
     isEditorVisible,
     editingFilePath,
@@ -66,58 +89,54 @@ const {
     isSaving,
     saveStatus,
     saveError,
-    editingFileContent, // v-model 绑定
+    editingFileContent,
     openFile,
     saveFile,
     closeEditor,
-} = useFileEditor(readFile, writeFile); // 传入依赖
+    // cleanup: cleanupEditor, // 假设 editor 也提供 cleanup
+} = useFileEditor(
+    readFile, // 使用注入的 sftpManager 中的 readFile
+    writeFile // Use writeFile from the injected sftpManager
+);
 
-// --- UI 状态 Refs ---
-const fileInputRef = ref<HTMLInputElement | null>(null); // 用于触发文件选择
-const selectedItems = ref(new Set<string>()); // 文件选择状态
-const lastClickedIndex = ref(-1); // 用于 Shift 多选
-const contextMenuVisible = ref(false); // 右键菜单可见性
-const contextMenuPosition = ref({ x: 0, y: 0 }); // 右键菜单位置
-const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]); // 右键菜单项
-const contextTargetItem = ref<FileListItem | null>(null); // 右键菜单目标项
-const isDraggingOver = ref(false); // 拖拽覆盖状态
-const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename'); // 排序字段
-const sortDirection = ref<'asc' | 'desc'>('asc'); // 排序方向
-const initialLoadDone = ref(false); // Track if the initial load has been triggered
-const isFetchingInitialPath = ref(false); // Track if fetching realpath
-const isEditingPath = ref(false); // State for path editing mode
-const pathInputRef = ref<HTMLInputElement | null>(null); // Ref for the path input element
-const editablePath = ref(''); // Temp storage for the path being edited
+// --- UI 状态 Refs (Remain mostly the same) ---
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const selectedItems = ref(new Set<string>());
+const lastClickedIndex = ref(-1);
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]);
+const contextTargetItem = ref<FileListItem | null>(null);
+const isDraggingOver = ref(false);
+const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename');
+const sortDirection = ref<'asc' | 'desc'>('asc');
+const initialLoadDone = ref(false);
+const isFetchingInitialPath = ref(false);
+const isEditingPath = ref(false);
+const pathInputRef = ref<HTMLInputElement | null>(null);
+const editablePath = ref('');
 
-// --- Column Resizing State ---
+// --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
-const colWidths = ref({ // Initial widths (adjust as needed)
-  type: 50,
-  name: 300,
-  size: 100,
-  permissions: 120,
-  modified: 180,
+const colWidths = ref({
+    type: 50,
+    name: 300,
+    size: 100,
+    permissions: 120,
+    modified: 180,
 });
 const isResizing = ref(false);
 const resizingColumnIndex = ref(-1);
 const startX = ref(0);
 const startWidth = ref(0);
 
-// --- Editor State (已移至 useFileEditor) ---
-// const isEditorVisible = ref(false);
-// ... 其他编辑器状态 ...
+// --- 辅助函数 ---
+// 重新添加 generateRequestId，因为 watchEffect 中需要它
+const generateRequestId = (): string => `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+// joinPath 由 props.sftpManager 提供
+// sortFiles 在此组件内部用于排序显示
 
-// --- 辅助函数 (部分移至 composables) ---
-// generateRequestId 已移至 composables 内部使用
-// joinPath 从 useSftpActions 获取
-// sortFiles 已移至 useSftpActions 内部使用
-// Helper function (Copied from useSftpActions) - needed for realpath request
-const generateRequestId = (): string => {
-    return `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-};
-
-
-// 保留 UI 格式化函数
+// UI 格式化函数保持不变
 const formatSize = (size: number): string => {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
@@ -126,132 +145,117 @@ const formatSize = (size: number): string => {
 };
 
 const formatMode = (mode: number): string => {
-  const perm = mode & 0o777; let str = '';
-  str += (perm & 0o400) ? 'r' : '-'; str += (perm & 0o200) ? 'w' : '-'; str += (perm & 0o100) ? 'x' : '-';
-  str += (perm & 0o040) ? 'r' : '-'; str += (perm & 0o020) ? 'w' : '-'; str += (perm & 0o010) ? 'x' : '-';
-  str += (perm & 0o004) ? 'r' : '-'; str += (perm & 0o002) ? 'w' : '-'; str += (perm & 0o001) ? 'x' : '-';
+    const perm = mode & 0o777; let str = '';
+    str += (perm & 0o400) ? 'r' : '-'; str += (perm & 0o200) ? 'w' : '-'; str += (perm & 0o100) ? 'x' : '-';
+    str += (perm & 0o040) ? 'r' : '-'; str += (perm & 0o020) ? 'w' : '-'; str += (perm & 0o010) ? 'x' : '-';
+    str += (perm & 0o004) ? 'r' : '-'; str += (perm & 0o002) ? 'w' : '-'; str += (perm & 0o001) ? 'x' : '-';
     return str;
 };
 
-// --- 编辑器辅助函数 (已移至 useFileEditor) ---
-// getLanguageFromFilename 已移至 useFileEditor
-// closeEditor 由 useFileEditor 提供
-// handleSaveFile 由 useFileEditor 提供
-
-
-// --- 上下文菜单逻辑 (部分操作现在调用 composable 方法) ---
+// --- 上下文菜单逻辑 ---
+// Actions now call methods from props.sftpManager
 const showContextMenu = (event: MouseEvent, item?: FileListItem) => {
-  event.preventDefault();
-  const targetItem = item || null;
+    event.preventDefault();
+    const targetItem = item || null;
 
-  // Adjust selection based on right-click target
-  if (targetItem && !event.ctrlKey && !event.metaKey && !event.shiftKey && !selectedItems.value.has(targetItem.filename)) {
-      selectedItems.value.clear();
-      selectedItems.value.add(targetItem.filename);
-      lastClickedIndex.value = fileList.value.findIndex(f => f.filename === targetItem.filename);
-  } else if (!targetItem) {
-      selectedItems.value.clear();
-      lastClickedIndex.value = -1;
-  }
+    // Adjust selection based on right-click target
+    if (targetItem && !event.ctrlKey && !event.metaKey && !event.shiftKey && !selectedItems.value.has(targetItem.filename)) {
+        selectedItems.value.clear();
+        selectedItems.value.add(targetItem.filename);
+        // 使用 props.sftpManager 中的 fileList
+        lastClickedIndex.value = fileList.value.findIndex((f: FileListItem) => f.filename === targetItem.filename); // 已添加类型
+    } else if (!targetItem) {
+        selectedItems.value.clear();
+        lastClickedIndex.value = -1;
+    }
 
-  contextTargetItem.value = targetItem;
-  let menu: Array<{ label: string; action: () => void; disabled?: boolean }> = [];
-  const selectionSize = selectedItems.value.size;
-  const clickedItemIsSelected = targetItem && selectedItems.value.has(targetItem.filename);
+    contextTargetItem.value = targetItem;
+    let menu: Array<{ label: string; action: () => void; disabled?: boolean }> = [];
+    const selectionSize = selectedItems.value.size;
+    const clickedItemIsSelected = targetItem && selectedItems.value.has(targetItem.filename);
+    const canPerformActions = props.wsDeps.isConnected.value && props.wsDeps.isSftpReady.value; // 恢复使用 props.wsDeps
 
-  // 构建上下文菜单项
-  if (selectionSize > 1 && clickedItemIsSelected) {
-      // 多选时的菜单
-      menu = [
-          { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: handleDeleteSelectedClick }, // 修改为调用新的处理函数
-          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) }, // 调用 useSftpActions 的方法
-      ];
-  } else if (targetItem && targetItem.filename !== '..') {
-      // 单个项目（非 '..'）的菜单
-      menu = [
-          { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick }, // 修改为调用新的处理函数
-          { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick }, // 修改为调用新的处理函数
-          { label: t('fileManager.actions.upload'), action: triggerFileUpload }, // 调用组件内的方法触发 input
-          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) }, // 调用 useSftpActions 的方法
-      ];
+    // Build context menu items
+    if (selectionSize > 1 && clickedItemIsSelected) {
+        // Multi-selection menu
+        menu = [
+            { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: handleDeleteSelectedClick, disabled: !canPerformActions },
+            { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions },
+        ];
+    } else if (targetItem && targetItem.filename !== '..') {
+        // Single item (not '..') menu
+        menu = [
+            { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick, disabled: !canPerformActions },
+            { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick, disabled: !canPerformActions },
+            { label: t('fileManager.actions.upload'), action: triggerFileUpload, disabled: !canPerformActions }, // Upload depends on connection
+            { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions },
+        ];
         if (targetItem.attrs.isFile) {
-            // 如果是文件，添加下载选项
-            menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => triggerDownload(targetItem) });
+            menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => triggerDownload(targetItem), disabled: !canPerformActions }); // Download depends on connection
         }
-       // 添加删除选项
-       menu.push({ label: t('fileManager.actions.delete'), action: handleDeleteSelectedClick }); // 修改为调用新的处理函数
-       // 添加重命名选项
-       menu.push({ label: t('fileManager.actions.rename'), action: () => handleRenameContextMenuClick(targetItem) }); // 调用新的处理函数
-       // 添加修改权限选项
-       menu.push({ label: t('fileManager.actions.changePermissions'), action: () => handleChangePermissionsContextMenuClick(targetItem) }); // 调用新的处理函数
+        menu.push({ label: t('fileManager.actions.delete'), action: handleDeleteSelectedClick, disabled: !canPerformActions });
+        menu.push({ label: t('fileManager.actions.rename'), action: () => handleRenameContextMenuClick(targetItem), disabled: !canPerformActions });
+        menu.push({ label: t('fileManager.actions.changePermissions'), action: () => handleChangePermissionsContextMenuClick(targetItem), disabled: !canPerformActions });
 
-  } else if (!targetItem) {
-      // 在空白处右键的菜单
-      menu = [
-          { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick }, // 修改为调用新的处理函数
-          { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick }, // 修改为调用新的处理函数
-          { label: t('fileManager.actions.upload'), action: triggerFileUpload }, // 调用组件内的方法触发 input
-          { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) }, // 调用 useSftpActions 的方法
-      ];
-  } else { // 点击 '..' 时的菜单
-        menu = [ { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value) } ]; // 调用 useSftpActions 的方法
-   }
+    } else if (!targetItem) {
+        // Right-click on empty space menu
+        menu = [
+            { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick, disabled: !canPerformActions },
+            { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick, disabled: !canPerformActions },
+            { label: t('fileManager.actions.upload'), action: triggerFileUpload, disabled: !canPerformActions },
+            { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions },
+        ];
+    } else { // Clicked on '..'
+        menu = [{ label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions }];
+    }
 
-   contextMenuItems.value = menu;
+    contextMenuItems.value = menu;
 
-   // Calculate initial position
-   let posX = event.clientX;
-   let posY = event.clientY;
+    // Calculate initial position
+    let posX = event.clientX;
+    let posY = event.clientY;
 
-   // Estimate menu dimensions (adjust if necessary based on actual menu size)
-   const estimatedMenuWidth = 180;
-   const estimatedMenuHeight = 200; // Adjust based on max items
+    // Estimate menu dimensions
+    const estimatedMenuWidth = 180;
+    const estimatedMenuHeight = contextMenuItems.value.length * 35; // Estimate height based on items
 
-   // Adjust position if menu would go off-screen
-   if (posX + estimatedMenuWidth > window.innerWidth) {
-       posX = window.innerWidth - estimatedMenuWidth - 5; // Adjust and add small padding
-   }
-   if (posY + estimatedMenuHeight > window.innerHeight) {
-       posY = window.innerHeight - estimatedMenuHeight - 5; // Adjust and add small padding
-   }
-    // Ensure position is not negative
-   posX = Math.max(0, posX);
-   posY = Math.max(0, posY);
+    // Adjust position if menu would go off-screen
+    if (posX + estimatedMenuWidth > window.innerWidth) {
+        posX = window.innerWidth - estimatedMenuWidth - 5;
+    }
+    if (posY + estimatedMenuHeight > window.innerHeight) {
+        posY = window.innerHeight - estimatedMenuHeight - 5;
+    }
+    posX = Math.max(0, posX);
+    posY = Math.max(0, posY);
 
+    contextMenuPosition.value = { x: posX, y: posY };
+    contextMenuVisible.value = true;
 
-   contextMenuPosition.value = { x: posX, y: posY };
-   contextMenuVisible.value = true;
-
-   // Add global listener to hide menu, using capture phase and once
-  nextTick(() => {
-      document.removeEventListener('click', hideContextMenu, { capture: true }); // Clean up just in case
-      document.addEventListener('click', hideContextMenu, { capture: true, once: true });
-  });
+    // Add global listener to hide menu
+    nextTick(() => {
+        document.removeEventListener('click', hideContextMenu, { capture: true });
+        document.addEventListener('click', hideContextMenu, { capture: true, once: true });
+    });
 };
 
 const hideContextMenu = () => {
-  if (!contextMenuVisible.value) return; // Prevent unnecessary runs
-  contextMenuVisible.value = false;
-  contextMenuItems.value = [];
-  contextTargetItem.value = null;
-  // Explicitly remove listener just in case 'once' didn't fire or was removed prematurely
-  document.removeEventListener('click', hideContextMenu, { capture: true });
+    if (!contextMenuVisible.value) return;
+    contextMenuVisible.value = false;
+    contextMenuItems.value = [];
+    contextTargetItem.value = null;
+    document.removeEventListener('click', hideContextMenu, { capture: true });
 };
 
-
-// --- WebSocket 消息处理 (已移至 composables) ---
-// watch(() => props.ws, ...) 已移除
-// watch(() => props.isConnected, ...) 已移除 (部分逻辑移至 onMounted 和 isConnected watch)
-// handleWebSocketMessage 已移除
-
 // --- 目录加载与导航 ---
-// loadDirectory 由 useSftpActions 提供
+// loadDirectory is provided by props.sftpManager
 
 // --- 列表项点击与选择逻辑 ---
-const handleItemClick = (event: MouseEvent, item: FileListItem) => {
-    // Do not hide context menu here, let the global listener or menu item click handle it.
+// handleItemClick 中的 item 参数已有类型
 
-    const itemIndex = fileList.value.findIndex(f => f.filename === item.filename);
+// --- 列表项点击与选择逻辑 ---
+const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已有类型
+    const itemIndex = fileList.value.findIndex((f: FileListItem) => f.filename === item.filename); // f 已有类型
     if (itemIndex === -1 && item.filename !== '..') return;
 
     if (event.ctrlKey || event.metaKey) {
@@ -265,6 +269,7 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => {
         const start = Math.min(lastClickedIndex.value, itemIndex);
         const end = Math.max(lastClickedIndex.value, itemIndex);
         for (let i = start; i <= end; i++) {
+            // Use fileList from props
             if (fileList.value[i]) selectedItems.value.add(fileList.value[i].filename);
         }
     } else {
@@ -277,38 +282,42 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => {
         }
 
         if (item.attrs.isDirectory) {
-            // 检查是否已在加载，防止快速重复点击
-            if (isLoading.value) {
-                console.log('[文件管理器] 忽略目录点击，因为正在加载...');
+            if (isLoading.value) { // Use isLoading from props
+                console.log(`[FileManager ${props.sessionId}] Ignoring directory click, already loading...`);
                 return;
             }
-            // 处理目录点击：导航
             const newPath = item.filename === '..'
                 ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/'
-                : joinPath(currentPath.value, item.filename); // 使用 composable 的 joinPath
-            loadDirectory(newPath); // 使用 composable 的 loadDirectory
+                : joinPath(currentPath.value, item.filename); // Use joinPath from props
+            loadDirectory(newPath); // Use loadDirectory from props
         } else if (item.attrs.isFile) {
-            // 处理文件点击：打开编辑器
-            const filePath = joinPath(currentPath.value, item.filename); // 使用 composable 的 joinPath
-            openFile(filePath); // 使用 useFileEditor 的 openFile
+            const filePath = joinPath(currentPath.value, item.filename); // Use joinPath from props
+            openFile(filePath); // Use openFile from useFileEditor
         }
     }
 };
 
 // --- 下载逻辑 ---
+// triggerDownload 中的 item 参数已有类型
 
-const triggerDownload = (item: FileListItem) => {
-    const currentConnectionId = route.params.connectionId as string;
+// --- 下载逻辑 ---
+const triggerDownload = (item: FileListItem) => { // item 已有类型
+    // 恢复使用 props.wsDeps.isConnected
+    if (!props.wsDeps.isConnected.value) {
+        alert(t('fileManager.errors.notConnected'));
+        return;
+    }
+    // connectionId might need to be passed differently, maybe via sftpManager or wsDeps
+    // For now, keep using route.params as a fallback, but this is not ideal for multi-session
+    const currentConnectionId = route.params.connectionId as string; // TODO: Revisit this for multi-session
     if (!currentConnectionId) {
-        // error.value = t('fileManager.errors.missingConnectionId'); // 错误状态由 useSftpActions 管理
-        console.error("无法下载：缺少连接 ID"); // 或者显示一个临时的 alert
+        console.error(`[FileManager ${props.sessionId}] Cannot download: Missing connection ID.`);
         alert(t('fileManager.errors.missingConnectionId'));
         return;
     }
-    const downloadPath = joinPath(currentPath.value, item.filename); // 使用 composable 的 joinPath
-    // TODO: 考虑将 API URL 基础部分提取到配置或环境变量中
+    const downloadPath = joinPath(currentPath.value, item.filename); // Use joinPath from props
     const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
-    console.log(`[文件管理器] 触发下载: ${downloadUrl}`);
+    console.log(`[FileManager ${props.sessionId}] Triggering download: ${downloadUrl}`);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.setAttribute('download', item.filename);
@@ -319,25 +328,22 @@ const triggerDownload = (item: FileListItem) => {
 
 // --- 拖放上传逻辑 ---
 const handleDragEnter = (event: DragEvent) => {
-    // Check if files are being dragged
-    if (event.dataTransfer?.types.includes('Files')) {
+    if (props.wsDeps.isConnected.value && event.dataTransfer?.types.includes('Files')) { // 恢复使用 props.wsDeps.isConnected
         isDraggingOver.value = true;
     }
 };
 
 const handleDragOver = (event: DragEvent) => {
-    // Necessary to allow drop
     event.preventDefault();
-    if (event.dataTransfer && event.dataTransfer.types.includes('Files')) { // Added null check
-        event.dataTransfer.dropEffect = 'copy'; // Show copy cursor
-        isDraggingOver.value = true; // Ensure state is true
-    } else if (event.dataTransfer) { // Added null check
+    if (props.wsDeps.isConnected.value && event.dataTransfer?.types.includes('Files')) { // 恢复使用 props.wsDeps.isConnected
+        event.dataTransfer.dropEffect = 'copy';
+        isDraggingOver.value = true;
+    } else if (event.dataTransfer) {
         event.dataTransfer.dropEffect = 'none';
     }
 };
 
 const handleDragLeave = (event: DragEvent) => {
-    // Check if the leave event is going outside the container or onto a child element
     const target = event.relatedTarget as Node | null;
     const container = (event.currentTarget as HTMLElement);
     if (!target || !container.contains(target)) {
@@ -347,34 +353,33 @@ const handleDragLeave = (event: DragEvent) => {
 
 const handleDrop = (event: DragEvent) => {
     isDraggingOver.value = false;
-    if (!event.dataTransfer?.files || !props.isConnected) { // 使用 props.isConnected
+    // 恢复使用 props.wsDeps.isConnected
+    if (!event.dataTransfer?.files || !props.wsDeps.isConnected.value) {
         return;
     }
     const files = Array.from(event.dataTransfer.files);
     if (files.length > 0) {
-        console.log(`[文件管理器] 拖放了 ${files.length} 个文件。`);
-        files.forEach(startFileUpload); // 调用 useFileUploader 的方法
+        console.log(`[FileManager ${props.sessionId}] Dropped ${files.length} files.`);
+        files.forEach(startFileUpload); // Use startFileUpload from useFileUploader
     }
 };
 
-// --- 文件上传逻辑 (已移至 useFileUploader) ---
-const triggerFileUpload = () => { fileInputRef.value?.click(); }; // 保留触发器
+// --- 文件上传逻辑 ---
+const triggerFileUpload = () => { fileInputRef.value?.click(); };
 const handleFileSelected = (event: Event) => {
     const input = event.target as HTMLInputElement;
-    if (!input.files || !props.isConnected) return; // 使用 props.isConnected
-    Array.from(input.files).forEach(startFileUpload); // 调用 useFileUploader 的方法
-    input.value = ''; // 清空 input 以允许再次选择相同文件
+    // 恢复使用 props.wsDeps.isConnected
+    if (!input.files || !props.wsDeps.isConnected.value) return;
+    Array.from(input.files).forEach(startFileUpload); // Use startFileUpload from useFileUploader
+    input.value = '';
 };
-// startFileUpload 已移至 useFileUploader
-// sendFileChunks 已移至 useFileUploader
-// cancelUpload 由 useFileUploader 提供
 
-// --- SFTP 操作处理函数 (现在调用 composable 方法) ---
+// --- SFTP 操作处理函数 ---
+// 恢复使用 props.wsDeps.isConnected 和 props.sftpManager 的方法
 const handleDeleteSelectedClick = () => {
-    if (!props.isConnected || selectedItems.value.size === 0) return;
-    // 从 composable 获取 fileList 来查找选中的项
+    if (!props.wsDeps.isConnected.value || selectedItems.value.size === 0) return; // 恢复使用 props.wsDeps
     const itemsToDelete = Array.from(selectedItems.value)
-                               .map(filename => fileList.value.find(f => f.filename === filename))
+                               .map(filename => fileList.value.find((f: FileListItem) => f.filename === filename)) // f 已有类型
                                .filter((item): item is FileListItem => item !== undefined);
     if (itemsToDelete.length === 0) return;
 
@@ -386,21 +391,21 @@ const handleDeleteSelectedClick = () => {
             : t('fileManager.prompts.confirmDeleteFile', { name: itemsToDelete[0].filename });
 
     if (confirm(confirmMsg)) {
-        deleteItems(itemsToDelete); // 调用 useSftpActions 的方法
-        selectedItems.value.clear(); // 清空选择
+        deleteItems(itemsToDelete); // Use deleteItems from props
+        selectedItems.value.clear();
     }
 };
 
-const handleRenameContextMenuClick = (item: FileListItem) => {
-    if (!props.isConnected || !item) return;
+const handleRenameContextMenuClick = (item: FileListItem) => { // item 已有类型
+    if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
     const newName = prompt(t('fileManager.prompts.enterNewName', { oldName: item.filename }), item.filename);
     if (newName && newName !== item.filename) {
-        renameItem(item, newName); // 调用 useSftpActions 的方法
+        renameItem(item, newName); // Use renameItem from props.sftpManager
     }
 };
 
-const handleChangePermissionsContextMenuClick = (item: FileListItem) => {
-    if (!props.isConnected || !item) return;
+const handleChangePermissionsContextMenuClick = (item: FileListItem) => { // item 已有类型
+    if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
     const currentModeOctal = (item.attrs.mode & 0o777).toString(8).padStart(3, '0');
     const newModeStr = prompt(t('fileManager.prompts.enterNewPermissions', { name: item.filename, currentMode: currentModeOctal }), currentModeOctal);
     if (newModeStr) {
@@ -409,91 +414,69 @@ const handleChangePermissionsContextMenuClick = (item: FileListItem) => {
             return;
         }
         const newMode = parseInt(newModeStr, 8);
-        changePermissions(item, newMode); // 调用 useSftpActions 的方法
+        changePermissions(item, newMode); // Use changePermissions from props.sftpManager
     }
 };
 
 const handleNewFolderContextMenuClick = () => {
-    if (!props.isConnected) return;
+    if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
     const folderName = prompt(t('fileManager.prompts.enterFolderName'));
     if (folderName) {
-        // 可以在这里添加客户端的文件名验证（例如，是否已存在）
-        if (fileList.value.some(item => item.filename === folderName)) {
-             alert(t('fileManager.errors.folderExists', { name: folderName })); // 假设有这个翻译
+        if (fileList.value.some((item: FileListItem) => item.filename === folderName)) { // item 已有类型
+             alert(t('fileManager.errors.folderExists', { name: folderName }));
              return;
         }
-        createDirectory(folderName); // 调用 useSftpActions 的方法
+        createDirectory(folderName); // Use createDirectory from props.sftpManager
     }
 };
 
 const handleNewFileContextMenuClick = () => {
-    if (!props.isConnected) return;
+    if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
     const fileName = prompt(t('fileManager.prompts.enterFileName'));
     if (fileName) {
-        // 可以在这里添加客户端的文件名验证
-        if (fileList.value.some(item => item.filename === fileName)) {
+        if (fileList.value.some((item: FileListItem) => item.filename === fileName)) { // item 已有类型
             alert(t('fileManager.errors.fileExists', { name: fileName }));
             return;
         }
-        createFile(fileName); // 调用 useSftpActions 的方法
+        createFile(fileName); // Use createFile from props.sftpManager
     }
 };
 
 
-// --- 排序逻辑 (现在作用于从 composable 获取的 fileList) ---
+// --- 排序逻辑 ---
+// Uses fileList from props.sftpManager
 const sortedFileList = computed(() => {
-    const list = [...fileList.value]; // Create a shallow copy to avoid mutating original
+    // Ensure fileList.value is used (it's reactive from the manager)
+    if (!fileList.value) return [];
+    const list = [...fileList.value];
     const key = sortKey.value;
     const direction = sortDirection.value === 'asc' ? 1 : -1;
 
     list.sort((a, b) => {
-        // Always keep directories first when sorting by anything other than type
         if (key !== 'type') {
             if (a.attrs.isDirectory && !b.attrs.isDirectory) return -1;
             if (!a.attrs.isDirectory && b.attrs.isDirectory) return 1;
         }
-
         let valA: string | number | boolean;
         let valB: string | number | boolean;
-
         switch (key) {
             case 'type':
-                // Sort by type: Directory > Symlink > File
                 valA = a.attrs.isDirectory ? 0 : (a.attrs.isSymbolicLink ? 1 : 2);
                 valB = b.attrs.isDirectory ? 0 : (b.attrs.isSymbolicLink ? 1 : 2);
                 break;
-            case 'filename':
-                valA = a.filename.toLowerCase();
-                valB = b.filename.toLowerCase();
-                break;
-            case 'size':
-                valA = a.attrs.isFile ? a.attrs.size : -1; // Treat dirs as -1 size for sorting
-                valB = b.attrs.isFile ? b.attrs.size : -1;
-                break;
-            case 'mtime':
-                valA = a.attrs.mtime;
-                valB = b.attrs.mtime;
-                break;
-            default: // Should not happen with defined keys, but fallback to filename
-                valA = a.filename.toLowerCase();
-                valB = b.filename.toLowerCase();
+            case 'filename': valA = a.filename.toLowerCase(); valB = b.filename.toLowerCase(); break;
+            case 'size': valA = a.attrs.isFile ? a.attrs.size : -1; valB = b.attrs.isFile ? b.attrs.size : -1; break;
+            case 'mtime': valA = a.attrs.mtime; valB = b.attrs.mtime; break;
+            default: valA = a.filename.toLowerCase(); valB = b.filename.toLowerCase();
         }
-
         if (valA < valB) return -1 * direction;
         if (valA > valB) return 1 * direction;
-
-        // Secondary sort by filename if primary values are equal
-        if (key !== 'filename') {
-            return a.filename.localeCompare(b.filename);
-        }
-
+        if (key !== 'filename') return a.filename.localeCompare(b.filename);
         return 0;
     });
-    // 返回排序后的列表副本
     return list;
 });
 
-// 处理表头点击排序
 const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
     if (sortKey.value === key) {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -505,96 +488,86 @@ const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
 
 // --- 生命周期钩子 ---
 onMounted(() => {
-    console.log('[文件管理器] 组件已挂载。');
-    // 初始加载逻辑现在由 isConnected 的 watch 处理
-    // if (props.isConnected) {
-    //     console.log('[文件管理器] 挂载时连接已激活，加载初始目录。');
-    //     loadDirectory(currentPath.value); // 调用 composable 的方法
-    // }
+    console.log(`[FileManager ${props.sessionId}] Component mounted.`);
+    // Initial load logic is handled by watchEffect
 });
 
 // 使用 watchEffect 监听连接和 SFTP 就绪状态以触发初始加载
+// 恢复使用 props.wsDeps
 watchEffect((onCleanup) => {
     let unregisterSuccess: (() => void) | undefined;
     let unregisterError: (() => void) | undefined;
-    let timeoutId: number | undefined; // Use number for browser timeout ID
+    let timeoutId: number | undefined;
 
-    // 清理函数，用于注销监听器和清除超时
     const cleanupListeners = () => {
         unregisterSuccess?.();
         unregisterError?.();
         if (timeoutId) clearTimeout(timeoutId);
-        // Only reset isFetchingInitialPath if it was set by this effect instance
         if (isFetchingInitialPath.value) {
              isFetchingInitialPath.value = false;
         }
     };
 
-    // 注册清理回调
     onCleanup(cleanupListeners);
 
-    // 条件判断：连接、SFTP就绪、不在加载、初始加载未完成、未在获取初始路径
-    // Note: Removed fileList.value.length === 0 check to allow re-fetching if needed after disconnect/reconnect
-    if (props.isConnected && isSftpReady.value && !isLoading.value && !initialLoadDone.value && !isFetchingInitialPath.value) {
-        console.log('[文件管理器] 连接已建立，SFTP 已就绪，触发初始路径获取。');
-        isFetchingInitialPath.value = true; // 标记正在获取初始路径
+    // 恢复使用 props.wsDeps.isConnected 和 props.wsDeps.isSftpReady
+    // 恢复使用 props.sftpManager.isLoading
+    if (props.wsDeps.isConnected.value && props.wsDeps.isSftpReady.value && !isLoading.value && !initialLoadDone.value && !isFetchingInitialPath.value) {
+        console.log(`[FileManager ${props.sessionId}] Connection ready, fetching initial path.`);
+        isFetchingInitialPath.value = true;
 
-        const requestId = generateRequestId();
-        const requestedPath = '.'; // Always request the real path for '.'
+        // 恢复使用 props.wsDeps 中的 sendMessage 和 onMessage
+        const { sendMessage: wsSend, onMessage: wsOnMessage } = props.wsDeps;
+        const requestId = generateRequestId(); // 使用本地辅助函数
+        const requestedPath = '.';
 
-        // 设置成功回调
-        unregisterSuccess = onMessage('sftp:realpath:success', (payload, message: WebSocketMessage) => {
+        unregisterSuccess = wsOnMessage('sftp:realpath:success', (payload: any, message: WebSocketMessage) => { // message 已有类型
             if (message.requestId === requestId && payload.requestedPath === requestedPath) {
                 const absolutePath = payload.absolutePath;
-                console.log(`[文件管理器] 收到 "." 的绝对路径: ${absolutePath}，开始加载目录。`);
-                currentPath.value = absolutePath; // 更新当前路径
-                loadDirectory(absolutePath); // 加载实际路径
-                initialLoadDone.value = true; // 标记初始加载完成
-                cleanupListeners(); // 清理监听器和超时
+                console.log(`[FileManager ${props.sessionId}] 收到 '.' 的绝对路径: ${absolutePath}。开始加载目录。`);
+                currentPath.value = absolutePath;
+                loadDirectory(absolutePath); // 使用 props 中的 loadDirectory
+                initialLoadDone.value = true;
+                cleanupListeners();
             }
         });
 
-        // 设置错误回调
-        unregisterError = onMessage('sftp:realpath:error', (payload, message: WebSocketMessage) => {
-            // Check if the error corresponds to *this* specific realpath request
+        unregisterError = wsOnMessage('sftp:realpath:error', (payload: any, message: WebSocketMessage) => { // message 已有类型
             if (message.requestId === requestId && message.path === requestedPath) {
-                console.error(`[文件管理器] 获取初始路径 "." 失败:`, payload);
-                // Display error via console or a dedicated UI element, cannot assign to readonly 'error'
-                console.error(t('fileManager.errors.getInitialPathFailed', { message: payload?.message || payload || 'Unknown error' }));
-                // Do NOT set initialLoadDone = true, allowing retry if conditions change
-                // Do NOT call loadDirectory('.') as it might loop on error
-                cleanupListeners(); // Clean up listeners and timeout
+                console.error(`[FileManager ${props.sessionId}] 获取 '.' 的 realpath 失败:`, payload);
+                // 适当地显示错误，也许设置 props.sftpManager.error?
+                // 目前仅记录日志。
+                cleanupListeners();
             }
         });
 
-        // 发送 realpath 请求
-        console.log(`[文件管理器] 发送 sftp:realpath 请求 (ID: ${requestId}) for path: ${requestedPath}`);
-        sendMessage({ type: 'sftp:realpath', requestId: requestId, payload: { path: requestedPath } });
+        console.log(`[FileManager ${props.sessionId}] 发送 sftp:realpath 请求 (ID: ${requestId}) for path: ${requestedPath}`);
+        wsSend({ type: 'sftp:realpath', requestId: requestId, payload: { path: requestedPath } });
 
-        // 设置超时
         timeoutId = setTimeout(() => {
-            console.error(`[文件管理器] 获取初始路径 "." 超时 (ID: ${requestId})。`);
-            // Display error via console or a dedicated UI element
-            console.error(t('fileManager.errors.getInitialPathTimeout'));
-            cleanupListeners(); // 清理监听器
+            console.error(`[FileManager ${props.sessionId}] 获取 '.' 的 realpath 超时 (ID: ${requestId})。`);
+            cleanupListeners();
         }, 10000); // 10 秒超时
 
-    } else if (!props.isConnected) {
-        // 连接断开时的清理
-        console.log('[文件管理器] 连接已断开 (watchEffect)，重置 initialLoadDone 和 isFetchingInitialPath。');
+    } else if (!props.wsDeps.isConnected.value && initialLoadDone.value) { // 恢复使用 props.wsDeps.isConnected
+        console.log(`[FileManager ${props.sessionId}] 连接丢失 (之前已加载)，重置状态。`);
         selectedItems.value.clear();
         lastClickedIndex.value = -1;
-        initialLoadDone.value = false; // 重置初始加载状态，允许下次连接时重新获取
+        initialLoadDone.value = false; // 重置初始加载状态
         isFetchingInitialPath.value = false; // 重置获取状态
-        cleanupListeners(); // 确保断开连接时清理监听器和超时
+        cleanupListeners();
     }
 });
 
 
 onBeforeUnmount(() => {
-    console.log('[文件管理器] 组件将卸载。');
-    // WebSocket 监听器和上传任务的清理由各自的 composable 处理
-    // 确保上下文菜单监听器被移除
+    console.log(`[FileManager ${props.sessionId}] 组件即将卸载。`);
+    // 调用注入的 SFTP 管理器提供的清理函数
+    cleanupSftpHandlers();
+    // 如果其他 composables 也提供了 cleanup 函数，在此处调用
+    // cleanupUploader?.();
+    // cleanupEditor?.();
+    // 移除上下文菜单监听器
     document.removeEventListener('click', hideContextMenu, { capture: true });
 });
 
@@ -605,97 +578,80 @@ const getColumnKeyByIndex = (index: number): keyof typeof colWidths.value | null
 };
 
 const startResize = (event: MouseEvent, index: number) => {
-  event.stopPropagation(); // Stop the event from bubbling up to the th's click handler
-  event.preventDefault(); // Prevent text selection during drag
-  isResizing.value = true;
-  resizingColumnIndex.value = index;
-  startX.value = event.clientX;
-  const colKey = getColumnKeyByIndex(index);
-  if (colKey) {
-      startWidth.value = colWidths.value[colKey];
-  } else {
-      // Fallback or error handling if index is out of bounds
-      const thElement = (event.target as HTMLElement).closest('th');
-      startWidth.value = thElement?.offsetWidth ?? 100; // Estimate if key not found
-  }
-
-
-  document.addEventListener('mousemove', handleResize);
-  document.addEventListener('mouseup', stopResize);
-  document.body.style.cursor = 'col-resize'; // Change cursor globally
-  document.body.style.userSelect = 'none'; // Prevent text selection globally
+    event.stopPropagation();
+    event.preventDefault();
+    isResizing.value = true;
+    resizingColumnIndex.value = index;
+    startX.value = event.clientX;
+    const colKey = getColumnKeyByIndex(index);
+    if (colKey) {
+        startWidth.value = colWidths.value[colKey];
+    } else {
+        const thElement = (event.target as HTMLElement).closest('th');
+        startWidth.value = thElement?.offsetWidth ?? 100;
+    }
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', stopResize);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
 };
 
 const handleResize = (event: MouseEvent) => {
-  if (!isResizing.value || resizingColumnIndex.value < 0) return;
-
-  const currentX = event.clientX;
-  const diffX = currentX - startX.value;
-  const newWidth = Math.max(30, startWidth.value + diffX); // Minimum width 30px
-
-  const colKey = getColumnKeyByIndex(resizingColumnIndex.value);
-   if (colKey) {
-       colWidths.value[colKey] = newWidth;
-   }
-   // Note: Direct manipulation of <col> width via style might be needed
-   // if reactive updates to :style don't work reliably with table-layout:fixed.
-   // Let's try with reactive refs first.
+    if (!isResizing.value || resizingColumnIndex.value < 0) return;
+    const currentX = event.clientX;
+    const diffX = currentX - startX.value;
+    const newWidth = Math.max(30, startWidth.value + diffX);
+    const colKey = getColumnKeyByIndex(resizingColumnIndex.value);
+    if (colKey) {
+        colWidths.value[colKey] = newWidth;
+    }
 };
 
 const stopResize = () => {
-  if (isResizing.value) {
-    isResizing.value = false;
-    resizingColumnIndex.value = -1;
-    document.removeEventListener('mousemove', handleResize);
-    document.removeEventListener('mouseup', stopResize);
-    document.body.style.cursor = ''; // Reset cursor
-  document.body.style.userSelect = ''; // Reset text selection
-  }
+    if (isResizing.value) {
+        isResizing.value = false;
+        resizingColumnIndex.value = -1;
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    }
 };
 
-// --- Path Editing Logic ---
+// --- 路径编辑逻辑 ---
 const startPathEdit = () => {
-    if (isLoading.value || !props.isConnected) return; // Don't allow edit while loading or disconnected
-    editablePath.value = currentPath.value; // Initialize input with current path
+    // 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected
+    if (isLoading.value || !props.wsDeps.isConnected.value) return;
+    editablePath.value = currentPath.value;
     isEditingPath.value = true;
     nextTick(() => {
-        pathInputRef.value?.focus(); // Focus the input after it becomes visible
-        pathInputRef.value?.select(); // Select the text
+        pathInputRef.value?.focus();
+        pathInputRef.value?.select();
     });
 };
 
 const handlePathInput = async (event?: Event) => {
-    // Check if triggered by blur or Enter key
     if (event && event instanceof KeyboardEvent && event.key !== 'Enter') {
-        return; // Ignore other key presses
+        return;
     }
-
     const newPath = editablePath.value.trim();
-    isEditingPath.value = false; // Exit editing mode immediately
-
+    isEditingPath.value = false;
     if (newPath === currentPath.value || !newPath) {
-        return; // No change or empty path, do nothing
+        return;
     }
-
-    console.log(`[文件管理器] 尝试导航到新路径: ${newPath}`);
-    // Call loadDirectory which handles path validation via backend
+    console.log(`[FileManager ${props.sessionId}] 尝试导航到新路径: ${newPath}`);
+    // 调用 props 中的 loadDirectory
     await loadDirectory(newPath);
-
-    // If loadDirectory resulted in an error (handled within useSftpActions),
-    // the currentPath will not have changed, effectively reverting the UI.
-    // If successful, currentPath is updated by loadDirectory, and the UI reflects the new path.
 };
 
 const cancelPathEdit = () => {
     isEditingPath.value = false;
-    // No need to reset editablePath, it will be set on next edit start
 };
 
-// Function to clear the error message - now calls the composable's function
+// 清除错误消息的函数 - 调用 props 中的 clearSftpError
 const clearError = () => {
     clearSftpError();
 };
-
 
 </script>
 
@@ -703,11 +659,12 @@ const clearError = () => {
   <div class="file-manager">
     <div class="toolbar">
         <div class="path-bar">
-          <span v-show="!isEditingPath"> 
-            {{ t('fileManager.currentPath') }}: <strong @click="startPathEdit" :title="t('fileManager.editPathTooltip')" class="editable-path">{{ currentPath }}</strong>
+          <span v-show="!isEditingPath">
+            <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected -->
+            {{ t('fileManager.currentPath') }}: <strong @click="startPathEdit" :title="t('fileManager.editPathTooltip')" class="editable-path" :class="{ 'disabled': isLoading || !props.wsDeps.isConnected.value }">{{ currentPath }}</strong>
           </span>
           <input
-            v-show="isEditingPath" 
+            v-show="isEditingPath"
             ref="pathInputRef"
             type="text"
             v-model="editablePath"
@@ -715,21 +672,24 @@ const clearError = () => {
             @keyup.enter="handlePathInput"
             @blur="handlePathInput"
             @keyup.esc="cancelPathEdit"
-            
           />
-          <button @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !isConnected || isEditingPath" :title="t('fileManager.actions.refresh')">🔄</button>
-          <!-- Pass event to handleItemClick for '..' -->
-          <button @click.stop="handleItemClick($event, { filename: '..', longname: '', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !isConnected || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')">⬆️</button>
+          <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+          <button @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')">🔄</button>
+          <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+          <button @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')">⬆️</button>
         </div>
         <div class="actions-bar">
              <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
-             <button @click="triggerFileUpload" :disabled="isLoading || !props.isConnected" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
-             <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.isConnected" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button> <!-- 调用修改后的函数 -->
-             <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.isConnected" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button> <!-- 调用修改后的函数 -->
+             <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+             <button @click="triggerFileUpload" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
+             <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+             <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button>
+             <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+             <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button>
         </div>
     </div>
 
-    <!-- File List Container -->
+    <!-- 文件列表容器 -->
     <div
       class="file-list-container"
       :class="{ 'drag-over': isDraggingOver }"

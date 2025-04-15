@@ -7,6 +7,7 @@ import 'xterm/css/xterm.css'; // 引入 xterm 样式
 
 // 定义 props 和 emits
 const props = defineProps<{
+  sessionId: string; // 会话 ID
   stream?: ReadableStream<string>; // 用于接收来自 WebSocket 的数据流 (可选)
   options?: object; // xterm 的配置选项
 }>();
