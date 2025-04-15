@@ -15,6 +15,7 @@ import proxyRoutes from './proxies/proxies.routes'; // 导入代理路由
 import tagsRouter from './tags/tags.routes'; // 导入标签路由
 import settingsRoutes from './settings/settings.routes'; // 导入设置路由
 import { initializeWebSocket } from './websocket';
+import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
 
 // 基础 Express 应用设置 (后续会扩展)
 const app = express();
@@ -25,6 +26,9 @@ const SQLiteStore = connectSqlite3(session);
 const dbPath = path.resolve(__dirname, '../../data'); // 数据库目录路径
 
 // --- 中间件 ---
+// !! 重要：IP 白名单应尽可能早地应用，通常在其他中间件之前 !!
+app.use(ipWhitelistMiddleware as RequestHandler); // 应用 IP 白名单中间件 (使用类型断言)
+
 app.use(express.json()); // 添加此行以解析 JSON 请求体
 
 // 会话中间件配置

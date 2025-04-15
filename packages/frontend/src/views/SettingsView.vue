@@ -69,6 +69,24 @@
       <p v-if="twoFactorMessage" :class="{ 'success-message': twoFactorSuccess, 'error-message': !twoFactorSuccess }">{{ twoFactorMessage }}</p>
     </div>
 
+    <hr>
+
+    <div class="settings-section">
+      <h2>{{ $t('settings.ipWhitelist.title') }}</h2>
+      <p>{{ $t('settings.ipWhitelist.description') }}</p>
+      <form @submit.prevent="handleUpdateIpWhitelist">
+        <div class="form-group">
+          <label for="ipWhitelist">{{ $t('settings.ipWhitelist.label') }}</label>
+          <textarea id="ipWhitelist" v-model="ipWhitelistInput" rows="5"></textarea>
+          <small>{{ $t('settings.ipWhitelist.hint') }}</small>
+        </div>
+        <button type="submit" :disabled="ipWhitelistLoading">{{ ipWhitelistLoading ? $t('common.loading') : $t('settings.ipWhitelist.saveButton') }}</button>
+        <p v-if="ipWhitelistMessage" :class="{ 'success-message': ipWhitelistSuccess, 'error-message': !ipWhitelistSuccess }">{{ ipWhitelistMessage }}</p>
+      </form>
+    </div>
+
+    <!-- 其他设置项可以在这里添加 -->
+
   </div>
 </template>
 
@@ -98,6 +116,12 @@ const setupData = ref<{ secret: string; qrCodeUrl: string } | null>(null); // �
 const verificationCode = ref(''); // 用户输入的验证码
 const disablePassword = ref(''); // 禁用时需要输入的密码
 
+// --- IP 白名单状态 ---
+const ipWhitelistInput = ref(''); // 用于编辑的文本区域内容
+const ipWhitelistLoading = ref(false);
+const ipWhitelistMessage = ref('');
+const ipWhitelistSuccess = ref(false);
+
 // 计算属性判断当前是否处于 2FA 设置流程中
 const isSettingUp2FA = computed(() => setupData.value !== null);
 
@@ -109,8 +133,27 @@ const checkTwoFactorStatus = async () => {
   twoFactorEnabled.value = authStore.user?.isTwoFactorEnabled ?? false;
 };
 
+// 获取当前的 IP 白名单设置
+const fetchIpWhitelist = async () => {
+    ipWhitelistLoading.value = true;
+    ipWhitelistMessage.value = '';
+    try {
+        // 使用 settings API 获取所有设置
+        const response = await axios.get<Record<string, string>>('/api/v1/settings');
+        ipWhitelistInput.value = response.data['ipWhitelist'] || ''; // 从设置中获取，默认为空字符串
+    } catch (error: any) {
+        console.error('获取 IP 白名单设置失败:', error);
+        ipWhitelistMessage.value = t('settings.ipWhitelist.error.fetchFailed');
+        ipWhitelistSuccess.value = false;
+    } finally {
+        ipWhitelistLoading.value = false;
+    }
+};
+
+
 onMounted(async () => { // 使 onMounted 异步
   await checkTwoFactorStatus(); // 等待状态检查完成
+  await fetchIpWhitelist(); // 获取 IP 白名单设置
 });
 
 
@@ -222,6 +265,28 @@ const cancelSetup = () => {
     twoFactorMessage.value = '';
 };
 
+// --- IP 白名单相关方法 ---
+const handleUpdateIpWhitelist = async () => {
+    ipWhitelistLoading.value = true;
+    ipWhitelistMessage.value = '';
+    ipWhitelistSuccess.value = false;
+
+    try {
+        // 调用 settings API 更新设置
+        await axios.put('/api/v1/settings', {
+            ipWhitelist: ipWhitelistInput.value.trim() // 发送修剪后的值
+        });
+        ipWhitelistMessage.value = t('settings.ipWhitelist.success.saved');
+        ipWhitelistSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新 IP 白名单失败:', error);
+        ipWhitelistMessage.value = error.response?.data?.message || t('settings.ipWhitelist.error.saveFailed');
+        ipWhitelistSuccess.value = false;
+    } finally {
+        ipWhitelistLoading.value = false;
+    }
+};
+
 </script>
 
 <style scoped>
@@ -246,11 +311,29 @@ label {
 }
 
 input[type="password"],
-input[type="text"] {
+input[type="text"],
+textarea { /* 添加 textarea 样式 */
   width: 100%;
   padding: 8px;
   box-sizing: border-box;
+  border: 1px solid #ccc; /* 确保 textarea 有边框 */
+  border-radius: 4px; /* 确保 textarea 有圆角 */
+  font-family: inherit; /* 继承字体 */
+  font-size: inherit; /* 继承字号 */
 }
+
+textarea {
+    resize: vertical; /* 允许垂直调整大小 */
+    min-height: 80px; /* 设置最小高度 */
+}
+
+small { /* 提示文字样式 */
+    display: block;
+    margin-top: 5px;
+    font-size: 0.85em;
+    color: #666;
+}
+
 
 button {
   padding: 10px 15px;

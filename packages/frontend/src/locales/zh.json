@@ -327,6 +327,20 @@
         "passwordRequiredForDisable": "需要输入当前密码才能禁用。",
         "disableFailed": "禁用两步验证失败。"
       }
+    },
+    "ipWhitelist": {
+      "title": "IP 白名单",
+      "description": "配置允许访问此应用的 IP 地址或范围。留空则允许所有 IP。",
+      "label": "允许的 IP 地址/范围 (每行一个或用逗号分隔):",
+      "hint": "支持 IPv4, IPv6 和 CIDR (例如 192.168.1.100, 10.0.0.0/8, 2001:db8::/32)。",
+      "saveButton": "保存白名单",
+      "success": {
+        "saved": "IP 白名单已成功保存。"
+      },
+      "error": {
+        "fetchFailed": "获取 IP 白名单设置失败。",
+        "saveFailed": "保存 IP 白名单失败。"
+      }
     }
   },
   "common": {

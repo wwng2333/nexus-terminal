@@ -324,6 +324,20 @@
         "passwordRequiredForDisable": "Current password is required to disable.",
         "disableFailed": "Failed to disable two-factor authentication."
       }
+    },
+    "ipWhitelist": {
+      "title": "IP Whitelist",
+      "description": "Configure allowed IP addresses or ranges to access this application. Leave empty to allow all IPs.",
+      "label": "Allowed IP Addresses/Ranges (one per line or comma-separated):",
+      "hint": "Supports IPv4, IPv6, and CIDR (e.g., 192.168.1.100, 10.0.0.0/8, 2001:db8::/32).",
+      "saveButton": "Save Whitelist",
+      "success": {
+        "saved": "IP whitelist saved successfully."
+      },
+      "error": {
+        "fetchFailed": "Failed to fetch IP whitelist settings.",
+        "saveFailed": "Failed to save IP whitelist."
+      }
     }
   },
   "common": {

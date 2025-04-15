@@ -47,4 +47,29 @@ export const settingsService = {
   async deleteSetting(key: string): Promise<void> {
     await settingsRepository.deleteSetting(key);
   },
+
+  /**
+   * 获取 IP 白名单设置
+   * @returns 返回包含启用状态和白名单列表的对象
+   */
+  async getIpWhitelistSettings(): Promise<{ enabled: boolean; whitelist: string }> {
+    const enabledStr = await settingsRepository.getSetting('ipWhitelistEnabled');
+    const whitelist = await settingsRepository.getSetting('ipWhitelist');
+    return {
+      enabled: enabledStr === 'true', // 将字符串 'true' 转换为布尔值
+      whitelist: whitelist ?? '', // 如果为 null 则返回空字符串
+    };
+  },
+
+  /**
+   * 更新 IP 白名单设置
+   * @param enabled 是否启用 IP 白名单
+   * @param whitelist 允许的 IP 地址/CIDR 列表 (字符串形式)
+   */
+  async updateIpWhitelistSettings(enabled: boolean, whitelist: string): Promise<void> {
+    await Promise.all([
+      settingsRepository.setSetting('ipWhitelistEnabled', String(enabled)), // 将布尔值转换为字符串
+      settingsRepository.setSetting('ipWhitelist', whitelist),
+    ]);
+  },
 };
