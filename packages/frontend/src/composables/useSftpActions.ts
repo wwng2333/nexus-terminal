@@ -324,6 +324,10 @@ export function createSftpActionsManager(
         clearSftpError,
 
         // Cleanup function
+        currentPath: readonly(currentPathRef), // 暴露只读的当前路径 ref
+
+        // Cleanup function
+        // Cleanup function
         cleanup,
     };
 }

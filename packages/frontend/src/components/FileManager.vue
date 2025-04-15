@@ -44,7 +44,8 @@ const props = defineProps({
 // --- 核心 Composables ---
 const { t } = useI18n();
 const route = useRoute(); // Keep for download URL generation for now
-const currentPath = ref<string>('.'); // Current path state remains local, passed to manager if needed
+// 移除本地 currentPath ref
+// const currentPath = ref<string>('.');
 
 // Access SFTP state and methods from the injected manager instance
 const {
@@ -60,6 +61,7 @@ const {
     readFile, // Provided by the manager
     writeFile, // Provided by the manager
     joinPath,
+    currentPath, // 从 sftpManager 获取 currentPath
     clearSftpError,
     cleanup: cleanupSftpHandlers, // Get the cleanup function from the manager
 } = props.sftpManager; // 直接从 props 获取
@@ -71,7 +73,7 @@ const {
     cancelUpload,
     // cleanup: cleanupUploader, // 假设 uploader 也提供 cleanup
 } = useFileUploader(
-    currentPath,
+    currentPath, // 使用从 sftpManager 获取的 currentPath
     fileList, // 传递来自 sftpManager 的 fileList ref
     () => loadDirectory(currentPath.value), // Refresh function uses manager's loadDirectory
     props.sessionId, // 传递 sessionId
@@ -287,7 +289,7 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已
                 return;
             }
             const newPath = item.filename === '..'
-                ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/'
+                ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/' // 使用 sftpManager 的 currentPath
                 : joinPath(currentPath.value, item.filename); // Use joinPath from props
             loadDirectory(newPath); // Use loadDirectory from props
         } else if (item.attrs.isFile) {
@@ -622,7 +624,7 @@ const stopResize = () => {
 const startPathEdit = () => {
     // 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected
     if (isLoading.value || !props.wsDeps.isConnected.value) return;
-    editablePath.value = currentPath.value;
+    editablePath.value = currentPath.value; // 使用 sftpManager 的 currentPath 初始化编辑框
     isEditingPath.value = true;
     nextTick(() => {
         pathInputRef.value?.focus();
@@ -636,7 +638,7 @@ const handlePathInput = async (event?: Event) => {
     }
     const newPath = editablePath.value.trim();
     isEditingPath.value = false;
-    if (newPath === currentPath.value || !newPath) {
+    if (newPath === currentPath.value || !newPath) { // 与 sftpManager 的 currentPath 比较
         return;
     }
     console.log(`[FileManager ${props.sessionId}] 尝试导航到新路径: ${newPath}`);
