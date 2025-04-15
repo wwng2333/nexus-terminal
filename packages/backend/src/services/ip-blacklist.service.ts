@@ -1,8 +1,10 @@
 import { getDb } from '../database';
-import { settingsService } from './settings.service'; // 用于获取配置
-import * as sqlite3 from 'sqlite3'; // 导入 sqlite3 类型
+import { settingsService } from './settings.service';
+import { NotificationService } from './notification.service'; // 导入 NotificationService
+import * as sqlite3 from 'sqlite3';
 
 const db = getDb();
+const notificationService = new NotificationService(); // 实例化 NotificationService
 
 // 黑名单相关设置的 Key
 const MAX_LOGIN_ATTEMPTS_KEY = 'maxLoginAttempts';
@@ -96,10 +98,22 @@ export class IpBlacklistService {
                 let blockedUntil = entry.blocked_until;
 
                 // 检查是否达到封禁阈值
-                if (newAttempts >= maxAttempts) {
+                if (newAttempts >= maxAttempts && !entry.blocked_until) { // 只有在之前未被封禁时才触发通知
                     blockedUntil = now + banDuration;
                     console.warn(`[IP Blacklist] IP ${ip} 登录失败次数达到 ${newAttempts} 次 (阈值 ${maxAttempts})，将被封禁 ${banDuration} 秒。`);
+                    // 触发 IP_BLACKLISTED 通知
+                    notificationService.sendNotification('IP_BLACKLISTED', {
+                        ip: ip,
+                        attempts: newAttempts,
+                        duration: banDuration, // 封禁时长（秒）
+                        blockedUntil: new Date(blockedUntil * 1000).toISOString() // 封禁截止时间
+                    }).catch(err => console.error(`[IP Blacklist] 发送 IP_BLACKLISTED 通知失败 for IP ${ip}:`, err));
+                } else if (newAttempts >= maxAttempts && entry.blocked_until) {
+                    // 如果已经达到阈值且已被封禁，可能需要更新封禁时间（如果策略是每次失败都延长）
+                    // 当前逻辑是只在首次达到阈值时设置封禁时间，后续失败只增加次数
+                    console.log(`[IP Blacklist] IP ${ip} 再次登录失败，当前已处于封禁状态。`);
                 }
+
 
                 await new Promise<void>((resolve, reject) => {
                     db.run(
@@ -117,9 +131,17 @@ export class IpBlacklistService {
             } else {
                 // 插入新记录
                 let blockedUntil: number | null = null;
-                if (1 >= maxAttempts) { // 首次尝试就达到阈值 (虽然不常见)
+                const attempts = 1; // 首次尝试
+                if (attempts >= maxAttempts) { // 首次尝试就达到阈值
                     blockedUntil = now + banDuration;
                      console.warn(`[IP Blacklist] IP ${ip} 首次登录失败即达到阈值 ${maxAttempts}，将被封禁 ${banDuration} 秒。`);
+                     // 触发 IP_BLACKLISTED 通知
+                     notificationService.sendNotification('IP_BLACKLISTED', {
+                         ip: ip,
+                         attempts: attempts,
+                         duration: banDuration,
+                         blockedUntil: new Date(blockedUntil * 1000).toISOString()
+                     }).catch(err => console.error(`[IP Blacklist] 发送 IP_BLACKLISTED 通知失败 for IP ${ip}:`, err));
                 }
                 await new Promise<void>((resolve, reject) => {
                     db.run(

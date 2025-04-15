@@ -5,12 +5,15 @@ import {
     NotificationEvent,
     NotificationPayload,
     WebhookConfig,
-    EmailConfig, // Ensure EmailConfig is imported
+    EmailConfig,
     TelegramConfig,
-    NotificationChannelConfig
+    NotificationChannelConfig,
+    NotificationChannelType // Import the missing type
 } from '../types/notification.types';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer'; // Import Mail type for transporter
+import i18next, { defaultLng, supportedLngs } from '../i18n'; // Import i18next instance and config
+import { settingsService } from './settings.service'; // Import settings service
 
 export class NotificationService {
     private repository: NotificationSettingsRepository;
@@ -43,10 +46,27 @@ export class NotificationService {
         return this.repository.delete(id);
     }
 
-    // --- Test Notification Method ---
-    async testEmailSetting(config: EmailConfig): Promise<{ success: boolean; message: string }> {
+    // --- Test Notification Methods ---
+
+    // Generic test method dispatcher
+    async testSetting(channelType: NotificationChannelType, config: NotificationChannelConfig): Promise<{ success: boolean; message: string }> {
+        switch (channelType) {
+            case 'email':
+                return this._testEmailSetting(config as EmailConfig);
+            case 'webhook':
+                return this._testWebhookSetting(config as WebhookConfig);
+            case 'telegram':
+                return this._testTelegramSetting(config as TelegramConfig);
+            default:
+                console.warn(`[Notification Test] Unsupported channel type for testing: ${channelType}`);
+                return { success: false, message: `不支持测试此渠道类型 (${channelType})` };
+        }
+    }
+
+    // Specific test method for Email
+    private async _testEmailSetting(config: EmailConfig): Promise<{ success: boolean; message: string }> {
         if (!config.to || !config.smtpHost || !config.smtpPort || !config.from) {
-            return { success: false, message: '测试邮件失败：缺少必要的 SMTP 配置信息 (收件人, 服务器, 端口, 发件人)。' };
+            return { success: false, message: '测试邮件失败：缺少必要的 SMTP 配置信息 (收件人, 主机, 端口, 发件人)。' };
         }
 
         // Let TypeScript infer the options type for SMTP
@@ -69,9 +89,9 @@ export class NotificationService {
         const mailOptions: Mail.Options = {
             from: config.from,
             to: config.to, // Use the 'to' from config for testing
-            subject: '星枢终端 (Nexus Terminal) 测试邮件',
-            text: `这是一封来自星枢终端 (Nexus Terminal) 的测试邮件。\n\n如果收到此邮件，表示您的 SMTP 配置工作正常。\n\n时间: ${new Date().toISOString()}`,
-            html: `<p>这是一封来自 <b>星枢终端 (Nexus Terminal)</b> 的测试邮件。</p><p>如果收到此邮件，表示您的 SMTP 配置工作正常。</p><p>时间: ${new Date().toISOString()}</p>`,
+            subject: 'Nexus Terminal Test Notification',
+            text: `This is a test email from Nexus Terminal.\n\nIf you received this, your SMTP configuration is working.\n\nTimestamp: ${new Date().toISOString()}`,
+            html: `<p>This is a test email from <b>Nexus Terminal</b>.</p><p>If you received this, your SMTP configuration is working.</p><p>Timestamp: ${new Date().toISOString()}</p>`,
         };
 
         try {
@@ -88,11 +108,107 @@ export class NotificationService {
         }
     }
 
+    // Specific test method for Webhook
+    private async _testWebhookSetting(config: WebhookConfig): Promise<{ success: boolean; message: string }> {
+        if (!config.url) {
+            return { success: false, message: '测试 Webhook 失败：缺少 URL。' };
+        }
+
+        // Use a valid event type for the test payload
+        const testPayload: NotificationPayload = {
+            event: 'SETTINGS_UPDATED', // Use a valid event type
+            timestamp: Date.now(),
+            details: { message: 'This is a test notification from Nexus Terminal (Webhook).' } // Add channel type
+        };
+
+        // Use the same rendering logic as actual sending
+        const defaultBody = JSON.stringify(testPayload, null, 2);
+        const requestBody = this._renderTemplate(config.bodyTemplate, testPayload, defaultBody);
+
+        const requestConfig: AxiosRequestConfig = {
+            method: config.method || 'POST',
+            url: config.url,
+            headers: {
+                'Content-Type': 'application/json',
+                ...(config.headers || {}),
+            },
+            data: requestBody,
+            timeout: 15000, // Slightly longer timeout for testing
+        };
+
+        try {
+            console.log(`[Notification Test] Sending test Webhook to ${config.url}`);
+            const response = await axios(requestConfig);
+            console.log(`[Notification Test] Test Webhook sent successfully to ${config.url}. Status: ${response.status}`);
+            return { success: true, message: `测试 Webhook 发送成功 (状态码: ${response.status})。` };
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || error.response?.data || error.message || '未知错误';
+            console.error(`[Notification Test] Error sending test Webhook to ${config.url}:`, errorMessage);
+            return { success: false, message: `测试 Webhook 发送失败: ${errorMessage}` };
+        }
+    }
+
+     // Specific test method for Telegram
+    private async _testTelegramSetting(config: TelegramConfig): Promise<{ success: boolean; message: string }> {
+        if (!config.botToken || !config.chatId) {
+            return { success: false, message: '测试 Telegram 失败：缺少机器人 Token 或聊天 ID。' };
+        }
+
+         // Use a valid event type for the test payload
+         const testPayload: NotificationPayload = {
+            event: 'SETTINGS_UPDATED', // Use a valid event type
+            timestamp: Date.now(),
+            details: { message: 'This is a test notification from Nexus Terminal (Telegram).' } // Add channel type
+        };
+
+        // Use the same rendering logic as actual sending
+        const defaultMessage = `*Nexus Terminal Test Notification*\n\nEvent: \`${testPayload.event}\`\nTimestamp: ${new Date(testPayload.timestamp).toISOString()}\nDetails: \`\`\`\n${JSON.stringify(testPayload.details, null, 2)}\n\`\`\``;
+        const messageText = this._renderTemplate(config.messageTemplate, testPayload, defaultMessage);
+
+        const telegramApiUrl = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
+
+        try {
+             console.log(`[Notification Test] Sending test Telegram message to chat ID ${config.chatId}`);
+            const response = await axios.post(telegramApiUrl, {
+                chat_id: config.chatId,
+                text: messageText,
+                parse_mode: 'Markdown',
+            }, { timeout: 15000 }); // Slightly longer timeout for testing
+
+            if (response.data?.ok) {
+                 console.log(`[Notification Test] Test Telegram message sent successfully.`);
+                 return { success: true, message: '测试 Telegram 消息发送成功！' };
+            } else {
+                 console.error(`[Notification Test] Telegram API returned error:`, response.data?.description);
+                 return { success: false, message: `测试 Telegram 发送失败: ${response.data?.description || 'API 返回失败'}` };
+            }
+        } catch (error: any) {
+             const errorMessage = error.response?.data?.description || error.response?.data || error.message || '未知错误';
+            console.error(`[Notification Test] Error sending test Telegram message:`, errorMessage);
+            return { success: false, message: `测试 Telegram 发送失败: ${errorMessage}` };
+        }
+    }
+
 
     // --- Core Notification Sending Logic ---
 
     async sendNotification(event: NotificationEvent, details?: Record<string, any> | string): Promise<void> {
         console.log(`[Notification] Event triggered: ${event}`, details || '');
+
+        // 1. Get user's preferred language (or default)
+        let userLang = defaultLng;
+        try {
+            // Assuming settingsService is available or needs instantiation if not singleton
+            const langSetting = await settingsService.getSetting('language');
+            if (langSetting && supportedLngs.includes(langSetting)) {
+                userLang = langSetting;
+            }
+        } catch (error) {
+            console.error(`[Notification] Error fetching language setting for event ${event}:`, error);
+            // Proceed with default language
+        }
+        console.log(`[Notification] Using language '${userLang}' for event ${event}`);
+
         const payload: NotificationPayload = {
             event,
             timestamp: Date.now(),
@@ -110,11 +226,11 @@ export class NotificationService {
             const sendPromises = applicableSettings.map(setting => {
                 switch (setting.channel_type) {
                     case 'webhook':
-                        return this._sendWebhook(setting, payload);
+                        return this._sendWebhook(setting, payload, userLang); // Pass userLang
                     case 'email':
-                        return this._sendEmail(setting, payload);
+                        return this._sendEmail(setting, payload, userLang); // Pass userLang
                     case 'telegram':
-                        return this._sendTelegram(setting, payload);
+                        return this._sendTelegram(setting, payload, userLang); // Pass userLang
                     default:
                         console.warn(`[Notification] Unknown channel type: ${setting.channel_type} for setting ID ${setting.id}`);
                         return Promise.resolve(); // Don't fail all if one is unknown
@@ -145,16 +261,22 @@ export class NotificationService {
         return rendered;
     }
 
-
-    private async _sendWebhook(setting: NotificationSetting, payload: NotificationPayload): Promise<void> {
+    // Updated to accept userLang
+    private async _sendWebhook(setting: NotificationSetting, payload: NotificationPayload, userLang: string): Promise<void> {
         const config = setting.config as WebhookConfig;
         if (!config.url) {
             console.error(`[Notification] Webhook setting ID ${setting.id} is missing URL.`);
             return;
         }
 
-        const defaultBody = JSON.stringify(payload, null, 2);
-        const requestBody = this._renderTemplate(config.bodyTemplate, payload, defaultBody);
+        // Translate payload details if they match a known key structure
+        const translatedDetails = this._translatePayloadDetails(payload.details, userLang);
+        const translatedPayload = { ...payload, details: translatedDetails };
+
+        const defaultBody = JSON.stringify(translatedPayload, null, 2);
+        // Note: Webhook body templates might need adjustments if they expect specific structures
+        // or if they should also be translated. For now, we only translate the 'details'.
+        const requestBody = this._renderTemplate(config.bodyTemplate, translatedPayload, defaultBody);
 
         const requestConfig: AxiosRequestConfig = {
             method: config.method || 'POST',
@@ -177,7 +299,8 @@ export class NotificationService {
         }
     }
 
-    private async _sendEmail(setting: NotificationSetting, payload: NotificationPayload): Promise<void> {
+    // Updated to accept userLang
+    private async _sendEmail(setting: NotificationSetting, payload: NotificationPayload, userLang: string): Promise<void> {
         const config = setting.config as EmailConfig;
         if (!config.to || !config.smtpHost || !config.smtpPort || !config.from) {
              console.error(`[Notification] Email setting ID ${setting.id} is missing required SMTP configuration (to, smtpHost, smtpPort, from).`);
@@ -198,14 +321,27 @@ export class NotificationService {
 
         const transporter = nodemailer.createTransport(transporterOptions);
 
-        const defaultSubject = `星枢终端通知: ${payload.event}`;
-        const subject = this._renderTemplate(config.subjectTemplate, payload, defaultSubject);
+        // Translate subject and body using i18next
+        // const i18nOptions = { lng: userLang, ...payload.details }; // Original line causing error
+        const i18nOptions: Record<string, any> = { lng: userLang };
+        if (payload.details && typeof payload.details === 'object') {
+          Object.assign(i18nOptions, payload.details); // Merge details if it's an object
+        } else if (payload.details !== undefined) {
+          i18nOptions.details = payload.details; // Pass non-object details directly if needed
+        }
 
-        // Basic default body (plain text)
+        // Try to translate the event itself for the subject, fallback to event name
+        const defaultSubjectKey = `event.${payload.event}`;
+        const defaultSubjectFallback = `星枢终端通知: ${payload.event}`;
+        const subjectText = i18next.t(defaultSubjectKey, { ...i18nOptions, defaultValue: defaultSubjectFallback });
+        const subject = this._renderTemplate(config.subjectTemplate, payload, subjectText); // Allow template override
+
+        // Translate the main body content based on event type if a key exists
+        const bodyKey = `eventBody.${payload.event}`;
         const detailsString = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2);
-        const defaultBody = `事件: ${payload.event}\n时间: ${new Date(payload.timestamp).toISOString()}\n详情:\n${detailsString}`;
-        // Note: Email body templates are not implemented in this version. Using default text.
-        const body = defaultBody;
+        const defaultBodyText = `事件: ${payload.event}\n时间: ${new Date(payload.timestamp).toISOString()}\n详情:\n${detailsString}`;
+        const body = i18next.t(bodyKey, { ...i18nOptions, defaultValue: defaultBodyText });
+        // Note: Email body templates are not implemented in this version. Using translated/default text.
 
         const mailOptions: Mail.Options = {
             from: config.from,
@@ -224,18 +360,29 @@ export class NotificationService {
         }
     }
 
-    private async _sendTelegram(setting: NotificationSetting, payload: NotificationPayload): Promise<void> {
+    // Updated to accept userLang
+    private async _sendTelegram(setting: NotificationSetting, payload: NotificationPayload, userLang: string): Promise<void> {
         const config = setting.config as TelegramConfig;
         if (!config.botToken || !config.chatId) {
             console.error(`[Notification] Telegram setting ID ${setting.id} is missing botToken or chatId.`);
             return;
         }
 
-        // Default message format
+        // Translate message using i18next
+        // const i18nOptions = { lng: userLang, ...payload.details }; // Original line causing error
+        const i18nOptions: Record<string, any> = { lng: userLang };
+        if (payload.details && typeof payload.details === 'object') {
+          Object.assign(i18nOptions, payload.details); // Merge details if it's an object
+        } else if (payload.details !== undefined) {
+          i18nOptions.details = payload.details; // Pass non-object details directly if needed
+        }
+        const messageKey = `eventBody.${payload.event}`; // Use same key as email body for consistency
         const detailsStr = payload.details ? `\n详情: \`\`\`\n${typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details, null, 2)}\n\`\`\`` : '';
-        const defaultMessage = `*星枢终端通知*\n\n事件: \`${payload.event}\`\n时间: ${new Date(payload.timestamp).toISOString()}${detailsStr}`;
+        const defaultMessageText = `*星枢终端通知*\n\n事件: \`${payload.event}\`\n时间: ${new Date(payload.timestamp).toISOString()}${detailsStr}`;
+        const translatedBody = i18next.t(messageKey, { ...i18nOptions, defaultValue: defaultMessageText });
 
-        const messageText = this._renderTemplate(config.messageTemplate, payload, defaultMessage);
+        // Allow template override
+        const messageText = this._renderTemplate(config.messageTemplate, payload, translatedBody);
         const telegramApiUrl = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
         try {
@@ -250,6 +397,41 @@ export class NotificationService {
              const errorMessage = error.response?.data?.description || error.response?.data || error.message;
             console.error(`[Notification] Error sending Telegram message for setting ID ${setting.id}:`, errorMessage);
         }
+    }
+
+    // Helper to attempt translation of known payload structures
+    private _translatePayloadDetails(details: any, lng: string): any {
+        if (!details || typeof details !== 'object') {
+            return details; // Return as is if not an object or null/undefined
+        }
+
+        // Example: Translate connection test results
+        if (details.testResult === 'success' && details.connectionName) {
+            return {
+                ...details,
+                message: i18next.t('connection.testSuccess', { lng, name: details.connectionName, defaultValue: `Connection test successful for '${details.connectionName}'!` })
+            };
+        }
+        if (details.testResult === 'failed' && details.connectionName && details.error) {
+             return {
+                ...details,
+                message: i18next.t('connection.testFailed', { lng, name: details.connectionName, error: details.error, defaultValue: `Connection test failed for '${details.connectionName}': ${details.error}` })
+            };
+        }
+
+        // Example: Translate settings update messages (can be expanded)
+        if (details.updatedKeys && Array.isArray(details.updatedKeys)) {
+             if (details.updatedKeys.includes('ipWhitelist')) {
+                 return { ...details, message: i18next.t('settings.ipWhitelistUpdated', { lng, defaultValue: 'IP Whitelist updated successfully.' }) };
+             }
+             // Generic settings update
+             return { ...details, message: i18next.t('settings.updated', { lng, defaultValue: 'Settings updated successfully.' }) };
+        }
+
+
+        // Add more translation logic for other event details structures here...
+
+        return details; // Return original details if no specific translation logic matched
     }
 }
 

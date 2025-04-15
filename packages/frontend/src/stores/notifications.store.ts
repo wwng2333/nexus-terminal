@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import axios from 'axios'; // Assuming axios is globally available or installed
-import { NotificationSetting, NotificationSettingData } from '../types/server.types';
+import { NotificationSetting, NotificationSettingData, NotificationChannelType } from '../types/server.types'; // Import NotificationChannelType
 
 export const useNotificationsStore = defineStore('notifications', () => {
     const settings = ref<NotificationSetting[]>([]);
@@ -94,6 +94,19 @@ export const useNotificationsStore = defineStore('notifications', () => {
         // No finally block needed here as loading state is managed in the component
     };
 
+    // Test an unsaved setting configuration
+    const testUnsavedSetting = async (channelType: NotificationChannelType, config: any): Promise<{ success: boolean; message: string }> => {
+        error.value = null;
+        try {
+            // Send the channel type and config in the request body
+            const response = await axios.post<{ message: string }>(`/api/v1/notifications/test-unsaved`, { channel_type: channelType, config });
+            return { success: true, message: response.data.message || '测试成功' };
+        } catch (err: any) {
+            console.error(`Error testing unsaved notification setting:`, err);
+            throw err; // Re-throw the error to be caught in the component
+        }
+    };
+
 
     // Computed property to get settings by type (example)
     const webhookSettings = computed(() => settings.value.filter(s => s.channel_type === 'webhook'));
@@ -108,7 +121,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
         addSetting,
         updateSetting,
         deleteSetting,
-        testSetting, // Add the new function here
+        testSetting,
+        testUnsavedSetting, // Add the new function here
         webhookSettings,
         emailSettings,
         telegramSettings,

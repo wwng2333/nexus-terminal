@@ -120,17 +120,11 @@ export class NotificationController {
             const originalSetting = await this.notificationService.getSettingById(id);
             if (!originalSetting) {
                 res.status(404).json({ message: `未找到 ID 为 ${id} 的通知设置` });
-                return;
+                return; // Return early if setting not found
             }
 
-            // Currently, only email testing is implemented
-            if (originalSetting.channel_type !== 'email') {
-                res.status(400).json({ message: `当前仅支持测试邮件通知渠道` });
-                return;
-            }
-
-            // Call the service method to send the test email using the provided config
-            const result = await this.notificationService.testEmailSetting(config);
+            // Call the generic testSetting method from the service, passing the channel type
+            const result = await this.notificationService.testSetting(originalSetting.channel_type, config);
 
             if (result.success) {
                 // 记录审计日志 (可选，根据需要决定是否记录测试操作)
@@ -144,6 +138,37 @@ export class NotificationController {
             }
         } catch (error: any) {
             console.error(`Error testing notification setting ID ${id}:`, error);
+            res.status(500).json({ message: '测试通知设置时发生内部错误', error: error.message });
+        }
+    };
+
+    // POST /api/v1/notifications/test-unsaved
+    testUnsavedSetting = async (req: Request, res: Response): Promise<void> => {
+        const { channel_type, config } = req.body;
+
+        if (!channel_type || !config) {
+            res.status(400).json({ message: '缺少必要的测试信息 (channel_type, config)' });
+            return;
+        }
+
+        // Basic validation for channel type
+        if (!['webhook', 'email', 'telegram'].includes(channel_type)) {
+             res.status(400).json({ message: '无效的渠道类型' });
+             return;
+        }
+
+        try {
+            // Call the generic testSetting method directly with provided type and config
+            const result = await this.notificationService.testSetting(channel_type, config);
+
+            if (result.success) {
+                res.status(200).json({ message: result.message });
+            } else {
+                // Return 500 for test failure to indicate an issue with the config/sending
+                res.status(500).json({ message: result.message });
+            }
+        } catch (error: any) {
+            console.error(`Error testing unsaved notification setting:`, error);
             res.status(500).json({ message: '测试通知设置时发生内部错误', error: error.message });
         }
     };

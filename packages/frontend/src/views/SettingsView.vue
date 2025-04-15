@@ -2,6 +2,10 @@
   <div class="settings-view">
     <h1>{{ $t('settings.title') }}</h1>
 
+    <!-- General Settings Loading/Error -->
+    <div v-if="settingsLoading" class="loading-message">{{ $t('common.loading') }}</div>
+    <div v-if="settingsError" class="error-message">{{ settingsError }}</div>
+
     <div class="settings-section">
       <h2>{{ $t('settings.changePassword.title') }}</h2>
       <form @submit.prevent="handleChangePassword">
@@ -22,11 +26,25 @@
       </form>
     </div>
 
-    <!-- 其他设置项可以在这里添加 -->
+    <!-- 语言设置 -->
+    <div class="settings-section">
+      <h2>{{ $t('settings.language.title') }}</h2>
+      <form @submit.prevent="handleUpdateLanguage">
+        <div class="form-group">
+          <label for="languageSelect">{{ $t('settings.language.selectLabel') }}</label>
+          <select id="languageSelect" v-model="selectedLanguage" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </div>
+        <button type="submit" :disabled="languageLoading">{{ languageLoading ? $t('common.saving') : $t('settings.language.saveButton') }}</button>
+        <p v-if="languageMessage" :class="{ 'success-message': languageSuccess, 'error-message': !languageSuccess }">{{ languageMessage }}</p>
+      </form>
+    </div>
 
     <hr>
 
-    <div class="settings-section">
+     <div class="settings-section">
       <h2>Passkey 设置</h2>
       <p>使用 Passkey（无密码认证）提升安全性和便捷性。您可以注册新的 Passkey 用于登录。</p>
       <div class="form-group">
@@ -92,12 +110,10 @@
           <textarea id="ipWhitelist" v-model="ipWhitelistInput" rows="5"></textarea>
           <small>{{ $t('settings.ipWhitelist.hint') }}</small>
         </div>
-        <button type="submit" :disabled="ipWhitelistLoading">{{ ipWhitelistLoading ? $t('common.loading') : $t('settings.ipWhitelist.saveButton') }}</button>
+        <button type="submit" :disabled="ipWhitelistLoading">{{ ipWhitelistLoading ? $t('common.saving') : $t('settings.ipWhitelist.saveButton') }}</button>
         <p v-if="ipWhitelistMessage" :class="{ 'success-message': ipWhitelistSuccess, 'error-message': !ipWhitelistSuccess }">{{ ipWhitelistMessage }}</p>
       </form>
     </div>
-
-    <!-- 其他设置项可以在这里添加 -->
 
     <hr>
 
@@ -110,14 +126,14 @@
       <form @submit.prevent="handleUpdateBlacklistSettings" class="blacklist-settings-form">
          <div class="form-group inline-group">
            <label for="maxLoginAttempts">最大失败次数:</label>
-           <input type="number" id="maxLoginAttempts" v-model="blacklistSettings.maxLoginAttempts" min="1" required>
+           <input type="number" id="maxLoginAttempts" v-model="blacklistSettingsForm.maxLoginAttempts" min="1" required>
          </div>
          <div class="form-group inline-group">
            <label for="loginBanDuration">封禁时长 (秒):</label>
-           <input type="number" id="loginBanDuration" v-model="blacklistSettings.loginBanDuration" min="1" required>
+           <input type="number" id="loginBanDuration" v-model="blacklistSettingsForm.loginBanDuration" min="1" required>
          </div>
-         <button type="submit" :disabled="blacklistSettings.loading">{{ blacklistSettings.loading ? '保存中...' : '保存配置' }}</button>
-         <p v-if="blacklistSettings.message" :class="{ 'success-message': blacklistSettings.success, 'error-message': !blacklistSettings.success }">{{ blacklistSettings.message }}</p>
+         <button type="submit" :disabled="blacklistSettingsLoading">{{ blacklistSettingsLoading ? $t('common.saving') : '保存配置' }}</button>
+         <p v-if="blacklistSettingsMessage" :class="{ 'success-message': blacklistSettingsSuccess, 'error-message': !blacklistSettingsSuccess }">{{ blacklistSettingsMessage }}</p>
       </form>
 
       <hr style="margin-top: 20px; margin-bottom: 20px;">
@@ -156,15 +172,6 @@
           </tbody>
         </table>
         <p v-else>当前没有 IP 地址在黑名单中。</p>
-
-        <!-- 分页控件 (如果需要) -->
-        <!--
-        <div class="pagination" v-if="ipBlacklist.total > ipBlacklist.limit">
-          <button @click="fetchIpBlacklist(ipBlacklist.currentPage - 1)" :disabled="ipBlacklist.currentPage <= 1">上一页</button>
-          <span>第 {{ ipBlacklist.currentPage }} 页 / 共 {{ Math.ceil(ipBlacklist.total / ipBlacklist.limit) }} 页</span>
-          <button @click="fetchIpBlacklist(ipBlacklist.currentPage + 1)" :disabled="ipBlacklist.currentPage * ipBlacklist.limit >= ipBlacklist.total">下一页</button>
-        </div>
-        -->
          <p v-if="blacklistDeleteError" class="error-message">{{ blacklistDeleteError }}</p>
       </div>
     </div>
@@ -173,168 +180,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive } from 'vue'; // 导入 computed 和 reactive
+import { ref, onMounted, computed, reactive, watch, toRefs } from 'vue';
 import { useAuthStore } from '../stores/auth.store';
+import { useSettingsStore } from '../stores/settings.store';
 import { useI18n } from 'vue-i18n';
-import axios from 'axios'; // 导入 axios
-import { startRegistration } from '@simplewebauthn/browser'; // 导入 simplewebauthn
-// import NotificationSettings from '../components/NotificationSettings.vue'; // 确认移除或根据需要取消注释
+// setLocale is handled by the store now
+import axios from 'axios';
+import { startRegistration } from '@simplewebauthn/browser';
 
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore();
 const { t } = useI18n();
 
-// --- Passkey 相关状态与方法 ---
-const passkeyName = ref(''); // 新增 Passkey 名称 ref
-const passkeyMessage = ref<string | null>(null); // 用于显示 Passkey 相关消息
-const passkeyError = ref<string | null>(null); // 用于显示 Passkey 相关错误
+// --- Reactive state from store ---
+const { settings, isLoading: settingsLoading, error: settingsError } = toRefs(settingsStore);
 
+// --- Local state for forms ---
+const ipWhitelistInput = ref('');
+const selectedLanguage = ref<'en' | 'zh'>('en'); // Default to 'en', will be updated by watcher
+const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store state name
+    maxLoginAttempts: '5',
+    loginBanDuration: '300',
+});
+
+// --- Local UI feedback state ---
+const ipWhitelistLoading = ref(false);
+const ipWhitelistMessage = ref('');
+const ipWhitelistSuccess = ref(false);
+const languageLoading = ref(false);
+const languageMessage = ref('');
+const languageSuccess = ref(false);
+const blacklistSettingsLoading = ref(false);
+const blacklistSettingsMessage = ref('');
+const blacklistSettingsSuccess = ref(false);
+
+// --- Watcher to sync local form state with store state ---
+watch(settings, (newSettings) => {
+  ipWhitelistInput.value = newSettings.ipWhitelist || '';
+  selectedLanguage.value = newSettings.language || 'en';
+  blacklistSettingsForm.maxLoginAttempts = newSettings.maxLoginAttempts || '5';
+  blacklistSettingsForm.loginBanDuration = newSettings.loginBanDuration || '300';
+}, { deep: true, immediate: true }); // immediate: true to run on initial load
+
+// --- Passkey state & methods --- (Keep as is)
+const passkeyName = ref('');
+const passkeyMessage = ref<string | null>(null);
+const passkeyError = ref<string | null>(null);
 const handleRegisterPasskey = async () => {
   passkeyMessage.value = null;
   passkeyError.value = null;
-
   if (!passkeyName.value) {
-    passkeyError.value = t('settings.passkey.error.nameRequired'); // 使用 t()
+    passkeyError.value = t('settings.passkey.error.nameRequired');
     return;
   }
-
   try {
-    // 1. 获取注册选项
     const optionsResponse = await axios.post('/api/v1/auth/passkey/register-options');
     const options = optionsResponse.data;
-
-    // 2. 调用 WebAuthn API 发起注册
-    let registrationResponse;
-    try {
-      registrationResponse = await startRegistration(options);
-    } catch (error: any) {
-      console.error('Passkey 注册被取消或失败:', error);
-      // 根据错误类型提供更具体的提示
-      if (error.name === 'NotAllowedError') {
-        passkeyError.value = t('settings.passkey.error.cancelled'); // 使用 t()
-      } else {
-        passkeyError.value = t('settings.passkey.error.genericRegistration', { message: error.message || 'Unknown error' }); // 使用 t()
-      }
-      return;
-    }
-
-    // 3. 提交注册响应到后端验证
-    await axios.post('/api/v1/auth/passkey/verify-registration', {
-      registrationResponse,
-      name: passkeyName.value // 提交 Passkey 名称
-    });
-
-    passkeyMessage.value = t('settings.passkey.success.registered'); // 使用 t()
-    passkeyName.value = ''; // 清空输入框
-
+    let registrationResponse = await startRegistration(options);
+    await axios.post('/api/v1/auth/passkey/verify-registration', { registrationResponse, name: passkeyName.value });
+    passkeyMessage.value = t('settings.passkey.success.registered');
+    passkeyName.value = '';
   } catch (error: any) {
     console.error('Passkey 注册流程出错:', error);
-    if (axios.isAxiosError(error) && error.response) {
-      passkeyError.value = t('settings.passkey.error.verificationFailed', { message: error.response.data.message || 'Server error' }); // 使用 t()
+    if (error.name === 'NotAllowedError') {
+        passkeyError.value = t('settings.passkey.error.cancelled');
+    } else if (axios.isAxiosError(error) && error.response) {
+      passkeyError.value = t('settings.passkey.error.verificationFailed', { message: error.response.data.message || 'Server error' });
     } else {
-      passkeyError.value = t('settings.passkey.error.unknown'); // 使用 t()
+       passkeyError.value = t('settings.passkey.error.genericRegistration', { message: error.message || t('settings.passkey.error.unknown') });
     }
   }
 };
 
-// --- 修改密码状态 ---
+// --- Change Password state & methods --- (Keep as is)
 const currentPassword = ref('');
 const newPassword = ref('');
 const confirmPassword = ref('');
 const changePasswordLoading = ref(false);
 const changePasswordMessage = ref('');
 const changePasswordSuccess = ref(false);
-
-// --- 2FA 状态 ---
-const twoFactorEnabled = ref(false); // 用户当前的 2FA 状态
-const twoFactorLoading = ref(false);
-const twoFactorMessage = ref('');
-const twoFactorSuccess = ref(false);
-const setupData = ref<{ secret: string; qrCodeUrl: string } | null>(null); // 存储设置密钥和二维码
-const verificationCode = ref(''); // 用户输入的验证码
-const disablePassword = ref(''); // 禁用时需要输入的密码
-
-// --- IP 白名单状态 ---
-const ipWhitelistInput = ref(''); // 用于编辑的文本区域内容
-const ipWhitelistLoading = ref(false);
-const ipWhitelistMessage = ref('');
-const ipWhitelistSuccess = ref(false);
-
-// --- IP 黑名单状态 ---
-const ipBlacklist = reactive({
-    entries: [] as any[], // TODO: Define proper type
-    total: 0,
-    loading: false,
-    error: null as string | null,
-    currentPage: 1,
-    limit: 10, // 每页显示数量
-});
-const blacklistToDeleteIp = ref<string | null>(null); // 存储待确认删除的 IP
-const blacklistDeleteLoading = ref(false);
-const blacklistDeleteError = ref<string | null>(null);
-
-// --- 黑名单配置状态 ---
-const blacklistSettings = reactive({
-    maxLoginAttempts: '5', // 默认值
-    loginBanDuration: '300', // 默认值 (秒)
-    loading: false,
-    message: '',
-    success: false,
-});
-
-
-// 计算属性判断当前是否处于 2FA 设置流程中
-const isSettingUp2FA = computed(() => setupData.value !== null);
-
-// 获取当前用户的 2FA 状态 (理想情况下后端应提供接口，这里暂时假设从 authStore 或其他地方获取)
-const checkTwoFactorStatus = async () => {
-  // 调用 store action 获取最新状态
-  await authStore.checkAuthStatus();
-  // 从 store 更新本地状态
-  twoFactorEnabled.value = authStore.user?.isTwoFactorEnabled ?? false;
-};
-
-// 获取当前的 IP 白名单设置
-const fetchIpWhitelist = async () => {
-    ipWhitelistLoading.value = true;
-    ipWhitelistMessage.value = '';
-    try {
-        // 使用 settings API 获取所有设置
-        const response = await axios.get<Record<string, string>>('/api/v1/settings');
-        ipWhitelistInput.value = response.data['ipWhitelist'] || ''; // 从设置中获取，默认为空字符串
-    } catch (error: any) {
-        console.error('获取 IP 白名单设置失败:', error);
-        ipWhitelistMessage.value = t('settings.ipWhitelist.error.fetchFailed');
-        ipWhitelistSuccess.value = false;
-    } finally {
-        ipWhitelistLoading.value = false;
-    }
-};
-
-// --- 生命周期钩子 ---
-onMounted(async () => { // 使 onMounted 异步
-  await checkTwoFactorStatus(); // 等待状态检查完成
-  await fetchIpWhitelist(); // 获取 IP 白名单设置
-});
-
-// --- 修改密码 ---
 const handleChangePassword = async () => {
-  changePasswordMessage.value = ''; // 清除之前的消息
+  changePasswordMessage.value = '';
   changePasswordSuccess.value = false;
-
   if (newPassword.value !== confirmPassword.value) {
     changePasswordMessage.value = t('settings.changePassword.error.passwordsDoNotMatch');
     return;
   }
-
-  // 可选：添加前端密码复杂度校验
-  // 可选：添加前端密码复杂度校验
-
   changePasswordLoading.value = true;
   try {
     await authStore.changePassword(currentPassword.value, newPassword.value);
     changePasswordMessage.value = t('settings.changePassword.success');
     changePasswordSuccess.value = true;
-    // 清空表单
     currentPassword.value = '';
     newPassword.value = '';
     confirmPassword.value = '';
@@ -347,112 +283,119 @@ const handleChangePassword = async () => {
   }
 };
 
-// --- 2FA 相关方法 ---
-
-// 开始设置 2FA
+// --- 2FA state & methods --- (Keep as is)
+const twoFactorEnabled = ref(false);
+const twoFactorLoading = ref(false);
+const twoFactorMessage = ref('');
+const twoFactorSuccess = ref(false);
+const setupData = ref<{ secret: string; qrCodeUrl: string } | null>(null);
+const verificationCode = ref('');
+const disablePassword = ref('');
+const isSettingUp2FA = computed(() => setupData.value !== null);
+const checkTwoFactorStatus = async () => {
+  await authStore.checkAuthStatus();
+  twoFactorEnabled.value = authStore.user?.isTwoFactorEnabled ?? false;
+};
 const handleSetup2FA = async () => {
-  twoFactorMessage.value = '';
-  twoFactorSuccess.value = false;
-  twoFactorLoading.value = true;
-  setupData.value = null; // 清除旧数据
-  verificationCode.value = ''; // 清除验证码
-
+  twoFactorMessage.value = ''; twoFactorSuccess.value = false; twoFactorLoading.value = true;
+  setupData.value = null; verificationCode.value = '';
   try {
     const response = await axios.post<{ secret: string; qrCodeUrl: string }>('/api/v1/auth/2fa/setup');
     setupData.value = response.data;
   } catch (error: any) {
     console.error('开始设置 2FA 失败:', error);
     twoFactorMessage.value = error.response?.data?.message || t('settings.twoFactor.error.setupFailed');
-  } finally {
-    twoFactorLoading.value = false;
-  }
+  } finally { twoFactorLoading.value = false; }
 };
-
-// 验证并激活 2FA
 const handleVerifyAndActivate2FA = async () => {
   if (!setupData.value || !verificationCode.value) {
-    twoFactorMessage.value = t('settings.twoFactor.error.codeRequired');
-    return;
+    twoFactorMessage.value = t('settings.twoFactor.error.codeRequired'); return;
   }
-
-  twoFactorMessage.value = '';
-  twoFactorSuccess.value = false;
-  twoFactorLoading.value = true;
-
+  twoFactorMessage.value = ''; twoFactorSuccess.value = false; twoFactorLoading.value = true;
   try {
     await axios.post('/api/v1/auth/2fa/verify', { token: verificationCode.value });
     twoFactorMessage.value = t('settings.twoFactor.success.activated');
-    twoFactorSuccess.value = true;
-    twoFactorEnabled.value = true; // 更新状态
-    setupData.value = null; // 清除设置数据
-    verificationCode.value = '';
+    twoFactorSuccess.value = true; twoFactorEnabled.value = true;
+    setupData.value = null; verificationCode.value = '';
   } catch (error: any) {
     console.error('验证并激活 2FA 失败:', error);
     twoFactorMessage.value = error.response?.data?.message || t('settings.twoFactor.error.verificationFailed');
-  } finally {
-    twoFactorLoading.value = false;
-  }
+  } finally { twoFactorLoading.value = false; }
 };
-
-// 禁用 2FA
 const handleDisable2FA = async () => {
   if (!disablePassword.value) {
-      twoFactorMessage.value = t('settings.twoFactor.error.passwordRequiredForDisable');
-      return;
+    twoFactorMessage.value = t('settings.twoFactor.error.passwordRequiredForDisable'); return;
   }
-  twoFactorMessage.value = '';
-  twoFactorSuccess.value = false;
-  twoFactorLoading.value = true;
-
+  twoFactorMessage.value = ''; twoFactorSuccess.value = false; twoFactorLoading.value = true;
   try {
-    await axios.delete('/api/v1/auth/2fa', { data: { password: disablePassword.value } }); // DELETE 请求体通过 data 发送
+    await axios.delete('/api/v1/auth/2fa', { data: { password: disablePassword.value } });
     twoFactorMessage.value = t('settings.twoFactor.success.disabled');
-    twoFactorSuccess.value = true;
-    twoFactorEnabled.value = false; // 更新状态
-    disablePassword.value = ''; // 清空密码
+    twoFactorSuccess.value = true; twoFactorEnabled.value = false;
+    disablePassword.value = '';
   } catch (error: any) {
     console.error('禁用 2FA 失败:', error);
     twoFactorMessage.value = error.response?.data?.message || t('settings.twoFactor.error.disableFailed');
-  } finally {
-    twoFactorLoading.value = false;
-  }
+  } finally { twoFactorLoading.value = false; }
 };
-
-// 取消设置流程
 const cancelSetup = () => {
-    setupData.value = null;
-    verificationCode.value = '';
-    twoFactorMessage.value = '';
+    setupData.value = null; verificationCode.value = ''; twoFactorMessage.value = '';
 };
 
-// --- IP 白名单相关方法 ---
+// --- Language settings method --- (Refactored)
+const handleUpdateLanguage = async () => {
+    languageLoading.value = true;
+    languageMessage.value = '';
+    languageSuccess.value = false;
+    try {
+        await settingsStore.updateSetting('language', selectedLanguage.value);
+        languageMessage.value = t('settings.language.success.saved');
+        languageSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新语言设置失败:', error);
+        languageMessage.value = error.message || t('settings.language.error.saveFailed');
+        languageSuccess.value = false;
+    } finally {
+        languageLoading.value = false;
+    }
+};
+
+// --- IP Whitelist method --- (Refactored)
 const handleUpdateIpWhitelist = async () => {
     ipWhitelistLoading.value = true;
     ipWhitelistMessage.value = '';
     ipWhitelistSuccess.value = false;
-
     try {
-        // 调用 settings API 更新设置
-        await axios.put('/api/v1/settings', {
-            ipWhitelist: ipWhitelistInput.value.trim() // 发送修剪后的值
-        });
+        await settingsStore.updateSetting('ipWhitelist', ipWhitelistInput.value.trim());
         ipWhitelistMessage.value = t('settings.ipWhitelist.success.saved');
         ipWhitelistSuccess.value = true;
     } catch (error: any) {
         console.error('更新 IP 白名单失败:', error);
-        ipWhitelistMessage.value = error.response?.data?.message || t('settings.ipWhitelist.error.saveFailed');
+        ipWhitelistMessage.value = error.message || t('settings.ipWhitelist.error.saveFailed');
         ipWhitelistSuccess.value = false;
     } finally {
         ipWhitelistLoading.value = false;
     }
 };
 
-// --- IP 黑名单相关方法 ---
+// --- IP Blacklist state & methods --- (Keep fetch/delete as is, update uses store)
+const ipBlacklist = reactive({
+    entries: [] as any[],
+    total: 0,
+    loading: false,
+    error: null as string | null,
+    currentPage: 1,
+    limit: 10,
+});
+const blacklistToDeleteIp = ref<string | null>(null);
+const blacklistDeleteLoading = ref(false);
+const blacklistDeleteError = ref<string | null>(null);
+
 const fetchIpBlacklist = async (page = 1) => {
     ipBlacklist.loading = true;
     ipBlacklist.error = null;
     const offset = (page - 1) * ipBlacklist.limit;
     try {
+        // Assuming fetchIpBlacklist is still needed from authStore
         const data = await authStore.fetchIpBlacklist(ipBlacklist.limit, offset);
         ipBlacklist.entries = data.entries;
         ipBlacklist.total = data.total;
@@ -465,83 +408,60 @@ const fetchIpBlacklist = async (page = 1) => {
 };
 
 const handleDeleteIp = async (ip: string) => {
-    blacklistToDeleteIp.value = ip; // 设置待确认的 IP
-    // 可以在这里添加一个确认对话框
+    blacklistToDeleteIp.value = ip;
     if (confirm(`确定要从黑名单中移除 IP 地址 "${ip}" 吗？`)) {
         blacklistDeleteLoading.value = true;
         blacklistDeleteError.value = null;
         try {
+            // Assuming deleteIpFromBlacklist is still needed from authStore
             await authStore.deleteIpFromBlacklist(ip);
-            // 成功后刷新列表
             await fetchIpBlacklist(ipBlacklist.currentPage);
         } catch (error: any) {
             blacklistDeleteError.value = error.message || '删除失败';
         } finally {
             blacklistDeleteLoading.value = false;
-            blacklistToDeleteIp.value = null; // 清除待确认 IP
+            blacklistToDeleteIp.value = null;
         }
     } else {
-        blacklistToDeleteIp.value = null; // 用户取消，清除待确认 IP
+        blacklistToDeleteIp.value = null;
     }
 };
 
-// 获取黑名单配置
-const fetchBlacklistSettings = async () => {
-    blacklistSettings.loading = true;
-    blacklistSettings.message = '';
-    try {
-        const response = await axios.get<Record<string, string>>('/api/v1/settings');
-        blacklistSettings.maxLoginAttempts = response.data['maxLoginAttempts'] || '5';
-        blacklistSettings.loginBanDuration = response.data['loginBanDuration'] || '300';
-    } catch (error: any) {
-        console.error('获取黑名单配置失败:', error);
-        blacklistSettings.message = '获取黑名单配置失败';
-        blacklistSettings.success = false;
-    } finally {
-        blacklistSettings.loading = false;
-    }
-};
-
-// 更新黑名单配置
+// Update Blacklist Config method (Refactored)
 const handleUpdateBlacklistSettings = async () => {
-    blacklistSettings.loading = true;
-    blacklistSettings.message = '';
-    blacklistSettings.success = false;
+    blacklistSettingsLoading.value = true;
+    blacklistSettingsMessage.value = '';
+    blacklistSettingsSuccess.value = false;
     try {
-        // 验证输入是否为有效数字
-        const maxAttempts = parseInt(blacklistSettings.maxLoginAttempts, 10);
-        const banDuration = parseInt(blacklistSettings.loginBanDuration, 10);
+        const maxAttempts = parseInt(blacklistSettingsForm.maxLoginAttempts, 10);
+        const banDuration = parseInt(blacklistSettingsForm.loginBanDuration, 10);
         if (isNaN(maxAttempts) || maxAttempts <= 0) {
             throw new Error('最大失败次数必须是正整数。');
         }
         if (isNaN(banDuration) || banDuration <= 0) {
             throw new Error('封禁时长必须是正整数（秒）。');
         }
-
-        await axios.put('/api/v1/settings', {
-            maxLoginAttempts: blacklistSettings.maxLoginAttempts,
-            loginBanDuration: blacklistSettings.loginBanDuration,
+        await settingsStore.updateMultipleSettings({
+            maxLoginAttempts: blacklistSettingsForm.maxLoginAttempts,
+            loginBanDuration: blacklistSettingsForm.loginBanDuration,
         });
-        blacklistSettings.message = '黑名单配置已成功更新。';
-        blacklistSettings.success = true;
+        blacklistSettingsMessage.value = '黑名单配置已成功更新。';
+        blacklistSettingsSuccess.value = true;
     } catch (error: any) {
         console.error('更新黑名单配置失败:', error);
-        blacklistSettings.message = error.message || '更新黑名单配置失败';
-        blacklistSettings.success = false;
+        blacklistSettingsMessage.value = error.message || '更新黑名单配置失败';
+        blacklistSettingsSuccess.value = false;
     } finally {
-        blacklistSettings.loading = false;
+        blacklistSettingsLoading.value = false;
     }
 };
 
-
-// 在 onMounted 中调用 fetchIpBlacklist 和 fetchBlacklistSettings
-onMounted(async () => { // 使 onMounted 异步
-  await checkTwoFactorStatus(); // 等待状态检查完成
-  await fetchIpWhitelist(); // 获取 IP 白名单设置
-  await fetchIpBlacklist(); // 获取 IP 黑名单列表
-  await fetchBlacklistSettings(); // 获取黑名单配置
+// --- Lifecycle Hooks ---
+onMounted(async () => {
+  await checkTwoFactorStatus(); // Check 2FA status
+  await fetchIpBlacklist(); // Fetch current blacklist entries
+  // Initial settings (including language, whitelist, blacklist config) are loaded in main.ts via settingsStore.loadInitialSettings()
 });
-
 
 </script>
 
@@ -568,22 +488,23 @@ label {
 
 input[type="password"],
 input[type="text"],
-textarea { /* 添加 textarea 样式 */
+textarea,
+select { /* Add select style */
   width: 100%;
   padding: 8px;
   box-sizing: border-box;
-  border: 1px solid #ccc; /* 确保 textarea 有边框 */
-  border-radius: 4px; /* 确保 textarea 有圆角 */
-  font-family: inherit; /* 继承字体 */
-  font-size: inherit; /* 继承字号 */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: inherit;
 }
 
 textarea {
-    resize: vertical; /* 允许垂直调整大小 */
-    min-height: 80px; /* 设置最小高度 */
+    resize: vertical;
+    min-height: 80px;
 }
 
-small { /* 提示文字样式 */
+small {
     display: block;
     margin-top: 5px;
     font-size: 0.85em;
@@ -617,7 +538,7 @@ code {
 img {
     display: block;
     margin: 10px 0;
-    max-width: 200px; /* 限制二维码大小 */
+    max-width: 200px;
 }
 
 .success-message {
@@ -687,25 +608,25 @@ img {
     margin-top: 15px;
 }
 .blacklist-settings-form .inline-group {
-    display: inline-block; /* 让 label 和 input 在一行显示 */
-    margin-right: 20px; /* 组之间的间距 */
-    margin-bottom: 10px; /* 增加底部间距 */
+    display: inline-block;
+    margin-right: 20px;
+    margin-bottom: 10px;
 }
 .blacklist-settings-form .inline-group label {
-    display: inline-block; /* 行内块 */
-    margin-right: 5px; /* label 和 input 之间的间距 */
-    width: auto; /* 覆盖默认的 block 宽度 */
-    margin-bottom: 0; /* 移除默认的底部间距 */
+    display: inline-block;
+    margin-right: 5px;
+    width: auto;
+    margin-bottom: 0;
 }
 .blacklist-settings-form .inline-group input[type="number"] {
-    width: 80px; /* 设置一个合适的宽度 */
-    display: inline-block; /* 行内块 */
-    padding: 6px; /* 调整内边距 */
+    width: 80px;
+    display: inline-block;
+    padding: 6px;
 }
 .blacklist-settings-form button {
-    vertical-align: bottom; /* 对齐按钮和输入框 */
+    vertical-align: bottom;
 }
-.blacklist-settings-form p { /* 消息样式 */
+.blacklist-settings-form p {
     margin-top: 10px;
 }
 

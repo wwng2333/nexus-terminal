@@ -342,6 +342,18 @@
         "saveFailed": "Failed to save IP whitelist."
       }
     },
+    "language": {
+      "title": "Language Settings",
+      "selectLabel": "Interface Language:",
+      "saveButton": "Save Language",
+      "success": {
+        "saved": "Language settings saved successfully."
+      },
+      "error": {
+        "fetchFailed": "Failed to fetch language settings.",
+        "saveFailed": "Failed to save language settings."
+      }
+    },
     "passkey": {
       "title": "Passkey Settings",
       "description": "Use Passkeys (biometrics or security keys) for passwordless authentication to enhance security and convenience.",
@@ -383,7 +395,7 @@
         "webhookMethod": "HTTP Method:",
         "webhookHeaders": "Custom Headers",
         "webhookBodyTemplate": "Body Template (Optional)",
-        "webhookBodyPlaceholder": "Default: JSON payload. Use {{event}}, {{timestamp}}, {{details}}.",
+        "webhookBodyPlaceholder": "Default: JSON payload. Use {{{{event}}}}, {{{{timestamp}}}}, {{{{details}}}}.",
         "emailTo": "Recipient Email(s):",
         "emailToHelp": "Comma-separated list.",
         "emailSubjectTemplate": "Subject Template (Optional)",
@@ -396,16 +408,17 @@
         "smtpFrom": "Sender Email:",
         "smtpFromHelp": "Email address used in the 'From' field.",
         "testButton": "Test Notification",
-        "testSuccess": "Test email sent successfully!",
-        "testFailed": "Test email failed",
+        "testSuccess": "Test notification sent successfully!",
+        "testFailed": "Test notification failed",
         "saveToTest": "Save the settings before testing.",
+        "fillRequiredToTest": "Fill required fields to enable testing.",
         "telegramToken": "Bot Token:",
         "telegramTokenHelp": "Store securely. Consider environment variables.",
         "telegramChatId": "Chat ID:",
         "telegramMessageTemplate": "Message Template (Optional)",
-        "telegramMessagePlaceholder": "Default: Markdown format. Use {{event}}, {{timestamp}}, {{details}}.",
+        "telegramMessagePlaceholder": "Default: Markdown format. Use {{{{event}}}}, {{{{timestamp}}}}, {{{{details}}}}.",
         "enabledEvents": "Enabled Events:",
-        "templateHelp": "Placeholders: {{event}}, {{timestamp}}, {{details}} (JSON string)",
+        "templateHelp": "Placeholders: {{{{event}}}}, {{{{timestamp}}}}, {{{{details}}}} (JSON string)",
         "invalidJson": "Invalid JSON"
       },
       "events": {
@@ -425,6 +438,7 @@
         "API_KEY_DELETED": "API Key Deleted",
         "PASSKEY_ADDED": "Passkey Added",
         "PASSKEY_DELETED": "Passkey Deleted",
+        "IP_BLACKLISTED": "IP Blacklisted",
         "SERVER_ERROR": "Server Error"
       }
     }

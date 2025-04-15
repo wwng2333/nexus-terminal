@@ -346,6 +346,18 @@
         "saveFailed": "保存 IP 白名单失败。"
       }
     },
+    "language": {
+      "title": "语言设置",
+      "selectLabel": "界面语言:",
+      "saveButton": "保存语言",
+      "success": {
+        "saved": "语言设置已成功保存。"
+      },
+      "error": {
+        "fetchFailed": "获取语言设置失败。",
+        "saveFailed": "保存语言设置失败。"
+      }
+    },
     "passkey": {
       "title": "Passkey 设置",
       "description": "使用 Passkey（生物识别或安全密钥）进行无密码认证，提升账户安全性和登录便捷性。",
@@ -400,9 +412,10 @@
         "smtpFrom": "发件人邮箱:",
         "smtpFromHelp": "用于邮件 'From' 字段的地址。",
         "testButton": "测试通知",
-        "testSuccess": "测试邮件发送成功！",
-        "testFailed": "测试邮件发送失败",
+        "testSuccess": "测试通知发送成功！",
+        "testFailed": "测试通知发送失败",
         "saveToTest": "请先保存设置再进行测试。",
+        "fillRequiredToTest": "请填写必填字段以启用测试。",
         "telegramToken": "机器人 Token:",
         "telegramTokenHelp": "请安全存储。建议使用环境变量。",
         "telegramChatId": "聊天 ID:",
@@ -429,6 +442,7 @@
         "API_KEY_DELETED": "API 密钥已删除",
         "PASSKEY_ADDED": "Passkey 已添加",
         "PASSKEY_DELETED": "Passkey 已删除",
+        "IP_BLACKLISTED": "IP 已被拉黑",
         "SERVER_ERROR": "服务器错误"
       }
     }

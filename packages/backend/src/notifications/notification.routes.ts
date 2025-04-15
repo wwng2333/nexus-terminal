@@ -14,7 +14,10 @@ router.post('/', notificationController.create);
 router.put('/:id', notificationController.update);
 router.delete('/:id', notificationController.delete);
 
-// Route for testing a notification setting (currently only email)
+// Route for testing a saved notification setting
 router.post('/:id/test', notificationController.testSetting);
+
+// Route for testing an unsaved notification setting configuration
+router.post('/test-unsaved', notificationController.testUnsavedSetting);
 
 export default router;

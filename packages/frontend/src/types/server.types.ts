@@ -35,6 +35,7 @@ export type NotificationEvent =
   | 'API_KEY_DELETED'
   | 'PASSKEY_ADDED'
   | 'PASSKEY_DELETED'
+  | 'IP_BLACKLISTED' // Add the new event type here as well
   | 'SERVER_ERROR';
 
 export interface WebhookConfig {

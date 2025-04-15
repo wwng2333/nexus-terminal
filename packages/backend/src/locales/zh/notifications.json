@@ -1,0 +1,10 @@
+{
+  "connection": {
+    "testSuccess": "连接 '{name}' 测试成功！",
+    "testFailed": "连接 '{name}' 测试失败: {error}"
+  },
+  "settings": {
+    "updated": "设置已成功更新。",
+    "ipWhitelistUpdated": "IP 白名单已成功更新。"
+  }
+}

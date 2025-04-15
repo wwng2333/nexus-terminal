@@ -91,12 +91,7 @@
         <input type="email" id="smtp-from" v-model="emailConfig.from" class="form-control" required placeholder="sender@example.com">
          <small class="text-muted">{{ $t('settings.notifications.form.smtpFromHelp') }}</small>
       </div>
-      <button type="button" @click="handleTestNotification" class="btn btn-outline-secondary btn-sm" :disabled="!isEditing || testingNotification">
-        <span v-if="testingNotification" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-        {{ testingNotification ? $t('common.testing') : $t('settings.notifications.form.testButton') }}
-      </button>
-       <small v-if="testResult" :class="['d-block mt-2', testResult.success ? 'text-success' : 'text-danger']">{{ testResult.message }}</small>
-       <small v-if="!isEditing" class="d-block mt-2 text-muted">{{ $t('settings.notifications.form.saveToTest') }}</small>
+      <!-- Removed duplicate test button from here -->
     </div>
 
     <div v-if="formData.channel_type === 'telegram'" class="channel-config mb-3 p-3 border rounded">
@@ -115,7 +110,32 @@
         <textarea id="telegram-message" v-model="telegramConfig.messageTemplate" class="form-control" rows="3" :placeholder="$t('settings.notifications.form.telegramMessagePlaceholder')"></textarea>
          <small class="text-muted">{{ $t('settings.notifications.form.templateHelp') }}</small>
       </div>
+       <!-- Test button moved below -->
     </div>
+
+    <!-- Unified Test Button Area -->
+    <div class="mb-3 text-center">
+        <!-- Show button if editing OR if adding and required fields are filled -->
+        <button
+            v-if="isEditing || canTestUnsaved"
+            type="button"
+            @click="handleTestNotification"
+            class="btn btn-outline-secondary btn-sm"
+            :disabled="testingNotification"
+        >
+            <span v-if="testingNotification" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            {{ testingNotification ? $t('common.testing') : $t('settings.notifications.form.testButton') }}
+        </button>
+        <!-- Show hint if adding and required fields are NOT filled -->
+        <small v-else class="d-block mt-2 text-muted">
+            {{ $t('settings.notifications.form.fillRequiredToTest') }}
+        </small>
+        <!-- Show test result message if available -->
+        <small v-if="testResult" :class="['d-block mt-2', testResult.success ? 'text-success' : 'text-danger']">
+            {{ testResult.message }}
+        </small>
+    </div>
+
 
     <!-- Enabled Events -->
     <div class="mb-3">
@@ -192,11 +212,30 @@ const testResult = ref<{ success: boolean; message: string } | null>(null);
 
 const isEditing = computed(() => !!props.initialData?.id);
 
+// Computed property to check if necessary fields for testing unsaved config are filled
+const canTestUnsaved = computed(() => {
+    if (isEditing.value) return true; // Always allow testing saved settings
+
+    switch (formData.channel_type) {
+        case 'webhook':
+            return !!webhookConfig.value.url && !headerError.value;
+        case 'email':
+            return !!emailConfig.value.to && !!emailConfig.value.smtpHost && !!emailConfig.value.smtpPort && !!emailConfig.value.from;
+        case 'telegram':
+            return !!telegramConfig.value.botToken && !!telegramConfig.value.chatId;
+        default:
+            return false;
+    }
+});
+
+
 // Define all possible events
 const allNotificationEvents: NotificationEvent[] = [
     'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'CONNECTION_ADDED', 'CONNECTION_UPDATED', 'CONNECTION_DELETED',
     'SETTINGS_UPDATED', 'PROXY_ADDED', 'PROXY_UPDATED', 'PROXY_DELETED', 'TAG_ADDED', 'TAG_UPDATED',
-    'TAG_DELETED', 'API_KEY_ADDED', 'API_KEY_DELETED', 'PASSKEY_ADDED', 'PASSKEY_DELETED', 'SERVER_ERROR'
+    'TAG_DELETED', 'API_KEY_ADDED', 'API_KEY_DELETED', 'PASSKEY_ADDED', 'PASSKEY_DELETED',
+    'IP_BLACKLISTED', // Add the new event here
+    'SERVER_ERROR'
 ];
 
 // Reactive form data structure
@@ -352,17 +391,52 @@ const handleCancel = () => {
 };
 
 const handleTestNotification = async () => {
-    if (!props.initialData?.id || formData.channel_type !== 'email') return;
+    // Allow testing if editing OR if adding and required fields are filled
+    if (!isEditing.value && !canTestUnsaved.value) return;
 
     testingNotification.value = true;
     testError.value = null;
     testResult.value = null;
 
-    // Use the current form values for testing, even if not saved yet
-    const testConfig: SmtpEmailConfig = { ...emailConfig.value };
+    let testConfig: any = {};
+    // Prepare the config based on the current channel type
+    switch (formData.channel_type) {
+        case 'webhook':
+            testConfig = { ...webhookConfig.value };
+            // Ensure headers are parsed correctly before sending
+            try {
+                 testConfig.headers = JSON.parse(webhookHeadersString.value || '{}');
+                 if (typeof testConfig.headers !== 'object' || testConfig.headers === null || Array.isArray(testConfig.headers)) {
+                    throw new Error('Headers must be a JSON object.');
+                 }
+            } catch (e: any) {
+                 testResult.value = { success: false, message: t('settings.notifications.form.invalidJson') + `: ${e.message}` };
+                 testingNotification.value = false;
+                 return;
+            }
+            break;
+        case 'email':
+            testConfig = { ...emailConfig.value };
+            break;
+        case 'telegram':
+            testConfig = { ...telegramConfig.value };
+            break;
+        default:
+            console.error("Unknown channel type for testing:", formData.channel_type);
+            testResult.value = { success: false, message: "未知渠道类型无法测试" };
+            testingNotification.value = false;
+            return;
+    }
 
     try {
-        const result = await store.testSetting(props.initialData.id, testConfig);
+        let result: { success: boolean; message: string };
+        if (isEditing.value && props.initialData?.id) {
+            // Test existing setting
+            result = await store.testSetting(props.initialData.id, testConfig);
+        } else {
+            // Test unsaved setting
+            result = await store.testUnsavedSetting(formData.channel_type, testConfig);
+        }
         testResult.value = { success: true, message: result.message || t('settings.notifications.form.testSuccess') };
     } catch (error: any) {
         console.error("Test notification error:", error);

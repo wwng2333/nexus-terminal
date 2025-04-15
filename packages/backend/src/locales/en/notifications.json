@@ -1,0 +1,10 @@
+{
+  "connection": {
+    "testSuccess": "Connection test successful for '{name}'!",
+    "testFailed": "Connection test failed for '{name}': {error}"
+  },
+  "settings": {
+    "updated": "Settings updated successfully.",
+    "ipWhitelistUpdated": "IP Whitelist updated successfully."
+  }
+}
