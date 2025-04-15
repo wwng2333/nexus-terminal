@@ -130,3 +130,4 @@ dist
 .pnp.*
 /doc
 *.db
+/packages/data

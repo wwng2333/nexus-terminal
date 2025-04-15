@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS connections (
 );
 `;
 
-// 新增：创建 proxies 表的 SQL
+// 新增：创建 proxies 表的 SQL (与文档同步)
 const createProxiesTableSQL = `
 CREATE TABLE IF NOT EXISTS proxies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,7 +41,10 @@ CREATE TABLE IF NOT EXISTS proxies (
     host TEXT NOT NULL,
     port INTEGER NOT NULL,
     username TEXT NULL, -- 代理认证用户名 (可选)
+    auth_method TEXT NOT NULL DEFAULT 'none' CHECK(auth_method IN ('none', 'password', 'key')), -- 添加 auth_method
     encrypted_password TEXT NULL, -- 加密存储的代理密码 (可选)
+    encrypted_private_key TEXT NULL, -- 添加 encrypted_private_key
+    encrypted_passphrase TEXT NULL, -- 添加 encrypted_passphrase
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
@@ -170,6 +173,12 @@ export const runMigrations = async (db: Database): Promise<void> => {
                 resolve();
             });
         });
+
+        // Add columns to proxies table if they don't exist (to match documentation)
+        await addColumnIfNotExists(db, 'proxies', 'auth_method', "TEXT NOT NULL DEFAULT 'none'");
+        await addColumnIfNotExists(db, 'proxies', 'encrypted_private_key', 'TEXT NULL');
+        await addColumnIfNotExists(db, 'proxies', 'encrypted_passphrase', 'TEXT NULL');
+
 
         // 新增：创建 tags 表 (如果不存在)
         await new Promise<void>((resolve, reject) => {
