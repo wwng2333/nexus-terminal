@@ -86,7 +86,15 @@
     "test": {
         "success": "连接测试成功！",
         "failed": "连接测试失败: {error}"
-    }
+    },
+    "exportConnections": "导出连接",
+    "importConnections": "导入连接",
+    "exportError": "导出连接失败: {message}",
+    "importError": "导入连接失败: {message}",
+    "importErrorFileType": "文件类型无效。请选择 JSON 文件。",
+    "importErrorUnknown": "发生未知导入错误。",
+    "importErrorNetwork": "导入过程中发生网络错误。",
+    "importSuccess": "导入完成。成功: {successCount}, 失败: {failureCount}."
   },
   "proxies": {
     "title": "代理管理",

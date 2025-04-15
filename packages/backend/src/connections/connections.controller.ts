@@ -746,7 +746,349 @@ export const testConnection = async (req: Request, res: Response): Promise<void>
         }
 
     } catch (error: any) {
-        console.error(`测试连接 ${connectionId} 时发生内部错误:`, error);
-        res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
+         console.error(`测试连接 ${connectionId} 时发生内部错误:`, error);
+         res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
+     }
+ };
+
+// --- 新增：导出连接配置 ---
+/**
+ * 导出所有连接配置 (GET /api/v1/connections/export)
+ */
+export const exportConnections = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId; // 保留以备将来多用户
+
+    try {
+        // 1. 查询所有连接及其关联的代理信息
+        const connectionsWithProxies = await new Promise<any[]>((resolve, reject) => {
+            db.all(
+                `SELECT
+                    c.id, c.name, c.host, c.port, c.username, c.auth_method,
+                    c.encrypted_password, c.encrypted_private_key, c.encrypted_passphrase,
+                    c.proxy_id,
+                    p.id as proxy_db_id, p.name as proxy_name, p.type as proxy_type,
+                    p.host as proxy_host, p.port as proxy_port, p.username as proxy_username,
+                    -- p.auth_method as proxy_auth_method, -- Removed: Column likely doesn't exist based on error
+                    p.encrypted_password as proxy_encrypted_password
+                    -- p.encrypted_private_key as proxy_encrypted_private_key, -- Removed: Column likely doesn't exist
+                    -- p.encrypted_passphrase as proxy_encrypted_passphrase -- Removed: Column likely doesn't exist
+                 FROM connections c
+                 LEFT JOIN proxies p ON c.proxy_id = p.id
+                 ORDER BY c.name ASC`,
+                (err, rows: any[]) => {
+                    if (err) {
+                        console.error('查询连接和代理信息以供导出时出错:', err.message);
+                        return reject(new Error('导出连接失败：查询连接信息出错'));
+                    }
+                    resolve(rows);
+                }
+            );
+        });
+
+        // 2. 查询所有连接的标签信息
+        const connectionTags = await new Promise<{[connId: number]: number[]}>((resolve, reject) => {
+            db.all('SELECT connection_id, tag_id FROM connection_tags', (err, rows: {connection_id: number, tag_id: number}[]) => {
+                if (err) {
+                    console.error('查询连接标签以供导出时出错:', err.message);
+                    return reject(new Error('导出连接失败：查询标签信息出错'));
+                }
+                const tagsMap: {[connId: number]: number[]} = {};
+                rows.forEach(row => {
+                    if (!tagsMap[row.connection_id]) {
+                        tagsMap[row.connection_id] = [];
+                    }
+                    tagsMap[row.connection_id].push(row.tag_id);
+                });
+                resolve(tagsMap);
+            });
+        });
+
+        // 3. 格式化数据以供导出
+        const formattedData = connectionsWithProxies.map(row => {
+            const connection: any = {
+                // 不导出 id，因为导入时需要重新创建
+                name: row.name,
+                host: row.host,
+                port: row.port,
+                username: row.username,
+                auth_method: row.auth_method,
+                encrypted_password: row.encrypted_password,
+                encrypted_private_key: row.encrypted_private_key,
+                encrypted_passphrase: row.encrypted_passphrase,
+                tag_ids: connectionTags[row.id] || [], // 从 map 中获取标签 ID
+                // 不导出 created_at, updated_at, last_connected_at
+            };
+
+            // 添加代理信息（如果存在）
+            if (row.proxy_db_id) {
+                connection.proxy = {
+                    // 不导出代理的 id，因为导入时可能需要重新创建或匹配
+                    name: row.proxy_name,
+                    type: row.proxy_type,
+                    host: row.proxy_host,
+                    port: row.proxy_port,
+                    username: row.proxy_username,
+                    // auth_method: row.proxy_auth_method, // Removed
+                    encrypted_password: row.proxy_encrypted_password
+                    // encrypted_private_key: row.proxy_encrypted_private_key, // Removed
+                    // encrypted_passphrase: row.proxy_encrypted_passphrase, // Removed
+                };
+            } else {
+                connection.proxy = null; // 明确设为 null
+            }
+
+            return connection;
+        });
+
+        // 4. 设置响应头，提示浏览器下载文件
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filename = `nexus-terminal-connections-${timestamp}.json`;
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Type', 'application/json');
+
+        // 发送 JSON 数据
+        res.status(200).json(formattedData);
+
+    } catch (error: any) {
+        console.error('导出连接时发生错误:', error);
+         res.status(500).json({ message: error.message || '导出连接时发生内部服务器错误。' });
+     }
+ };
+
+// --- 新增：导入连接配置 ---
+/**
+ * 导入连接配置 (POST /api/v1/connections/import)
+ */
+export const importConnections = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId; // 保留以备将来多用户
+
+    if (!req.file) {
+        res.status(400).json({ message: '未找到上传的文件 (需要名为 "connectionsFile" 的文件)。' });
+        return;
+    }
+
+    let importedData: any[];
+    try {
+        const fileContent = req.file.buffer.toString('utf8');
+        importedData = JSON.parse(fileContent);
+        if (!Array.isArray(importedData)) {
+            throw new Error('JSON 文件内容必须是一个数组。');
+        }
+    } catch (error: any) {
+        res.status(400).json({ message: `解析 JSON 文件失败: ${error.message}` });
+        return;
+    }
+
+    let successCount = 0;
+    let failureCount = 0;
+    const errors: { connectionName?: string; message: string }[] = [];
+    const now = Math.floor(Date.now() / 1000);
+
+    // 准备数据库语句
+    const findProxyStmt = db.prepare(`SELECT id FROM proxies WHERE name = ? AND type = ? AND host = ? AND port = ?`);
+    // 恢复为文档定义的列
+    const insertProxyStmt = db.prepare(`INSERT INTO proxies (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertConnStmt = db.prepare(`INSERT INTO connections (name, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    const insertTagStmt = db.prepare(`INSERT INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`);
+
+    try { // Wrap the entire database operation in a try block
+        await new Promise<void>((resolveOuter, rejectOuter) => {
+            // 使用事务处理导入
+            db.serialize(() => { // Removed async here
+                db.run('BEGIN TRANSACTION', async (beginErr: Error | null) => { // <--- Added async here
+                    if (beginErr) return rejectOuter(new Error(`开始事务失败: ${beginErr.message}`));
+
+                    try {
+                        // 使用 Promise.allSettled 来处理所有连接的导入
+                        const importPromises = importedData.map(connData => (async () => { // async IIFE
+                            // 1. 验证基本连接数据结构
+                if (!connData.name || !connData.host || !connData.port || !connData.username || !connData.auth_method) {
+                                // failureCount++; // 由 allSettled 结果判断
+                                // errors.push({ connectionName: connData.name || '未知连接', message: '缺少必要的连接字段 (name, host, port, username, auth_method)。' });
+                                throw new Error('缺少必要的连接字段 (name, host, port, username, auth_method)。');
+                            }
+                            // 验证 auth_method 和凭证
+                            if (connData.auth_method === 'password' && !connData.encrypted_password) {
+                                throw new Error('密码认证缺少 encrypted_password。');
+                            }
+                            if (connData.auth_method === 'key' && !connData.encrypted_private_key) {
+                                throw new Error('密钥认证缺少 encrypted_private_key。');
+                            }
+
+                            let proxyIdToUse: number | null = null;
+
+                            // 2. 处理代理信息（如果存在）
+                            if (connData.proxy) {
+                                const proxyData = connData.proxy;
+                                // 验证代理数据
+                                if (!proxyData.name || !proxyData.type || !proxyData.host || !proxyData.port /* || !proxyData.auth_method */) { // auth_method 可能不存在，暂时移除强制校验
+                                    throw new Error('代理信息不完整 (缺少 name, type, host, port)。');
+                                }
+                                // 验证代理凭证存在性 (如果 auth_method 存在)
+                                if (proxyData.auth_method === 'password' && !proxyData.encrypted_password) {
+                                    throw new Error('代理密码认证缺少 encrypted_password。');
+                                }
+                                if (proxyData.auth_method === 'key' && !proxyData.encrypted_private_key) {
+                                    throw new Error('代理密钥认证缺少 encrypted_private_key。');
+                                }
+
+                                // 尝试查找现有代理
+                                const existingProxy = await new Promise<{ id: number } | undefined>((resolve, reject) => {
+                                    findProxyStmt.get(proxyData.name, proxyData.type, proxyData.host, proxyData.port, (err: Error | null, row: { id: number } | undefined) => {
+                                        if (err) return reject(new Error(`查找代理时出错: ${err.message}`));
+                                        resolve(row);
+                                    });
+                                });
+
+                                if (existingProxy) {
+                                    proxyIdToUse = existingProxy.id;
+                                    console.log(`导入连接 ${connData.name}: 找到现有代理 ${proxyData.name} (ID: ${proxyIdToUse})`);
+                                } else {
+                                    // 代理不存在，创建新代理
+                                    console.log(`导入连接 ${connData.name}: 代理 ${proxyData.name} 不存在，正在创建...`);
+                                    const proxyResult = await new Promise<{ lastID: number }>((resolve, reject) => {
+                                        insertProxyStmt.run(
+                                            proxyData.name, proxyData.type, proxyData.host, proxyData.port,
+                                            proxyData.username || null,
+                                            // 恢复为文档定义的参数
+                                            proxyData.auth_method || 'none', // 提供默认值 'none' 如果不存在
+                                            proxyData.encrypted_password || null,
+                                            proxyData.encrypted_private_key || null,
+                                            proxyData.encrypted_passphrase || null,
+                                            now, now,
+                                            function (this: Statement, err: Error | null) {
+                                                if (err) return reject(new Error(`创建代理时出错: ${err.message}`));
+                                                resolve({ lastID: (this as any).lastID });
+                                            }
+                                        );
+                                    });
+                                    proxyIdToUse = proxyResult.lastID;
+                                    console.log(`导入连接 ${connData.name}: 新代理 ${proxyData.name} 创建成功 (ID: ${proxyIdToUse})`);
+                                }
+                            } // 结束代理处理
+
+                            // 3. 插入连接信息
+                            const connResult = await new Promise<{ lastID: number }>((resolve, reject) => {
+                                insertConnStmt.run(
+                                    connData.name, connData.host, connData.port, connData.username, connData.auth_method,
+                                    connData.encrypted_password || null,
+                                    connData.encrypted_private_key || null,
+                                    connData.encrypted_passphrase || null,
+                                    proxyIdToUse, // 使用找到或创建的代理 ID
+                                    now, now,
+                                    function (this: Statement, err: Error | null) {
+                                        if (err) return reject(new Error(`插入连接时出错: ${err.message}`));
+                                        resolve({ lastID: (this as any).lastID });
+                                    }
+                                );
+                            });
+                            const newConnectionId = connResult.lastID;
+
+                            // 4. 处理标签关联
+                            if (Array.isArray(connData.tag_ids) && connData.tag_ids.length > 0) {
+                                for (const tagId of connData.tag_ids) {
+                                    if (typeof tagId === 'number' && tagId > 0) {
+                                        // 注意：这里假设 tagId 在 tags 表中已存在。
+                                        await new Promise<void>((resolve, reject) => {
+                                            insertTagStmt.run(newConnectionId, tagId, (err: Error | null) => {
+                                                if (err) {
+                                                    console.warn(`导入连接 ${connData.name}: 关联标签 ID ${tagId} 失败: ${err.message}`);
+                                                    // 决定是否因此失败
+                                                    // reject(new Error(`关联标签 ID ${tagId} 失败: ${err.message}`));
+                                                }
+                                                resolve(); // 继续处理下一个标签
+                                            });
+                                        });
+                                    }
+                                }
+                            }
+                            // 如果 IIFE 成功完成，返回 null 或 undefined 表示成功
+                            return null;
+
+                        })().catch(err => { // 捕获 async IIFE 中的错误
+                            // 返回一个包含错误信息的对象，以便 Promise.allSettled 处理
+                            return { connectionName: connData.name || '未知连接', error: err };
+                        })); // 结束 map 和 async IIFE
+
+                        // 等待所有导入 Promise 完成
+                        const results = await Promise.allSettled(importPromises);
+
+                        // 处理结果
+                        results.forEach(result => {
+                            if (result.status === 'fulfilled' && result.value?.error) {
+                                // IIFE 成功执行但内部捕获并返回了错误
+                                failureCount++;
+                                errors.push({ connectionName: result.value.connectionName, message: result.value.error.message });
+                            } else if (result.status === 'fulfilled') {
+                                // IIFE 成功执行且没有返回错误
+                                successCount++;
+                            } else { // status === 'rejected' - IIFE 本身抛出未捕获错误
+                                failureCount++;
+                                const reason = result.reason as any;
+                                // 尝试获取 connectionName，如果 IIFE 在早期失败可能没有
+                                const name = importedData[results.indexOf(result)]?.name || '未知连接';
+                                errors.push({ connectionName: name, message: reason?.message || '未知导入错误' });
+                            }
+                        });
+
+                        // 根据是否有失败决定提交或回滚
+                        if (failureCount > 0) {
+                            console.warn(`导入连接存在 ${failureCount} 个错误，正在回滚事务...`);
+                            db.run('ROLLBACK', (rollbackErr: Error | null) => {
+                                if (rollbackErr) console.error("回滚事务失败:", rollbackErr);
+                                // 即使回滚失败，仍需告知前端导入失败
+                                rejectOuter(new Error(`导入失败，存在 ${failureCount} 个错误。`)); // 使用 rejectOuter 传递错误
+                            });
+                        } else {
+                            // 所有记录处理完毕，提交事务
+                            db.run('COMMIT', (commitErr: Error | null) => {
+                                if (commitErr) {
+                                    console.error('提交导入事务时出错:', commitErr);
+                                    rejectOuter(new Error(`提交导入事务失败: ${commitErr.message}`));
+                                } else {
+                                    resolveOuter(); // 事务成功，resolve 外层 Promise
+                                }
+                            });
+                        }
+                    } catch (innerError: any) {
+                        // 捕获 Promise.allSettled 或其他同步错误
+                        console.error('导入事务内部出错:', innerError);
+                        db.run('ROLLBACK', (rollbackErr: Error | null) => {
+                             if (rollbackErr) console.error("回滚事务失败:", rollbackErr);
+                             rejectOuter(innerError); // 将内部错误传递出去
+                        });
+                    }
+                }); // 结束 BEGIN TRANSACTION 回调
+            }); // 结束 db.serialize
+        }); // 结束 new Promise
+
+        // 如果 Promise 成功 resolve (事务提交成功)
+        res.status(200).json({
+            message: `导入成功完成。共导入 ${successCount} 条连接。`,
+            successCount,
+            failureCount: 0
+        });
+
+    } catch (error: any) { // 捕获外层 try 或 rejectOuter 传递的错误
+        console.error('导入连接时发生错误:', error);
+        // 如果错误是由 rejectOuter 传递的，并且包含失败计数，则使用它
+        if (failureCount > 0) {
+             res.status(400).json({
+                 message: error.message || `导入失败，存在 ${failureCount} 个错误。`,
+                 successCount,
+                 failureCount,
+                 errors
+             });
+        } else {
+             // 其他错误 (如文件解析、开始事务失败等)
+             res.status(500).json({ message: error.message || '导入连接时发生内部服务器错误。' });
+        }
+    } finally {
+        // Finalize prepared statements regardless of success or failure
+        // Ensure statements are finalized even if db.serialize wasn't fully entered
+        findProxyStmt?.finalize();
+        insertProxyStmt?.finalize();
+        insertConnStmt?.finalize();
+        insertTagStmt?.finalize();
     }
 };

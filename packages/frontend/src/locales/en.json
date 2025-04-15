@@ -86,7 +86,15 @@
     "test": {
         "success": "Connection test successful!",
         "failed": "Connection test failed: {error}"
-    }
+    },
+    "exportConnections": "Export Connections",
+    "importConnections": "Import Connections",
+    "exportError": "Failed to export connections: {message}",
+    "importError": "Failed to import connections: {message}",
+    "importErrorFileType": "Invalid file type. Please select a JSON file.",
+    "importErrorUnknown": "Unknown import error occurred.",
+    "importErrorNetwork": "Network error during import.",
+    "importSuccess": "Import completed. Successful: {successCount}, Failed: {failureCount}."
   },
   "proxies": {
     "title": "Proxy Management",

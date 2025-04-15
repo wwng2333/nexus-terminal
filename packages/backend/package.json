@@ -9,11 +9,13 @@
     "dev": "npx ts-node-dev --respawn --transpile-only src/index.ts"
   },
   "dependencies": {
+    "@types/multer": "^1.4.12",
     "bcrypt": "^5.1.1",
     "connect-sqlite3": "^0.9.15",
     "express": "^5.1.0",
     "express-session": "^1.18.1",
     "https-proxy-agent": "^7.0.6",
+    "multer": "^1.4.5-lts.2",
     "socks": "^2.8.4",
     "sqlite3": "^5.1.7",
     "ssh2": "^1.16.0",
