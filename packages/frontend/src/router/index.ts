@@ -41,6 +41,12 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/WorkspaceView.vue'),
     props: true // 将路由参数作为 props 传递给组件
   },
+  // 新增：设置页面
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('../views/SettingsView.vue')
+  },
   // 其他路由...
 ];
 

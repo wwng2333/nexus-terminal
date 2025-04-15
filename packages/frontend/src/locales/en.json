@@ -6,7 +6,8 @@
     "proxies": "Proxies",
     "login": "Login",
     "logout": "Logout",
-    "tags": "Tags"
+    "tags": "Tags",
+    "settings": "Settings"
   },
   "login": {
     "title": "User Login",
@@ -276,5 +277,23 @@
      "status": {
       "never": "Never"
     }
+  },
+  "settings": {
+    "title": "Global Settings",
+    "changePassword": {
+      "title": "Change Password",
+      "currentPassword": "Current Password:",
+      "newPassword": "New Password:",
+      "confirmPassword": "Confirm New Password:",
+      "submit": "Change Password",
+      "success": "Password changed successfully!",
+      "error": {
+        "passwordsDoNotMatch": "New password and confirmation do not match.",
+        "generic": "Failed to change password. Please try again later."
+      }
+    }
+  },
+  "common": {
+    "loading": "Loading..."
   }
 }

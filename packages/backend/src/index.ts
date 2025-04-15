@@ -13,6 +13,7 @@ import connectionsRouter from './connections/connections.routes';
 import sftpRouter from './sftp/sftp.routes';
 import proxyRoutes from './proxies/proxies.routes'; // 导入代理路由
 import tagsRouter from './tags/tags.routes'; // 导入标签路由
+import settingsRoutes from './settings/settings.routes'; // 导入设置路由
 import { initializeWebSocket } from './websocket';
 
 // 基础 Express 应用设置 (后续会扩展)
@@ -86,6 +87,7 @@ app.use('/api/v1/connections', connectionsRouter);
 app.use('/api/v1/sftp', sftpRouter);
 app.use('/api/v1/proxies', proxyRoutes); // 挂载代理相关的路由
 app.use('/api/v1/tags', tagsRouter); // 挂载标签相关的路由
+app.use('/api/v1/settings', settingsRoutes); // 挂载设置相关的路由
 
 // 状态检查接口
 app.get('/api/v1/status', (req: Request, res: Response) => {

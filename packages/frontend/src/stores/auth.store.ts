@@ -101,6 +101,31 @@ export const useAuthStore = defineStore('auth', {
         //         }
         //     }
         // }
+        
+        // 修改密码 Action
+        async changePassword(currentPassword: string, newPassword: string) {
+            if (!this.isAuthenticated) {
+                throw new Error('用户未登录，无法修改密码。');
+            }
+            this.isLoading = true;
+            this.error = null;
+            try {
+                const response = await axios.put<{ message: string }>('/api/v1/auth/password', {
+                    currentPassword,
+                    newPassword,
+                });
+                console.log('密码修改成功:', response.data.message);
+                // 密码修改成功后，通常不需要更新本地状态，但可以清除错误
+                return true;
+            } catch (err: any) {
+                console.error('修改密码失败:', err);
+                this.error = err.response?.data?.message || err.message || '修改密码时发生未知错误。';
+                // 抛出错误，以便组件可以捕获并显示 (提供默认消息以防 this.error 为 null)
+                throw new Error(this.error ?? '修改密码时发生未知错误。');
+            } finally {
+                this.isLoading = false;
+            }
+        },
     },
     persist: true, // 使用默认持久化配置 (localStorage, 持久化所有 state)
 });
