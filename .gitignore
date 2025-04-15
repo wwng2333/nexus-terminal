@@ -131,3 +131,4 @@ dist
 /doc
 *.db
 /packages/data
+*.db
