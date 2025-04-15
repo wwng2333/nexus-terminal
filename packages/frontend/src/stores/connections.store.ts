@@ -141,5 +141,26 @@ export const useConnectionsStore = defineStore('connections', {
                 this.isLoading = false;
             }
         },
+
+        // 新增：测试连接 Action
+        async testConnection(connectionId: number): Promise<{ success: boolean; message?: string }> {
+            // 注意：这里不改变 isLoading 状态，或者可以引入单独的 testing 状态
+            // this.isLoading = true;
+            // this.error = null;
+            try {
+                const response = await axios.post<{ success: boolean; message: string }>(`/api/v1/connections/${connectionId}/test`);
+                return { success: response.data.success, message: response.data.message };
+            } catch (err: any) {
+                console.error(`测试连接 ${connectionId} 失败:`, err);
+                const errorMessage = err.response?.data?.message || err.message || '测试连接时发生未知错误。';
+                 if (err.response?.status === 401) {
+                    console.warn('未授权，需要登录才能测试连接。');
+                }
+                // 返回失败状态和错误消息
+                return { success: false, message: errorMessage };
+            } finally {
+                // this.isLoading = false;
+            }
+        },
     },
 });

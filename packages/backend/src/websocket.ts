@@ -4,10 +4,12 @@ import { Request, RequestHandler } from 'express';
 import { Client, ClientChannel, SFTPWrapper, Stats } from 'ssh2'; // 引入 SFTPWrapper 和 Stats
 import { WriteStream } from 'fs'; // 需要 WriteStream 类型 (虽然 ssh2 的流类型不同，但可以借用)
 import { getDb } from './database'; // 引入数据库实例
-import { decrypt } from './utils/crypto'; // 引入解密函数
-import path from 'path'; // 需要 path
-import { HttpsProxyAgent } from 'https-proxy-agent'; // 引入 HTTP 代理支持
-import { SocksClient } from 'socks'; // 引入 SOCKS 代理支持
+ import { decrypt } from './utils/crypto'; // 引入解密函数
+ import path from 'path'; // 需要 path
+ // import { HttpsProxyAgent } from 'https-proxy-agent'; // 不再直接使用 HttpsProxyAgent for SSH tunneling
+ import { SocksClient } from 'socks'; // 引入 SOCKS 代理支持
+ // import http from 'http'; // 重复导入，保留上面的
+ import net from 'net'; // 引入 net 用于 Socket 类型
 
 // 扩展 WebSocket 类型以包含会话和 SSH/SFTP 连接信息
 interface AuthenticatedWebSocket extends WebSocket {
@@ -642,20 +644,57 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
                                     // 注意：对于 SOCKS5，连接逻辑在 .then 回调中处理
 
                                 } else if (proxyInfo.type === 'HTTP') {
-                                    let proxyUrl = `http://`;
+                                    console.log(`WebSocket: 尝试通过 HTTP 代理 ${proxyInfo.host}:${proxyInfo.port} 建立隧道...`);
+                                    ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在通过 HTTP 代理 ${proxyInfo.name} 建立隧道...` }));
+
+                                    // 手动发起 CONNECT 请求
+                                    const reqOptions: http.RequestOptions = {
+                                        method: 'CONNECT',
+                                        host: proxyInfo.host,
+                                        port: proxyInfo.port,
+                                        path: `${connInfo.host}:${connInfo.port}`, // 目标 SSH 服务器地址和端口
+                                        timeout: connectConfig.readyTimeout ?? 20000,
+                                        agent: false, // 不使用全局 agent
+                                    };
+                                    // 添加代理认证头部 (如果需要)
                                     if (proxyInfo.username) {
-                                        proxyUrl += `${proxyInfo.username}`;
-                                        if (proxyPassword) {
-                                            proxyUrl += `:${proxyPassword}`;
-                                        }
-                                        proxyUrl += '@';
+                                        const auth = 'Basic ' + Buffer.from(proxyInfo.username + ':' + (proxyPassword || '')).toString('base64');
+                                        reqOptions.headers = {
+                                            ...reqOptions.headers,
+                                            'Proxy-Authorization': auth,
+                                            'Proxy-Connection': 'Keep-Alive', // 某些代理需要
+                                            'Host': `${connInfo.host}:${connInfo.port}` // CONNECT 请求的目标
+                                        };
                                     }
-                                    proxyUrl += `${proxyInfo.host}:${proxyInfo.port}`;
-                                    console.log(`WebSocket: 为连接 ${connInfo.id} 配置 HTTP 代理: ${proxyUrl.replace(/:[^:]*@/, ':***@')}`);
-                                    connectConfig.agent = new HttpsProxyAgent(proxyUrl);
-                                    console.log(`WebSocket: 已配置 HTTP 代理。正在建立 SSH 连接...`);
-                                    ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在通过 HTTP 代理 ${proxyInfo.name} 连接...` }));
-                                    connectSshClient(ws, sshClient, connectConfig, connInfo); // 通过代理连接 SSH
+
+                                    const req = http.request(reqOptions);
+                                    req.on('connect', (res, socket, head) => {
+                                        if (res.statusCode === 200) {
+                                            console.log(`WebSocket: HTTP 代理隧道建立成功。正在建立 SSH 连接...`);
+                                            ws.send(JSON.stringify({ type: 'ssh:status', payload: 'HTTP 代理隧道成功，正在建立 SSH...' }));
+                                            connectConfig.sock = socket; // 使用建立的隧道 socket
+                                            connectSshClient(ws, sshClient, connectConfig, connInfo); // 通过隧道连接 SSH
+                                        } else {
+                                            console.error(`WebSocket: HTTP 代理 CONNECT 请求失败, 状态码: ${res.statusCode}`);
+                                            socket.destroy();
+                                            ws.send(JSON.stringify({ type: 'ssh:error', payload: `HTTP 代理连接失败 (状态码: ${res.statusCode})` }));
+                                            cleanupSshConnection(ws);
+                                        }
+                                    });
+                                    req.on('error', (err) => {
+                                        console.error(`WebSocket: HTTP 代理请求错误:`, err);
+                                        ws.send(JSON.stringify({ type: 'ssh:error', payload: `HTTP 代理连接错误: ${err.message}` }));
+                                        cleanupSshConnection(ws);
+                                    });
+                                    req.on('timeout', () => {
+                                        console.error(`WebSocket: HTTP 代理请求超时`);
+                                        req.destroy(); // 销毁请求
+                                        ws.send(JSON.stringify({ type: 'ssh:error', payload: 'HTTP 代理连接超时' }));
+                                        cleanupSshConnection(ws);
+                                    });
+                                    req.end(); // 发送请求
+                                    // 注意：对于 HTTP 代理，连接逻辑在 'connect' 事件回调中处理
+
                                 } else {
                                      console.error(`WebSocket: 未知的代理类型: ${proxyInfo.type}`);
                                      ws.send(JSON.stringify({ type: 'ssh:error', payload: `未知的代理类型: ${proxyInfo.type}` }));

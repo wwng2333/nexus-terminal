@@ -35,7 +35,9 @@
     "actions": {
       "connect": "连接",
       "edit": "编辑",
-      "delete": "删除"
+      "delete": "删除",
+      "test": "测试",
+      "testing": "测试中..."
     },
     "form": {
       "title": "添加新连接",
@@ -77,6 +79,13 @@
     },
     "status": {
       "never": "从未"
+    },
+    "filterAllTags": "所有标签",
+    "untaggedGroup": "未标记",
+    "noUntaggedConnections": "没有未标记的连接。",
+    "test": {
+        "success": "连接测试成功！",
+        "failed": "连接测试失败: {error}"
     }
   },
   "proxies": {

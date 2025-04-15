@@ -5,7 +5,8 @@ import {
     getConnections,
     getConnectionById, // 引入获取单个连接的控制器
     updateConnection, // 引入更新连接的控制器
-    deleteConnection // 引入删除连接的控制器
+    deleteConnection, // 引入删除连接的控制器
+    testConnection // 引入测试连接的控制器
 } from './connections.controller';
 
 const router = Router();
@@ -26,9 +27,9 @@ router.get('/:id', getConnectionById);
 router.put('/:id', updateConnection);
 
 // DELETE /api/v1/connections/:id - 删除连接
-router.delete('/:id', deleteConnection); // 使用占位符
+router.delete('/:id', deleteConnection);
 
-// TODO: 添加测试连接路由
-// router.post('/:id/test', testConnection);
+// POST /api/v1/connections/:id/test - 测试连接
+router.post('/:id/test', testConnection);
 
 export default router;

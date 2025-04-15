@@ -35,7 +35,9 @@
     "actions": {
       "connect": "Connect",
       "edit": "Edit",
-      "delete": "Delete"
+      "delete": "Delete",
+      "test": "Test",
+      "testing": "Testing..."
     },
     "form": {
       "title": "Add New Connection",
@@ -77,6 +79,13 @@
     },
     "status": {
       "never": "Never"
+    },
+    "filterAllTags": "All Tags",
+    "untaggedGroup": "Untagged",
+    "noUntaggedConnections": "No untagged connections found.",
+    "test": {
+        "success": "Connection test successful!",
+        "failed": "Connection test failed: {error}"
     }
   },
   "proxies": {

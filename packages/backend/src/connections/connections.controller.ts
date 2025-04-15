@@ -507,5 +507,246 @@ export const deleteConnection = async (req: Request, res: Response): Promise<voi
     }
 };
 
-// TODO: 实现 testConnection
-// export const testConnection = ...
+ // --- 新增：测试连接功能 ---
+ import { Client } from 'ssh2'; // 引入 ssh2 Client
+ import { SocksClient } from 'socks'; // 引入 SOCKS 客户端
+ // import { HttpsProxyAgent } from 'https-proxy-agent'; // 不再直接使用 HttpsProxyAgent
+ import http from 'http'; // 引入 http 用于手动 CONNECT
+ import net from 'net'; // 引入 net 用于 Socket 类型
+
+// 辅助接口：包含解密后的凭证和代理信息
+interface FullConnectionInfo extends ConnectionInfoBase {
+    password?: string;
+    privateKey?: string;
+    passphrase?: string;
+    proxy?: {
+        id: number;
+        name: string;
+        type: 'SOCKS5' | 'HTTP';
+        host: string;
+        port: number;
+        username?: string;
+        password?: string;
+    } | null;
+}
+
+/**
+ * 测试连接 (POST /api/v1/connections/:id/test)
+ */
+export const testConnection = async (req: Request, res: Response): Promise<void> => {
+    const connectionId = parseInt(req.params.id, 10);
+    const userId = req.session.userId;
+    const TEST_TIMEOUT = 15000; // 测试连接超时时间 (毫秒)
+
+    if (isNaN(connectionId)) {
+        res.status(400).json({ message: '无效的连接 ID。' });
+        return;
+    }
+
+    try {
+        // 1. 获取完整的连接信息 (包括加密凭证和代理信息)
+        const connInfo = await new Promise<any | null>((resolve, reject) => {
+             // 查询连接信息，并 LEFT JOIN 代理信息
+             db.get(
+                 `SELECT
+                     c.*,
+                     p.id as proxy_db_id, p.name as proxy_name, p.type as proxy_type,
+                     p.host as proxy_host, p.port as proxy_port, p.username as proxy_username,
+                     p.encrypted_password as proxy_encrypted_password
+                  FROM connections c
+                  LEFT JOIN proxies p ON c.proxy_id = p.id
+                  WHERE c.id = ?`,
+                 [connectionId],
+                 (err, row: any) => {
+                     if (err) {
+                         console.error(`查询连接 ${connectionId} 详细信息时出错:`, err.message);
+                         return reject(new Error('获取连接信息失败'));
+                     }
+                     resolve(row || null);
+                 }
+             );
+         });
+
+        if (!connInfo) {
+            res.status(404).json({ message: '连接配置未找到。' });
+            return;
+        }
+
+        // 2. 构建包含解密凭证和代理对象的 FullConnectionInfo
+        const fullConnInfo: FullConnectionInfo = {
+            ...connInfo, // 包含 id, name, host, port, username, auth_method, created_at, updated_at, last_connected_at
+            proxy: null, // 初始化 proxy
+        };
+
+        try {
+            if (connInfo.auth_method === 'password' && connInfo.encrypted_password) {
+                fullConnInfo.password = decrypt(connInfo.encrypted_password);
+            } else if (connInfo.auth_method === 'key' && connInfo.encrypted_private_key) {
+                fullConnInfo.privateKey = decrypt(connInfo.encrypted_private_key);
+                if (connInfo.encrypted_passphrase) {
+                    fullConnInfo.passphrase = decrypt(connInfo.encrypted_passphrase);
+                }
+            }
+            // 如果凭证解密失败，这里会抛出错误
+
+            // 处理代理信息
+            if (connInfo.proxy_db_id) {
+                fullConnInfo.proxy = {
+                    id: connInfo.proxy_db_id,
+                    name: connInfo.proxy_name,
+                    type: connInfo.proxy_type,
+                    host: connInfo.proxy_host,
+                    port: connInfo.proxy_port,
+                    username: connInfo.proxy_username || undefined,
+                    password: connInfo.proxy_encrypted_password ? decrypt(connInfo.proxy_encrypted_password) : undefined,
+                };
+            }
+        } catch (decryptError: any) {
+             console.error(`处理连接 ${connectionId} 凭证或代理凭证失败:`, decryptError);
+             res.status(500).json({ success: false, message: `处理凭证失败: ${decryptError.message}` });
+             return;
+        }
+
+
+        // 3. 构建 ssh2 连接配置
+        let connectConfig: any = {
+            host: fullConnInfo.host,
+            port: fullConnInfo.port,
+            username: fullConnInfo.username,
+            password: fullConnInfo.password,
+            privateKey: fullConnInfo.privateKey,
+            passphrase: fullConnInfo.passphrase,
+            readyTimeout: TEST_TIMEOUT, // 使用测试超时
+            keepaliveInterval: 0, // 测试连接不需要 keepalive
+        };
+
+        // 4. 应用代理配置 (复用 websocket.ts 的逻辑，但更健壮)
+        const sshClient = new Client();
+        let connectionPromise: Promise<void>;
+
+        if (fullConnInfo.proxy) {
+            const proxy = fullConnInfo.proxy;
+            console.log(`测试连接 ${connectionId}: 应用代理 ${proxy.name} (${proxy.type})`);
+            if (proxy.type === 'SOCKS5') {
+                const socksOptions = {
+                    proxy: {
+                        host: proxy.host,
+                        port: proxy.port,
+                        type: 5 as 5,
+                        userId: proxy.username,
+                        password: proxy.password,
+                    },
+                    command: 'connect' as 'connect',
+                    destination: {
+                        host: fullConnInfo.host,
+                        port: fullConnInfo.port,
+                    },
+                    timeout: TEST_TIMEOUT,
+                };
+                // SOCKS 连接本身就是一个 Promise
+                connectionPromise = SocksClient.createConnection(socksOptions)
+                    .then(({ socket }) => {
+                        console.log(`测试连接 ${connectionId}: SOCKS5 代理连接成功`);
+                        connectConfig.sock = socket;
+                        // SSH 连接在 SOCKS 成功后进行
+                        return new Promise<void>((resolve, reject) => { // 指定 Promise 类型为 void
+                             // 使用 once 可能更符合类型定义
+                             sshClient.once('ready', resolve).once('error', reject).connect(connectConfig);
+                        });
+                    })
+                    .catch(socksError => {
+                         console.error(`测试连接 ${connectionId}: SOCKS5 代理失败:`, socksError);
+                         throw new Error(`SOCKS5 代理连接失败: ${socksError.message}`); // 抛出错误以便捕获
+                     });
+ 
+             } else if (proxy.type === 'HTTP') {
+                 console.log(`测试连接 ${connectionId}: 尝试通过 HTTP 代理 ${proxy.host}:${proxy.port} 建立隧道...`);
+                 // 手动发起 CONNECT 请求
+                 connectionPromise = new Promise<void>((resolveConnect, rejectConnect) => {
+                     const reqOptions: http.RequestOptions = {
+                         method: 'CONNECT',
+                         host: proxy.host,
+                         port: proxy.port,
+                         path: `${fullConnInfo.host}:${fullConnInfo.port}`, // 目标 SSH 服务器地址和端口
+                         timeout: TEST_TIMEOUT,
+                         agent: false, // 不使用全局 agent
+                     };
+                     // 添加代理认证头部 (如果需要)
+                     if (proxy.username) {
+                         const auth = 'Basic ' + Buffer.from(proxy.username + ':' + (proxy.password || '')).toString('base64');
+                         reqOptions.headers = {
+                             ...reqOptions.headers,
+                             'Proxy-Authorization': auth,
+                             'Proxy-Connection': 'Keep-Alive', // 某些代理需要
+                             'Host': `${fullConnInfo.host}:${fullConnInfo.port}` // CONNECT 请求的目标
+                         };
+                     }
+
+                     const req = http.request(reqOptions);
+                     req.on('connect', (res, socket, head) => {
+                         if (res.statusCode === 200) {
+                             console.log(`测试连接 ${connectionId}: HTTP 代理隧道建立成功`);
+                             connectConfig.sock = socket; // 使用建立的隧道 socket
+                             // 在隧道建立后尝试 SSH 连接
+                             new Promise<void>((resolveSSH, rejectSSH) => {
+                                 sshClient.once('ready', resolveSSH).once('error', rejectSSH).connect(connectConfig);
+                             })
+                             .then(resolveConnect) // SSH 成功则 resolve 外层 Promise
+                             .catch(rejectConnect); // SSH 失败则 reject 外层 Promise
+                         } else {
+                             console.error(`测试连接 ${connectionId}: HTTP 代理 CONNECT 请求失败, 状态码: ${res.statusCode}`);
+                             socket.destroy();
+                             rejectConnect(new Error(`HTTP 代理连接失败 (状态码: ${res.statusCode})`));
+                         }
+                     });
+                     req.on('error', (err) => {
+                         console.error(`测试连接 ${connectionId}: HTTP 代理请求错误:`, err);
+                         rejectConnect(new Error(`HTTP 代理连接错误: ${err.message}`));
+                     });
+                     req.on('timeout', () => {
+                         console.error(`测试连接 ${connectionId}: HTTP 代理请求超时`);
+                         req.destroy(); // 销毁请求
+                         rejectConnect(new Error('HTTP 代理连接超时'));
+                     });
+                     req.end(); // 发送请求
+                 });
+             } else {
+                 // 未知代理类型
+                 res.status(400).json({ success: false, message: `不支持的代理类型: ${proxy.type}` });
+                 return;
+            }
+        } else {
+             // 无代理，直接连接
+             connectionPromise = new Promise<void>((resolve, reject) => { // 指定 Promise 类型为 void
+                 // 使用 once 可能更符合类型定义
+                 sshClient.once('ready', resolve).once('error', reject).connect(connectConfig);
+             });
+         }
+
+        // 5. 执行连接测试并处理结果
+        try {
+            await connectionPromise;
+            console.log(`测试连接 ${connectionId}: SSH 连接成功`);
+            res.status(200).json({ success: true, message: '连接测试成功。' });
+        } catch (sshError: any) {
+            console.error(`测试连接 ${connectionId}: SSH 连接失败:`, sshError);
+            // 尝试提供更具体的错误信息
+            let errorMessage = sshError.message || '未知 SSH 错误';
+            if (sshError.level === 'client-authentication') {
+                errorMessage = '认证失败 (用户名、密码或密钥错误)';
+            } else if (sshError.code === 'ENOTFOUND' || sshError.code === 'ECONNREFUSED') {
+                errorMessage = '无法连接到主机或端口';
+            } else if (sshError.message.includes('Timed out')) {
+                 errorMessage = `连接超时 (${TEST_TIMEOUT / 1000}秒)`;
+            }
+            res.status(500).json({ success: false, message: `连接测试失败: ${errorMessage}` });
+        } finally {
+             // 无论成功失败，都关闭 SSH 客户端
+             sshClient.end();
+        }
+
+    } catch (error: any) {
+        console.error(`测试连接 ${connectionId} 时发生内部错误:`, error);
+        res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
+    }
+};
