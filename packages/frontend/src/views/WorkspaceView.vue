@@ -128,6 +128,7 @@ onBeforeUnmount(() => {
                 <TerminalComponent
                   :key="tabInfo.sessionId"
                   :session-id="tabInfo.sessionId"
+                  :is-active="tabInfo.sessionId === activeSessionId"
                   @ready="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalReady"
                   @data="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalData"
                   @resize="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalResize"

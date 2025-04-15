@@ -82,13 +82,48 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
              }
         }
 
-        // 尝试过滤掉非标准的 OSC 184 序列
-        // 注意：这个正则表达式可能需要根据实际序列进行调整
-        // 它尝试匹配 \x1b]184;... 直到 \x1b\\ 或 \x07
-        const osc184Regex = /\x1b]184;[^\x1b\x07]*(\x1b\\|\x07)/g;
-        if (typeof outputData === 'string') {
+        // 尝试过滤掉非标准的 OSC 184 序列 (更强的过滤)
+        if (typeof outputData === 'string' && outputData.includes('\x1b]184;')) {
             const originalLength = outputData.length;
-            outputData = outputData.replace(osc184Regex, '');
+            let cleanedData = '';
+            let currentIndex = 0;
+            let startIndex = outputData.indexOf('\x1b]184;');
+
+            while (startIndex !== -1) {
+                // 添加 OSC 序列之前的部分
+                cleanedData += outputData.substring(currentIndex, startIndex);
+
+                // 查找 OSC 序列的结束符 (BEL 或 ST)
+                const belIndex = outputData.indexOf('\x07', startIndex);
+                const stIndex = outputData.indexOf('\x1b\\', startIndex);
+
+                let endIndex = -1;
+                if (belIndex !== -1 && stIndex !== -1) {
+                    endIndex = Math.min(belIndex, stIndex);
+                } else if (belIndex !== -1) {
+                    endIndex = belIndex;
+                } else if (stIndex !== -1) {
+                    endIndex = stIndex;
+                }
+
+                if (endIndex !== -1) {
+                    // 找到结束符，跳过整个 OSC 序列
+                    currentIndex = endIndex + (outputData[endIndex] === '\x07' ? 1 : 2); // 跳过 BEL(1) 或 ST(2)
+                } else {
+                    // 未找到结束符，可能序列不完整，保留 OSC 开始之后的部分
+                    currentIndex = startIndex + 6; // 跳过 '\x1b]184;'
+                    console.warn(`[会话 ${sessionId}][SSH终端模块] 未找到 OSC 184 的结束符，可能序列不完整。`);
+                    break; // 停止处理，避免潜在问题
+                }
+
+                // 查找下一个 OSC 184 序列
+                startIndex = outputData.indexOf('\x1b]184;', currentIndex);
+            }
+
+            // 添加剩余的部分
+            cleanedData += outputData.substring(currentIndex);
+            outputData = cleanedData;
+
             if (outputData.length < originalLength) {
                  console.warn(`[会话 ${sessionId}][SSH终端模块] 过滤掉 OSC 184 序列。`);
             }

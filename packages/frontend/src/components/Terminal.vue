@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'; // 移除 nextTick
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -8,6 +8,7 @@ import 'xterm/css/xterm.css'; // 引入 xterm 样式
 // 定义 props 和 emits
 const props = defineProps<{
   sessionId: string; // 会话 ID
+  isActive: boolean; // 新增：标记此终端是否为活动标签页
   stream?: ReadableStream<string>; // 用于接收来自 WebSocket 的数据流 (可选)
   options?: object; // xterm 的配置选项
 }>();
@@ -22,6 +23,27 @@ const terminalRef = ref<HTMLElement | null>(null); // 终端容器的引用
 let terminal: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let debounceTimer: number | null = null; // 用于防抖的计时器 ID
+
+// 防抖函数
+const debounce = (func: Function, delay: number) => {
+  return (...args: any[]) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = window.setTimeout(() => {
+      func(...args);
+      debounceTimer = null;
+    }, delay);
+  };
+};
+
+// 防抖处理 resize 事件的函数
+const debouncedEmitResize = debounce((term: Terminal) => {
+    if (term) {
+        emit('resize', { cols: term.cols, rows: term.rows });
+    }
+}, 150); // 150ms 防抖延迟
 
 // 初始化终端
 onMounted(() => {
@@ -59,25 +81,34 @@ onMounted(() => {
 
     // 监听终端大小变化 (通过 ResizeObserver)
     if (terminalRef.value) {
+        const container = terminalRef.value; // 捕获引用
         resizeObserver = new ResizeObserver(() => {
-            try {
-                fitAddon?.fit();
-            } catch (e) {
-                console.warn("Fit addon resize failed:", e);
+            // 检查容器是否实际可见
+            if (container.offsetHeight > 0) {
+                try {
+                    fitAddon?.fit(); // 让 xterm 适应容器
+                    // 只有当终端是活动的，才触发防抖的 resize 事件发送
+                    if (props.isActive && terminal) {
+                        debouncedEmitResize(terminal);
+                    }
+                } catch (e) {
+                    console.warn("Fit addon resize failed:", e);
+                }
             }
         });
-        resizeObserver.observe(terminalRef.value);
+        resizeObserver.observe(container);
     }
 
-    // 监听 fitAddon 的 resize 事件，获取新的尺寸并触发 emit
-    // 注意：fitAddon 本身不直接触发 resize 事件，我们需要在 fit() 后手动获取
-    const originalFit = fitAddon.fit.bind(fitAddon);
-    fitAddon.fit = () => {
-        originalFit();
-        if (terminal) {
-            emit('resize', { cols: terminal.cols, rows: terminal.rows });
-        }
-    };
+    // 不再需要重写 fitAddon.fit 方法来 emit resize
+    // // 监听 fitAddon 的 resize 事件，获取新的尺寸并触发 emit
+    // // 注意：fitAddon 本身不直接触发 resize 事件，我们需要在 fit() 后手动获取
+    // const originalFit = fitAddon.fit.bind(fitAddon);
+    // fitAddon.fit = () => {
+    //     originalFit();
+    //     if (terminal) {
+    //         emit('resize', { cols: terminal.cols, rows: terminal.rows });
+    //     }
+    // };
 
 
     // 处理传入的数据流 (如果提供了 stream prop)
