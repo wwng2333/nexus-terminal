@@ -284,7 +284,7 @@
     }
   },
   "settings": {
-    "title": "全局设置",
+    "title": "设置",
     "changePassword": {
       "title": "修改密码",
       "currentPassword": "当前密码:",
@@ -340,6 +340,26 @@
       "error": {
         "fetchFailed": "获取 IP 白名单设置失败。",
         "saveFailed": "保存 IP 白名单失败。"
+      }
+    },
+    "passkey": {
+      "title": "Passkey 设置",
+      "description": "使用 Passkey（生物识别或安全密钥）进行无密码认证，提升账户安全性和登录便捷性。",
+      "nameLabel": "Passkey 名称",
+      "namePlaceholder": "例如：我的笔记本电脑",
+      "registerButton": "注册新 Passkey",
+      "deleteButton": "删除 Passkey",
+      "confirmDelete": "确定要删除 Passkey '{name}'吗？",
+      "noPasskeys": "尚未注册任何 Passkey。",
+      "error": {
+        "nameRequired": "请输入 Passkey 名称。",
+        "cancelled": "Passkey 注册已被用户取消。",
+        "genericRegistration": "无法注册 Passkey: {message}",
+        "verificationFailed": "注册失败: {message}",
+        "unknown": "注册失败: 未知错误。"
+      },
+      "success": {
+        "registered": "Passkey 注册成功！"
       }
     }
   },

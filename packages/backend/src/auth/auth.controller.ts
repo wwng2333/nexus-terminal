@@ -1,11 +1,13 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { getDb } from '../database';
-import sqlite3, { RunResult } from 'sqlite3'; // 导入 RunResult 类型
-import speakeasy from 'speakeasy'; // 导入 speakeasy
-import qrcode from 'qrcode'; // 导入 qrcode
+import sqlite3, { RunResult } from 'sqlite3';
+import speakeasy from 'speakeasy';
+import qrcode from 'qrcode';
+import { PasskeyService } from '../services/passkey.service'; // 导入 PasskeyService
 
-const db = getDb(); // 获取数据库实例
+const db = getDb();
+const passkeyService = new PasskeyService(); // 实例化 PasskeyService
 
 // 用户数据结构占位符 (理想情况下应定义在共享的 types 文件中)
 interface User {
@@ -21,8 +23,9 @@ declare module 'express-session' {
     interface SessionData {
         userId?: number;
         username?: string;
-        tempTwoFactorSecret?: string; // 用于存储设置过程中的临时密钥
-        requiresTwoFactor?: boolean; // 标记登录流程是否需要 2FA 验证
+        tempTwoFactorSecret?: string;
+        requiresTwoFactor?: boolean;
+        currentChallenge?: string; // 用于存储 Passkey 操作的挑战
     }
 }
 
@@ -338,6 +341,79 @@ export const setup2FA = async (req: Request, res: Response): Promise<void> => {
     } catch (error: any) {
         console.error(`用户 ${userId} 设置 2FA 时出错:`, error);
         res.status(500).json({ message: '设置两步验证时发生错误。', error: error.message });
+    }
+};
+
+
+// --- 新增 Passkey 相关方法 ---
+
+/**
+ * 生成 Passkey 注册选项 (POST /api/v1/auth/passkey/register-options)
+ */
+export const generatePasskeyRegistrationOptions = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+    const username = req.session.username; // Passkey 需要用户名
+
+    if (!userId || !username || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    try {
+        const options = await passkeyService.generateRegistrationOptions(username);
+
+        // 将 challenge 存储在 session 中，用于后续验证
+        req.session.currentChallenge = options.challenge;
+
+        res.json(options);
+    } catch (error: any) {
+        console.error(`用户 ${userId} 生成 Passkey 注册选项时出错:`, error);
+        res.status(500).json({ message: '生成 Passkey 注册选项失败。', error: error.message });
+    }
+};
+
+/**
+ * 验证 Passkey 注册响应 (POST /api/v1/auth/passkey/verify-registration)
+ */
+export const verifyPasskeyRegistration = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+    const expectedChallenge = req.session.currentChallenge;
+    const { registrationResponse, name } = req.body; // name 是用户给 Passkey 起的名字 (可选)
+
+    if (!userId || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    if (!expectedChallenge) {
+        res.status(400).json({ message: '未找到预期的挑战，请重新生成注册选项。' });
+        return;
+    }
+
+    if (!registrationResponse) {
+        res.status(400).json({ message: '缺少注册响应数据。' });
+        return;
+    }
+
+    // 清除 session 中的 challenge，无论成功与否
+    delete req.session.currentChallenge;
+
+    try {
+        const verification = await passkeyService.verifyRegistration(
+            registrationResponse,
+            expectedChallenge,
+            name
+        );
+
+        if (verification.verified) {
+            res.status(201).json({ message: 'Passkey 注册成功！', verified: true });
+        } else {
+            console.error(`用户 ${userId} Passkey 注册验证失败:`, verification);
+            res.status(400).json({ message: 'Passkey 注册验证失败。', verified: false });
+        }
+    } catch (error: any) {
+        console.error(`用户 ${userId} 验证 Passkey 注册时出错:`, error);
+        res.status(500).json({ message: '验证 Passkey 注册失败。', error: error.message });
     }
 };
 

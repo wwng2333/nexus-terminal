@@ -27,6 +27,18 @@
     <hr>
 
     <div class="settings-section">
+      <h2>Passkey 设置</h2>
+      <p>使用 Passkey（无密码认证）提升安全性和便捷性。您可以注册新的 Passkey 用于登录。</p>
+      <div class="form-group">
+        <label for="passkey-name">{{ $t('settings.passkey.nameLabel') }}:</label>
+        <input type="text" id="passkey-name" v-model="passkeyName" :placeholder="$t('settings.passkey.namePlaceholder')" required>
+      </div>
+      <button @click="handleRegisterPasskey" class="btn btn-primary">{{ $t('settings.passkey.registerButton') }}</button>
+      <p v-if="passkeyMessage" class="success-message">{{ passkeyMessage }}</p>
+      <p v-if="passkeyError" class="error-message">{{ passkeyError }}</p>
+    </div>
+
+    <div class="settings-section">
       <h2>{{ $t('settings.twoFactor.title') }}</h2>
 
       <!-- 如果 2FA 已启用 -->
@@ -91,13 +103,67 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'; // 导入 onMounted 和 computed
+import { ref, onMounted, computed } from 'vue';
 import { useAuthStore } from '../stores/auth.store';
 import { useI18n } from 'vue-i18n';
-import axios from 'axios'; // 需要 axios 来调用 API
+import axios from 'axios'; // 导入 axios
+import { startRegistration } from '@simplewebauthn/browser'; // 导入 simplewebauthn
 
-const { t } = useI18n();
 const authStore = useAuthStore();
+const { t } = useI18n();
+
+// --- Passkey 相关状态与方法 ---
+const passkeyName = ref(''); // 新增 Passkey 名称 ref
+const passkeyMessage = ref<string | null>(null); // 用于显示 Passkey 相关消息
+const passkeyError = ref<string | null>(null); // 用于显示 Passkey 相关错误
+
+const handleRegisterPasskey = async () => {
+  passkeyMessage.value = null;
+  passkeyError.value = null;
+
+  if (!passkeyName.value) {
+    passkeyError.value = t('settings.passkey.error.nameRequired'); // 使用 t()
+    return;
+  }
+
+  try {
+    // 1. 获取注册选项
+    const optionsResponse = await axios.post('/api/v1/auth/passkey/register-options');
+    const options = optionsResponse.data;
+
+    // 2. 调用 WebAuthn API 发起注册
+    let registrationResponse;
+    try {
+      registrationResponse = await startRegistration(options);
+    } catch (error: any) {
+      console.error('Passkey 注册被取消或失败:', error);
+      // 根据错误类型提供更具体的提示
+      if (error.name === 'NotAllowedError') {
+        passkeyError.value = t('settings.passkey.error.cancelled'); // 使用 t()
+      } else {
+        passkeyError.value = t('settings.passkey.error.genericRegistration', { message: error.message || 'Unknown error' }); // 使用 t()
+      }
+      return;
+    }
+
+    // 3. 提交注册响应到后端验证
+    await axios.post('/api/v1/auth/passkey/verify-registration', {
+      registrationResponse,
+      name: passkeyName.value // 提交 Passkey 名称
+    });
+
+    passkeyMessage.value = t('settings.passkey.success.registered'); // 使用 t()
+    passkeyName.value = ''; // 清空输入框
+
+  } catch (error: any) {
+    console.error('Passkey 注册流程出错:', error);
+    if (axios.isAxiosError(error) && error.response) {
+      passkeyError.value = t('settings.passkey.error.verificationFailed', { message: error.response.data.message || 'Server error' }); // 使用 t()
+    } else {
+      passkeyError.value = t('settings.passkey.error.unknown'); // 使用 t()
+    }
+  }
+};
 
 // --- 修改密码状态 ---
 const currentPassword = ref('');
@@ -150,13 +216,13 @@ const fetchIpWhitelist = async () => {
     }
 };
 
-
+// --- 生命周期钩子 ---
 onMounted(async () => { // 使 onMounted 异步
   await checkTwoFactorStatus(); // 等待状态检查完成
   await fetchIpWhitelist(); // 获取 IP 白名单设置
 });
 
-
+// --- 修改密码 ---
 const handleChangePassword = async () => {
   changePasswordMessage.value = ''; // 清除之前的消息
   changePasswordSuccess.value = false;

@@ -281,7 +281,7 @@
     }
   },
   "settings": {
-    "title": "Global Settings",
+    "title": "Settings",
     "changePassword": {
       "title": "Change Password",
       "currentPassword": "Current Password:",
@@ -337,6 +337,26 @@
       "error": {
         "fetchFailed": "Failed to fetch IP whitelist settings.",
         "saveFailed": "Failed to save IP whitelist."
+      }
+    },
+    "passkey": {
+      "title": "Passkey Settings",
+      "description": "Use Passkeys (biometrics or security keys) for passwordless authentication to enhance security and convenience.",
+      "nameLabel": "Passkey Name",
+      "namePlaceholder": "e.g., My Laptop",
+      "registerButton": "Register New Passkey",
+      "deleteButton": "Delete Passkey",
+      "confirmDelete": "Are you sure you want to delete the Passkey '{name}'?",
+      "noPasskeys": "No Passkeys registered yet.",
+      "error": {
+        "nameRequired": "Please enter a Passkey name.",
+        "cancelled": "Passkey registration was cancelled by the user.",
+        "genericRegistration": "Could not register Passkey: {message}",
+        "verificationFailed": "Registration failed: {message}",
+        "unknown": "Registration failed: Unknown error."
+      },
+      "success": {
+        "registered": "Passkey registered successfully!"
       }
     }
   },

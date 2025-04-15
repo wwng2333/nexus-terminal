@@ -6,7 +6,9 @@ import {
   setup2FA,
   verifyAndActivate2FA,
   disable2FA,
-  getAuthStatus     // 导入获取状态的方法
+  getAuthStatus,     // 导入获取状态的方法
+  generatePasskeyRegistrationOptions, // 导入 Passkey 方法
+  verifyPasskeyRegistration           // 导入 Passkey 方法
 } from './auth.controller';
 import { isAuthenticated } from './auth.middleware';
 
@@ -33,6 +35,13 @@ router.delete('/2fa', isAuthenticated, disable2FA);
 
 // GET /api/v1/auth/status - 获取当前认证状态 (需要认证)
 router.get('/status', isAuthenticated, getAuthStatus);
+
+// --- Passkey 管理接口 (都需要认证) ---
+// POST /api/v1/auth/passkey/register-options - 生成 Passkey 注册选项
+router.post('/passkey/register-options', isAuthenticated, generatePasskeyRegistrationOptions);
+
+// POST /api/v1/auth/passkey/verify-registration - 验证 Passkey 注册响应
+router.post('/passkey/verify-registration', isAuthenticated, verifyPasskeyRegistration);
 
 
 // 未来可以添加的其他认证相关路由
