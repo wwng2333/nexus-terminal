@@ -161,23 +161,32 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
         } else { // key
             if (!input.private_key) throw new Error('切换到密钥认证时需要提供 private_key。');
             dataToUpdate.encrypted_private_key = encrypt(input.private_key);
-            dataToUpdate.encrypted_passphrase = input.passphrase ? encrypt(input.passphrase) : null;
+            // Only encrypt if passphrase is a non-empty string
+            dataToUpdate.encrypted_passphrase = (input.passphrase && input.passphrase.trim() !== '') ? encrypt(input.passphrase) : null;
             dataToUpdate.encrypted_password = null;
         }
     } else {
         // Auth method did not change, check if credentials for the current method were provided
-        if (newAuthMethod === 'password' && input.password !== undefined) {
+        // Only encrypt and update if a non-empty string is provided
+        if (newAuthMethod === 'password' && input.password && input.password.trim() !== '') {
             dataToUpdate.encrypted_password = encrypt(input.password);
             needsCredentialUpdate = true;
         } else if (newAuthMethod === 'key') {
-            if (input.private_key !== undefined) {
+            let passphraseChanged = false;
+            if (input.private_key && input.private_key.trim() !== '') {
                 dataToUpdate.encrypted_private_key = encrypt(input.private_key);
                 // Passphrase must be updated (or cleared) if private key is updated
-                dataToUpdate.encrypted_passphrase = input.passphrase ? encrypt(input.passphrase) : null;
+                // Encrypt only if non-empty, otherwise set to null
+                dataToUpdate.encrypted_passphrase = (input.passphrase && input.passphrase.trim() !== '') ? encrypt(input.passphrase) : null;
                 needsCredentialUpdate = true;
-            } else if (input.passphrase !== undefined) { // Only passphrase provided
-                dataToUpdate.encrypted_passphrase = input.passphrase ? encrypt(input.passphrase) : null;
-                needsCredentialUpdate = true;
+                passphraseChanged = true; // Mark passphrase as handled if key changed
+            }
+            // Handle case where only passphrase is changed (and key wasn't)
+            // Check if input.passphrase is defined (could be empty string to clear)
+            if (!passphraseChanged && input.passphrase !== undefined) {
+                 // Encrypt only if non-empty, otherwise set to null
+                dataToUpdate.encrypted_passphrase = (input.passphrase && input.passphrase.trim() !== '') ? encrypt(input.passphrase) : null;
+                needsCredentialUpdate = true; // Consider this a credential update
             }
         }
     }
