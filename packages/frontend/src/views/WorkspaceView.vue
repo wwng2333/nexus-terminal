@@ -11,6 +11,8 @@ import TerminalTabBar from '../components/TerminalTabBar.vue';
 import CommandInputBar from '../components/CommandInputBar.vue';
 import FileEditorContainer from '../components/FileEditorContainer.vue'; // 导入编辑器容器
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 SshTerminalInstance
+import { useSettingsStore } from '../stores/settings.store'; // 导入设置 Store
+import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入文件编辑器 Store
 import type { ConnectionInfo } from '../stores/connections.store';
 // 导入 splitpanes 组件
 import { Splitpanes, Pane } from 'splitpanes';
@@ -20,9 +22,36 @@ import { Splitpanes, Pane } from 'splitpanes';
 // --- Setup ---
 const { t } = useI18n();
 const sessionStore = useSessionStore();
+const settingsStore = useSettingsStore(); // 初始化设置 Store
+const fileEditorStore = useFileEditorStore(); // 初始化文件编辑器 Store (用于共享模式)
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession } = storeToRefs(sessionStore);
+const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 获取共享设置
+const { orderedTabs: globalEditorTabs, activeTabId: globalActiveEditorTabId } = storeToRefs(fileEditorStore); // 获取全局编辑器状态
+
+// --- 计算属性 (用于动态绑定编辑器 Props) ---
+// **再次修正：** 确保计算属性在共享模式下严格只依赖全局状态
+const editorTabs = computed(() => {
+  if (shareFileEditorTabsBoolean.value) {
+    // console.log('[WorkspaceView] Shared Mode: Returning globalEditorTabs');
+    return globalEditorTabs.value; // 共享模式：只依赖全局 store 的 tabs
+  } else {
+    // console.log('[WorkspaceView] Independent Mode: Returning activeSession tabs');
+    return activeSession.value?.editorTabs.value ?? []; // 独立模式：依赖 activeSession
+  }
+});
+
+const activeEditorTabId = computed(() => {
+  if (shareFileEditorTabsBoolean.value) {
+    // console.log('[WorkspaceView] Shared Mode: Returning globalActiveEditorTabId');
+    return globalActiveEditorTabId.value; // 共享模式：只依赖全局 store 的 activeTabId
+  } else {
+    // console.log('[WorkspaceView] Independent Mode: Returning activeSession activeEditorTabId');
+    return activeSession.value?.activeEditorTabId.value ?? null; // 独立模式：依赖 activeSession
+  }
+});
+
 
 // --- UI 状态 (保持本地) ---
 const showAddEditForm = ref(false);
@@ -75,6 +104,69 @@ onBeforeUnmount(() => {
    } else {
      console.warn('[WorkspaceView] Cannot send command, no active session or terminal manager with sendData method.');
      // 可以考虑给用户一个提示
+   }
+ };
+
+ // --- 编辑器操作处理 ---
+ const handleCloseEditorTab = (tabId: string) => {
+   const isShared = shareFileEditorTabsBoolean.value; // 在函数开始时获取模式
+   console.log(`[WorkspaceView] handleCloseEditorTab: ${tabId}, Shared mode: ${isShared}`);
+   if (isShared) {
+     fileEditorStore.closeTab(tabId);
+   } else {
+     const currentActiveSessionId = activeSessionId.value; // 获取当前的 activeSessionId
+     if (currentActiveSessionId) {
+       sessionStore.closeEditorTabInSession(currentActiveSessionId, tabId);
+     } else {
+       console.warn('[WorkspaceView] Cannot close editor tab: No active session in independent mode.');
+     }
+   }
+ };
+
+ const handleActivateEditorTab = (tabId: string) => {
+   const isShared = shareFileEditorTabsBoolean.value; // 在函数开始时获取模式
+   console.log(`[WorkspaceView] handleActivateEditorTab: ${tabId}, Shared mode: ${isShared}`);
+   if (isShared) {
+     fileEditorStore.setActiveTab(tabId);
+   } else {
+     const currentActiveSessionId = activeSessionId.value; // 获取当前的 activeSessionId
+     if (currentActiveSessionId) {
+       sessionStore.setActiveEditorTabInSession(currentActiveSessionId, tabId);
+     } else {
+       console.warn('[WorkspaceView] Cannot activate editor tab: No active session in independent mode.');
+     }
+   }
+ };
+
+ // 处理编辑器内容更新事件
+ const handleUpdateEditorContent = (payload: { tabId: string; content: string }) => {
+   const isShared = shareFileEditorTabsBoolean.value; // 在函数开始时获取模式
+   console.log(`[WorkspaceView] handleUpdateEditorContent for tab ${payload.tabId}, Shared mode: ${isShared}`);
+   if (isShared) {
+     fileEditorStore.updateFileContent(payload.tabId, payload.content);
+   } else {
+     const currentActiveSessionId = activeSessionId.value; // 获取当前的 activeSessionId
+     if (currentActiveSessionId) {
+       sessionStore.updateFileContentInSession(currentActiveSessionId, payload.tabId, payload.content);
+     } else {
+       console.warn('[WorkspaceView] Cannot update editor content: No active session in independent mode.');
+     }
+   }
+ };
+
+ // 处理编辑器保存请求事件
+ const handleSaveEditorTab = (tabId: string) => {
+   const isShared = shareFileEditorTabsBoolean.value; // 在函数开始时获取模式
+   console.log(`[WorkspaceView] handleSaveEditorTab: ${tabId}, Shared mode: ${isShared}`);
+   if (isShared) {
+     fileEditorStore.saveFile(tabId);
+   } else {
+     const currentActiveSessionId = activeSessionId.value; // 获取当前的 activeSessionId
+     if (currentActiveSessionId) {
+       sessionStore.saveFileInSession(currentActiveSessionId, tabId);
+     } else {
+       console.warn('[WorkspaceView] Cannot save editor tab: No active session in independent mode.');
+     }
    }
  };
 </script>
@@ -166,7 +258,15 @@ onBeforeUnmount(() => {
 
         <!-- 3. 右侧区域 1 Pane (文件编辑器) -->
         <pane size="20" min-size="15" class="file-editor-pane"> <!-- 新增编辑器窗格 -->
-           <FileEditorContainer />
+           <FileEditorContainer
+             :tabs="editorTabs"
+             :active-tab-id="activeEditorTabId"
+             :session-id="activeSessionId" 
+             @close-tab="handleCloseEditorTab"
+             @activate-tab="handleActivateEditorTab"
+             @update:content="handleUpdateEditorContent" 
+             @request-save="handleSaveEditorTab" 
+           />
         </pane>
 
         <!-- 4. 右侧区域 2 Pane (状态监视器) -->

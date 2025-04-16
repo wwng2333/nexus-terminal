@@ -9,9 +9,10 @@ interface SettingsState {
   ipWhitelist: string;
   maxLoginAttempts: string;
   loginBanDuration: string;
-  showPopupFileEditor: string; // 新增设置项，存储为 'true' 或 'false'
+  showPopupFileEditor: string; // 弹窗编辑器设置
+  shareFileEditorTabs?: string; // 新增：共享编辑器标签页设置 ('true'/'false')
   // Add other settings keys here as needed
-  [key: string]: string; // Allow other string settings
+  [key: string]: string | undefined; // Allow other string settings, make value optional
 }
 
 export const useSettingsStore = defineStore('settings', () => {
@@ -43,6 +44,11 @@ export const useSettingsStore = defineStore('settings', () => {
       if (settings.value.showPopupFileEditor === undefined) {
           console.log('[SettingsStore] Setting default for showPopupFileEditor: true');
           settings.value.showPopupFileEditor = 'true'; // 默认为 true
+      }
+      // 共享编辑器标签页设置
+      if (settings.value.shareFileEditorTabs === undefined) {
+          console.log('[SettingsStore] Setting default for shareFileEditorTabs: true');
+          settings.value.shareFileEditorTabs = 'true'; // 默认为 true (共享)
       }
 
       // --- 语言设置 ---
@@ -131,8 +137,17 @@ export const useSettingsStore = defineStore('settings', () => {
   // Getter for the popup editor setting, returning boolean
   const showPopupFileEditorBoolean = computed(() => {
       // 默认为 true，除非明确设置为 'false'
-      return settings.value.showPopupFileEditor !== 'false';
+      // 默认为 true (共享)，除非明确设置为 'false'
+      // 默认为 true (共享)，除非明确设置为 'false'
+      return settings.value.shareFileEditorTabs !== 'false';
   });
+
+  // Getter for sharing setting, returning boolean
+  const shareFileEditorTabsBoolean = computed(() => {
+      // 默认为 true (共享)，除非明确设置为 'false'
+      return settings.value.shareFileEditorTabs !== 'false';
+  });
+
 
   return {
     settings,
@@ -140,6 +155,7 @@ export const useSettingsStore = defineStore('settings', () => {
     error,
     language, // Expose language getter
     showPopupFileEditorBoolean, // Expose boolean getter for popup editor setting
+    shareFileEditorTabsBoolean: shareFileEditorTabsBoolean, // Expose boolean getter for sharing setting
     loadInitialSettings,
     updateSetting,
     updateMultipleSettings,

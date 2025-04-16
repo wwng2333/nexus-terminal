@@ -2,11 +2,14 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watchEffect, type PropType, readonly } from 'vue'; // 恢复导入
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
+import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 // 导入 SFTP Actions 工厂函数和所需的类型
 import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions';
 import { useFileUploader } from '../composables/useFileUploader';
 // import { useFileEditor } from '../composables/useFileEditor'; // 移除旧的 composable 导入
-import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入新的 Store
+import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; // 导入新的 Store 和 FileInfo 类型
+import { useSessionStore } from '../stores/session.store'; // 导入 Session Store
+import { useSettingsStore } from '../stores/settings.store'; // 导入 Settings Store
 // WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
 // import FileEditorOverlay from './FileEditorOverlay.vue'; // 不再在此处渲染
@@ -83,8 +86,13 @@ const {
     props.wsDeps // 传递注入的 WebSocket 依赖项
 );
 
-// 实例化新的文件编辑器 Store
-const fileEditorStore = useFileEditorStore();
+// 实例化 Stores
+const fileEditorStore = useFileEditorStore(); // 用于共享模式
+const sessionStore = useSessionStore();     // 用于独立模式
+const settingsStore = useSettingsStore();   // 用于获取设置
+
+// 从 Settings Store 获取共享设置
+const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 使用 storeToRefs 保持响应性
 
 // 文件编辑器模块 - Needs file operations from sftpManager
 // const { // 移除旧的 composable 解构
@@ -299,8 +307,17 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已
             loadDirectory(newPath); // Use loadDirectory from props
         } else if (item.attrs.isFile) {
             const filePath = joinPath(currentPath.value, item.filename); // Use joinPath from props
-            // 调用全局 Store 的 openFile，并传入 sessionId
-            fileEditorStore.openFile(filePath, props.sessionId);
+            const fileInfo: FileInfo = { name: item.filename, fullPath: filePath };
+
+            if (shareFileEditorTabsBoolean.value) {
+                // 共享模式：调用全局 fileEditorStore
+                console.log(`[FileManager ${props.sessionId}] Opening file in shared mode: ${filePath}`);
+                fileEditorStore.openFile(filePath, props.sessionId);
+            } else {
+                // 独立模式：调用 sessionStore
+                console.log(`[FileManager ${props.sessionId}] Opening file in independent mode: ${filePath}`);
+                sessionStore.openFileInSession(props.sessionId, fileInfo);
+            }
         }
     }
 };

@@ -202,7 +202,8 @@
       "deleteMultiple": "删除 {count} 个项目",
       "download": "下载",
       "cancel": "取消",
-      "save": "保存"
+      "save": "保存",
+      "closeTab": "关闭标签页"
     },
     "headers": {
       "type": "类型",
@@ -365,6 +366,18 @@
       },
       "error": {
         "saveFailed": "保存弹窗编辑器设置失败。"
+      }
+    },
+    "shareEditorTabs": {
+      "title": "编辑器标签页",
+      "enableLabel": "在所有会话间共享编辑器标签页",
+      "description": "如果启用，所有 SSH 会话将共享同一组打开的文件编辑器标签页。如果禁用，每个会话将拥有自己独立的一组标签页。",
+      "saveButton": "保存设置",
+      "success": {
+        "saved": "编辑器标签页共享设置已成功保存。"
+      },
+      "error": {
+        "saveFailed": "保存编辑器标签页共享设置失败。"
       }
     },
     "language": {

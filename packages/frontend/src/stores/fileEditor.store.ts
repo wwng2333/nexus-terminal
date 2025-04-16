@@ -4,8 +4,15 @@ import { useI18n } from 'vue-i18n';
 import { useSessionStore } from './session.store'; // 导入会话 Store
 import type { EditorFileContent, SaveStatus } from '../types/sftp.types'; // 保持导入 SaveStatus
 
-// --- 新类型定义 ---
-export interface EditorTab {
+// --- 类型定义 ---
+// 文件信息，用于打开文件操作
+export interface FileInfo {
+  name: string;
+  fullPath: string;
+}
+
+// 编辑器标签页状态
+export interface FileTab {
     id: string; // 唯一标识符，例如 `${sessionId}:${filePath}`
     sessionId: string;
     filePath: string;
@@ -20,7 +27,11 @@ export interface EditorTab {
     saveStatus: SaveStatus;
     saveError: string | null;
     isModified: boolean; // 内容是否已修改
+    // 添加 sessionId 以便在共享模式下区分来源 (虽然此 store 主要用于共享模式)
+    // 或者在独立模式下，此 store 可能不被使用或以不同方式使用
+    // sessionId: string; // 暂时不加，因为 session.store 已处理独立模式
 }
+
 
 // 辅助函数：根据文件名获取语言 (保持不变)
 const getLanguageFromFilename = (filename: string): string => {
@@ -65,7 +76,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
     const sessionStore = useSessionStore();
 
     // --- 多标签状态 ---
-    const tabs = ref(new Map<string, EditorTab>()); // 存储所有打开的标签页
+    const tabs = ref(new Map<string, FileTab>()); // 存储所有打开的标签页 (使用 FileTab)
     const activeTabId = ref<string | null>(null); // 当前激活的标签页 ID
     // const editorVisibleState = ref<'visible' | 'minimized' | 'closed'>('closed'); // 移除，面板可见性由布局控制
     const popupTrigger = ref(0); // 新增：用于触发弹窗显示的信号
@@ -81,7 +92,8 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         get: () => activeTab.value?.content ?? '',
         set: (value) => {
             if (activeTab.value) {
-                updateContent(value); // 调用 action 更新内容和修改状态
+                // 调用新的 updateFileContent action，并传递 tabId
+                updateFileContent(activeTab.value.id, value);
             }
         },
     });
@@ -100,8 +112,10 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
 
     // 打开或切换到文件标签页
     const openFile = async (targetFilePath: string, sessionId: string) => {
+        // 在共享模式下，我们仍然需要 sessionId 来构建唯一的 tabId
+        // 并与 SFTP 管理器关联
         const tabId = `${sessionId}:${targetFilePath}`;
-        console.log(`[文件编辑器 Store] 尝试打开文件: ${targetFilePath} (会话: ${sessionId}, Tab ID: ${tabId})`);
+        console.log(`[文件编辑器 Store - 共享模式] 尝试打开文件: ${targetFilePath} (会话: ${sessionId}, Tab ID: ${tabId})`);
 
         // 移除确保编辑器可见的逻辑
         // if (editorVisibleState.value === 'closed') {
@@ -118,7 +132,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         }
 
         // 创建新标签页
-        const newTab: EditorTab = {
+        const newTab: FileTab = {
             id: tabId,
             sessionId: sessionId,
             filePath: targetFilePath,
@@ -133,6 +147,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
             saveStatus: 'idle',
             saveError: null,
             isModified: false,
+            // sessionId: sessionId, // 记录来源会话
         };
         tabs.value.set(tabId, newTab);
         setActiveTab(tabId); // 激活新标签页
@@ -343,19 +358,23 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         }
     };
 
-    // 更新当前激活标签页的内容 (由 v-model 调用)
-    const updateContent = (newContent: string) => {
-        if (activeTab.value && !activeTab.value.isLoading) {
-            activeTab.value.content = newContent;
+    // 更新指定标签页的内容 (由 FileEditorContainer 的 v-model 触发)
+    const updateFileContent = (tabId: string, newContent: string) => {
+        const tab = tabs.value.get(tabId);
+        if (tab && !tab.isLoading) {
+            tab.content = newContent;
             // 检查是否修改
-            activeTab.value.isModified = activeTab.value.content !== activeTab.value.originalContent;
+            tab.isModified = tab.content !== tab.originalContent;
             // 当用户编辑时，重置保存状态
-            if (activeTab.value.saveStatus === 'success' || activeTab.value.saveStatus === 'error') {
-                activeTab.value.saveStatus = 'idle';
-                activeTab.value.saveError = null;
+            if (tab.saveStatus === 'success' || tab.saveStatus === 'error') {
+                tab.saveStatus = 'idle';
+                tab.saveError = null;
             }
         }
     };
+
+    // 移除旧的 updateContent，因为它只更新活动标签页
+    // const updateContent = (newContent: string) => { ... };
 
     // 监听会话关闭事件，移除相关标签页
     watch(() => sessionStore.sessions, (newSessions, oldSessions) => {
@@ -412,7 +431,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         closeTab,
         closeAllTabs,
         setActiveTab,
-        updateContent, // 暴露给 v-model 使用
+        updateFileContent, // 暴露新的更新方法
         // setEditorVisibility, // 移除
     };
 });

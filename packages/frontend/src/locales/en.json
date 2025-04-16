@@ -200,7 +200,8 @@
       "deleteMultiple": "Delete {count} items",
       "download": "Download",
       "cancel": "Cancel",
-      "save": "Save"
+      "save": "Save",
+      "closeTab": "Close Tab" 
     },
     "headers": {
       "type": "Type",
@@ -362,6 +363,18 @@
       },
       "error": {
         "saveFailed": "Failed to save popup editor setting."
+      }
+    },
+    "shareEditorTabs": {
+      "title": "Editor Tabs",
+      "enableLabel": "Share editor tabs across all sessions",
+      "description": "If enabled, all SSH sessions will share the same set of open file editor tabs. If disabled, each session will have its own independent set of tabs.",
+      "saveButton": "Save Setting",
+      "success": {
+        "saved": "Editor tab sharing setting saved successfully."
+      },
+      "error": {
+        "saveFailed": "Failed to save editor tab sharing setting."
       }
     },
     "language": {

@@ -55,6 +55,21 @@
       </form>
     </div>
 
+    <!-- 共享编辑器标签页设置 -->
+    <div class="settings-section">
+      <h2>{{ $t('settings.shareEditorTabs.title') }}</h2>
+      <form @submit.prevent="handleUpdateShareTabsSetting">
+          <div class="form-group form-group-checkbox">
+              <input type="checkbox" id="shareEditorTabs" v-model="shareTabsEnabled">
+              <label for="shareEditorTabs">{{ $t('settings.shareEditorTabs.enableLabel') }}</label>
+          </div>
+          <p class="setting-description">{{ $t('settings.shareEditorTabs.description') }}</p>
+          <button type="submit" :disabled="shareTabsLoading">{{ shareTabsLoading ? $t('common.saving') : $t('settings.shareEditorTabs.saveButton') }}</button>
+          <p v-if="shareTabsMessage" :class="{ 'success-message': shareTabsSuccess, 'error-message': !shareTabsSuccess }">{{ shareTabsMessage }}</p>
+      </form>
+    </div>
+
+
     <hr>
 
      <div class="settings-section">
@@ -197,6 +212,7 @@ import { ref, onMounted, computed, reactive, watch, toRefs } from 'vue';
 import { useAuthStore } from '../stores/auth.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 // setLocale is handled by the store now
 import axios from 'axios';
 import { startRegistration } from '@simplewebauthn/browser';
@@ -206,7 +222,8 @@ const settingsStore = useSettingsStore();
 const { t } = useI18n();
 
 // --- Reactive state from store ---
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean } = toRefs(settingsStore);
+// 使用 storeToRefs 获取响应式 getter
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean } = storeToRefs(settingsStore);
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -230,6 +247,10 @@ const blacklistSettingsSuccess = ref(false);
 const popupEditorLoading = ref(false);
 const popupEditorMessage = ref('');
 const popupEditorSuccess = ref(false);
+const shareTabsEnabled = ref(true); // 本地状态，用于共享标签页 v-model
+const shareTabsLoading = ref(false);
+const shareTabsMessage = ref('');
+const shareTabsSuccess = ref(false);
 
 // --- Watcher to sync local form state with store state ---
 watch(settings, (newSettings) => {
@@ -239,6 +260,8 @@ watch(settings, (newSettings) => {
   blacklistSettingsForm.loginBanDuration = newSettings.loginBanDuration || '300';
   // 同步弹窗编辑器设置
   popupEditorEnabled.value = showPopupFileEditorBoolean.value;
+  // 同步共享标签页设置
+  shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
 // --- Popup Editor setting method ---
@@ -260,6 +283,27 @@ const handleUpdatePopupEditorSetting = async () => {
         popupEditorEnabled.value = showPopupFileEditorBoolean.value;
     } finally {
         popupEditorLoading.value = false;
+    }
+};
+
+// --- Share Editor Tabs setting method ---
+const handleUpdateShareTabsSetting = async () => {
+    shareTabsLoading.value = true;
+    shareTabsMessage.value = '';
+    shareTabsSuccess.value = false;
+    try {
+        const valueToSave = shareTabsEnabled.value ? 'true' : 'false';
+        await settingsStore.updateSetting('shareFileEditorTabs', valueToSave);
+        shareTabsMessage.value = t('settings.shareEditorTabs.success.saved'); // 需要添加翻译
+        shareTabsSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新共享编辑器标签页设置失败:', error);
+        shareTabsMessage.value = error.message || t('settings.shareEditorTabs.error.saveFailed'); // 需要添加翻译
+        shareTabsSuccess.value = false;
+        // 保存失败时，将本地复选框状态恢复为 Store 中的状态
+        shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
+    } finally {
+        shareTabsLoading.value = false;
     }
 };
 

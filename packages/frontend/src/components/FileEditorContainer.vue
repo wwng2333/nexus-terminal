@@ -1,32 +1,77 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, type PropType, ref, watch } from 'vue'; // 添加 ref 和 watch
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia';
+// import { storeToRefs } from 'pinia'; // 移除 storeToRefs
 import MonacoEditor from './MonacoEditor.vue'; // 导入 Monaco Editor 组件
-import FileEditorTabs from './FileEditorTabs.vue'; // 导入标签栏组件
-import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入新的 Store
+import FileEditorTabs from './FileEditorTabs.vue'; // 导入标签栏组件 (路径确认无误)
+// import { useFileEditorStore } from '../stores/fileEditor.store'; // 移除 Store 导入
+import type { FileTab } from '../stores/fileEditor.store'; // 保留类型导入
 
 const { t } = useI18n();
-const fileEditorStore = useFileEditorStore();
 
-// 从 Store 获取新的多标签状态和方法
-const {
-    // editorVisibleState, // 可见性由父组件 (WorkspaceView) 控制 Pane 大小决定，不再需要内部状态
-    activeTab,          // 当前激活的标签页对象 (computed)
-    activeEditorContent,// 用于 v-model 绑定 (computed)
-    orderedTabs,        // 标签页数组 (computed)
-} = storeToRefs(fileEditorStore);
+// --- Props ---
+const props = defineProps({
+  tabs: {
+    type: Array as PropType<FileTab[]>,
+    required: true,
+  },
+  activeTabId: {
+    type: String as PropType<string | null>,
+    default: null,
+  },
+  sessionId: { // 需要 sessionId 来区分保存请求等 (虽然 tabs 里也有)
+    type: String as PropType<string | null>,
+    default: null,
+  },
+});
 
-// 从 Store 获取方法
-const {
-    saveFile,           // 现在保存当前激活的标签页
-    closeTab,           // 关闭指定标签页 (由 FileEditorTabs 调用)
-    setActiveTab,       // 设置激活标签页 (由 FileEditorTabs 调用)
-    // setEditorVisibility, // 不再由此组件控制
-    // closeAllTabs,       // 关闭所有标签页 (如果需要，可以添加按钮触发)
-} = fileEditorStore;
+// --- Emits ---
+const emit = defineEmits<{
+  (e: 'activate-tab', tabId: string): void;
+  (e: 'close-tab', tabId: string): void;
+  (e: 'request-save', tabId: string): void; // 发送保存请求，携带 tabId
+  (e: 'update:content', payload: { tabId: string; content: string }): void; // 用于 v-model 同步
+}>();
+
 
 // --- 计算属性，用于模板绑定 ---
+const activeTab = computed((): FileTab | null => {
+  if (!props.activeTabId) return null;
+  return props.tabs.find(tab => tab.id === props.activeTabId) ?? null;
+});
+
+// Monaco Editor 的 v-model 处理
+const localEditorContent = ref('');
+
+// 监听 activeTab 的变化，重置 localEditorContent
+watch(activeTab, (newTab) => {
+    // console.log('[EditorContainer] Active tab changed, updating local content.');
+    localEditorContent.value = newTab?.content ?? '';
+}, { immediate: true });
+
+// 监听 activeTab 内容的变化 (处理异步加载完成的情况)
+watch(() => activeTab.value?.content, (newContent) => {
+    // console.log('[EditorContainer] Active tab content changed, updating local content.');
+    if (localEditorContent.value !== newContent) {
+        localEditorContent.value = newContent ?? '';
+    }
+});
+
+// 当本地编辑器内容变化时，通知父组件 (WorkspaceView)
+watch(localEditorContent, (newContent) => {
+    // console.log('[EditorContainer] Local content changed, checking if emit needed.');
+    if (activeTab.value && newContent !== activeTab.value.content) {
+        // console.log(`[EditorContainer] Emitting update:content for tab ${activeTab.value.id}`);
+        // 只有当内容实际改变时才发出事件
+        emit('update:content', { tabId: activeTab.value.id, content: newContent });
+        // 注意：isModified 状态应该由 Store 根据 content 和 originalContent 计算
+    }
+});
+
+// orderedTabs 直接使用 props
+const orderedTabs = computed(() => props.tabs);
+
+
 const currentTabIsLoading = computed(() => activeTab.value?.isLoading ?? false);
 const currentTabLoadingError = computed(() => activeTab.value?.loadingError ?? null);
 const currentTabIsSaving = computed(() => activeTab.value?.isSaving ?? false);
@@ -38,9 +83,8 @@ const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false
 
 // --- 事件处理 ---
 const handleSaveRequest = () => {
-  // saveFile() 默认保存当前激活的标签页
-  if (activeTab.value) { // 确保有活动标签才保存
-      saveFile();
+  if (activeTab.value) {
+    emit('request-save', activeTab.value.id); // 发出保存请求事件
   }
 };
 
@@ -57,9 +101,9 @@ const handleSaveRequest = () => {
       <!-- 1. 标签栏 -->
       <FileEditorTabs
         :tabs="orderedTabs"
-        :active-tab-id="activeTab?.id ?? null"
-        @activate-tab="setActiveTab"
-        @close-tab="closeTab"
+        :active-tab-id="props.activeTabId"
+        @activate-tab="(tabId: string) => emit('activate-tab', tabId)" 
+        @close-tab="(tabId: string) => emit('close-tab', tabId)" 
       />
 
       <!-- 2. 编辑器头部 (显示当前激活标签信息) -->
@@ -73,7 +117,7 @@ const handleSaveRequest = () => {
           <span v-if="currentTabSaveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
           <span v-if="currentTabSaveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
           <span v-if="currentTabSaveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ currentTabSaveError }}</span>
-          <button @click="handleSaveRequest" :disabled="currentTabIsSaving || currentTabIsLoading || !!currentTabLoadingError || !activeTab" class="save-btn">
+          <button @click="handleSaveRequest" :disabled="currentTabIsSaving || currentTabIsLoading || !!currentTabLoadingError || !activeTab || !currentTabIsModified" class="save-btn">
             {{ currentTabIsSaving ? t('fileManager.saving') : t('fileManager.actions.save') }}
           </button>
           <!-- 关闭/最小化按钮已移除 -->
@@ -91,8 +135,8 @@ const handleSaveRequest = () => {
         <div v-else-if="currentTabLoadingError" class="editor-error">{{ currentTabLoadingError }}</div>
         <MonacoEditor
           v-else-if="activeTab"
-          :key="activeTab.id"  
-          v-model="activeEditorContent"
+          :key="activeTab.id"
+          v-model="localEditorContent" 
           :language="currentTabLanguage"
           theme="vs-dark"
           class="editor-instance"

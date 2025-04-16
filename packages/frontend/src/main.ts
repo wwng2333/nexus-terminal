@@ -24,7 +24,7 @@ app.use(i18n); // 使用 i18n
 const settingsStore = useSettingsStore(pinia); // 需要传递 pinia 实例
 settingsStore.loadInitialSettings().then(() => {
   app.mount('#app'); // 确保设置加载完成后再挂载
-}).catch(error => {
+}).catch((error: unknown) => { // 为 error 添加 unknown 类型
   console.error("Failed to load initial settings before mounting app:", error);
   // 即使加载失败，也尝试挂载应用，可能使用默认设置
   app.mount('#app');
