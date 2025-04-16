@@ -204,4 +204,22 @@ defineExpose({ write });
   height: 100%; /* 高度需要由父容器控制 */
   overflow: hidden; /* 防止滚动条出现 */
 }
+
+/* 尝试直接给 screen 添加 padding */
+.terminal-container :deep(.xterm-screen) {
+  padding: 10px; /* 为终端内容区域添加内边距 */
+  box-sizing: border-box; /* 确保 padding 包含在尺寸内 */
+  /* 覆盖 xterm.css 可能设置的 position: absolute，以便 padding 生效 */
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* 确保 viewport 填满容器，以便 screen 的 padding 生效 */
+.terminal-container :deep(.xterm-viewport) {
+  width: 100% !important;
+  height: 100% !important;
+  /* 移除可能存在的 overflow: hidden，让 screen 的 padding 可见 */
+  overflow: visible !important;
+}
 </style>
