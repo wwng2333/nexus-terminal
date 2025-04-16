@@ -148,8 +148,6 @@ const handleTogglePane = (paneName: PaneName) => {
   white-space: nowrap;
   height: 2.5rem; /* 固定标签栏高度 */
   box-sizing: border-box; /* 确保 padding 不会增加总高度 */
-  /* justify-content: space-between; */ /* 移除，让内容自然靠左 */
-  overflow: hidden; /* 恢复：防止标签过多时破坏布局 */
 }
 
 /* 包裹标签和+按钮的容器 */
@@ -382,8 +380,8 @@ const handleTogglePane = (paneName: PaneName) => {
   position: absolute; /* 恢复绝对定位 */
   top: 100%; /* 定位在按钮下方 */
   right: 0; /* 对齐到右侧 */
-  background-color: lightblue; /* 临时调试背景色 */
-  min-height: 20px; /* 临时调试最小高度 */
+  background-color: white; /* 恢复默认背景色 */
+  /* min-height: 20px; */ /* 移除临时调试最小高度 */
   border: 1px solid #ccc;
   box-shadow: 0 2px 5px rgba(0,0,0,0.15);
   z-index: 9999; /* 保持高 z-index */
