@@ -106,7 +106,7 @@ onBeforeUnmount(() => {
            <!-- 上下分割 (终端 | 命令栏 | 文件管理器) - 禁用双击分割线行为 -->
            <splitpanes :horizontal="true" style="height: 100%" :dbl-click-splitter="false">
               <!-- 上方 Pane (终端) -->
-              <pane size="60" min-size="20" class="terminal-pane">
+              <pane size="59" min-size="20" class="terminal-pane"> <!-- 调整 size -->
                  <!-- 会话终端区域: 只渲染活动会话的终端 -->
                  <div
                    v-for="tabInfo in sessionTabsWithStatus"
@@ -133,8 +133,8 @@ onBeforeUnmount(() => {
                  </div>
               </pane> <!-- End Terminal Pane -->
 
-              <!-- 中间 Pane (命令栏) - 恢复，仅设置 min-size -->
-              <pane size="5" min-size="5" class="command-bar-pane">
+              <!-- 中间 Pane (命令栏) - 略微增加 min-size 和初始 size -->
+              <pane size="6" min-size="6" class="command-bar-pane">
                  <CommandInputBar
                    v-if="activeSessionId"
                    @send-command="handleSendCommand"
@@ -237,13 +237,10 @@ onBeforeUnmount(() => {
     padding: 0; /* 移除 middle-pane 的内边距 */
 }
 
-/* 命令栏 Pane 特定样式 - 固定高度 */
+/* 命令栏 Pane 特定样式 - 恢复基本样式 */
 .command-bar-pane {
   background-color: #e9ecef; /* 背景色 */
   justify-content: center; /* 垂直居中输入框 */
-  flex-grow: 0; /* 不允许增长 */
-  flex-shrink: 0; /* 不允许收缩 */
-  flex-basis: 44px; /* 设置固定的基础高度 (大致等于内部组件高度+padding) */
   overflow: hidden; /* 内容不应超出 */
 }
 /* 调整内部 CommandInputBar 样式 */
