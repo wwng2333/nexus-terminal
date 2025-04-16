@@ -49,10 +49,11 @@ const route = useRoute(); // Keep for download URL generation for now
 // const currentPath = ref<string>('.');
 
 // Access SFTP state and methods from the injected manager instance
+// Note: 'error' and 'clearSftpError' are handled by the UI notification store via useSftpActions
 const {
     fileList,
     isLoading,
-    error,
+    // error, // Removed, handled by UI notification store
     loadDirectory,
     createDirectory,
     createFile,
@@ -63,7 +64,7 @@ const {
     writeFile, // Provided by the manager
     joinPath,
     currentPath, // 从 sftpManager 获取 currentPath
-    clearSftpError,
+    // clearSftpError, // Removed, handled by UI notification store
     cleanup: cleanupSftpHandlers, // Get the cleanup function from the manager
 } = props.sftpManager; // 直接从 props 获取
 
@@ -77,9 +78,9 @@ const {
     currentPath, // 使用从 sftpManager 获取的 currentPath
     fileList, // 传递来自 sftpManager 的 fileList ref
     () => loadDirectory(currentPath.value), // Refresh function uses manager's loadDirectory
-    props.sessionId, // 传递 sessionId
-    props.dbConnectionId // 传递 dbConnectionId
-    // useFileUploader 内部创建自己的 ws 连接, 不需要 wsDeps
+    // props.sessionId, // 不再传递 sessionId
+    // props.dbConnectionId // 不再传递 dbConnectionId
+    props.wsDeps // 传递注入的 WebSocket 依赖项
 );
 
 // 实例化新的文件编辑器 Store
@@ -628,6 +629,7 @@ const stopResize = () => {
 // --- 路径编辑逻辑 ---
 const startPathEdit = () => {
     // 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected
+    // 注意：这里仍然使用从 sftpManager 解构的 isLoading
     if (isLoading.value || !props.wsDeps.isConnected.value) return;
     editablePath.value = currentPath.value; // 使用 sftpManager 的 currentPath 初始化编辑框
     isEditingPath.value = true;
@@ -655,10 +657,10 @@ const cancelPathEdit = () => {
     isEditingPath.value = false;
 };
 
-// 清除错误消息的函数 - 调用 props 中的 clearSftpError
-const clearError = () => {
-    clearSftpError();
-};
+// 清除错误消息的函数 - 不再需要，错误由 UI 通知处理
+// const clearError = () => {
+//     clearSftpError();
+// };
 
 </script>
 
@@ -705,17 +707,17 @@ const clearError = () => {
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
     >
-        <!-- 移除内联错误提示框 -->
-        <!-- <div v-if="error" class="error-alert"> ... </div> -->
+        <!-- Error display is handled globally by UINotificationDisplay -->
 
-        <!-- 1. Initial Loading Indicator -->
-        <div v-if="isLoading && !initialLoadDone" class="loading">{{ t('fileManager.loading') }}</div>
+        <!-- 1. Loading Indicator -->
+        <div v-if="isLoading" class="loading">{{ t('fileManager.loading') }}</div>
 
-        <!-- 2. File Table (Show if not initial loading) -->
-        <!-- Removed the error condition here, table shows regardless of error -->
-        <table v-else-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
-           <colgroup>
-                <col :style="{ width: `${colWidths.type}px` }">
+        <!-- 2. Content when not loading -->
+        <template v-else>
+          <!-- File Table (Show if list has items OR not at root to show '..') -->
+          <table v-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
+            <colgroup>
+                 <col :style="{ width: `${colWidths.type}px` }">
                 <col :style="{ width: `${colWidths.name}px` }">
                 <col :style="{ width: `${colWidths.size}px` }">
                 <col :style="{ width: `${colWidths.permissions}px` }">
@@ -774,11 +776,10 @@ const clearError = () => {
         </table>
 
         <!-- 4. Empty Directory Message (Show if not initial loading, no error, list is empty, and at root) -->
-         <!-- 3. Empty Directory Message (Show only if not loading AND list is empty AND not at root) -->
-         <div v-else-if="!isLoading && sortedFileList.length === 0 && currentPath === '/'" class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
-         <!-- Note: If there's an error, the table will still render (potentially empty if initial load failed),
-              but the error message will be shown above. The "Empty Directory" message
-              is now only shown if explicitly empty and not loading. -->
+         <!-- Empty Directory Message (Show only if at root AND list is empty) -->
+         <div v-else-if="currentPath === '/'" class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
+         <!-- Note: The table above handles the case where the directory is not root but empty (shows '..') -->
+        </template> <!-- Add missing end tag for v-else template -->
      </div>
 
      <!-- 使用 FileUploadPopup 组件 -->

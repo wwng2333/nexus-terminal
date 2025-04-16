@@ -7,6 +7,8 @@ import type { WebSocketMessage, MessagePayload } from '../types/websocket.types'
 
 // --- 接口定义 (已移至 upload.types.ts) ---
 
+import type { WebSocketDependencies } from './useSftpActions'; // 导入 WebSocketDependencies 类型
+
 // 辅助函数 (从 FileManager.vue 复制)
 const generateUploadId = (): string => {
     // 如果需要，可以使用稍微不同的格式作为上传 ID
@@ -24,12 +26,14 @@ export function useFileUploader(
     currentPathRef: Ref<string>,
     fileListRef: Readonly<Ref<readonly FileListItem[]>>, // 使用 Readonly 类型
     refreshDirectory: () => void, // 上传成功后刷新目录的回调函数
-    sessionId: string,
-    dbConnectionId: string
+    // sessionId: string, // 不再需要，因为 wsDeps 包含了会话上下文
+    // dbConnectionId: string, // 不再需要
+    wsDeps: WebSocketDependencies // 注入 WebSocket 依赖项
 ) {
     const { t } = useI18n();
-    // 使用工厂函数创建WebSocket连接管理器，并传入t函数
-    const { sendMessage, onMessage, isConnected } = createWebSocketConnectionManager(sessionId, dbConnectionId, t);
+    // 不再创建独立的连接管理器，而是使用注入的依赖项
+    // const { sendMessage, onMessage, isConnected } = createWebSocketConnectionManager(sessionId, dbConnectionId, t);
+    const { sendMessage, onMessage, isConnected } = wsDeps; // 使用注入的依赖项
 
     // 对 uploads 字典使用 reactive 以获得更好的深度响应性
     const uploads = reactive<Record<string, UploadItem>>({});
