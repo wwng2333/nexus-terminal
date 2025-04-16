@@ -73,7 +73,36 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         // 检查是否为 Base64 编码 (需要后端配合发送 encoding 字段)
         if (message?.encoding === 'base64' && typeof outputData === 'string') {
             try {
-                outputData = atob(outputData); // 在浏览器环境中使用 atob
+                // 使用更安全的Base64解码方式，保证中文字符正确解码
+                const base64String = outputData;
+                // 先用atob获取二进制字符串
+                const binaryString = atob(base64String);
+                // 创建Uint8Array存储二进制数据
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                // 使用TextDecoder确保UTF-8正确解码
+                outputData = new TextDecoder('utf-8').decode(bytes);
+                
+                // 如果输出仍然包含乱码字符，尝试其他编码
+                if (outputData.includes('�')) {
+                    console.warn(`[会话 ${sessionId}][SSH终端模块] UTF-8解码后仍有乱码，尝试其他编码...`);
+                    // 尝试不同的编码
+                    const encodings = ['gbk', 'gb18030', 'big5', 'iso-8859-1'];
+                    for (const encoding of encodings) {
+                        try {
+                            const decoded = new TextDecoder(encoding).decode(bytes);
+                            if (!decoded.includes('�')) {
+                                outputData = decoded;
+                                console.log(`[会话 ${sessionId}][SSH终端模块] 成功使用${encoding}解码`);
+                                break;
+                            }
+                        } catch (encErr) {
+                            // 忽略不支持的编码错误
+                        }
+                    }
+                }
             } catch (e) {
                 console.error(`[会话 ${sessionId}][SSH终端模块] Base64 解码失败:`, e, '原始数据:', message.payload);
                 outputData = `\r\n[解码错误: ${e}]\r\n`; // 在终端显示解码错误

@@ -68,7 +68,7 @@ onMounted(() => {
     terminal = new Terminal({
       cursorBlink: true,
       fontSize: 14,
-      fontFamily: 'Consolas, "Courier New", monospace',
+      fontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"',
       theme: { // 简单主题示例
         background: '#1e1e1e',
         foreground: '#d4d4d4',
@@ -76,8 +76,15 @@ onMounted(() => {
       },
       rows: 24, // 初始行数
       cols: 80, // 初始列数
+      allowTransparency: true,
+      disableStdin: false,
+      convertEol: true,
+      scrollback: 1000, // 减少可滚动历史行数
+      scrollOnUserInput: true, // 输入时滚动到底部
       ...props.options, // 合并外部传入的选项
     });
+    
+    // 注意: 终端数据的解码已在useSshTerminal.ts中进行处理
 
     // 加载插件
     fitAddon = new FitAddon();
@@ -215,11 +222,10 @@ defineExpose({ write });
   height: 100% !important;
 }
 
-/* 确保 viewport 填满容器，以便 screen 的 padding 生效 */
+/* 确保 viewport 填满容器，隐藏滚动条 */
 .terminal-container :deep(.xterm-viewport) {
   width: 100% !important;
   height: 100% !important;
-  /* 移除可能存在的 overflow: hidden，让 screen 的 padding 可见 */
-  overflow: visible !important;
+  overflow: hidden !important;
 }
 </style>
