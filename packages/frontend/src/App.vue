@@ -5,6 +5,8 @@ import { useAuthStore } from './stores/auth.store';
 import { storeToRefs } from 'pinia';
 // 导入通知显示组件
 import UINotificationDisplay from './components/UINotificationDisplay.vue';
+// 导入文件编辑器弹窗组件
+import FileEditorOverlay from './components/FileEditorOverlay.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -38,6 +40,9 @@ const handleLogout = () => {
 
     <!-- 添加全局通知显示 -->
     <UINotificationDisplay />
+
+    <!-- 添加全局文件编辑器弹窗 -->
+    <FileEditorOverlay />
 
     <footer>
       <!-- 使用 t 函数获取应用名称 -->

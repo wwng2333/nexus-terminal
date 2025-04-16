@@ -3,12 +3,13 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watchEffect, type 
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
 // 导入 SFTP Actions 工厂函数和所需的类型
-import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions'; // 恢复 WebSocketDependencies
+import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions';
 import { useFileUploader } from '../composables/useFileUploader';
-import { useFileEditor } from '../composables/useFileEditor';
+// import { useFileEditor } from '../composables/useFileEditor'; // 移除旧的 composable 导入
+import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入新的 Store
 // WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
-import FileEditorOverlay from './FileEditorOverlay.vue';
+// import FileEditorOverlay from './FileEditorOverlay.vue'; // 不再在此处渲染
 // 从类型文件导入所需类型
 import type { FileListItem } from '../types/sftp.types';
 // 从 websocket 类型文件导入所需类型
@@ -81,25 +82,28 @@ const {
     // useFileUploader 内部创建自己的 ws 连接, 不需要 wsDeps
 );
 
+// 实例化新的文件编辑器 Store
+const fileEditorStore = useFileEditorStore();
+
 // 文件编辑器模块 - Needs file operations from sftpManager
-const {
-    isEditorVisible,
-    editingFilePath,
-    editingFileLanguage,
-    isEditorLoading,
-    editorError,
-    isSaving,
-    saveStatus,
-    saveError,
-    editingFileContent,
-    openFile,
-    saveFile,
-    closeEditor,
-    // cleanup: cleanupEditor, // 假设 editor 也提供 cleanup
-} = useFileEditor(
-    readFile, // 使用注入的 sftpManager 中的 readFile
-    writeFile // Use writeFile from the injected sftpManager
-);
+// const { // 移除旧的 composable 解构
+//     isEditorVisible,
+//     editingFilePath,
+//     editingFileLanguage,
+//     isEditorLoading,
+//     editorError,
+//     isSaving,
+//     saveStatus,
+//     saveError,
+//     editingFileContent,
+//     openFile,
+//     saveFile,
+//     closeEditor,
+//     // cleanup: cleanupEditor, // 假设 editor 也提供 cleanup
+// } = useFileEditor( // 移除旧的 composable 调用
+//     readFile, // 使用注入的 sftpManager 中的 readFile
+//     writeFile // Use writeFile from the injected sftpManager
+// );
 
 // --- UI 状态 Refs (Remain mostly the same) ---
 const fileInputRef = ref<HTMLInputElement | null>(null);
@@ -294,7 +298,8 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已
             loadDirectory(newPath); // Use loadDirectory from props
         } else if (item.attrs.isFile) {
             const filePath = joinPath(currentPath.value, item.filename); // Use joinPath from props
-            openFile(filePath); // Use openFile from useFileEditor
+            // 调用全局 Store 的 openFile，并传入 sessionId
+            fileEditorStore.openFile(filePath, props.sessionId);
         }
     }
 };
@@ -793,7 +798,8 @@ const clearError = () => {
       </ul>
     </div>
 
-    <!-- 使用 FileEditorOverlay 组件 -->
+    <!-- FileEditorOverlay 不再在此处渲染 -->
+    <!--
     <FileEditorOverlay
       :is-visible="isEditorVisible"
       :file-path="editingFilePath"
@@ -807,6 +813,7 @@ const clearError = () => {
       @request-save="saveFile"
       @close="closeEditor"
     />
+    -->
 
   </div>
 </template>

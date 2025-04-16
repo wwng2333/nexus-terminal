@@ -1,90 +1,114 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia';
 import MonacoEditor from './MonacoEditor.vue'; // 导入 Monaco Editor 组件
-import type { SaveStatus } from '../types/sftp.types'; // 导入保存状态类型
+import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入新的 Store
 
-const props = defineProps<{
-  isVisible: boolean; // 控制可见性
-  filePath: string | null; // 当前编辑文件路径
-  language: string; // 编辑器语言
-  isLoading: boolean; // 是否正在加载文件内容
-  loadingError: string | null; // 加载错误信息
-  isSaving: boolean; // 是否正在保存
-  saveStatus: SaveStatus; // 保存状态
-  saveError: string | null; // 保存错误信息
-  modelValue: string; // 文件内容 (用于 v-model)
-}>();
-
-const emit = defineEmits<{
-  (e: 'update:modelValue', value: string): void; // v-model 更新事件
-  (e: 'request-save'): void; // 请求保存事件
-  (e: 'close'): void; // 关闭编辑器事件
-}>();
+// 不再需要 props 或 emits，状态和操作来自 Store
+// const props = defineProps<{...}>();
+// const emit = defineEmits<{...}>();
 
 const { t } = useI18n();
+const fileEditorStore = useFileEditorStore();
+
+// 从 Store 获取状态 (使用 storeToRefs 保持响应性)
+const {
+    isVisible,
+    filePath,
+    fileLanguage, // 重命名为 language 以匹配 MonacoEditor prop
+    isLoading,
+    loadingError,
+    isSaving,
+    saveStatus,
+    saveError,
+    fileContent, // 直接使用 store 中的 ref 进行 v-model 绑定
+} = storeToRefs(fileEditorStore);
+
+// 从 Store 获取方法
+const { saveFile, closeEditor, updateContent } = fileEditorStore;
 
 // 计算属性，用于 v-model 绑定到 MonacoEditor
+// 直接绑定 store 中的 fileContent ref
 const editorContent = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value),
+  get: () => fileContent.value,
+  set: (value) => updateContent(value), // 调用 store action 更新内容
 });
 
+// 保存和关闭操作直接调用 store actions
 const handleSaveRequest = () => {
-  emit('request-save');
+  saveFile();
 };
 
 const handleClose = () => {
-  emit('close');
+  closeEditor();
 };
 </script>
 
 <template>
-  <div v-if="isVisible" class="editor-overlay">
-    <div class="editor-header">
-      <span>{{ t('fileManager.editingFile') }}: {{ filePath }}</span>
+  <!-- 使用 store 中的 isVisible 控制显示 -->
+  <!-- 将 v-if 移到遮罩层上 -->
+  <div v-if="isVisible" class="editor-overlay-backdrop" @click.self="handleClose"> <!-- 点击背景关闭 -->
+    <!-- 添加弹窗容器 -->
+    <div class="editor-popup">
+      <div class="editor-header">
+        <!-- 使用 store 中的 filePath -->
+        <span>{{ t('fileManager.editingFile') }}: {{ filePath }}</span>
       <div class="editor-actions">
-        <!-- 保存状态显示 -->
+        <!-- 使用 store 中的保存状态 -->
         <span v-if="saveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
         <span v-if="saveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
         <span v-if="saveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ saveError }}</span>
-        <!-- 保存按钮 -->
+        <!-- 保存按钮，使用 store 状态和方法 -->
         <button @click="handleSaveRequest" :disabled="isSaving || isLoading || !!loadingError" class="save-btn">
           {{ isSaving ? t('fileManager.saving') : t('fileManager.actions.save') }}
         </button>
-        <!-- 关闭按钮 -->
+        <!-- 关闭按钮，使用 store 方法 -->
         <button @click="handleClose" class="close-editor-btn">✖</button>
       </div>
     </div>
-    <!-- 加载状态 -->
+    <!-- 使用 store 中的加载状态 -->
     <div v-if="isLoading" class="editor-loading">{{ t('fileManager.loadingFile') }}</div>
-    <!-- 加载错误 -->
+    <!-- 使用 store 中的加载错误 -->
     <div v-else-if="loadingError" class="editor-error">{{ loadingError }}</div>
     <!-- Monaco 编辑器实例 -->
     <MonacoEditor
       v-else
       v-model="editorContent"
-      :language="language"
+      :language="fileLanguage"  
       theme="vs-dark"
       class="editor-instance"
       @request-save="handleSaveRequest"
     />
-  </div>
+    </div> <!-- 关闭 editor-popup -->
+  </div> <!-- 关闭 editor-overlay-backdrop -->
 </template>
 
 <style scoped>
-/* 样式从 FileManager.vue 迁移并保持一致 */
-.editor-overlay {
-  position: absolute; /* 相对于父容器定位 */
+/* 样式调整为居中弹窗样式 */
+.editor-overlay-backdrop { /* 新增背景遮罩层 */
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(40, 40, 40, 0.95); /* 深色半透明背景 */
-  z-index: 1000; /* 确保在文件列表之上，但在上传弹窗之下 */
+  background-color: rgba(0, 0, 0, 0.6); /* 半透明黑色背景 */
+  z-index: 1000; /* 确保在最上层 */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.editor-popup { /* 编辑器本身的容器 */
+  width: 60%; /* 设置宽度为 60% */
+  height: 80%; /* 设置一个合适的高度 */
+  background-color: #2d2d2d; /* 深色背景 */
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
   color: #f0f0f0;
+  overflow: hidden; /* 防止内容溢出圆角 */
 }
 
 .editor-header {
