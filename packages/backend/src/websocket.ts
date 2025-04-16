@@ -92,7 +92,7 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
             extWs.isAlive = false;
             extWs.ping(() => {});
         });
-    }, 30000); // 30 秒心跳间隔
+    }, 60000); // 增加到 60 秒心跳间隔
 
     // --- WebSocket 升级处理 (认证) ---
     server.on('upgrade', (request: Request, socket, head) => {

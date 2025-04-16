@@ -24,6 +24,11 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
     const messageHandlers = new Map<string, Set<MessageHandler>>(); // 此实例的消息处理器注册表
     const instanceSessionId = sessionId; // 保存会话 ID 用于日志
     const instanceDbConnectionId = dbConnectionId; // 保存数据库连接 ID
+    let reconnectAttempts = 0; // 重连尝试次数
+    const maxReconnectAttempts = 5; // 最大重连次数
+    let reconnectTimeoutId: ReturnType<typeof setTimeout> | null = null; // 重连定时器 ID
+    let lastUrl = ''; // 保存上次连接的 URL
+    let intentionalDisconnect = false; // 标记是否为用户主动断开
     // --- End Instance State ---
 
     /**
@@ -61,10 +66,46 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
     };
 
     /**
+     * 安排 WebSocket 重连尝试
+     */
+    const scheduleReconnect = () => {
+        if (intentionalDisconnect) return; // 如果是主动断开，则不重连
+
+        if (reconnectAttempts >= maxReconnectAttempts) {
+            console.log(`[WebSocket ${instanceSessionId}] 已达到最大重连次数 (${maxReconnectAttempts})，停止重连。`);
+            statusMessage.value = getStatusText('reconnectFailed');
+            connectionStatus.value = 'error'; // 标记为错误状态
+            return;
+        }
+
+        reconnectAttempts++;
+        // 指数退避延迟 (例如: 2s, 4s, 8s, 16s, 32s)
+        const delay = Math.pow(2, reconnectAttempts) * 1000;
+        console.log(`[WebSocket ${instanceSessionId}] 连接丢失，将在 ${delay / 1000} 秒后尝试第 ${reconnectAttempts} 次重连...`);
+        statusMessage.value = getStatusText('reconnecting', { attempt: reconnectAttempts, delay: delay / 1000 });
+        connectionStatus.value = 'connecting'; // 更新状态为正在连接
+
+        if (reconnectTimeoutId) clearTimeout(reconnectTimeoutId); // 清除旧的定时器
+
+        reconnectTimeoutId = setTimeout(() => {
+            if (!intentionalDisconnect && lastUrl) { // 再次检查是否主动断开
+                connect(lastUrl);
+            }
+        }, delay);
+    };
+
+    /**
      * 建立 WebSocket 连接
      * @param {string} url - WebSocket 服务器 URL
      */
     const connect = (url: string) => {
+        lastUrl = url; // 保存 URL 以便重连
+        intentionalDisconnect = false; // 重置主动断开标记
+        if (reconnectTimeoutId) {
+            clearTimeout(reconnectTimeoutId); // 清除可能存在的重连定时器
+            reconnectTimeoutId = null;
+        }
+
         // 防止重复连接同一实例
         if (ws.value && (ws.value.readyState === WebSocket.OPEN || ws.value.readyState === WebSocket.CONNECTING)) {
             console.warn(`[WebSocket ${instanceSessionId}] 连接已打开或正在连接中。`);
@@ -81,6 +122,7 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
 
             ws.value.onopen = () => {
                 console.log(`[WebSocket ${instanceSessionId}] 连接已打开。`);
+                reconnectAttempts = 0; // 连接成功，重置尝试次数
                 statusMessage.value = getStatusText('wsConnected');
                 // 状态保持 'connecting' 直到收到 ssh:connected
                 // 发送后端所需的初始连接消息，包含数据库连接 ID
@@ -140,18 +182,32 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
                 dispatchMessage('internal:error', event, { type: 'internal:error' });
                 isSftpReady.value = false;
                 ws.value = null; // 清理实例
+                // 如果不是主动断开，尝试重连
+                if (!intentionalDisconnect) {
+                    scheduleReconnect();
+                }
             };
 
             ws.value.onclose = (event) => {
                 console.log(`[WebSocket ${instanceSessionId}] 连接已关闭: Code=${event.code}, Reason=${event.reason}`);
-                if (connectionStatus.value !== 'disconnected' && connectionStatus.value !== 'error') {
+                // 只有在非错误状态下才更新为 disconnected
+                if (connectionStatus.value !== 'error') {
                     connectionStatus.value = 'disconnected';
-                    statusMessage.value = getStatusText('wsClosed', { code: event.code });
+                    // 如果不是主动断开，显示尝试重连的消息
+                    if (!intentionalDisconnect && event.code !== 1000) {
+                         statusMessage.value = getStatusText('wsClosedWillRetry', { code: event.code });
+                    } else {
+                         statusMessage.value = getStatusText('wsClosed', { code: event.code });
+                    }
                 }
                 dispatchMessage('internal:closed', { code: event.code, reason: event.reason }, { type: 'internal:closed' });
                 isSftpReady.value = false;
                 ws.value = null; // 清理实例引用
-                // 不自动清除处理器，以便在重连时可能复用
+
+                // 如果不是主动断开 (code 1000)，尝试重连
+                if (!intentionalDisconnect && event.code !== 1000) {
+                    scheduleReconnect();
+                }
             };
         } catch (err) {
              console.error(`[WebSocket ${instanceSessionId}] 创建 WebSocket 实例失败:`, err);
@@ -166,6 +222,11 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
      * 手动断开此 WebSocket 连接
      */
     const disconnect = () => {
+        intentionalDisconnect = true; // 标记为主动断开
+        if (reconnectTimeoutId) {
+            clearTimeout(reconnectTimeoutId); // 清除重连定时器
+            reconnectTimeoutId = null;
+        }
         if (ws.value) {
             console.log(`[WebSocket ${instanceSessionId}] 手动关闭连接...`);
             if (connectionStatus.value !== 'disconnected') {

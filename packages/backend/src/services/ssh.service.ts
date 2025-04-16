@@ -102,8 +102,8 @@ export const establishSshConnection = (
             privateKey: connDetails.privateKey,
             passphrase: connDetails.passphrase,
             readyTimeout: timeout,
-            keepaliveInterval: 30000, // 保持连接
-            keepaliveCountMax: 3,
+            keepaliveInterval: 10000, // 保持连接
+            keepaliveCountMax: 10,
         };
 
         const readyHandler = () => {

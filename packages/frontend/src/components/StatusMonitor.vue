@@ -224,7 +224,7 @@ const swapDisplay = computed(() => {
 .status-item {
   display: grid;
   /* Simplified grid columns: Label | Value Area - Further increased label width */
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: 75px 1fr;
   align-items: center;
   gap: 0.8rem; /* Keep increased gap */
 }
