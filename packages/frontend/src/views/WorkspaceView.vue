@@ -237,12 +237,14 @@ onBeforeUnmount(() => {
     padding: 0; /* 移除 middle-pane 的内边距 */
 }
 
-/* 命令栏 Pane 特定样式 - 添加 max-height */
+/* 命令栏 Pane 特定样式 - 固定高度 */
 .command-bar-pane {
   background-color: #e9ecef; /* 背景色 */
   justify-content: center; /* 垂直居中输入框 */
-  max-height: 200px; /* 使用 CSS 限制最大高度，例如 200px */
-  overflow: auto; /* 如果内容超出，允许滚动 */
+  flex-grow: 0; /* 不允许增长 */
+  flex-shrink: 0; /* 不允许收缩 */
+  flex-basis: 44px; /* 设置固定的基础高度 (大致等于内部组件高度+padding) */
+  overflow: hidden; /* 内容不应超出 */
 }
 /* 调整内部 CommandInputBar 样式 */
 .command-bar-pane > .command-input-bar {
