@@ -1,12 +1,15 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 import router from '../router'; // 引入 router 用于重定向
+import { setLocale } from '../i18n'; // 导入 setLocale
 
 // 扩展的用户信息接口，包含 2FA 状态
+// 扩展的用户信息接口，包含 2FA 状态和语言偏好
 interface UserInfo {
     id: number;
     username: string;
     isTwoFactorEnabled?: boolean; // 后端 /status 接口会返回这个
+    language?: 'en' | 'zh'; // 新增：用户偏好语言
 }
 
 // 新增：登录请求的载荷接口
@@ -65,6 +68,10 @@ export const useAuthStore = defineStore('auth', {
                     this.isAuthenticated = true;
                     this.user = response.data.user;
                     console.log('登录成功 (无 2FA):', this.user);
+                    // 设置语言
+                    if (this.user?.language) {
+                        setLocale(this.user.language);
+                    }
                     await router.push({ name: 'Connections' });
                     return { success: true };
                 } else {
@@ -97,6 +104,10 @@ export const useAuthStore = defineStore('auth', {
                 this.user = response.data.user;
                 this.loginRequires2FA = false; // 重置状态
                 console.log('2FA 验证成功，登录完成:', this.user);
+                // 设置语言
+                if (this.user?.language) {
+                    setLocale(this.user.language);
+                }
                 await router.push({ name: 'Connections' });
                 return { success: true };
             } catch (err: any) {
@@ -168,9 +179,13 @@ export const useAuthStore = defineStore('auth', {
                 const response = await axios.get<{ isAuthenticated: boolean; user: UserInfo }>('/api/v1/auth/status');
                 if (response.data.isAuthenticated && response.data.user) {
                     this.isAuthenticated = true;
-                    this.user = response.data.user; // 更新用户信息，包含 isTwoFactorEnabled
+                    this.user = response.data.user; // 更新用户信息，包含 isTwoFactorEnabled 和 language
                     this.loginRequires2FA = false; // 确保重置
                     console.log('认证状态已更新:', this.user);
+                    // 设置语言
+                    if (this.user?.language) {
+                        setLocale(this.user.language);
+                    }
                 } else {
                     this.isAuthenticated = false;
                     this.user = null;
