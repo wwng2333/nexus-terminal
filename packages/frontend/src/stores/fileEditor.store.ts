@@ -114,16 +114,34 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
             // 处理可能的 Base64 编码
             if (fileData.encoding === 'base64') {
                 try {
-                    fileContent.value = atob(fileData.content); // 解码
-                    fileEncoding.value = 'base64'; // 记录原始编码
+                    // 1. Decode Base64 to raw bytes string
+                    const binaryString = atob(fileData.content);
+                    // 2. Convert binary string to Uint8Array
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    // 3. Decode bytes as UTF-8
+                    const decoder = new TextDecoder('utf-8'); // 显式使用 UTF-8
+                    fileContent.value = decoder.decode(bytes);
+                    fileEncoding.value = 'base64'; // 记录原始编码是 Base64
+                    console.log(`[文件编辑器 Store] Base64 文件 ${targetFilePath} 已解码为 UTF-8。`);
                 } catch (decodeError) {
-                    console.error(`[文件编辑器 Store] Base64 解码错误 for ${targetFilePath}:`, decodeError);
+                    console.error(`[文件编辑器 Store] Base64 或 UTF-8 解码错误 for ${targetFilePath}:`, decodeError);
                     loadingError.value = t('fileManager.errors.fileDecodeError');
-                    fileContent.value = `// ${t('fileManager.errors.fileDecodeError')}\n${fileData.content}`; // 显示原始 Base64 作为后备
+                    // Fallback: Show raw base64 content if decoding fails
+                    fileContent.value = `// ${t('fileManager.errors.fileDecodeError')}\n// Original Base64 content:\n${fileData.content}`;
                 }
             } else {
+                // 假设非 Base64 内容是 UTF-8 字符串
                 fileContent.value = fileData.content;
+                // 在这个 else 分支中，编码不是 base64，我们假定它是 utf8
                 fileEncoding.value = 'utf8';
+                console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 已按 ${fileEncoding.value} 处理。`);
+                // 添加检查：如果内容看起来像乱码，可以加日志
+                if (fileContent.value.includes('\uFFFD')) { // '\uFFFD' () 是无效序列的替换字符
+                    console.warn(`[文件编辑器 Store] 文件 ${targetFilePath} 内容可能包含无效字符，原始编码可能不是 UTF-8。`);
+                }
             }
             isLoading.value = false;
         } catch (err: any) {
