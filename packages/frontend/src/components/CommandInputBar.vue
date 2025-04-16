@@ -1,0 +1,76 @@
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const emit = defineEmits(['send-command']);
+const { t } = useI18n();
+
+const commandInput = ref('');
+
+const sendCommand = () => {
+  const command = commandInput.value.trim();
+  if (command) {
+    console.log(`[CommandInputBar] Sending command: ${command}`);
+    emit('send-command', command + '\n'); // 发送命令并附加换行符，模拟回车
+    commandInput.value = ''; // 清空输入框
+  }
+};
+</script>
+
+<template>
+  <div class="command-input-bar">
+    <div class="input-wrapper">
+      <input
+        type="text"
+        v-model="commandInput"
+        :placeholder="t('commandInputBar.placeholder')"
+        class="command-input"
+        @keydown.enter="sendCommand"
+      />
+      <!-- 可以在这里添加按钮 -->
+    </div>
+    <!-- 可以在这里添加其他按钮 -->
+  </div>
+</template>
+
+<style scoped>
+.command-input-bar {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  background-color: #f0f0f0; /* 背景色，可调整 */
+  border-top: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  min-height: 40px; /* 保证一定高度 */
+}
+
+.input-wrapper {
+  flex-grow: 1; /* 让输入框容器占据大部分空间 */
+  display: flex;
+  justify-content: center; /* 水平居中输入框 */
+}
+
+.command-input {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9em;
+  width: 60%; /* 输入框宽度，可调整 */
+  max-width: 800px; /* 最大宽度 */
+  outline: none;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.command-input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* 可以添加按钮样式 */
+/*
+.command-input-bar button {
+  margin-left: 10px;
+  padding: 6px 12px;
+}
+*/
+</style>

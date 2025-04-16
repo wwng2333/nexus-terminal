@@ -106,15 +106,47 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
             reconnectTimeoutId = null;
         }
 
-        // 防止重复连接同一实例
-        if (ws.value && (ws.value.readyState === WebSocket.OPEN || ws.value.readyState === WebSocket.CONNECTING)) {
-            console.warn(`[WebSocket ${instanceSessionId}] 连接已打开或正在连接中。`);
+        // --- 修改后的检查逻辑 ---
+        // 只有当 ws 实例存在，且其状态为 OPEN 或 CONNECTING，
+        // 并且我们自己维护的状态也是 connected 或 connecting 时，才阻止连接。
+        if (ws.value &&
+            (ws.value.readyState === WebSocket.OPEN || ws.value.readyState === WebSocket.CONNECTING) &&
+            (connectionStatus.value === 'connected' || connectionStatus.value === 'connecting')
+           ) {
+            console.warn(`[WebSocket ${instanceSessionId}] 连接已打开或正在连接中 (readyState: ${ws.value.readyState}, status: ${connectionStatus.value})。 阻止重复连接。`);
             return;
         }
 
+        // 处理状态不一致或旧连接未完全关闭的情况
+        if (ws.value && (ws.value.readyState === WebSocket.OPEN || ws.value.readyState === WebSocket.CONNECTING)) {
+             // readyState 是 OPEN/CONNECTING 但 connectionStatus 是 disconnected/error
+             console.warn(`[WebSocket ${instanceSessionId}] 检测到状态不一致 (readyState: ${ws.value.readyState}, status: ${connectionStatus.value})。尝试关闭旧连接并继续...`);
+             // 临时标记为主动断开，防止 onclose 触发 scheduleReconnect
+             const oldWs = ws.value; // 保存旧 ws 引用
+             const previousIntentionalDisconnect = intentionalDisconnect;
+             intentionalDisconnect = true;
+             // 在关闭前移除监听器，防止旧的 onclose 干扰
+             if (oldWs) {
+                 console.log(`[WebSocket ${instanceSessionId}] 移除旧连接的事件监听器...`);
+                 oldWs.onopen = null;
+                 oldWs.onmessage = null;
+                 oldWs.onerror = null;
+                 oldWs.onclose = null; // 阻止旧的 onclose 干扰
+                 console.log(`[WebSocket ${instanceSessionId}] 关闭旧连接 (强制)...`);
+                 oldWs.close(1000, '状态不一致，强制重连');
+             }
+             ws.value = null; // 清理 shallowRef 中的引用
+             intentionalDisconnect = previousIntentionalDisconnect; // 恢复标记
+             console.log(`[WebSocket ${instanceSessionId}] 旧连接处理完毕。`);
+        } else if (ws.value && ws.value.readyState === WebSocket.CLOSING) {
+             console.log(`[WebSocket ${instanceSessionId}] 检测到旧连接正在关闭 (readyState: ${ws.value.readyState})。清理引用并继续创建新连接...`);
+             ws.value = null; // 清理引用，让后续逻辑创建新的
+        }
+        // 如果 ws.value 存在且 readyState 是 CLOSED，它应该已经在 onclose 中被设为 null
+
         console.log(`[WebSocket ${instanceSessionId}] 尝试连接到: ${url} (DB Conn ID: ${instanceDbConnectionId})`);
         statusMessage.value = getStatusText('connectingWs', { url });
-        connectionStatus.value = 'connecting';
+        connectionStatus.value = 'connecting'; // 确保状态设置为 connecting
         isSftpReady.value = false; // 重置 SFTP 状态
 
         try {

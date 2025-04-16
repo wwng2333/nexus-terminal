@@ -108,19 +108,26 @@ const toggleGroup = (groupName: string) => {
   expandedGroups.value[groupName] = !expandedGroups.value[groupName];
 };
 
-// 处理单击连接
+// 处理单击连接 (左键)
 const handleConnect = (connectionId: number) => {
+  console.log(`[WkspConnList] handleConnect (左键) called for ID: ${connectionId}`);
   emit('connect-request', connectionId);
+  console.log(`[WkspConnList] Emitted 'connect-request' for ID: ${connectionId}`);
   closeContextMenu(); // 点击连接后关闭菜单
 };
 
 // 显示右键菜单
 const showContextMenu = (event: MouseEvent, connection: ConnectionInfo) => {
+  console.log(`[WkspConnList] showContextMenu (右键) called for ID: ${connection.id}. Event:`, event);
+  event.preventDefault(); // 再次确保阻止默认行为
+  event.stopPropagation(); // 阻止事件冒泡
+  console.log('[WkspConnList] Right-click default prevented and propagation stopped.');
   contextTargetConnection.value = connection;
   contextMenuPosition.value = { x: event.clientX, y: event.clientY };
   contextMenuVisible.value = true;
   // 添加全局点击监听器以关闭菜单
   document.addEventListener('click', closeContextMenu, { once: true });
+  return false; // 彻底停止事件处理
 };
 
 // 关闭右键菜单
@@ -159,7 +166,9 @@ onMounted(() => {
 
 // 处理中键点击（在新标签页打开）
 const handleOpenInNewTab = (connectionId: number) => {
+  console.log(`[WkspConnList] handleOpenInNewTab (中键/辅助键) called for ID: ${connectionId}`);
   emit('open-new-session', connectionId);
+  console.log(`[WkspConnList] Emitted 'open-new-session' for ID: ${connectionId}`);
   closeContextMenu(); // 如果右键菜单是打开的，也关闭它
 };
 </script>

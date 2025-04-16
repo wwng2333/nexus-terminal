@@ -198,38 +198,46 @@ export const useSessionStore = defineStore('session', () => {
   };
 
   /**
-   * 处理连接列表的左键点击（连接或激活）
+   * 处理连接列表的左键点击（如果点击的是当前活动标签且断开则重连，否则总是新建标签）
    */
   const handleConnectRequest = (connectionId: number | string) => {
     const connIdStr = String(connectionId);
-    console.log(`[SessionStore] 处理连接请求: ${connIdStr}`);
+    console.log(`[SessionStore] handleConnectRequest called for ID: ${connIdStr}`);
 
+    let existingSession: SessionState | null = null;
     let existingSessionId: string | null = null;
+    // 查找是否存在对应 connectionId 的会话
     for (const [sessionId, session] of sessions.value.entries()) {
       if (session.connectionId === connIdStr) {
+        existingSession = session;
         existingSessionId = sessionId;
         break;
       }
     }
 
-    if (existingSessionId) {
-      if (activeSessionId.value !== existingSessionId) {
-        console.log(`[SessionStore] 激活已存在的会话: ${existingSessionId}`);
-        activateSession(existingSessionId);
+    // 检查点击的连接是否是当前活动的标签页
+    if (existingSession && existingSessionId && existingSessionId === activeSessionId.value) {
+      // 是当前活动标签页
+      const currentStatus = existingSession.wsManager.connectionStatus.value;
+      console.log(`[SessionStore] 点击的是当前活动会话 ${existingSessionId}，状态: ${currentStatus}`);
+      if (currentStatus === 'disconnected' || currentStatus === 'error') {
+        // 如果已断开或出错，则尝试重连
+        console.log(`[SessionStore] 活动会话 ${existingSessionId} 已断开或出错，尝试重连...`);
+        const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
+        existingSession.wsManager.connect(wsUrl);
+        // 不需要再调用 activateSession，因为它已经是活动的
       } else {
-        console.log(`[SessionStore] 点击的连接 ${connIdStr} 已在活动会话 ${existingSessionId} 中，无需操作。`);
+        // 如果状态正常，则无需操作
+        console.log(`[SessionStore] 活动会话 ${existingSessionId} 状态正常，无需操作。`);
       }
     } else {
-      // 当前行为：替换当前活动会话（如果存在）
-      if (activeSession.value) {
-        console.log(`[SessionStore] 替换当前会话 ${activeSessionId.value} 为新连接 ${connIdStr}`);
-        closeSession(activeSessionId.value!); // 确保 activeSessionId 存在
-        openNewSession(connIdStr);
+      // 点击的不是当前活动标签（可能是非活动标签，或根本不存在），总是新建标签页
+      if (existingSessionId) {
+         console.log(`[SessionStore] 点击的连接 ${connIdStr} 存在于非活动会话 ${existingSessionId} 中，将打开新会话。`);
       } else {
-        console.log(`[SessionStore] 当前无活动会话，打开新会话: ${connIdStr}`);
-        openNewSession(connIdStr);
+         console.log(`[SessionStore] 未找到 ID 为 ${connIdStr} 的现有会话，将打开新会话。`);
       }
-      // 备选行为：总是打开新标签页？需要调整 openNewSession 逻辑
+      openNewSession(connIdStr); // 直接调用 openNewSession
     }
   };
 
@@ -237,7 +245,7 @@ export const useSessionStore = defineStore('session', () => {
    * 处理连接列表的中键点击（总是打开新会话）
    */
   const handleOpenNewSession = (connectionId: number | string) => {
-    console.log(`[SessionStore] 处理打开新会话请求: ${connectionId}`);
+    console.log(`[SessionStore] handleOpenNewSession called for ID: ${connectionId}`);
     openNewSession(connectionId);
   };
 

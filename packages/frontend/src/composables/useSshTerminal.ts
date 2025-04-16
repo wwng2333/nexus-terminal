@@ -254,12 +254,22 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         console.log(`[会话 ${sessionId}][SSH终端模块] 已清理。`);
     };
 
+    /**
+     * 直接发送数据到 SSH 会话 (例如，从命令输入栏)
+     * @param data 要发送的字符串数据
+     */
+    const sendData = (data: string) => {
+        // console.debug(`[会话 ${sessionId}][SSH终端模块] 直接发送数据:`, data);
+        sendMessage({ type: 'ssh:input', sessionId, payload: { data } });
+    };
+
     // 返回工厂实例
     return {
         // 公共接口
         handleTerminalReady,
-        handleTerminalData,
+        handleTerminalData, // 这个处理来自 xterm.js 的输入
         handleTerminalResize,
+        sendData, // 新增：允许外部直接发送数据
         cleanup
     };
 }

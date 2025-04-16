@@ -519,5 +519,8 @@
     "untagged": "未标记",
     "searchPlaceholder": "搜索名称或主机...",
     "noResults": "未找到匹配 \"{searchTerm}\" 的连接。"
-  }
+  },
+  "commandInputBar": {
+  "placeholder": "在此输入命令后按 Enter 发送到终端..."
+}
 }
