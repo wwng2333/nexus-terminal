@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router';
-import { useI18n } from 'vue-i18n'; // 引入 useI18n
-import { useAuthStore } from './stores/auth.store'; // 引入 Auth Store
+import { useI18n } from 'vue-i18n';
+import { useAuthStore } from './stores/auth.store';
 import { storeToRefs } from 'pinia';
+// 导入通知显示组件
+import UINotificationDisplay from './components/UINotificationDisplay.vue';
 
-const { t } = useI18n(); // 获取 t 函数
+const { t } = useI18n();
 const authStore = useAuthStore();
 const { isAuthenticated } = storeToRefs(authStore); // 获取登录状态
 
@@ -33,6 +35,9 @@ const handleLogout = () => {
     <main>
       <RouterView /> <!-- 路由对应的组件将在这里渲染 -->
     </main>
+
+    <!-- 添加全局通知显示 -->
+    <UINotificationDisplay />
 
     <footer>
       <!-- 使用 t 函数获取应用名称 -->

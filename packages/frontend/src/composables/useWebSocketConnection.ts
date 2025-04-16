@@ -1,5 +1,9 @@
 import { ref, shallowRef, computed, readonly } from 'vue';
-import type { ConnectionStatus, MessagePayload, WebSocketMessage, MessageHandler } from '../types/websocket.types';
+// 从 websocket.types.ts 导入并重新导出 ConnectionStatus
+import type { ConnectionStatus as WsConnectionStatusType, MessagePayload, WebSocketMessage, MessageHandler } from '../types/websocket.types';
+
+// 导出类型别名，以便其他模块可以使用
+export type WsConnectionStatus = WsConnectionStatusType;
 
 /**
  * 创建并管理单个 WebSocket 连接实例。
@@ -14,7 +18,7 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
     // --- Instance State ---
     // 每个实例拥有独立的 WebSocket 对象、状态和消息处理器
     const ws = shallowRef<WebSocket | null>(null); // WebSocket 实例
-    const connectionStatus = ref<ConnectionStatus>('disconnected'); // 连接状态
+    const connectionStatus = ref<WsConnectionStatus>('disconnected'); // 连接状态 (使用导出的类型)
     const statusMessage = ref<string>(''); // 状态描述文本
     const isSftpReady = ref<boolean>(false); // SFTP 是否就绪
     const messageHandlers = new Map<string, Set<MessageHandler>>(); // 此实例的消息处理器注册表

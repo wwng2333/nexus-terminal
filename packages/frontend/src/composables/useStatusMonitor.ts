@@ -91,9 +91,12 @@ export function createStatusMonitorManager(sessionId: string, wsDeps: StatusMoni
             unregisterAllStatusHandlers();
             // 连接断开时清除状态
             serverStatus.value = null;
-            statusError.value = '连接已断开'; // 或者使用 i18n
+            // 只有在之前连接成功的情况下才设置断开错误
+            if (oldValue === true) {
+                statusError.value = '连接已断开'; // 或者使用 i18n
+            }
         }
-    }, { immediate: true }); // immediate: true 确保初始状态下也会执行一次
+    }); // 移除 immediate: true，避免初始设置错误状态
 
     // --- 清理函数 ---
     const cleanup = () => {

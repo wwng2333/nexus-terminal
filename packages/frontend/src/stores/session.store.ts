@@ -4,7 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { useConnectionsStore, type ConnectionInfo } from './connections.store';
 
 // 导入管理器工厂函数 (用于创建实例)
-import { createWebSocketConnectionManager } from '../composables/useWebSocketConnection';
+// 导入 WsConnectionStatus 类型
+import { createWebSocketConnectionManager, type WsConnectionStatus } from '../composables/useWebSocketConnection';
 import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions';
 import { createSshTerminalManager, type SshTerminalDependencies } from '../composables/useSshTerminal';
 import { createStatusMonitorManager, type StatusMonitorDependencies } from '../composables/useStatusMonitor';
@@ -31,6 +32,14 @@ export interface SessionState {
   currentSftpPath: Ref<string>; // SFTP 当前路径 (可能需要保留在此处或移至 SftpManager 内部)
 }
 
+// 为标签栏定义包含状态的类型
+export interface SessionTabInfoWithStatus {
+  sessionId: string;
+  connectionName: string;
+  status: WsConnectionStatus; // 添加状态字段
+}
+
+
 export const useSessionStore = defineStore('session', () => {
   // --- 依赖 ---
   const { t } = useI18n();
@@ -48,6 +57,16 @@ export const useSessionStore = defineStore('session', () => {
       connectionName: session.connectionName,
     }));
   });
+
+  // 新增：包含状态的标签页信息
+  const sessionTabsWithStatus = computed((): SessionTabInfoWithStatus[] => {
+    return Array.from(sessions.value.values()).map(session => ({
+      sessionId: session.sessionId,
+      connectionName: session.connectionName,
+      status: session.wsManager.connectionStatus.value, // 从 wsManager 获取状态
+    }));
+  });
+
 
   const activeSession = computed((): SessionState | null => {
     if (!activeSessionId.value) return null;
@@ -240,6 +259,7 @@ export const useSessionStore = defineStore('session', () => {
     activeSessionId,
     // Getters
     sessionTabs,
+    sessionTabsWithStatus, // 导出新的 getter
     activeSession,
     // Actions
     openNewSession,

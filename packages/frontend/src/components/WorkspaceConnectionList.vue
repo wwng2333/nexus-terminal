@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue'; // 确保 ref 已导入
 import { storeToRefs } from 'pinia';
 // import { useRouter } from 'vue-router'; // 不再需要 router
 import { useI18n } from 'vue-i18n';
@@ -22,6 +22,9 @@ const tagsStore = useTagsStore();
 const { connections, isLoading: connectionsLoading, error: connectionsError } = storeToRefs(connectionsStore);
 const { tags, isLoading: tagsLoading, error: tagsError } = storeToRefs(tagsStore);
 
+// 搜索词
+const searchTerm = ref('');
+
 // 右键菜单状态
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
@@ -30,38 +33,59 @@ const contextTargetConnection = ref<ConnectionInfo | null>(null);
 // 分组展开状态
 const expandedGroups = ref<Record<string, boolean>>({}); // 使用 Record<string, boolean>
 
-// 计算属性：按标签分组连接
-const groupedConnections = computed(() => {
+// 计算属性：过滤并按标签分组连接
+const filteredAndGroupedConnections = computed(() => {
   const groups: Record<string, ConnectionInfo[]> = {};
   const untagged: ConnectionInfo[] = [];
   const tagMap = new Map(tags.value.map(tag => [tag.id, tag]));
+  const lowerSearchTerm = searchTerm.value.toLowerCase();
 
-  connections.value.forEach(conn => {
+  // 1. 过滤连接
+  const filteredConnections = connections.value.filter(conn => {
+    const nameMatch = conn.name && conn.name.toLowerCase().includes(lowerSearchTerm);
+    const hostMatch = conn.host.toLowerCase().includes(lowerSearchTerm);
+    // 如果有 IP 地址字段，也应包含在此处
+    // const ipMatch = conn.ipAddress && conn.ipAddress.toLowerCase().includes(lowerSearchTerm);
+    return nameMatch || hostMatch; // || ipMatch;
+  });
+
+  // 2. 分组过滤后的连接
+  filteredConnections.forEach(conn => {
     if (conn.tag_ids && conn.tag_ids.length > 0) {
+      let tagged = false; // 标记是否至少加入了一个分组
       conn.tag_ids.forEach(tagId => {
         const tag = tagMap.get(tagId);
-        const groupName = tag ? tag.name : t('workspaceConnectionList.untagged'); // Fallback if tag not found
-        if (!groups[groupName]) {
-          groups[groupName] = [];
-          if (expandedGroups.value[groupName] === undefined) {
-             expandedGroups.value[groupName] = true; // 默认展开
+        // 确保标签存在才分组
+        if (tag) {
+          const groupName = tag.name;
+          if (!groups[groupName]) {
+            groups[groupName] = [];
+            if (expandedGroups.value[groupName] === undefined) {
+               expandedGroups.value[groupName] = true; // 默认展开
+            }
           }
+          // 避免重复添加（如果一个连接有多个标签）
+          if (!groups[groupName].some(c => c.id === conn.id)) {
+              groups[groupName].push(conn);
+          }
+          tagged = true;
         }
-        groups[groupName].push(conn);
       });
+      // 如果所有标签都无效或未找到，则归入未标记
+      if (!tagged) {
+          untagged.push(conn);
+      }
     } else {
       untagged.push(conn);
     }
   });
 
-  // 对每个分组内的连接按名称或主机排序
+  // 3. 排序和格式化输出
   for (const groupName in groups) {
       groups[groupName].sort((a, b) => (a.name || a.host).localeCompare(b.name || b.host));
   }
   untagged.sort((a, b) => (a.name || a.host).localeCompare(b.name || b.host));
 
-
-  // 将未标记的分组放在最后
   const sortedGroupNames = Object.keys(groups).sort();
   const result: { groupName: string; connections: ConnectionInfo[] }[] = sortedGroupNames.map(name => ({
       groupName: name,
@@ -150,34 +174,62 @@ const handleOpenInNewTab = (connectionId: number) => {
     </div>
     <div v-else-if="connections.length === 0" class="no-connections">
       {{ t('connections.noConnections') }}
-      <button @click="handleMenuAction('add')">{{ t('connections.addConnection') }}</button>
+      <!-- 保留添加按钮，即使列表为空 -->
+      <!-- <button @click="handleMenuAction('add')">{{ t('connections.addConnection') }}</button> -->
     </div>
-    <div v-else>
-      <!-- 添加连接按钮（总是在顶部） -->
-      <button class="add-connection-button" @click="handleMenuAction('add')">
-        <i class="fas fa-plus"></i> {{ t('connections.addConnection') }}
+    <!-- 搜索和添加栏 -->
+    <div class="search-add-bar">
+      <input
+        type="text"
+        v-model="searchTerm"
+        :placeholder="t('workspaceConnectionList.searchPlaceholder')"
+        class="search-input"
+      />
+      <button class="add-button" @click="handleMenuAction('add')" :title="t('connections.addConnection')">
+        <i class="fas fa-plus"></i>
       </button>
-      <div v-for="group in groupedConnections" :key="group.groupName" class="connection-group">
-        <div class="group-header" @click="toggleGroup(group.groupName)">
-          <i :class="['fas', expandedGroups[group.groupName] ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
-          <span>{{ group.groupName }}</span>
+    </div>
+
+    <!-- 连接列表区域 -->
+    <div class="connection-list-area">
+      <div v-if="connectionsLoading || tagsLoading" class="loading">
+        {{ t('common.loading') }}
+      </div>
+      <div v-else-if="connectionsError || tagsError" class="error">
+        {{ connectionsError || tagsError }}
+      </div>
+      <div v-else-if="filteredAndGroupedConnections.length === 0 && connections.length > 0" class="no-results">
+         {{ t('workspaceConnectionList.noResults') }} "{{ searchTerm }}"
+      </div>
+      <div v-else-if="connections.length === 0" class="no-connections">
+         {{ t('connections.noConnections') }}
+      </div>
+      <div v-else>
+        <!-- 修正: 循环 filteredAndGroupedConnections -->
+        <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="connection-group">
+          <div class="group-header" @click="toggleGroup(groupData.groupName)">
+            <i :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+            <span>{{ groupData.groupName }}</span>
+          </div>
+          <!-- 修正: 使用 groupData.groupName 和 groupData.connections -->
+          <ul v-show="expandedGroups[groupData.groupName]" class="connection-items">
+            <li
+              v-for="conn in groupData.connections"
+              :key="conn.id"
+              class="connection-item"
+              @click.left="handleConnect(conn.id)"
+              @click.middle.prevent="handleOpenInNewTab(conn.id)"
+              @auxclick.prevent="handleOpenInNewTab(conn.id)"
+              @contextmenu.prevent="showContextMenu($event, conn)"
+            >
+              <i class="fas fa-server connection-icon"></i>
+              <span class="connection-name" :title="conn.name || conn.host">
+                {{ conn.name || conn.host }}
+              </span>
+            </li>
+          </ul>
         </div>
-        <ul v-show="expandedGroups[group.groupName]" class="connection-items">
-          <li
-            v-for="conn in group.connections"
-            :key="conn.id"
-            class="connection-item"
-            @click.left="handleConnect(conn.id)"
-            @click.middle.prevent="handleOpenInNewTab(conn.id)"
-            @auxclick.prevent="handleOpenInNewTab(conn.id)"
-            @contextmenu.prevent="showContextMenu($event, conn)"
-          >
-            <i class="fas fa-server connection-icon"></i>
-            <span class="connection-name" :title="conn.name || conn.host">
-              {{ conn.name || conn.host }}
-            </span>
-          </li>
-        </ul>
+        <!-- 移除重复的 ul 块 -->
       </div>
     </div>
 
@@ -200,14 +252,58 @@ const handleOpenInNewTab = (connectionId: number) => {
 
 <style scoped>
 .workspace-connection-list {
-  padding: 0.5rem 0;
   height: 100%;
-  overflow-y: auto;
-  background-color: #f8f9fa; /* Slightly different background */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 防止内部滚动条影响布局 */
+  background-color: #f8f9fa;
   font-size: 0.9em;
 }
 
-.loading, .error, .no-connections {
+.search-add-bar {
+  display: flex;
+  padding: 0.5rem;
+  border-bottom: 1px solid #dee2e6;
+  background-color: #e9ecef; /* 给搜索栏一个背景色 */
+}
+
+.search-input {
+  flex-grow: 1;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px 0 0 4px; /* 左侧圆角 */
+  font-size: 0.9em;
+  outline: none;
+}
+.search-input:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.add-button {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid #ced4da;
+  border-left: none; /* 移除左边框，与输入框合并 */
+  background-color: #f8f9fa;
+  cursor: pointer;
+  border-radius: 0 4px 4px 0; /* 右侧圆角 */
+  color: #495057;
+}
+.add-button:hover {
+  background-color: #e2e6ea;
+}
+.add-button i {
+  font-size: 1em; /* 图标大小 */
+}
+
+.connection-list-area {
+  flex-grow: 1; /* 占据剩余空间 */
+  overflow-y: auto; /* 列表内容滚动 */
+  padding: 0.5rem 0;
+}
+
+
+.loading, .error, .no-connections, .no-results {
   padding: 1rem;
   text-align: center;
   color: #6c757d;

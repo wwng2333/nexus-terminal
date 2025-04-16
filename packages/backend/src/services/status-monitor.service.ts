@@ -55,13 +55,13 @@ export class StatusMonitorService {
         }
         if (state.statusIntervalId) {
             //console.warn(`[StatusMonitor] 会话 ${sessionId} 的状态轮询已在运行中。`);
-            return;
-        }
-        //console.warn(`[StatusMonitor] 为会话 ${sessionId} 启动状态轮询，间隔 ${interval}ms`);
-        this.fetchAndSendServerStatus(sessionId); // 立即执行一次
-        state.statusIntervalId = setInterval(() => {
-            this.fetchAndSendServerStatus(sessionId);
-        }, interval);
+             return;
+         }
+         //console.warn(`[StatusMonitor] 为会话 ${sessionId} 启动状态轮询，间隔 ${interval}ms`);
+         // 移除立即执行，让 setInterval 负责第一次调用，给连接更多准备时间
+         state.statusIntervalId = setInterval(() => {
+             this.fetchAndSendServerStatus(sessionId);
+         }, interval);
     }
 
     /**
@@ -118,11 +118,31 @@ export class StatusMonitorService {
                  status.osName = nameMatch ? nameMatch[1] : (osReleaseOutput.match(/^NAME="?([^"]+)"?/m)?.[1] ?? 'Unknown');
              } catch (err) { console.warn(`[StatusMonitor ${sessionId}] Failed to get OS name:`, err); }
 
-             // --- CPU Model ---
+             // --- CPU Model (Try /proc/cpuinfo first, fallback to lscpu) ---
              try {
-                 const lscpuOutput = await this.executeSshCommand(sshClient, "lscpu | grep 'Model name:'");
-                 status.cpuModel = lscpuOutput.match(/Model name:\s+(.*)/)?.[1].trim() ?? 'Unknown';
-             } catch (err) { console.warn(`[StatusMonitor ${sessionId}] Failed to get CPU model:`, err); }
+                 let cpuModelOutput = '';
+                 try {
+                     // Try /proc/cpuinfo first, common on many systems including Alpine
+                     cpuModelOutput = await this.executeSshCommand(sshClient, "cat /proc/cpuinfo | grep 'model name' | head -n 1");
+                     status.cpuModel = cpuModelOutput.match(/model name\s*:\s*(.*)/i)?.[1].trim();
+                 } catch (procErr) {
+                     console.warn(`[StatusMonitor ${sessionId}] Failed to get CPU model from /proc/cpuinfo, trying lscpu...`, procErr);
+                     // Fallback to lscpu if /proc/cpuinfo fails
+                     try {
+                         cpuModelOutput = await this.executeSshCommand(sshClient, "lscpu | grep 'Model name:'");
+                         status.cpuModel = cpuModelOutput.match(/Model name:\s+(.*)/)?.[1].trim();
+                     } catch (lscpuErr) {
+                         console.warn(`[StatusMonitor ${sessionId}] Failed to get CPU model from lscpu as well:`, lscpuErr);
+                     }
+                 }
+                 // If still no model found after both attempts
+                 if (!status.cpuModel) {
+                     status.cpuModel = 'Unknown';
+                 }
+             } catch (err) { // Catch any unexpected error during the process
+                 console.warn(`[StatusMonitor ${sessionId}] Error getting CPU model:`, err);
+                 status.cpuModel = 'Unknown';
+             }
 
              // --- Memory and Swap ---
              try {
@@ -154,16 +174,23 @@ export class StatusMonitorService {
                  } else { status.swapTotal = 0; status.swapUsed = 0; status.swapPercent = 0; }
              } catch (err) { console.warn(`[StatusMonitor ${sessionId}] Failed to get memory/swap usage:`, err); }
 
-             // --- Disk Usage (Root Partition) ---
+             // --- Disk Usage (Root Partition, POSIX format for compatibility) ---
              try {
-                 const dfOutput = await this.executeSshCommand(sshClient, "df -k / | tail -n 1");
-                 const parts = dfOutput.split(/\s+/);
-                 if (parts.length >= 5) {
-                     const total = parseInt(parts[1], 10); const used = parseInt(parts[2], 10);
-                     const percentMatch = parts[4].match(/(\d+)%/);
-                     if (!isNaN(total) && !isNaN(used) && percentMatch) {
-                         status.diskTotal = total; status.diskUsed = used;
-                         status.diskPercent = parseFloat(percentMatch[1]);
+                 // 使用 df -kP / 获取 POSIX 标准格式输出，更稳定
+                 const dfOutput = await this.executeSshCommand(sshClient, "df -kP /");
+                 const lines = dfOutput.split('\n');
+                 if (lines.length >= 2) {
+                     const parts = lines[1].split(/\s+/); // 解析第二行 (数据行)
+                     // POSIX 格式: Filesystem 1024-blocks Used Available Capacity Mounted on
+                     // parts[1]=Total(KB), parts[2]=Used(KB), parts[4]=Capacity(%)
+                     if (parts.length >= 5) {
+                         const total = parseInt(parts[1], 10);
+                         const used = parseInt(parts[2], 10);
+                         const percentMatch = parts[4].match(/(\d+)%/);
+                         if (!isNaN(total) && !isNaN(used) && percentMatch) {
+                             status.diskTotal = total; status.diskUsed = used;
+                             status.diskPercent = parseFloat(percentMatch[1]);
+                         }
                      }
                  }
              } catch (err) { console.warn(`[StatusMonitor ${sessionId}] Failed to get disk usage:`, err); }

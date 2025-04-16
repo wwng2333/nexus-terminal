@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { PropType } from 'vue';
-
-// 定义会话状态的简化接口 (仅包含标签栏需要的信息)
-interface SessionTabInfo {
-  sessionId: string;
-  connectionName: string; // 显示在标签上的名称
-}
+// 导入会话状态类型
+import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导入更新后的类型
 
 // 定义 Props
 const props = defineProps({
   sessions: {
-    type: Array as PropType<SessionTabInfo[]>,
+    type: Array as PropType<SessionTabInfoWithStatus[]>, // 使用更新后的类型
     required: true,
   },
   activeSessionId: {
@@ -44,6 +40,8 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
         @click="activateSession(session.sessionId)"
         :title="session.connectionName"
       >
+        <!-- 添加状态点 -->
+        <span :class="['status-dot', `status-${session.status}`]"></span>
         <span class="tab-name">{{ session.connectionName }}</span>
         <button class="close-tab-button" @click="closeSession($event, session.sessionId)" title="关闭标签页">
           &times; <!-- 使用 HTML 实体 '×' -->
@@ -66,6 +64,22 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
   height: 2.5rem; /* 固定标签栏高度 */
   box-sizing: border-box; /* 确保 padding 不会增加总高度 */
 }
+
+/* 状态点样式 */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0; /* 防止被压缩 */
+}
+.status-dot.status-disconnected { background-color: #dc3545; } /* 红色 */
+.status-dot.status-connecting { background-color: #ffc107; } /* 黄色 */
+.status-dot.status-connected { background-color: #28a745; } /* 绿色 */
+.status-dot.status-error { background-color: #6c757d; } /* 灰色 (或其他表示错误的颜色) */
+
 
 .tab-list {
   list-style: none;
@@ -105,8 +119,10 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  margin-right: 1.5rem; /* 为关闭按钮留出足够空间 */
+  /* margin-right: 1.5rem; */ /* 调整右边距，因为关闭按钮现在是 flex item */
   line-height: normal; /* 默认行高 */
+  flex-grow: 1; /* 允许名称伸展 */
+  margin-left: 4px; /* 在状态点和名称之间添加一点间距 */
 }
 
 .close-tab-button {

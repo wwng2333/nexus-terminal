@@ -247,7 +247,12 @@
     "saving": "Saving",
     "saveSuccess": "Save successful",
     "saveError": "Save error",
-    "editPathTooltip": "Click path to edit"
+    "editPathTooltip": "Click path to edit",
+    "noActiveSession": "No active session",
+    "loadDirectoryFailed": "Failed to load directory"
+  },
+  "statusMonitor": {
+      "noActiveSession": "No active session"
   },
   "tags": {
     "title": "Tag Management",
@@ -506,5 +511,10 @@
         "SERVER_ERROR": "Server Error",
         "DATABASE_MIGRATION": "Database Migration"
     }
+  },
+  "workspaceConnectionList": {
+    "untagged": "Untagged",
+    "searchPlaceholder": "Search name or host...",
+    "noResults": "No connections found matching \"{searchTerm}\"."
   }
 }

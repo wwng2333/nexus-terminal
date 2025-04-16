@@ -6,6 +6,10 @@ import router from './router'; // 引入我们创建的 router
 import i18n from './i18n'; // 引入 i18n 实例
 import { useSettingsStore } from './stores/settings.store'; // 引入 Settings Store
 import './style.css';
+// 导入 Font Awesome CSS
+import '@fortawesome/fontawesome-free/css/all.min.css';
+// 导入 splitpanes CSS
+import 'splitpanes/dist/splitpanes.css';
 
 const pinia = createPinia(); // 创建 Pinia 实例
 pinia.use(piniaPluginPersistedstate); // 使用持久化插件

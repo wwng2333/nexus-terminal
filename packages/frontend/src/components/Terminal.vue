@@ -118,11 +118,20 @@ onMounted(() => {
 
     // 监听 isActive prop 的变化，当标签变为活动时立即 fit 并发送 resize
     watch(() => props.isActive, (newValue) => {
-        if (newValue && terminal && terminalRef.value && terminalRef.value.offsetHeight > 0) {
-            console.log(`[Terminal ${props.sessionId}] Tab became active, performing immediate fit and resize.`);
-            // 使用 nextTick 确保 DOM 更新完成
+        if (newValue && terminal && terminalRef.value) {
+            // 当标签变为活动时，等待 DOM 更新和短暂延时后执行 fit
+            console.log(`[Terminal ${props.sessionId}] 标签变为活动状态，准备调整尺寸。`); // 日志改为中文
             nextTick(() => {
-                fitAndEmitResizeNow(terminal!);
+                // 添加短暂延时，确保元素完全可见且渲染稳定
+                setTimeout(() => {
+                    // 再次检查终端实例是否存在且容器可见
+                    if (terminal && terminalRef.value && terminalRef.value.offsetHeight > 0) {
+                         console.log(`[Terminal ${props.sessionId}] 执行延时后的 fit 和 resize。`); // 日志改为中文
+                        fitAndEmitResizeNow(terminal);
+                    } else {
+                         console.log(`[Terminal ${props.sessionId}] 延时后检查：终端不可见或已销毁，跳过 fit。`); // 日志改为中文
+                    }
+                }, 50); // 50ms 延时，可以根据需要调整
             });
         }
     });

@@ -1,10 +1,15 @@
 <template>
   <div class="status-monitor">
     <h4>服务器状态</h4>
-    <div v-if="!serverStatus" class="loading-status">
+    <!-- Corrected state display logic -->
+    <div v-if="statusError" class="status-error">
+      错误: {{ statusError }}
+    </div>
+    <div v-else-if="!serverStatus" class="loading-status">
       等待数据...
     </div>
     <div v-else class="status-grid">
+      <!-- Status items remain here -->
       <div class="status-item cpu-model">
         <label>CPU 型号:</label>
         <!-- 使用 displayCpuModel 计算属性 -->
@@ -18,43 +23,54 @@
       </div>
       <div class="status-item">
         <label>CPU:</label>
-        <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
+        <!-- Wrap progress bar and percentage in a div -->
+        <div class="value-wrapper">
+          <div class="progress-bar-container">
+            <div class="progress-bar" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
+          </div>
+          <span>{{ serverStatus.cpuPercent?.toFixed(1) ?? 'N/A' }}%</span>
         </div>
-        <span>{{ serverStatus.cpuPercent?.toFixed(1) ?? 'N/A' }}%</span>
       </div>
       <div class="status-item">
         <label>内存:</label>
-        <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${serverStatus.memPercent ?? 0}%` }"></div>
+        <div class="value-wrapper">
+          <div class="progress-bar-container">
+            <div class="progress-bar" :style="{ width: `${serverStatus.memPercent ?? 0}%` }"></div>
+          </div>
+          <span class="mem-disk-details">{{ memDisplay }}</span>
         </div>
-        <span class="mem-disk-details">{{ memDisplay }}</span>
       </div>
        <!-- Removed v-if, Swap will always show -->
        <div class="status-item">
         <label>Swap:</label>
-        <div class="progress-bar-container">
-          <div class="progress-bar swap-bar" :style="{ width: `${serverStatus.swapPercent ?? 0}%` }"></div>
+        <div class="value-wrapper">
+          <div class="progress-bar-container">
+            <div class="progress-bar swap-bar" :style="{ width: `${serverStatus.swapPercent ?? 0}%` }"></div>
+          </div>
+          <span class="mem-disk-details">{{ swapDisplay }}</span>
         </div>
-        <span class="mem-disk-details">{{ swapDisplay }}</span>
       </div>
       <div class="status-item">
-        <label>磁盘 (/):</label>
-        <div class="progress-bar-container">
-          <div class="progress-bar" :style="{ width: `${serverStatus.diskPercent ?? 0}%` }"></div>
+        <label>磁盘:</label> <!-- 移除 (/) -->
+        <div class="value-wrapper">
+          <div class="progress-bar-container">
+            <div class="progress-bar" :style="{ width: `${serverStatus.diskPercent ?? 0}%` }"></div>
+          </div>
+          <span class="mem-disk-details">{{ diskDisplay }}</span>
         </div>
-        <span class="mem-disk-details">{{ diskDisplay }}</span>
       </div>
       <div class="status-item network-rate">
           <label>网络 ({{ serverStatus.netInterface || '...' }}):</label>
-          <span class="rate down">⬇ {{ formatBytesPerSecond(serverStatus.netRxRate) }}</span>
-          <span class="rate up">⬆ {{ formatBytesPerSecond(serverStatus.netTxRate) }}</span>
+          <!-- Wrap rates in a div for alignment -->
+          <div class="value-wrapper network-values">
+            <span class="rate down">{{ formatBytesPerSecond(serverStatus.netRxRate) }}</span>
+            <span class="rate up">{{ formatBytesPerSecond(serverStatus.netTxRate) }}</span>
+          </div>
       </div>
     </div>
-     <div v-if="statusError" class="status-error">
-        错误: {{ statusError }}
-     </div>
+    <!-- Error display moved up for correct v-if/v-else-if logic -->
   </div>
+  <!-- Removed extra closing div -->
 </template>
 
 <script setup lang="ts">
@@ -207,40 +223,48 @@ const swapDisplay = computed(() => {
 
 .status-item {
   display: grid;
-  /* Adjusted grid columns for better alignment */
-  grid-template-columns: 65px 1fr auto; /* Label slightly wider */
+  /* Simplified grid columns: Label | Value Area - Further increased label width */
+  grid-template-columns: 100px 1fr;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.8rem; /* Keep increased gap */
 }
 
-/* Specific style for CPU model row */
+/* New wrapper for value area (progress bar + text or just text) */
+.value-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Space between progress bar and text */
+}
+
+/* Specific style for CPU model row - Keep consistent with general status-item */
 .status-item.cpu-model {
-  grid-template-columns: 65px 1fr; /* Label, Value */
-  gap: 0.5rem;
+  /* grid-template-columns is inherited */
+  /* gap is inherited */
   margin-bottom: 0.5rem; /* Add some space below CPU model */
 }
 .cpu-model-value {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    grid-column: 2 / 4; /* Span across the value and percentage columns */
+    /* No longer needs grid-column span */
     text-align: left;
     color: #333;
 }
 
-/* Specific style for OS name row */
+/* Specific style for OS name row - Keep consistent with general status-item */
 .status-item.os-name {
-  grid-template-columns: 65px 1fr; /* Label, Value */
+  /* grid-template-columns is inherited */
   /* Ensure the item itself doesn't align right if the parent has text-align */
    text-align: left;
 }
 /* Increased specificity to override generic span rule */
+/* OS name value should just occupy the second column */
 .status-item.os-name .os-name-value {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     text-align: left; /* Explicitly left align text */
-    justify-self: start; /* Align grid item to start */
+    /* justify-self: start; No longer needed with 2-col grid */
     color: #333;
     min-width: auto; /* Override generic min-width */
 }
@@ -249,7 +273,7 @@ const swapDisplay = computed(() => {
 .status-item label {
   font-weight: bold;
   color: #555;
-  text-align: right;
+  text-align: left; /* 改为左对齐 */
   white-space: nowrap;
 }
 
@@ -278,32 +302,59 @@ const swapDisplay = computed(() => {
 .status-item span:not(.cpu-model-value) { /* Style for percentage spans */
   font-variant-numeric: tabular-nums; /* Keep numbers aligned */
   min-width: 45px; /* Ensure space for percentage */
-  text-align: right;
+  text-align: left; /* 改为左对齐 */
   color: #333;
 }
 
 .mem-disk-details {
     font-size: 0.9em; /* Slightly smaller font for details */
     white-space: nowrap;
-    text-align: right;
+    text-align: left; /* 改为左对齐 */
 }
 
 /* Network Rate Styles */
+/* Network Rate Styles - uses the 2-col grid */
 .status-item.network-rate {
-    grid-template-columns: 65px auto auto; /* Label, Down Rate, Up Rate */
+    /* grid-template-columns is inherited */
     margin-top: 0.5rem; /* Add space above network */
+    align-items: center; /* Try centering label and rates vertically */
+}
+/* Adjust network value wrapper */
+.network-values {
+    justify-content: start; /* Align rates to the start */
+    gap: 1rem; /* Increase gap between rates */
+    /* Removed margin-left, rely on grid gap */
+    /* Ensure the wrapper itself aligns correctly if needed */
+    /* align-self: center; */ /* Or baseline */
 }
 .network-rate .rate {
     font-size: 0.9em;
     white-space: nowrap;
-    text-align: right;
-    min-width: 80px; /* Adjust as needed */
+    text-align: left; /* 改为左对齐 */
+    min-width: auto; /* Remove min-width or adjust */
+    /* Rely on parent flexbox for alignment */
+    display: inline-flex; /* Ensure pseudo-element is part of flex flow */
+    align-items: center; /* Vertically align arrow with text */
+    gap: 0.3em; /* Add space between arrow and text */
 }
 .network-rate .rate.down {
     color: #28a745; /* Green for download */
 }
+.network-rate .rate.down::before {
+    content: '⬇';
+    /* Removed absolute positioning */
+    font-size: 1em; /* Match parent font size */
+    line-height: 1; /* Adjust line-height for better vertical alignment */
+}
+
 .network-rate .rate.up {
     color: #fd7e14; /* Orange for upload */
+}
+.network-rate .rate.up::before {
+    content: '⬆';
+    /* Removed absolute positioning */
+    font-size: 1em; /* Match parent font size */
+    line-height: 1; /* Adjust line-height for better vertical alignment */
 }
 
 </style>

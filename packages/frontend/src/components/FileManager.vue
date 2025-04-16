@@ -527,7 +527,7 @@ watchEffect((onCleanup) => {
             if (message.requestId === requestId && payload.requestedPath === requestedPath) {
                 const absolutePath = payload.absolutePath;
                 console.log(`[FileManager ${props.sessionId}] 收到 '.' 的绝对路径: ${absolutePath}。开始加载目录。`);
-                currentPath.value = absolutePath;
+                // 不再直接修改 currentPath.value，而是调用 loadDirectory，它内部会更新路径
                 loadDirectory(absolutePath); // 使用 props 中的 loadDirectory
                 initialLoadDone.value = true;
                 cleanupListeners();
@@ -700,11 +700,8 @@ const clearError = () => {
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
     >
-        <!-- Error Alert Box -->
-        <div v-if="error" class="error-alert">
-            <span>{{ error }}</span>
-            <button @click="clearError" class="close-error-btn" :title="t('common.dismiss')">&times;</button> <!-- Use clearSftpError -->
-        </div>
+        <!-- 移除内联错误提示框 -->
+        <!-- <div v-if="error" class="error-alert"> ... </div> -->
 
         <!-- 1. Initial Loading Indicator -->
         <div v-if="isLoading && !initialLoadDone" class="loading">{{ t('fileManager.loading') }}</div>
@@ -851,28 +848,9 @@ const clearError = () => {
 .upload-popup .error { color: red; margin-left: 0.5rem; flex-basis: 100%; font-size: 0.8em; }
 .upload-popup .cancel-btn { margin-left: auto; padding: 0.1rem 0.4rem; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; cursor: pointer; }
 .loading, .no-files { padding: 1rem; text-align: center; color: #666; }
-/* Removed .error style for the main container */
-.error-alert {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-    padding: 0.75rem 1.25rem;
-    margin: 0.5rem;
-    border-radius: 0.25rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.close-error-btn {
-    background: none;
-    border: none;
-    color: inherit;
-    font-size: 1.2rem;
-    font-weight: bold;
-    cursor: pointer;
-    padding: 0 0.5rem;
-    line-height: 1;
-}
+/* 移除 .error-alert 和 .close-error-btn 样式 */
+/* .error-alert { ... } */
+/* .close-error-btn { ... } */
 .file-list-container { flex-grow: 1; overflow-y: auto; position: relative; /* Needed for overlay */ }
 .file-list-container.drag-over {
   outline: 2px dashed #007bff; /* Blue dashed outline */

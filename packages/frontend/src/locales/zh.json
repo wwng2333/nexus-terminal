@@ -251,7 +251,11 @@
     "saving": "正在保存",
     "saveSuccess": "保存成功",
     "saveError": "保存出错",
-    "editPathTooltip": "点击路径进行编辑"
+    "editPathTooltip": "点击路径进行编辑",
+    "noActiveSession": "无活动会话"
+  },
+  "statusMonitor": {
+      "noActiveSession": "无活动会话"
   },
   "tags": {
     "title": "标签管理",
@@ -512,6 +516,8 @@
     }
   },
   "workspaceConnectionList": {
-    "untagged": "未标记"
+    "untagged": "未标记",
+    "searchPlaceholder": "搜索名称或主机...",
+    "noResults": "未找到匹配 \"{searchTerm}\" 的连接。"
   }
 }
