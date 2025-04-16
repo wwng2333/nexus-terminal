@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'; // 重新导入 nextTick
+import { ITheme } from 'xterm';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -24,6 +25,7 @@ let terminal: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let debounceTimer: number | null = null; // 用于防抖的计时器 ID
+const fontSize = ref(14); // 字体大小状态, 默认为14
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
@@ -67,7 +69,7 @@ onMounted(() => {
   if (terminalRef.value) {
     terminal = new Terminal({
       cursorBlink: true,
-      fontSize: 14,
+      fontSize: fontSize.value,
       fontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"',
       theme: { // 简单主题示例
         background: '#1e1e1e',
@@ -179,6 +181,33 @@ onMounted(() => {
 
     // 聚焦终端
     terminal.focus();
+    
+    // 添加鼠标滚轮缩放功能
+    if (terminalRef.value) {
+      terminalRef.value.addEventListener('wheel', (event: WheelEvent) => {
+        // 只在按下Ctrl键时才触发缩放
+        if (event.ctrlKey) {
+          event.preventDefault(); // 阻止默认的滚动行为
+          
+          // 根据滚轮方向调整字体大小
+          if (event.deltaY < 0) {
+            // 向上滚动，增大字体
+            fontSize.value = Math.min(fontSize.value + 1, 40); // 设置最大字体大小为40
+          } else {
+            // 向下滚动，减小字体
+            fontSize.value = Math.max(fontSize.value - 1, 8); // 设置最小字体大小为8
+          }
+          
+          // 更新终端字体大小
+          if (terminal) {
+            terminal.options.fontSize = fontSize.value;
+            // 调整终端大小以适应新的字体大小
+            fitAddon?.fit();
+            emit('resize', { cols: terminal.cols, rows: terminal.rows });
+          }
+        }
+      });
+    }
   }
 });
 
