@@ -548,5 +548,15 @@
   },
   "commandInputBar": {
   "placeholder": "在此输入命令后按 Enter 发送到终端..."
+},
+"layout": {
+  "pane": {
+    "connections": "连接列表",
+    "terminal": "终端",
+    "commandBar": "命令栏",
+    "fileManager": "文件管理器",
+    "editor": "编辑器",
+    "statusMonitor": "状态监视器"
+  }
 }
 }

@@ -545,5 +545,15 @@
   },
   "commandInputBar": {
   "placeholder": "Enter command and press Enter to send..."
+},
+"layout": {
+  "pane": {
+    "connections": "Connections",
+    "terminal": "Terminal",
+    "commandBar": "Command Bar",
+    "fileManager": "File Manager",
+    "editor": "Editor",
+    "statusMonitor": "Status Monitor"
+  }
 }
 }

@@ -205,11 +205,11 @@ defineExpose({ write });
   overflow: hidden; /* 防止滚动条出现 */
 }
 
-/* 尝试直接给 screen 添加 padding */
+/* 终端屏幕样式 - 移除上下间距 */
 .terminal-container :deep(.xterm-screen) {
-  padding: 10px; /* 为终端内容区域添加内边距 */
-  box-sizing: border-box; /* 确保 padding 包含在尺寸内 */
-  /* 覆盖 xterm.css 可能设置的 position: absolute，以便 padding 生效 */
+  padding: 0; /* 移除内边距，解决上下有间距的问题 */
+  box-sizing: border-box;
+  /* 覆盖 xterm.css 可能设置的 position: absolute */
   position: relative !important;
   width: 100% !important;
   height: 100% !important;

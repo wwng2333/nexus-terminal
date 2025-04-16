@@ -10,9 +10,11 @@ import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
 import CommandInputBar from '../components/CommandInputBar.vue';
 import FileEditorContainer from '../components/FileEditorContainer.vue'; // 导入编辑器容器
+import PaneTitleBar from '../components/PaneTitleBar.vue'; // 导入标题栏组件
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 SshTerminalInstance
 import { useSettingsStore } from '../stores/settings.store'; // 导入设置 Store
 import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入文件编辑器 Store
+import { useLayoutStore } from '../stores/layout.store'; // 导入布局 Store
 import type { ConnectionInfo } from '../stores/connections.store';
 // 导入 splitpanes 组件
 import { Splitpanes, Pane } from 'splitpanes';
@@ -24,11 +26,13 @@ const { t } = useI18n();
 const sessionStore = useSessionStore();
 const settingsStore = useSettingsStore(); // 初始化设置 Store
 const fileEditorStore = useFileEditorStore(); // 初始化文件编辑器 Store (用于共享模式)
+const layoutStore = useLayoutStore(); // 初始化布局 Store
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession } = storeToRefs(sessionStore);
 const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 获取共享设置
 const { orderedTabs: globalEditorTabs, activeTabId: globalActiveEditorTabId } = storeToRefs(fileEditorStore); // 获取全局编辑器状态
+const { paneVisibility } = storeToRefs(layoutStore); // 获取布局可见性状态
 
 // --- 计算属性 (用于动态绑定编辑器 Props) ---
 // **再次修正：** 确保计算属性在共享模式下严格只依赖全局状态
@@ -185,8 +189,10 @@ onBeforeUnmount(() => {
       <splitpanes class="default-theme" :horizontal="false" style="height: 100%">
 
         <!-- 1. 左侧边栏 Pane (连接列表) -->
-        <pane size="15" min-size="10" class="sidebar-pane"> <!-- 调整大小 -->
+        <pane v-if="paneVisibility.connections" size="15" min-size="10" class="sidebar-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
+          <PaneTitleBar :title="t('layout.pane.connections')" pane-name="connections" />
           <WorkspaceConnectionListComponent
+            class="pane-content"
             @connect-request="(id) => { console.log(`[WorkspaceView] Received 'connect-request' event for ID: ${id}`); sessionStore.handleConnectRequest(id); }"
             @open-new-session="(id) => { console.log(`[WorkspaceView] Received 'open-new-session' event for ID: ${id}`); sessionStore.handleOpenNewSession(id); }"
             @request-add-connection="() => { console.log('[WorkspaceView] Received \'request-add-connection\' event'); handleRequestAddConnection(); }"
@@ -194,15 +200,17 @@ onBeforeUnmount(() => {
           />
         </pane>
 
-        <!-- 2. 中间区域 Pane (终端/命令栏/文件管理器) -->
-        <pane size="50" min-size="30" class="middle-pane"> <!-- 调整大小 -->
+        <!-- 2. 中间区域 Pane (终端/命令栏/文件管理器) - 这个 Pane 本身通常保持可见，内部 Pane 才切换 -->
+        <pane size="50" min-size="30" class="middle-pane">
            <!-- 上下分割 (终端 | 命令栏 | 文件管理器) -->
            <splitpanes :horizontal="true" style="height: 100%" :dbl-click-splitter="false">
               <!-- 上方 Pane (终端) -->
-              <pane size="55" min-size="20" class="terminal-pane"> <!-- 调整大小 -->
-                 <div
-                   v-for="tabInfo in sessionTabsWithStatus"
-                   :key="tabInfo.sessionId"
+              <pane v-if="paneVisibility.terminal" size="55" min-size="20" class="terminal-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
+                 <PaneTitleBar :title="t('layout.pane.terminal')" pane-name="terminal" />
+                 <div class="pane-content terminal-content-wrapper"> <!-- 添加包裹 div -->
+                   <div
+                     v-for="tabInfo in sessionTabsWithStatus"
+                     :key="tabInfo.sessionId"
                    v-show="tabInfo.sessionId === activeSessionId"
                    class="terminal-session-wrapper"
                  >
@@ -214,26 +222,32 @@ onBeforeUnmount(() => {
                       @data="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalData"
                       @resize="(dims) => { console.log(`[工作区视图 ${tabInfo.sessionId}] 收到 resize 事件:`, dims); sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalResize(dims); }"
                    />
-                 </div>
-                 <div v-if="!activeSessionId" class="terminal-placeholder">
-                   <h2>{{ t('workspace.selectConnectionPrompt') }}</h2>
-                   <p>{{ t('workspace.selectConnectionHint') }}</p>
+                   </div>
+                   <div v-if="!activeSessionId" class="terminal-placeholder">
+                     <h2>{{ t('workspace.selectConnectionPrompt') }}</h2>
+                     <p>{{ t('workspace.selectConnectionHint') }}</p>
+                   </div>
                  </div>
               </pane> <!-- End Terminal Pane -->
 
-              <!-- 中间 Pane (命令栏) -->
-              <pane size="5" min-size="5" class="command-bar-pane">
+              <!-- 中间 Pane (命令栏) - 移除标题栏，但保留 v-if -->
+              <pane v-if="paneVisibility.commandBar" size="5" min-size="5" class="command-bar-pane">
                  <CommandInputBar
                    v-if="activeSessionId"
                    @send-command="handleSendCommand"
                  />
               </pane> <!-- End Command Bar Pane -->
 
-              <!-- 下方 Pane (文件管理器) -->
-              <pane size="40" min-size="15" class="file-manager-pane"> <!-- 调整大小 -->
-                 <div
-                   v-for="tabInfo in sessionTabsWithStatus"
-                   :key="tabInfo.sessionId + '-fm-wrapper'"
+              <!-- 下方 Pane (文件管理器区域 - 包含新的水平分割) -->
+              <pane v-if="paneVisibility.fileManager" size="40" min-size="15" class="file-manager-area-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
+                <PaneTitleBar :title="t('layout.pane.fileManager')" pane-name="fileManager" />
+                <!-- 新增：内部水平分割，允许未来添加列 -->
+                <splitpanes :horizontal="false" style="height: 100%" :dbl-click-splitter="false" class="pane-content"> <!-- 添加 class -->
+                  <!-- 初始的文件管理器 Pane -->
+                  <pane class="file-manager-pane"> <!-- 这个内部 pane 不需要 title bar -->
+                    <div
+                      v-for="tabInfo in sessionTabsWithStatus"
+                      :key="tabInfo.sessionId + '-fm-wrapper'"
                    v-show="tabInfo.sessionId === activeSessionId"
                    class="file-manager-wrapper"
                  >
@@ -250,15 +264,20 @@ onBeforeUnmount(() => {
                        isSftpReady: sessionStore.sessions.get(tabInfo.sessionId)!.wsManager.isSftpReady
                      }"
                    />
-                 </div>
-                 <div v-if="!activeSessionId" class="pane-placeholder">{{ t('fileManager.noActiveSession') }}</div>
-              </pane> <!-- End File Manager Pane -->
-           </splitpanes> <!-- End Middle Area Splitpanes -->
+                    </div>
+                    <div v-if="!activeSessionId" class="pane-placeholder">{{ t('fileManager.noActiveSession') }}</div>
+                  </pane> <!-- End Inner File Manager Pane -->
+                  <!-- 这里可以将来添加其他 Pane -->
+                </splitpanes> <!-- End Inner Horizontal Splitpanes -->
+              </pane> <!-- End File Manager Area Pane -->
+           </splitpanes> <!-- End Middle Area Vertical Splitpanes -->
         </pane> <!-- End Middle Pane -->
 
         <!-- 3. 右侧区域 1 Pane (文件编辑器) -->
-        <pane size="20" min-size="15" class="file-editor-pane"> <!-- 新增编辑器窗格 -->
+        <pane v-if="paneVisibility.editor" size="20" min-size="15" class="file-editor-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
+           <PaneTitleBar :title="t('layout.pane.editor')" pane-name="editor" />
            <FileEditorContainer
+             class="pane-content"
              :tabs="editorTabs"
              :active-tab-id="activeEditorTabId"
              :session-id="activeSessionId" 
@@ -270,10 +289,12 @@ onBeforeUnmount(() => {
         </pane>
 
         <!-- 4. 右侧区域 2 Pane (状态监视器) -->
-        <pane size="15" min-size="10" class="sidebar-pane status-monitor-pane"> <!-- 调整大小 -->
-           <div
-             v-for="tabInfo in sessionTabsWithStatus"
-             :key="tabInfo.sessionId + '-sm-wrapper'"
+        <pane v-if="paneVisibility.statusMonitor" size="15" min-size="10" class="sidebar-pane status-monitor-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
+           <PaneTitleBar :title="t('layout.pane.statusMonitor')" pane-name="statusMonitor" />
+           <div class="pane-content status-monitor-content-wrapper"> <!-- 添加包裹 div -->
+             <div
+               v-for="tabInfo in sessionTabsWithStatus"
+               :key="tabInfo.sessionId + '-sm-wrapper'"
              v-show="tabInfo.sessionId === activeSessionId"
              class="status-monitor-wrapper"
            >
@@ -284,8 +305,9 @@ onBeforeUnmount(() => {
                :server-status="sessionStore.sessions.get(tabInfo.sessionId)!.statusMonitorManager.serverStatus.value"
                :status-error="sessionStore.sessions.get(tabInfo.sessionId)!.statusMonitorManager.statusError.value"
              />
+             </div>
+             <div v-if="!activeSessionId" class="pane-placeholder">{{ t('statusMonitor.noActiveSession') }}</div>
            </div>
-           <div v-if="!activeSessionId" class="pane-placeholder">{{ t('statusMonitor.noActiveSession') }}</div>
         </pane>
 
       </splitpanes>
@@ -320,57 +342,102 @@ onBeforeUnmount(() => {
 }
 
 /* 为 Pane 添加一些基本样式 */
+.pane-with-title { /* 给包含标题栏的 Pane 添加基础样式 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.pane-content { /* 让内容区域填充剩余空间 */
+  flex-grow: 1;
+  overflow: auto; /* 或者 hidden，根据需要 */
+  display: flex; /* 内部可能还需要 flex 布局 */
+  flex-direction: column; /* 默认列方向 */
+}
+
 .sidebar-pane, /* 用于左右侧边栏 */
 .middle-pane, /* 中间包含终端、命令栏、文件管理器的 Pane */
 .terminal-pane,
 .command-bar-pane,
-.file-editor-pane, /* 新增编辑器窗格样式 */
-.file-manager-pane,
-.status-monitor-pane { /* 添加状态监视器样式 */
-  display: flex; /* 确保 Pane 内容可以正确布局 */
-  flex-direction: column;
-  overflow: hidden; /* Pane 内部内容溢出时隐藏 */
+.file-editor-pane, /* 编辑器窗格样式 */
+.file-manager-area-pane, /* 文件管理器区域 Pane */
+.file-manager-pane, /* 内部文件管理器 Pane */
+.status-monitor-pane { /* 状态监视器样式 */
+  /* display: flex; flex-direction: column; overflow: hidden; 已被 pane-with-title 或 pane-content 处理 */
   background-color: #f8f9fa; /* 默认背景色 */
 }
 .middle-pane {
     padding: 0; /* 移除 middle-pane 的内边距 */
 }
 
-/* 命令栏 Pane 特定样式 - 恢复基本样式 */
+/* 命令栏 Pane 特定样式 - 恢复原样 */
 .command-bar-pane {
   background-color: #e9ecef; /* 背景色 */
   justify-content: center; /* 垂直居中输入框 */
   overflow: hidden; /* 内容不应超出 */
+  display: flex; /* 确保 flex 布局 */
+  align-items: center; /* 垂直居中 */
 }
-/* 调整内部 CommandInputBar 样式 */
+/* 调整内部 CommandInputBar 样式 - 恢复原样 */
 .command-bar-pane > .command-input-bar {
-    border: none; /* 移除 CommandInputBar 的边框 */
-    background-color: transparent; /* 移除 CommandInputBar 的背景 */
-    min-height: auto; /* 移除最小高度 */
-    padding: 2px 10px; /* 调整内边距 */
+    border: none;
+    background-color: transparent;
+    min-height: auto;
+    padding: 2px 10px; /* 恢复内边距 */
+    flex-grow: 1; /* 让输入框填充 */
 }
 
 .terminal-pane {
-    background-color: #1e1e1e; /* 终端背景 */
-    position: relative; /* 保持相对定位用于占位符 */
+    background-color: #f8f9fa; /* 外层 pane 背景 */
+    /* position: relative; 由内部 wrapper 处理 */
+}
+.terminal-content-wrapper {
+    background-color: #1e1e1e; /* 终端实际背景 */
+    position: relative; /* 用于占位符 */
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 .file-editor-pane {
-    background-color: #2d2d2d; /* 与编辑器容器背景一致 */
+    background-color: #f8f9fa; /* 外层 pane 背景 */
 }
-.file-manager-pane {
-    /* 分隔线由 splitpanes 提供 */
+/* FileEditorContainer 自身需要 flex-grow: 1 */
+.file-editor-pane > .pane-content {
+    background-color: #2d2d2d; /* 编辑器容器背景 */
+}
+
+.file-manager-area-pane {
+    padding: 0;
+    background-color: #f8f9fa; /* 外层 pane 背景 */
+}
+/* 内部的 splitpanes 需要 flex-grow: 1 */
+.file-manager-area-pane > .pane-content {
+    background-color: #f0f0f0; /* 内部区域背景 */
+}
+.file-manager-pane { /* 内部文件管理器 Pane */
     background-color: #ffffff; /* 文件管理器使用浅色背景 */
+    display: flex; /* 确保内部 flex 布局 */
+    flex-direction: column;
+    overflow: hidden;
 }
 .status-monitor-pane {
-    /* 状态监视器样式 */
-     text-align: center;
-     padding: 1rem;
+    background-color: #f8f9fa; /* 外层 pane 背景 */
+     /* text-align: center; 由内部 wrapper 处理 */
+     /* padding: 1rem; 由内部 wrapper 处理 */
+}
+.status-monitor-content-wrapper {
+    text-align: center;
+    padding: 1rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: auto; /* 允许内容滚动 */
 }
 
 
 /* 终端会话包装器 */
 .terminal-session-wrapper {
-    flex-grow: 1; /* 填充 terminal-pane */
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -387,9 +454,9 @@ onBeforeUnmount(() => {
 /* 状态监视器包装器 (内部组件应填充) */
 .status-monitor-wrapper {
     flex: 1;
-    display: flex; /* 使内部 StatusMonitorComponent 可以填充 */
+    display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden; /* 内部组件自己处理滚动 */
 }
 
 /* 终端占位符 */
