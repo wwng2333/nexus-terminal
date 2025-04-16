@@ -2,6 +2,7 @@
 import { RouterLink, RouterView } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from './stores/auth.store';
+import { useSettingsStore } from './stores/settings.store'; // 导入设置 Store
 import { storeToRefs } from 'pinia';
 // 导入通知显示组件
 import UINotificationDisplay from './components/UINotificationDisplay.vue';
@@ -10,7 +11,9 @@ import FileEditorOverlay from './components/FileEditorOverlay.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
+const settingsStore = useSettingsStore(); // 实例化设置 Store
 const { isAuthenticated } = storeToRefs(authStore); // 获取登录状态
+const { showPopupFileEditorBoolean } = storeToRefs(settingsStore); // 获取弹窗编辑器设置
 
 const handleLogout = () => {
   authStore.logout();
@@ -41,8 +44,8 @@ const handleLogout = () => {
     <!-- 添加全局通知显示 -->
     <UINotificationDisplay />
 
-    <!-- 添加全局文件编辑器弹窗 -->
-    <FileEditorOverlay />
+    <!-- 根据设置条件渲染全局文件编辑器弹窗 -->
+    <FileEditorOverlay v-if="showPopupFileEditorBoolean" />
 
     <footer>
       <!-- 使用 t 函数获取应用名称 -->

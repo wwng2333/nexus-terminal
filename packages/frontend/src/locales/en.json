@@ -249,7 +249,9 @@
     "saveError": "Save error",
     "editPathTooltip": "Click path to edit",
     "noActiveSession": "No active session",
-    "loadDirectoryFailed": "Failed to load directory"
+    "loadDirectoryFailed": "Failed to load directory",
+    "noOpenFile": "No file open",
+    "selectFileToEdit": "Select a file from the file manager to start editing."
   },
   "statusMonitor": {
       "noActiveSession": "No active session"
@@ -349,6 +351,17 @@
       "error": {
         "fetchFailed": "Failed to fetch IP whitelist settings.",
         "saveFailed": "Failed to save IP whitelist."
+      }
+    },
+    "popupEditor": {
+      "title": "Popup File Editor",
+      "enableLabel": "Show popup editor when opening files",
+      "saveButton": "Save Setting",
+      "success": {
+        "saved": "Popup editor setting saved successfully."
+      },
+      "error": {
+        "saveFailed": "Failed to save popup editor setting."
       }
     },
     "language": {
@@ -516,5 +529,8 @@
     "untagged": "Untagged",
     "searchPlaceholder": "Search name or host...",
     "noResults": "No connections found matching \"{searchTerm}\"."
-  }
+  },
+  "commandInputBar": {
+  "placeholder": "Enter command and press Enter to send..."
+}
 }

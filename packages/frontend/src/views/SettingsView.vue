@@ -42,6 +42,19 @@
       </form>
     </div>
 
+    <!-- 弹窗编辑器设置 -->
+    <div class="settings-section">
+      <h2>{{ $t('settings.popupEditor.title') }}</h2>
+      <form @submit.prevent="handleUpdatePopupEditorSetting">
+          <div class="form-group form-group-checkbox">
+              <input type="checkbox" id="showPopupEditor" v-model="popupEditorEnabled">
+              <label for="showPopupEditor">{{ $t('settings.popupEditor.enableLabel') }}</label>
+          </div>
+          <button type="submit" :disabled="popupEditorLoading">{{ popupEditorLoading ? $t('common.saving') : $t('settings.popupEditor.saveButton') }}</button>
+          <p v-if="popupEditorMessage" :class="{ 'success-message': popupEditorSuccess, 'error-message': !popupEditorSuccess }">{{ popupEditorMessage }}</p>
+      </form>
+    </div>
+
     <hr>
 
      <div class="settings-section">
@@ -193,7 +206,7 @@ const settingsStore = useSettingsStore();
 const { t } = useI18n();
 
 // --- Reactive state from store ---
-const { settings, isLoading: settingsLoading, error: settingsError } = toRefs(settingsStore);
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean } = toRefs(settingsStore);
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -202,6 +215,7 @@ const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store
     maxLoginAttempts: '5',
     loginBanDuration: '300',
 });
+const popupEditorEnabled = ref(true); // 本地状态，用于 v-model
 
 // --- Local UI feedback state ---
 const ipWhitelistLoading = ref(false);
@@ -213,6 +227,9 @@ const languageSuccess = ref(false);
 const blacklistSettingsLoading = ref(false);
 const blacklistSettingsMessage = ref('');
 const blacklistSettingsSuccess = ref(false);
+const popupEditorLoading = ref(false);
+const popupEditorMessage = ref('');
+const popupEditorSuccess = ref(false);
 
 // --- Watcher to sync local form state with store state ---
 watch(settings, (newSettings) => {
@@ -220,7 +237,32 @@ watch(settings, (newSettings) => {
   selectedLanguage.value = newSettings.language || 'en';
   blacklistSettingsForm.maxLoginAttempts = newSettings.maxLoginAttempts || '5';
   blacklistSettingsForm.loginBanDuration = newSettings.loginBanDuration || '300';
+  // 同步弹窗编辑器设置
+  popupEditorEnabled.value = showPopupFileEditorBoolean.value;
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
+
+// --- Popup Editor setting method ---
+const handleUpdatePopupEditorSetting = async () => {
+    popupEditorLoading.value = true;
+    popupEditorMessage.value = '';
+    popupEditorSuccess.value = false;
+    try {
+        // 将布尔值转换为字符串 'true' 或 'false' 来存储
+        const valueToSave = popupEditorEnabled.value ? 'true' : 'false';
+        await settingsStore.updateSetting('showPopupFileEditor', valueToSave);
+        popupEditorMessage.value = t('settings.popupEditor.success.saved'); // 需要添加翻译
+        popupEditorSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新弹窗编辑器设置失败:', error);
+        popupEditorMessage.value = error.message || t('settings.popupEditor.error.saveFailed'); // 需要添加翻译
+        popupEditorSuccess.value = false;
+        // 保存失败时，将本地复选框状态恢复为 Store 中的状态
+        popupEditorEnabled.value = showPopupFileEditorBoolean.value;
+    } finally {
+        popupEditorLoading.value = false;
+    }
+};
+
 
 // --- Passkey state & methods --- (Keep as is)
 const passkeyName = ref('');
@@ -563,6 +605,23 @@ img {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
+}
+
+/* 复选框组样式 */
+.form-group-checkbox {
+  display: flex;
+  align-items: center;
+}
+
+.form-group-checkbox input[type="checkbox"] {
+  width: auto; /* 不要占满宽度 */
+  margin-right: 10px;
+}
+
+.form-group-checkbox label {
+  display: inline-block; /* 让标签和复选框在同一行 */
+  margin-bottom: 0; /* 移除默认的块级标签下边距 */
+  cursor: pointer;
 }
 
 .blacklist-table th {

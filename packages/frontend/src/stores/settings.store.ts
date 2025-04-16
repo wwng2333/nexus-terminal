@@ -9,6 +9,7 @@ interface SettingsState {
   ipWhitelist: string;
   maxLoginAttempts: string;
   loginBanDuration: string;
+  showPopupFileEditor: string; // 新增设置项，存储为 'true' 或 'false'
   // Add other settings keys here as needed
   [key: string]: string; // Allow other string settings
 }
@@ -37,6 +38,14 @@ export const useSettingsStore = defineStore('settings', () => {
       settings.value = response.data; // Store all fetched settings
       console.log('[SettingsStore] Fetched settings:', JSON.stringify(settings.value)); // 添加日志
 
+      // --- 设置默认值 (如果后端未返回) ---
+      // 弹窗编辑器设置
+      if (settings.value.showPopupFileEditor === undefined) {
+          console.log('[SettingsStore] Setting default for showPopupFileEditor: true');
+          settings.value.showPopupFileEditor = 'true'; // 默认为 true
+      }
+
+      // --- 语言设置 ---
       // Determine and apply language
       const langFromSettings = settings.value.language;
       if (langFromSettings === 'en' || langFromSettings === 'zh') {
@@ -116,14 +125,21 @@ export const useSettingsStore = defineStore('settings', () => {
 
 
   // --- Getters ---
-  // Example getter (can add more as needed)
+  // --- Getters ---
   const language = computed(() => settings.value.language || defaultLng);
+
+  // Getter for the popup editor setting, returning boolean
+  const showPopupFileEditorBoolean = computed(() => {
+      // 默认为 true，除非明确设置为 'false'
+      return settings.value.showPopupFileEditor !== 'false';
+  });
 
   return {
     settings,
     isLoading,
     error,
-    language, // Expose getter
+    language, // Expose language getter
+    showPopupFileEditorBoolean, // Expose boolean getter for popup editor setting
     loadInitialSettings,
     updateSetting,
     updateMultipleSettings,

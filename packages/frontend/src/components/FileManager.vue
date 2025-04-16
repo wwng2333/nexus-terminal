@@ -692,11 +692,11 @@ const cancelPathEdit = () => {
              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
              <button @click="triggerFileUpload" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-             <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button>
-             <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-             <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button>
-        </div>
-    </div>
+              <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button>
+              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+              <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button>
+         </div>
+     </div>
 
     <!-- 文件列表容器 -->
     <div

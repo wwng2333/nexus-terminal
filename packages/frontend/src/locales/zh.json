@@ -252,7 +252,9 @@
     "saveSuccess": "保存成功",
     "saveError": "保存出错",
     "editPathTooltip": "点击路径进行编辑",
-    "noActiveSession": "无活动会话"
+    "noActiveSession": "无活动会话",
+    "noOpenFile": "未打开文件",
+    "selectFileToEdit": "请从文件管理器中选择文件以开始编辑。"
   },
   "statusMonitor": {
       "noActiveSession": "无活动会话"
@@ -352,6 +354,17 @@
       "error": {
         "fetchFailed": "获取 IP 白名单设置失败。",
         "saveFailed": "保存 IP 白名单失败。"
+      }
+    },
+    "popupEditor": {
+      "title": "弹窗文件编辑器",
+      "enableLabel": "打开文件时显示弹窗编辑器",
+      "saveButton": "保存设置",
+      "success": {
+        "saved": "弹窗编辑器设置已成功保存。"
+      },
+      "error": {
+        "saveFailed": "保存弹窗编辑器设置失败。"
       }
     },
     "language": {

@@ -1,13 +1,30 @@
-import { ref, computed, readonly } from 'vue';
+import { ref, computed, readonly, watch } from 'vue';
 import { defineStore } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from './session.store'; // 导入会话 Store
-import type { EditorFileContent, SaveStatus } from '../types/sftp.types';
+import type { EditorFileContent, SaveStatus } from '../types/sftp.types'; // 保持导入 SaveStatus
 
-// 辅助函数：根据文件名获取语言 (从 useFileEditor.ts 迁移)
+// --- 新类型定义 ---
+export interface EditorTab {
+    id: string; // 唯一标识符，例如 `${sessionId}:${filePath}`
+    sessionId: string;
+    filePath: string;
+    filename: string; // 文件名，用于标签显示
+    content: string; // 当前编辑器内容
+    originalContent: string; // 加载或上次保存时的内容
+    language: string;
+    encoding: 'utf8' | 'base64'; // 原始编码
+    isLoading: boolean;
+    loadingError: string | null;
+    isSaving: boolean;
+    saveStatus: SaveStatus;
+    saveError: string | null;
+    isModified: boolean; // 内容是否已修改
+}
+
+// 辅助函数：根据文件名获取语言 (保持不变)
 const getLanguageFromFilename = (filename: string): string => {
     const extension = filename.split('.').pop()?.toLowerCase();
-    // (保持 switch case 不变)
     switch (extension) {
         case 'js': return 'javascript';
         case 'ts': return 'typescript';
@@ -37,221 +54,365 @@ const getLanguageFromFilename = (filename: string): string => {
     }
 };
 
+// 辅助函数：从路径获取文件名
+const getFilenameFromPath = (filePath: string): string => {
+    return filePath.split('/').pop() || filePath;
+};
+
 
 export const useFileEditorStore = defineStore('fileEditor', () => {
     const { t } = useI18n();
     const sessionStore = useSessionStore();
 
-    // --- 编辑器状态 ---
-    const isVisible = ref(false);
-    const currentSessionId = ref<string | null>(null); // 需要知道文件属于哪个会话
-    const filePath = ref<string | null>(null);
-    const fileContent = ref<string>(''); // 用于 v-model 绑定
-    const fileLanguage = ref<string>('plaintext');
-    const fileEncoding = ref<'utf8' | 'base64'>('utf8'); // 文件内容的原始编码
-    const isLoading = ref<boolean>(false);
-    const loadingError = ref<string | null>(null);
-    const isSaving = ref<boolean>(false);
-    const saveStatus = ref<SaveStatus>('idle');
-    const saveError = ref<string | null>(null);
+    // --- 多标签状态 ---
+    const tabs = ref(new Map<string, EditorTab>()); // 存储所有打开的标签页
+    const activeTabId = ref<string | null>(null); // 当前激活的标签页 ID
+    // const editorVisibleState = ref<'visible' | 'minimized' | 'closed'>('closed'); // 移除，面板可见性由布局控制
+    const popupTrigger = ref(0); // 新增：用于触发弹窗显示的信号
 
     // --- 计算属性 ---
-    const editorProps = computed(() => ({
-        isVisible: isVisible.value,
-        filePath: filePath.value,
-        language: fileLanguage.value,
-        isLoading: isLoading.value,
-        loadingError: loadingError.value,
-        isSaving: isSaving.value,
-        saveStatus: saveStatus.value,
-        saveError: saveError.value,
-        // modelValue is handled separately via direct ref binding
-    }));
+    const orderedTabs = computed(() => Array.from(tabs.value.values())); // 获取标签页数组，用于渲染
+    const activeTab = computed(() => {
+        if (!activeTabId.value) return null;
+        return tabs.value.get(activeTabId.value) || null;
+    });
+    // 提供给 MonacoEditor 的内容绑定
+    const activeEditorContent = computed({
+        get: () => activeTab.value?.content ?? '',
+        set: (value) => {
+            if (activeTab.value) {
+                updateContent(value); // 调用 action 更新内容和修改状态
+            }
+        },
+    });
 
     // --- 核心方法 ---
 
-    // 获取当前会话的 SFTP 管理器
+    // 获取指定会话的 SFTP 管理器 (保持不变)
     const getSftpManager = (sessionId: string | null) => {
         if (!sessionId) return null;
         const session = sessionStore.sessions.get(sessionId);
         return session?.sftpManager ?? null;
     };
 
-    const openFile = async (targetFilePath: string, sessionId: string) => {
-        console.log(`[文件编辑器 Store] 尝试打开文件: ${targetFilePath} (会话: ${sessionId})`);
-        if (!targetFilePath || !sessionId) return;
+    // 移除 setEditorVisibility 方法
+    // const setEditorVisibility = ...
 
-        // // 如果已经是同一个文件，则不重新加载（除非需要强制刷新）
-        // if (filePath.value === targetFilePath && isVisible.value) {
-        //     console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 已在编辑器中打开。`);
-        //     return;
+    // 打开或切换到文件标签页
+    const openFile = async (targetFilePath: string, sessionId: string) => {
+        const tabId = `${sessionId}:${targetFilePath}`;
+        console.log(`[文件编辑器 Store] 尝试打开文件: ${targetFilePath} (会话: ${sessionId}, Tab ID: ${tabId})`);
+
+        // 移除确保编辑器可见的逻辑
+        // if (editorVisibleState.value === 'closed') {
+        //     setEditorVisibility('visible');
         // }
 
-        const sftpManager = getSftpManager(sessionId);
-        if (!sftpManager) {
-            console.error(`[文件编辑器 Store] 无法找到会话 ${sessionId} 的 SFTP 管理器。`);
-            // 可以设置一个错误状态或通知用户
-            loadingError.value = t('fileManager.errors.sftpManagerNotFound');
-            isVisible.value = true; // 仍然显示编辑器以展示错误
+        // 如果标签页已存在，则激活它
+        if (tabs.value.has(tabId)) {
+            console.log(`[文件编辑器 Store] 标签页 ${tabId} 已存在，激活它。`);
+            setActiveTab(tabId);
+            // 触发弹窗 (如果设置允许)
+            popupTrigger.value++;
             return;
         }
 
-        isVisible.value = true; // 显示编辑器区域
-        isLoading.value = true; // 显示加载状态
-        loadingError.value = null;
-        saveStatus.value = 'idle'; // 重置保存状态
-        saveError.value = null;
-        filePath.value = targetFilePath;
-        currentSessionId.value = sessionId; // 记录当前会话 ID
-        fileLanguage.value = getLanguageFromFilename(targetFilePath);
-        fileContent.value = ''; // 清空旧内容
+        // 创建新标签页
+        const newTab: EditorTab = {
+            id: tabId,
+            sessionId: sessionId,
+            filePath: targetFilePath,
+            filename: getFilenameFromPath(targetFilePath),
+            content: '', // 初始为空
+            originalContent: '', // 初始为空
+            language: getLanguageFromFilename(targetFilePath),
+            encoding: 'utf8', // 默认为 utf8
+            isLoading: true, // 开始加载
+            loadingError: null,
+            isSaving: false,
+            saveStatus: 'idle',
+            saveError: null,
+            isModified: false,
+        };
+        tabs.value.set(tabId, newTab);
+        setActiveTab(tabId); // 激活新标签页
+        // 触发弹窗 (如果设置允许)
+        popupTrigger.value++;
 
+        // 获取 SFTP 管理器
+        const sftpManager = getSftpManager(sessionId);
+        if (!sftpManager) {
+            console.error(`[文件编辑器 Store] 无法找到会话 ${sessionId} 的 SFTP 管理器。`);
+            const tabToUpdate = tabs.value.get(tabId);
+            if (tabToUpdate) {
+                tabToUpdate.isLoading = false;
+                tabToUpdate.loadingError = t('fileManager.errors.sftpManagerNotFound');
+            }
+            return;
+        }
+
+        // 读取文件内容
         try {
-            // 使用从 sessionStore 获取的 sftpManager 的 readFile 方法
             const fileData = await sftpManager.readFile(targetFilePath);
             console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 读取成功。编码: ${fileData.encoding}`);
 
-            // 处理可能的 Base64 编码
+            let decodedContent = '';
+            let finalEncoding: 'utf8' | 'base64' = 'utf8';
+
             if (fileData.encoding === 'base64') {
+                finalEncoding = 'base64';
                 try {
-                    // 1. Decode Base64 to raw bytes string
                     const binaryString = atob(fileData.content);
-                    // 2. Convert binary string to Uint8Array
                     const bytes = new Uint8Array(binaryString.length);
                     for (let i = 0; i < binaryString.length; i++) {
                         bytes[i] = binaryString.charCodeAt(i);
                     }
-                    // 3. Decode bytes as UTF-8
                     const decoder = new TextDecoder('utf-8'); // 显式使用 UTF-8
-                    fileContent.value = decoder.decode(bytes);
-                    fileEncoding.value = 'base64'; // 记录原始编码是 Base64
+                    decodedContent = decoder.decode(bytes);
                     console.log(`[文件编辑器 Store] Base64 文件 ${targetFilePath} 已解码为 UTF-8。`);
                 } catch (decodeError) {
                     console.error(`[文件编辑器 Store] Base64 或 UTF-8 解码错误 for ${targetFilePath}:`, decodeError);
-                    loadingError.value = t('fileManager.errors.fileDecodeError');
-                    // Fallback: Show raw base64 content if decoding fails
-                    fileContent.value = `// ${t('fileManager.errors.fileDecodeError')}\n// Original Base64 content:\n${fileData.content}`;
+                    const errorMsg = t('fileManager.errors.fileDecodeError');
+                    decodedContent = `// ${errorMsg}\n// Original Base64 content:\n${fileData.content}`;
+                    // 更新标签页状态以反映错误
+                    const tabToUpdate = tabs.value.get(tabId);
+                    if (tabToUpdate) {
+                        tabToUpdate.loadingError = errorMsg;
+                    }
                 }
             } else {
-                // 假设非 Base64 内容是 UTF-8 字符串
-                fileContent.value = fileData.content;
-                // 在这个 else 分支中，编码不是 base64，我们假定它是 utf8
-                fileEncoding.value = 'utf8';
-                console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 已按 ${fileEncoding.value} 处理。`);
-                // 添加检查：如果内容看起来像乱码，可以加日志
-                if (fileContent.value.includes('\uFFFD')) { // '\uFFFD' () 是无效序列的替换字符
+                finalEncoding = 'utf8';
+                decodedContent = fileData.content;
+                console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 已按 ${finalEncoding} 处理。`);
+                if (decodedContent.includes('\uFFFD')) {
                     console.warn(`[文件编辑器 Store] 文件 ${targetFilePath} 内容可能包含无效字符，原始编码可能不是 UTF-8。`);
                 }
             }
-            isLoading.value = false;
+
+            // 更新标签页状态
+            const tabToUpdate = tabs.value.get(tabId);
+            if (tabToUpdate) {
+                tabToUpdate.content = decodedContent;
+                tabToUpdate.originalContent = decodedContent; // 设置初始内容
+                tabToUpdate.encoding = finalEncoding;
+                tabToUpdate.isLoading = false;
+                tabToUpdate.isModified = false; // 初始未修改
+            }
+
         } catch (err: any) {
             console.error(`[文件编辑器 Store] 读取文件 ${targetFilePath} 失败:`, err);
-            loadingError.value = `${t('fileManager.errors.readFileFailed')}: ${err.message || err}`;
-            fileContent.value = `// ${loadingError.value}`; // 在编辑器中显示错误
-            isLoading.value = false;
+            const errorMsg = `${t('fileManager.errors.readFileFailed')}: ${err.message || err}`;
+            const tabToUpdate = tabs.value.get(tabId);
+            if (tabToUpdate) {
+                tabToUpdate.isLoading = false;
+                tabToUpdate.loadingError = errorMsg;
+                tabToUpdate.content = `// ${errorMsg}`; // 在编辑器中显示错误
+            }
         }
     };
 
-    const saveFile = async () => {
-        if (!filePath.value || !currentSessionId.value || isSaving.value || isLoading.value || loadingError.value) {
-            console.warn('[文件编辑器 Store] 保存条件不满足，无法保存。', {
-                path: filePath.value,
-                sessionId: currentSessionId.value,
-                isSaving: isSaving.value,
-                isLoading: isLoading.value,
-                hasError: !!loadingError.value
-            });
+    // 保存指定（或当前激活）标签页的文件
+    const saveFile = async (tabIdToSave?: string) => {
+        const targetTabId = tabIdToSave ?? activeTabId.value;
+        if (!targetTabId) {
+            console.warn('[文件编辑器 Store] 保存失败：没有活动的标签页。');
             return;
         }
 
-        const sftpManager = getSftpManager(currentSessionId.value);
-        if (!sftpManager) {
-            console.error(`[文件编辑器 Store] 保存失败：无法找到会话 ${currentSessionId.value} 的 SFTP 管理器。`);
-            saveStatus.value = 'error';
-            saveError.value = t('fileManager.errors.sftpManagerNotFound');
+        const tab = tabs.value.get(targetTabId);
+        if (!tab) {
+            console.warn(`[文件编辑器 Store] 保存失败：找不到标签页 ${targetTabId}。`);
             return;
         }
 
-        console.log(`[文件编辑器 Store] 开始保存文件: ${filePath.value} (会话: ${currentSessionId.value})`);
-        isSaving.value = true;
-        saveStatus.value = 'saving';
-        saveError.value = null;
+        if (tab.isSaving || tab.isLoading || tab.loadingError) {
+            console.warn(`[文件编辑器 Store] 保存条件不满足 for ${tab.filePath}，无法保存。`, { tab });
+            return;
+        }
 
-        const contentToSave = fileContent.value; // 获取当前编辑器内容
+        // 检查会话是否存在且连接
+        const session = sessionStore.sessions.get(tab.sessionId);
+        if (!session || !session.wsManager.isConnected.value || !session.wsManager.isSftpReady.value) {
+            console.error(`[文件编辑器 Store] 保存失败：会话 ${tab.sessionId} 无效或未连接/SFTP 未就绪。`);
+            tab.saveStatus = 'error';
+            tab.saveError = t('fileManager.errors.sessionInvalidOrNotReady'); // 需要添加新的翻译
+             // 可以在这里添加一个短暂的错误提示
+            setTimeout(() => {
+                if (tab.saveStatus === 'error') {
+                    tab.saveStatus = 'idle';
+                    tab.saveError = null;
+                }
+            }, 5000);
+            return;
+        }
+
+        const sftpManager = session.sftpManager; // 直接从有效会话获取
+
+        console.log(`[文件编辑器 Store] 开始保存文件: ${tab.filePath} (Tab ID: ${tab.id})`);
+        tab.isSaving = true;
+        tab.saveStatus = 'saving';
+        tab.saveError = null;
+
+        const contentToSave = tab.content;
 
         try {
-            // 使用从 sessionStore 获取的 sftpManager 的 writeFile 方法
-            await sftpManager.writeFile(filePath.value, contentToSave);
-            console.log(`[文件编辑器 Store] 文件 ${filePath.value} 保存成功。`);
-            isSaving.value = false;
-            saveStatus.value = 'success';
-            saveError.value = null;
+            await sftpManager.writeFile(tab.filePath, contentToSave);
+            console.log(`[文件编辑器 Store] 文件 ${tab.filePath} 保存成功。`);
+            tab.isSaving = false;
+            tab.saveStatus = 'success';
+            tab.saveError = null;
+            tab.originalContent = contentToSave; // 更新原始内容
+            tab.isModified = false; // 重置修改状态
 
-            // 成功提示短暂显示后消失
             setTimeout(() => {
-                if (saveStatus.value === 'success') {
-                    saveStatus.value = 'idle';
+                if (tab.saveStatus === 'success') {
+                    tab.saveStatus = 'idle';
                 }
             }, 2000);
 
         } catch (err: any) {
-            console.error(`[文件编辑器 Store] 保存文件 ${filePath.value} 失败:`, err);
-            isSaving.value = false;
-            saveStatus.value = 'error';
-            saveError.value = `${t('fileManager.errors.saveFailed')}: ${err.message || err}`;
+            console.error(`[文件编辑器 Store] 保存文件 ${tab.filePath} 失败:`, err);
+            tab.isSaving = false;
+            tab.saveStatus = 'error';
+            tab.saveError = `${t('fileManager.errors.saveFailed')}: ${err.message || err}`;
 
-            // 错误提示显示时间长一些
             setTimeout(() => {
-                if (saveStatus.value === 'error') {
-                    saveStatus.value = 'idle';
-                    saveError.value = null;
+                if (tab.saveStatus === 'error') {
+                    tab.saveStatus = 'idle';
+                    tab.saveError = null;
                 }
             }, 5000);
         }
     };
 
-    const closeEditor = () => {
-        console.log('[文件编辑器 Store] 关闭编辑器。');
-        isVisible.value = false;
-        filePath.value = null;
-        currentSessionId.value = null;
-        fileContent.value = '';
-        loadingError.value = null;
-        isLoading.value = false;
-        saveStatus.value = 'idle';
-        saveError.value = null;
-        isSaving.value = false;
-    };
+    // 关闭指定标签页
+    const closeTab = (tabId: string) => {
+        const tabToClose = tabs.value.get(tabId);
+        if (!tabToClose) return;
 
-    // 提供一个方法来更新内容，主要用于 v-model
-    const updateContent = (newContent: string) => {
-        fileContent.value = newContent;
-        // 当用户编辑时，可以重置保存状态（如果需要）
-        if (saveStatus.value === 'success' || saveStatus.value === 'error') {
-            saveStatus.value = 'idle';
-            saveError.value = null;
+        // 简单处理：如果修改过，提醒用户（实际应用可能需要更复杂的确认对话框）
+        if (tabToClose.isModified) {
+            // 这里可以集成 UI 通知库来提示
+            console.warn(`[文件编辑器 Store] 标签页 ${tabId} (${tabToClose.filename}) 已修改但未保存。正在关闭...`);
+            // alert(`文件 ${tabToClose.filename} 已修改但未保存。确定要关闭吗？`); // 简单的 alert 示例
+            // if (!confirm(`文件 ${tabToClose.filename} 已修改但未保存。确定要关闭吗？`)) {
+            //     return; // 用户取消关闭
+            // }
+        }
+
+        console.log(`[文件编辑器 Store] 关闭标签页: ${tabId}`);
+        tabs.value.delete(tabId);
+
+        // 如果关闭的是当前激活的标签页，则切换到另一个标签页
+        if (activeTabId.value === tabId) {
+            const remainingTabs = Array.from(tabs.value.keys());
+            if (remainingTabs.length > 0) {
+                // 简单切换到最后一个标签页
+                 setActiveTab(remainingTabs[remainingTabs.length - 1]);
+             } else {
+                 activeTabId.value = null; // 没有标签页了
+                 // setEditorVisibility('closed'); // 移除：容器可见性由外部控制
+             }
+         }
+         // 如果关闭的不是活动标签页，或者活动标签页已成功切换，检查是否需要关闭容器
+         else if (tabs.value.size === 0) {
+              // setEditorVisibility('closed'); // 移除：容器可见性由外部控制
+         }
+     };
+
+    // 关闭所有标签页
+    const closeAllTabs = () => {
+        // 简单处理：直接关闭所有，不检查修改状态（实际应用需要确认）
+         console.log('[文件编辑器 Store] 关闭所有标签页...');
+         tabs.value.clear();
+         activeTabId.value = null;
+         // setEditorVisibility('closed'); // 移除：容器可见性由外部控制
+     };
+
+    // 设置当前激活的标签页
+    const setActiveTab = (tabId: string) => {
+        if (tabs.value.has(tabId)) {
+            activeTabId.value = tabId;
+            console.log(`[文件编辑器 Store] 激活标签页: ${tabId}`);
+            // 移除：切换标签不应改变容器可见性状态
+            // if (editorVisibleState.value === 'closed' || editorVisibleState.value === 'minimized') {
+            //     setEditorVisibility('visible');
+            // }
+        } else {
+            console.warn(`[文件编辑器 Store] 尝试激活不存在的标签页: ${tabId}`);
         }
     };
 
-    return {
-        // 状态 (只读的 ref 或计算属性)
-        isVisible: readonly(isVisible),
-        filePath: readonly(filePath),
-        fileLanguage: readonly(fileLanguage),
-        isLoading: readonly(isLoading),
-        loadingError: readonly(loadingError),
-        isSaving: readonly(isSaving),
-        saveStatus: readonly(saveStatus),
-        saveError: readonly(saveError),
-        editorProps, // 提供一个包含多个只读状态的对象，方便绑定
+    // 更新当前激活标签页的内容 (由 v-model 调用)
+    const updateContent = (newContent: string) => {
+        if (activeTab.value && !activeTab.value.isLoading) {
+            activeTab.value.content = newContent;
+            // 检查是否修改
+            activeTab.value.isModified = activeTab.value.content !== activeTab.value.originalContent;
+            // 当用户编辑时，重置保存状态
+            if (activeTab.value.saveStatus === 'success' || activeTab.value.saveStatus === 'error') {
+                activeTab.value.saveStatus = 'idle';
+                activeTab.value.saveError = null;
+            }
+        }
+    };
 
-        // 可写状态 (用于 v-model)
-        fileContent, // 直接暴露 ref 用于 v-model
+    // 监听会话关闭事件，移除相关标签页
+    watch(() => sessionStore.sessions, (newSessions, oldSessions) => {
+        const closedSessionIds = new Set<string>();
+        oldSessions.forEach((_, sessionId) => {
+            if (!newSessions.has(sessionId)) {
+                closedSessionIds.add(sessionId);
+            }
+        });
+
+        if (closedSessionIds.size > 0) {
+            console.log('[文件编辑器 Store] 检测到会话关闭:', Array.from(closedSessionIds));
+            const tabsToRemove = Array.from(tabs.value.values()).filter(tab => closedSessionIds.has(tab.sessionId));
+            tabsToRemove.forEach(tab => {
+                console.log(`[文件编辑器 Store] 移除与已关闭会话 ${tab.sessionId} 相关的标签页: ${tab.id}`);
+                // 这里不调用 closeTab 以避免潜在的修改提示，直接移除
+                tabs.value.delete(tab.id);
+                 // 如果移除的是活动标签页，需要重新设置活动标签页
+                if (activeTabId.value === tab.id) {
+                    const remainingTabs = Array.from(tabs.value.keys());
+                    if (remainingTabs.length > 0) {
+                        activeTabId.value = remainingTabs[remainingTabs.length - 1];
+                    } else {
+                        activeTabId.value = null;
+                    }
+                }
+            });
+             // 如果移除后没有标签页了
+            if (tabs.value.size === 0) {
+                // setEditorVisibility('closed'); // 移除：容器可见性由外部控制
+            } else if (!activeTabId.value && tabs.value.size > 0) {
+                 // 如果活动标签页被移除且没有自动设置新的，手动设置一个
+                 activeTabId.value = Array.from(tabs.value.keys())[0];
+            }
+        }
+    }, { deep: false }); // 只监听 Map 本身的增删
+
+
+    return {
+        // 状态
+        tabs: readonly(tabs), // 只读 Map
+        activeTabId: readonly(activeTabId),
+        // editorVisibleState: readonly(editorVisibleState), // 移除
+        popupTrigger: readonly(popupTrigger), // 暴露触发器 (只读)
+
+        // 计算属性
+        orderedTabs,
+        activeTab, // 只读的当前激活标签页对象
+        activeEditorContent, // 用于 v-model 绑定到 MonacoEditor
 
         // 方法
         openFile,
         saveFile,
-        closeEditor,
-        updateContent, // 如果需要从外部更新内容
+        closeTab,
+        closeAllTabs,
+        setActiveTab,
+        updateContent, // 暴露给 v-model 使用
+        // setEditorVisibility, // 移除
     };
 });
