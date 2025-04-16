@@ -8,12 +8,11 @@ const { t } = useI18n();
 const commandInput = ref('');
 
 const sendCommand = () => {
-  const command = commandInput.value.trim();
-  if (command) {
-    console.log(`[CommandInputBar] Sending command: ${command}`);
-    emit('send-command', command + '\n'); // 发送命令并附加换行符，模拟回车
-    commandInput.value = ''; // 清空输入框
-  }
+  const command = commandInput.value; // 获取原始输入，不进行 trim
+  // 无论输入框是否为空，都发送内容（空字符串或命令）加上换行符
+  console.log(`[CommandInputBar] Sending command: ${command || '<Enter>'} `); // 日志记录空回车
+  emit('send-command', command + '\n'); // 发送命令（或空字符串）并附加换行符
+  commandInput.value = ''; // 清空输入框
 };
 </script>
 
