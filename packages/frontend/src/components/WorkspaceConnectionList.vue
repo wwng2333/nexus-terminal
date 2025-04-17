@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useTagsStore, TagInfo } from '../stores/tags.store';
+import { useSessionStore } from '../stores/session.store'; // 导入 session store
 
 // 定义事件
 const emit = defineEmits([
@@ -18,6 +19,7 @@ const { t } = useI18n();
 // const router = useRouter(); // 不再需要
 const connectionsStore = useConnectionsStore();
 const tagsStore = useTagsStore();
+const sessionStore = useSessionStore(); // 获取 session store 实例
 
 const { connections, isLoading: connectionsLoading, error: connectionsError } = storeToRefs(connectionsStore);
 const { tags, isLoading: tagsLoading, error: tagsError } = storeToRefs(tagsStore);
@@ -108,11 +110,10 @@ const toggleGroup = (groupName: string) => {
   expandedGroups.value[groupName] = !expandedGroups.value[groupName];
 };
 
-// 处理单击连接 (左键)
+// 处理单击连接 (左键) - 使用 session store 处理连接请求
 const handleConnect = (connectionId: number) => {
-  console.log(`[WkspConnList] handleConnect (左键) called for ID: ${connectionId}`);
-  emit('connect-request', connectionId);
-  console.log(`[WkspConnList] Emitted 'connect-request' for ID: ${connectionId}`);
+  console.log(`[WkspConnList] handleConnect (左键) called for ID: ${connectionId}. Delegating to sessionStore.`);
+  sessionStore.handleConnectRequest(connectionId); // 调用 session store 的 action
   closeContextMenu(); // 点击连接后关闭菜单
 };
 

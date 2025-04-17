@@ -322,55 +322,38 @@ export const useSessionStore = defineStore('session', () => {
   };
 
   /**
-   * 处理连接列表的左键点击（如果点击的是当前活动标签且断开则重连，否则总是新建标签）
+   * 处理连接列表的左键点击
+   * 优先级 1: 如果点击的是当前活动标签且断开，则重连该标签。
+   * 优先级 2: 其他所有情况（非活动标签、活动且已连接标签、新连接），总是打开新标签。
    */
   const handleConnectRequest = (connectionId: number | string) => {
     const connIdStr = String(connectionId);
     console.log(`[SessionStore] handleConnectRequest called for ID: ${connIdStr}`);
 
-    let existingSession: SessionState | null = null;
-    let existingSessionId: string | null = null;
-    // 查找是否存在对应 connectionId 的会话
-    for (const [sessionId, session] of sessions.value.entries()) {
-      if (session.connectionId === connIdStr) {
-        existingSession = session;
-        existingSessionId = sessionId;
-        break;
+    let activeAndDisconnected = false; // 标记是否满足最高优先级条件
+
+    // 检查是否点击了当前活动且断开的会话
+    if (activeSessionId.value) {
+      const currentActiveSession = sessions.value.get(activeSessionId.value);
+      if (currentActiveSession && currentActiveSession.connectionId === connIdStr) {
+        const currentStatus = currentActiveSession.wsManager.connectionStatus.value;
+        console.log(`[SessionStore] 点击的是当前活动会话 ${activeSessionId.value}，状态: ${currentStatus}`);
+        if (currentStatus === 'disconnected' || currentStatus === 'error') {
+          activeAndDisconnected = true;
+          // 满足最高优先级：重连当前活动会话
+          console.log(`[SessionStore] 活动会话 ${activeSessionId.value} 已断开或出错，尝试重连...`);
+          const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
+          currentActiveSession.wsManager.connect(wsUrl);
+        }
       }
     }
 
-    // 检查点击的连接是否是当前活动的标签页
-    if (existingSession && existingSessionId && existingSessionId === activeSessionId.value) {
-      // 是当前活动标签页
-      const currentStatus = existingSession.wsManager.connectionStatus.value;
-      console.log(`[SessionStore] 点击的是当前活动会话 ${existingSessionId}，状态: ${currentStatus}`);
-      if (currentStatus === 'disconnected' || currentStatus === 'error') {
-        // 如果已断开或出错，则尝试重连
-        console.log(`[SessionStore] 活动会话 ${existingSessionId} 已断开或出错，尝试重连...`);
-        const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
-        existingSession.wsManager.connect(wsUrl);
-        // 不需要再调用 activateSession，因为它已经是活动的
-      } else {
-        // 如果状态正常，则无需操作
-         console.log(`[SessionStore] 活动会话 ${existingSessionId} 状态正常，无需操作。`);
-       }
-     } else if (existingSessionId && existingSession) {
-       // 点击的是一个已存在但非活动的会话
-       console.log(`[SessionStore] 点击的连接 ${connIdStr} 存在于非活动会话 ${existingSessionId} 中，将激活它。`);
-       activateSession(existingSessionId);
-       // 激活后检查状态并尝试重连 (如果需要)
-       const currentStatus = existingSession.wsManager.connectionStatus.value;
-       if (currentStatus === 'disconnected' || currentStatus === 'error') {
-         console.log(`[SessionStore] 激活的会话 ${existingSessionId} 已断开或出错，尝试重连...`);
-         const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
-         existingSession.wsManager.connect(wsUrl);
-       }
-     } else {
-       // 点击的连接没有对应的会话，创建新会话
-       console.log(`[SessionStore] 未找到 ID 为 ${connIdStr} 的现有会话，将打开新会话。`);
-       openNewSession(connIdStr);
-     }
-   };
+    // 如果不满足最高优先级条件，则总是打开新会话
+    if (!activeAndDisconnected) {
+      console.log(`[SessionStore] 不满足重连条件或点击了其他连接，将打开新会话 for ID: ${connIdStr}`);
+      openNewSession(connIdStr);
+    }
+  };
 
   /**
    * 处理连接列表的中键点击（总是打开新会话）
