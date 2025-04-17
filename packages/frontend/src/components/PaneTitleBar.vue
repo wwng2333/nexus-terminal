@@ -20,7 +20,7 @@ const layoutStore = useLayoutStore();
 // --- Methods ---
 const closePane = () => {
   console.log(`[PaneTitleBar] Requesting to close pane: ${props.paneName}`);
-  layoutStore.setPaneVisibility(props.paneName, false);
+  // layoutStore.setPaneVisibility(props.paneName, false);
 };
 </script>
 

@@ -205,16 +205,12 @@ const handleDelete = async (conn: ConnectionInfo) => {
         </table>
         <!-- 如果未标记组为空，可以显示提示 -->
         <div v-else-if="groupName === '_untagged_'" class="no-connections-in-group">
-             {{ t('connections.noUntaggedConnections') }}
-        </div>
-    </div>
-     <!-- 如果所有分组都为空（即 props.connections 为空），显示整体提示 -->
-     <div v-if="Object.keys(groupedConnections).length === 0 || (Object.keys(groupedConnections).length === 1 && groupedConnections['_untagged_']?.length === 0)" class="no-connections">
-         {{ t('connections.noConnections') }}
+              {{ t('connections.noUntaggedConnections') }}
+         </div>
      </div>
 
-  </div>
-</template>
+   </div>
+ </template>
 
 <script lang="ts">
 // 在 <script setup> 之外定义需要在模板中调用的方法

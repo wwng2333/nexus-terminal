@@ -184,11 +184,7 @@ const handleOpenInNewTab = (connectionId: number) => {
     <div v-else-if="connectionsError || tagsError" class="error">
       {{ connectionsError || tagsError }}
     </div>
-    <div v-else-if="connections.length === 0" class="no-connections">
-      {{ t('connections.noConnections') }}
-      <!-- 保留添加按钮，即使列表为空 -->
-      <!-- <button @click="handleMenuAction('add')">{{ t('connections.addConnection') }}</button> -->
-    </div>
+
     <!-- 搜索和添加栏 -->
     <div class="search-add-bar">
       <input

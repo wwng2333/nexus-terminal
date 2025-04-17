@@ -214,7 +214,7 @@ footer {
 
 footer {
   background-color: var(--footer-bg-color); /* 使用底部背景色变量 */
-  padding: calc(var(--base-padding) / 2) var(--base-padding); /* 调整内边距 */
+  padding: calc(var(--base-padding) / 20) var(--base-padding); /* 调整内边距 */
   text-align: center;
   font-size: 0.8rem;
   color: var(--text-color-secondary); /* 使用次要文字颜色变量 */
