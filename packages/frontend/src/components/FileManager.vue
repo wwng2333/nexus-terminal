@@ -910,35 +910,80 @@ const cancelPathEdit = () => {
 table.resizable-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed; /* Crucial for resizing */
-  overflow: hidden; /* Prevent resizer overflow */
+  table-layout: fixed;
+  overflow: hidden;
+  border-spacing: 0; /* Remove default spacing */
+  border: 1px solid var(--border-color); /* Add border to table */
+  border-radius: 5px; /* Add subtle rounding */
 }
-thead { background-color: var(--header-bg-color); position: sticky; top: 0; z-index: 1; } /* Use theme variable */
+thead {
+  background-color: var(--header-bg-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
 th, td {
-    border: 1px solid var(--border-color); /* Use theme variable */
-    padding: 0.4rem 0.6rem;
+    /* border: 1px solid var(--border-color); */ /* Remove individual cell borders */
+    border-bottom: 1px solid var(--border-color); /* Use bottom border for separation */
+    padding: 0.6rem 0.8rem; /* Increase padding for more space */
     text-align: left;
     white-space: nowrap;
-    overflow: hidden; /* Hide overflow text */
-    text-overflow: ellipsis; /* Show ellipsis for overflow */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle; /* Align content vertically */
 }
 th {
-    position: relative; /* Needed for absolute positioning of resizer */
+    position: relative;
+    font-weight: 500; /* Slightly lighter header weight */
+    color: var(--text-color-secondary); /* Use secondary color for header text */
+    text-transform: uppercase; /* Uppercase headers */
+    font-size: 0.9em; /* Adjusted header font size */
+    border-bottom-width: 2px; /* Thicker bottom border for header */
 }
 th.sortable { cursor: pointer; }
-th.sortable:hover { background-color: var(--header-bg-color); filter: brightness(0.95); } /* Use theme variable */
-/* Removed fixed width for first column, handled by colgroup */
+th.sortable:hover { background-color: var(--header-bg-color); filter: brightness(0.95); }
 td:first-child {
-  text-align: center; /* Center the icon */
+  text-align: center;
+  font-size: 1.1em; /* Slightly larger icon */
+  padding-left: 1rem; /* More padding for icon */
+  padding-right: 0.5rem;
 }
-tbody tr:hover { background-color: var(--header-bg-color); } /* Use theme variable */
-tbody tr.clickable { cursor: pointer; user-select: none; /* Prevent text selection on click */ }
-/* Removed .actions-cell style */
-tbody tr.selected { background-color: var(--button-bg-color); color: var(--button-text-color); } /* Use theme variables */
-tbody tr.selected:hover { background-color: var(--button-hover-bg-color); color: var(--button-text-color); } /* Use theme variables */
-.context-menu { position: fixed; background-color: var(--app-bg-color); border: 1px solid var(--border-color); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; } /* Use theme variables */
-.context-menu ul { list-style: none; padding: var(--base-margin) 0; margin: 0; } /* Use theme variable */
-.context-menu li { padding: var(--base-margin) var(--base-padding); cursor: pointer; color: var(--text-color); } /* Use theme variables */
+tbody tr {
+    transition: background-color 0.15s ease; /* Smooth hover transition */
+}
+tbody tr:last-child td {
+    border-bottom: none; /* Remove border from last row */
+}
+tbody tr:hover {
+    background-color: var(--header-bg-color); /* Subtle hover */
+    filter: brightness(0.98);
+}
+tbody tr.clickable { cursor: pointer; user-select: none; }
+tbody tr.selected {
+    background-color: var(--button-bg-color);
+    color: var(--button-text-color);
+}
+tbody tr.selected td {
+    border-bottom-color: transparent; /* Hide border when selected */
+}
+tbody tr.selected:hover {
+    background-color: var(--button-hover-bg-color);
+    color: var(--button-text-color);
+}
+/* Style specific columns if needed */
+td:nth-child(2) { /* Name column */
+    font-weight: 500; /* Slightly bolder name */
+}
+td:nth-child(3), /* Size */
+td:nth-child(4), /* Permissions */
+td:nth-child(5) { /* Modified */
+    color: var(--text-color-secondary); /* Dim metadata */
+    font-size: 0.85em; /* Smaller metadata font */
+}
+
+.context-menu { position: fixed; background-color: var(--app-bg-color); border: 1px solid var(--border-color); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; border-radius: 4px; } /* Add radius */
+.context-menu ul { list-style: none; padding: var(--base-margin) 0; margin: 0; }
+.context-menu li { padding: 0.6rem var(--base-padding); cursor: pointer; color: var(--text-color); font-size: 0.9em; display: flex; align-items: center; } /* Adjust padding/font */
 .context-menu li:hover { background-color: var(--header-bg-color); } /* Use theme variable */
 .context-menu li.disabled { color: var(--text-color-secondary); cursor: not-allowed; background-color: var(--app-bg-color); opacity: 0.6; } /* Use theme variables */
 
