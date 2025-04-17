@@ -271,4 +271,8 @@ defineExpose({ write });
 }
 
 /* 移除之前添加的 :deep 样式 */
+
+.terminal-container :deep(.xterm-viewport) {
+  overflow-y: auto !important; /* 强制垂直滚动条只在需要时显示 */
+}
 </style>
