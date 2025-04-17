@@ -104,10 +104,11 @@ onMounted(() => {
     });
 
     // 添加鼠标滚轮缩放功能
-    if (editorContainer.value) { // 确认容器存在
-      console.log('[MonacoEditor] Adding wheel event listener to container.'); // 调试日志
-      editorContainer.value.addEventListener('wheel', (event: WheelEvent) => {
-        console.log('[MonacoEditor] Wheel event detected.'); // 调试日志
+    const editorDomNode = editorInstance?.getDomNode(); // 获取编辑器 DOM 节点
+    if (editorDomNode) { // 确认编辑器 DOM 节点存在
+      console.log('[MonacoEditor] Adding wheel event listener to editor DOM node.'); // 调试日志
+      editorDomNode.addEventListener('wheel', (event: WheelEvent) => {
+        console.log('[MonacoEditor] Wheel event detected on editor DOM node.'); // 调试日志
         // 只在按下Ctrl键时才触发缩放
         if (event.ctrlKey) {
           console.log('[MonacoEditor] Ctrl key pressed during wheel event.'); // 调试日志
@@ -135,7 +136,7 @@ onMounted(() => {
       }
     }, { passive: false }); // 设置 passive: false 允许 preventDefault
     } else {
-       console.error('[MonacoEditor] editorContainer.value is null, cannot add wheel listener.'); // 调试日志
+       console.error('[MonacoEditor] editorDomNode is null, cannot add wheel listener.'); // 调试日志
     }
 
   }
