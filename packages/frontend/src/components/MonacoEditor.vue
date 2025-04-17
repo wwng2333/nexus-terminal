@@ -104,10 +104,14 @@ onMounted(() => {
     });
 
     // 添加鼠标滚轮缩放功能
-    editorContainer.value.addEventListener('wheel', (event: WheelEvent) => {
-      // 只在按下Ctrl键时才触发缩放
-      if (event.ctrlKey) {
-        event.preventDefault(); // 阻止默认的滚动行为
+    if (editorContainer.value) { // 确认容器存在
+      console.log('[MonacoEditor] Adding wheel event listener to container.'); // 调试日志
+      editorContainer.value.addEventListener('wheel', (event: WheelEvent) => {
+        console.log('[MonacoEditor] Wheel event detected.'); // 调试日志
+        // 只在按下Ctrl键时才触发缩放
+        if (event.ctrlKey) {
+          console.log('[MonacoEditor] Ctrl key pressed during wheel event.'); // 调试日志
+          event.preventDefault(); // 阻止默认的滚动行为
 
         // 根据滚轮方向调整字体大小
         if (event.deltaY < 0) {
@@ -120,11 +124,19 @@ onMounted(() => {
 
         // 更新编辑器字体大小
         if (editorInstance) {
+          console.log(`[MonacoEditor] Attempting to update font size to: ${fontSize.value}`); // 调试日志
           editorInstance.updateOptions({ fontSize: fontSize.value });
           console.log(`[MonacoEditor] Font size changed to: ${fontSize.value}`); // 添加日志
+        } else {
+          console.warn('[MonacoEditor] editorInstance is null, cannot update font size.'); // 调试日志
         }
+      } else {
+         // console.log('[MonacoEditor] Ctrl key NOT pressed during wheel event.'); // 可选调试日志
       }
     }, { passive: false }); // 设置 passive: false 允许 preventDefault
+    } else {
+       console.error('[MonacoEditor] editorContainer.value is null, cannot add wheel listener.'); // 调试日志
+    }
 
   }
 });

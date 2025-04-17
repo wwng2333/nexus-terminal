@@ -203,7 +203,8 @@
       "download": "下载",
       "cancel": "取消",
       "save": "保存",
-      "closeTab": "关闭标签页"
+      "closeTab": "关闭标签页",
+      "closeEditor": "关闭编辑器"
     },
     "headers": {
       "type": "类型",

@@ -201,7 +201,8 @@
       "download": "Download",
       "cancel": "Cancel",
       "save": "Save",
-      "closeTab": "Close Tab" 
+      "closeTab": "Close Tab",
+      "closeEditor": "Close Editor" 
     },
     "headers": {
       "type": "Type",
