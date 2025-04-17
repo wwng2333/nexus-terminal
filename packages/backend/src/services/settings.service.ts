@@ -6,7 +6,9 @@ export const settingsService = {
    * @returns 返回包含所有设置项的数组
    */
   async getAllSettings(): Promise<Record<string, string>> {
+    console.log('[Service] Calling repository.getAllSettings...'); // 添加日志
     const settingsArray = await settingsRepository.getAllSettings();
+    console.log('[Service] Got settings array from repository:', JSON.stringify(settingsArray)); // 添加日志
     const settingsRecord: Record<string, string> = {};
     settingsArray.forEach(setting => {
       settingsRecord[setting.key] = setting.value;
@@ -37,7 +39,9 @@ export const settingsService = {
    * @param settings 包含多个设置项键值对的对象
    */
   async setMultipleSettings(settings: Record<string, string>): Promise<void> {
+    console.log('[Service] Calling repository.setMultipleSettings with:', JSON.stringify(settings)); // 添加日志
     await settingsRepository.setMultipleSettings(settings);
+    console.log('[Service] Finished repository.setMultipleSettings.'); // 添加日志
   },
 
   /**

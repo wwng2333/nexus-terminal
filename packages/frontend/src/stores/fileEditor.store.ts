@@ -32,9 +32,8 @@ export interface FileTab {
     // sessionId: string; // 暂时不加，因为 session.store 已处理独立模式
 }
 
-
-// 辅助函数：根据文件名获取语言 (保持不变)
-const getLanguageFromFilename = (filename: string): string => {
+// --- 辅助函数 (移到外部并导出) ---
+export const getLanguageFromFilename = (filename: string): string => {
     const extension = filename.split('.').pop()?.toLowerCase();
     switch (extension) {
         case 'js': return 'javascript';
@@ -65,11 +64,10 @@ const getLanguageFromFilename = (filename: string): string => {
     }
 };
 
-// 辅助函数：从路径获取文件名
-const getFilenameFromPath = (filePath: string): string => {
+export const getFilenameFromPath = (filePath: string): string => {
     return filePath.split('/').pop() || filePath;
 };
-
+// --- End Helper Functions ---
 
 export const useFileEditorStore = defineStore('fileEditor', () => {
     const { t } = useI18n();
@@ -80,6 +78,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
     const activeTabId = ref<string | null>(null); // 当前激活的标签页 ID
     // const editorVisibleState = ref<'visible' | 'minimized' | 'closed'>('closed'); // 移除，面板可见性由布局控制
     const popupTrigger = ref(0); // 新增：用于触发弹窗显示的信号
+    const popupFileInfo = ref<{ filePath: string; sessionId: string } | null>(null); // 新增：存储弹窗文件信息
 
     // --- 计算属性 ---
     const orderedTabs = computed(() => Array.from(tabs.value.values())); // 获取标签页数组，用于渲染
@@ -99,6 +98,13 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
     });
 
     // --- 核心方法 ---
+
+    // 修改：triggerPopup 接收文件信息并存储
+    const triggerPopup = (filePath: string, sessionId: string) => {
+        console.log(`[文件编辑器 Store] Triggering popup for ${filePath} in session ${sessionId}.`);
+        popupFileInfo.value = { filePath, sessionId };
+        popupTrigger.value++; // 增加触发器值以通知监听者
+    };
 
     // 获取指定会话的 SFTP 管理器 (保持不变)
     const getSftpManager = (sessionId: string | null) => {
@@ -151,8 +157,8 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         };
         tabs.value.set(tabId, newTab);
         setActiveTab(tabId); // 激活新标签页
-        // 触发弹窗 (如果设置允许)
-        popupTrigger.value++;
+        // 不再在这里触发弹窗
+        // popupTrigger.value++;
 
         // 获取 SFTP 管理器
         const sftpManager = getSftpManager(sessionId);
@@ -419,6 +425,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         activeTabId: readonly(activeTabId),
         // editorVisibleState: readonly(editorVisibleState), // 移除
         popupTrigger: readonly(popupTrigger), // 暴露触发器 (只读)
+        popupFileInfo: readonly(popupFileInfo), // 暴露弹窗文件信息 (只读)
 
         // 计算属性
         orderedTabs,
@@ -432,6 +439,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         closeAllTabs,
         setActiveTab,
         updateFileContent, // 暴露新的更新方法
+        triggerPopup, // 暴露新的触发方法
         // setEditorVisibility, // 移除
     };
 });

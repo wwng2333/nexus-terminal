@@ -253,15 +253,23 @@ const shareTabsMessage = ref('');
 const shareTabsSuccess = ref(false);
 
 // --- Watcher to sync local form state with store state ---
-watch(settings, (newSettings) => {
+watch(settings, (newSettings, oldSettings) => {
+  // Initialize only if settings were previously null or undefined
+  const isInitialLoad = !oldSettings;
+
   ipWhitelistInput.value = newSettings.ipWhitelist || '';
   selectedLanguage.value = newSettings.language || 'en';
   blacklistSettingsForm.maxLoginAttempts = newSettings.maxLoginAttempts || '5';
   blacklistSettingsForm.loginBanDuration = newSettings.loginBanDuration || '300';
-  // 同步弹窗编辑器设置
-  popupEditorEnabled.value = showPopupFileEditorBoolean.value;
-  // 同步共享标签页设置
-  shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
+
+  // Initialize local state only on initial load or if store changes externally
+  if (isInitialLoad || newSettings.showPopupFileEditor !== oldSettings?.showPopupFileEditor) {
+      popupEditorEnabled.value = showPopupFileEditorBoolean.value;
+  }
+  if (isInitialLoad || newSettings.shareFileEditorTabs !== oldSettings?.shareFileEditorTabs) {
+      shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
+  }
+
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
 // --- Popup Editor setting method ---
@@ -279,8 +287,8 @@ const handleUpdatePopupEditorSetting = async () => {
         console.error('更新弹窗编辑器设置失败:', error);
         popupEditorMessage.value = error.message || t('settings.popupEditor.error.saveFailed'); // 需要添加翻译
         popupEditorSuccess.value = false;
-        // 保存失败时，将本地复选框状态恢复为 Store 中的状态
-        popupEditorEnabled.value = showPopupFileEditorBoolean.value;
+        // 保存失败时，不需要手动恢复，v-model 应该保持用户最后的操作状态
+        // popupEditorEnabled.value = showPopupFileEditorBoolean.value; // <-- 移除恢复逻辑
     } finally {
         popupEditorLoading.value = false;
     }
@@ -300,8 +308,8 @@ const handleUpdateShareTabsSetting = async () => {
         console.error('更新共享编辑器标签页设置失败:', error);
         shareTabsMessage.value = error.message || t('settings.shareEditorTabs.error.saveFailed'); // 需要添加翻译
         shareTabsSuccess.value = false;
-        // 保存失败时，将本地复选框状态恢复为 Store 中的状态
-        shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
+        // 保存失败时，不需要手动恢复
+        // shareTabsEnabled.value = shareFileEditorTabsBoolean.value; // <-- 移除恢复逻辑
     } finally {
         shareTabsLoading.value = false;
     }

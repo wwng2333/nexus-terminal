@@ -29,6 +29,7 @@ export const useSettingsStore = defineStore('settings', () => {
    * Should be called early in the application lifecycle (e.g., main.ts).
    */
   async function loadInitialSettings() {
+    console.log('[SettingsStore] Entering loadInitialSettings function...'); // <-- 添加更早的日志
     isLoading.value = true;
     error.value = null;
     let fetchedLang: 'en' | 'zh' | undefined;
@@ -37,12 +38,13 @@ export const useSettingsStore = defineStore('settings', () => {
       console.log('[SettingsStore] Starting loadInitialSettings...'); // 添加日志
       const response = await axios.get<Record<string, string>>('/api/v1/settings');
       settings.value = response.data; // Store all fetched settings
-      console.log('[SettingsStore] Fetched settings:', JSON.stringify(settings.value)); // 添加日志
+      console.log('[SettingsStore] Fetched settings raw:', JSON.stringify(response.data)); // 打印原始响应
+      console.log('[SettingsStore] Raw showPopupFileEditor from backend:', response.data.showPopupFileEditor); // <--- 添加日志：打印原始值
 
       // --- 设置默认值 (如果后端未返回) ---
       // 弹窗编辑器设置
       if (settings.value.showPopupFileEditor === undefined) {
-          console.log('[SettingsStore] Setting default for showPopupFileEditor: true');
+          console.log('[SettingsStore] showPopupFileEditor is undefined, setting default: true'); // 修改日志
           settings.value.showPopupFileEditor = 'true'; // 默认为 true
       }
       // 共享编辑器标签页设置
@@ -92,18 +94,20 @@ export const useSettingsStore = defineStore('settings', () => {
    * @param value The new value for the setting.
    */
   async function updateSetting(key: keyof SettingsState, value: string) {
-    const previousValue = settings.value[key];
-    settings.value = { ...settings.value, [key]: value }; // Optimistic update
+    // const previousValue = settings.value[key]; // No longer needed for optimistic revert
+    // settings.value = { ...settings.value, [key]: value }; // Remove optimistic update
 
     try {
       await axios.put('/api/v1/settings', { [key]: value });
+      // Update store state *after* successful API call
+      settings.value = { ...settings.value, [key]: value };
       // If updating language, also update i18n
       if (key === 'language' && (value === 'en' || value === 'zh')) {
         setLocale(value);
       }
     } catch (err: any) {
       console.error(`Failed to update setting '${key}':`, err);
-      settings.value = { ...settings.value, [key]: previousValue }; // Revert on error
+      // settings.value = { ...settings.value, [key]: previousValue }; // Remove revert logic
       throw new Error(err.response?.data?.message || err.message || `Failed to update setting '${key}'`);
     }
   }
@@ -113,18 +117,20 @@ export const useSettingsStore = defineStore('settings', () => {
    * @param updates An object containing key-value pairs of settings to update.
    */
   async function updateMultipleSettings(updates: Partial<SettingsState>) {
-    const previousSettings = { ...settings.value };
-    settings.value = { ...settings.value, ...updates }; // Optimistic update
+    // const previousSettings = { ...settings.value }; // No longer needed for optimistic revert
+    // settings.value = { ...settings.value, ...updates }; // Remove optimistic update
 
     try {
       await axios.put('/api/v1/settings', updates);
+      // Update store state *after* successful API call
+      settings.value = { ...settings.value, ...updates };
       // If language is updated, apply it
       if (updates.language && (updates.language === 'en' || updates.language === 'zh')) {
         setLocale(updates.language);
       }
     } catch (err: any) {
       console.error('Failed to update multiple settings:', err);
-      settings.value = previousSettings; // Revert on error
+      // settings.value = previousSettings; // Remove revert logic
       throw new Error(err.response?.data?.message || err.message || 'Failed to update settings');
     }
   }
@@ -137,9 +143,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // Getter for the popup editor setting, returning boolean
   const showPopupFileEditorBoolean = computed(() => {
       // 默认为 true，除非明确设置为 'false'
-      // 默认为 true (共享)，除非明确设置为 'false'
-      // 默认为 true (共享)，除非明确设置为 'false'
-      return settings.value.shareFileEditorTabs !== 'false';
+      return settings.value.showPopupFileEditor !== 'false'; // <-- 修正：检查正确的键 showPopupFileEditor
   });
 
   // Getter for sharing setting, returning boolean

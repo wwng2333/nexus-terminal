@@ -309,13 +309,20 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已
             const filePath = joinPath(currentPath.value, item.filename); // Use joinPath from props
             const fileInfo: FileInfo = { name: item.filename, fullPath: filePath };
 
+            // 检查是否需要触发弹窗 (无论共享模式如何)
+            if (settingsStore.showPopupFileEditorBoolean) {
+                console.log(`[FileManager ${props.sessionId}] Triggering popup for: ${filePath}`);
+                fileEditorStore.triggerPopup(filePath, props.sessionId); // <-- 传递参数
+            }
+
+            // 根据共享模式决定如何打开/加载文件
             if (shareFileEditorTabsBoolean.value) {
-                // 共享模式：调用全局 fileEditorStore
-                console.log(`[FileManager ${props.sessionId}] Opening file in shared mode: ${filePath}`);
+                // 共享模式：调用全局 fileEditorStore (它会处理标签页和加载)
+                console.log(`[FileManager ${props.sessionId}] Opening file in shared mode (store handles loading): ${filePath}`);
                 fileEditorStore.openFile(filePath, props.sessionId);
             } else {
-                // 独立模式：调用 sessionStore
-                console.log(`[FileManager ${props.sessionId}] Opening file in independent mode: ${filePath}`);
+                // 独立模式：调用 sessionStore (它会处理标签页和加载)
+                console.log(`[FileManager ${props.sessionId}] Opening file in independent mode (store handles loading): ${filePath}`);
                 sessionStore.openFileInSession(props.sessionId, fileInfo);
             }
         }
