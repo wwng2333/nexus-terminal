@@ -187,7 +187,7 @@ const executeCommand = (command: QuickCommandFE) => {
 .search-input:focus {
     outline: none;
     border-color: var(--button-bg-color); /* Highlight border on focus */
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); /* Example focus shadow */
+    box-shadow: 0 0 5px var(--button-bg-color, #007bff); /* Use theme variable for glow */
 }
 
 /* 移除 .sort-controls 和 select 样式 */

@@ -287,7 +287,7 @@ const handleSubmit = async () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6); /* 加深背景 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -295,28 +295,37 @@ const handleSubmit = async () => {
 }
 
 .add-connection-form {
-  background-color: white;
-  padding: 2rem;
+  background-color: var(--app-bg-color, white);
+  color: var(--text-color, #333);
+  padding: calc(var(--base-padding, 1rem) * 2);
   border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  min-width: 300px;
-  max-width: 500px;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); /* 调整阴影 */
+  min-width: 350px; /* 稍微加宽 */
+  max-width: 550px; /* 调整最大宽度 */
+  border: 1px solid var(--border-color, #ccc);
 }
 
 h3 {
   margin-top: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 4); /* 增加标题下边距 */
   text-align: center;
+  color: var(--text-color, #333);
+  font-family: var(--font-family-sans-serif, sans-serif);
+  font-size: 1.4em; /* 稍微增大标题字号 */
+  font-weight: 600; /* 加粗标题 */
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 2.5); /* 增加组间距 */
 }
 
 label {
   display: block;
-  margin-bottom: 0.3rem;
-  font-weight: bold;
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 0.8); /* 调整标签下边距 */
+  font-weight: 500; /* 调整标签字重 */
+  font-size: 0.95em; /* 调整标签字号 */
+  color: var(--text-color-secondary, #666); /* 使用次要文本颜色 */
+  font-family: var(--font-family-sans-serif, sans-serif);
 }
 
 input[type="text"],
@@ -325,58 +334,110 @@ input[type="password"],
 select,
 textarea {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ccc;
+  padding: calc(var(--base-padding, 1rem) * 0.6); /* 调整输入框内边距 */
+  border: 1px solid var(--border-color, #ccc);
   border-radius: 4px;
-   box-sizing: border-box; /* Include padding and border in element's total width and height */
- }
+  box-sizing: border-box;
+  background-color: var(--app-bg-color, white);
+  color: var(--text-color, #333);
+  font-family: var(--font-family-sans-serif, sans-serif);
+  font-size: 1em; /* 确保字体大小 */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease; /* 添加过渡效果 */
+}
 
- /* 移除旧的标签选择样式 */
- /* .tag-checkbox-group ... */
- /* .tag-checkbox-label ... */
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+select:focus,
+textarea:focus {
+  outline: none; /* 移除默认 outline */
+  border-color: var(--button-bg-color, #007bff); /* 聚焦时使用按钮背景色 (保持) */
+  box-shadow: 0 0 5px var(--button-bg-color, #007bff); /* 恢复光晕效果并使用主题色 */
+}
 
- .loading-small, .error-small, .info-small {
-    font-size: 0.9em;
-    color: #666;
-    margin-top: 0.2rem;
+textarea {
+    min-height: 80px; /* 设置文本域最小高度 */
+    resize: vertical; /* 允许垂直调整大小 */
+}
+
+select {
+    appearance: none; /* 移除默认下拉箭头 (可能需要自定义箭头) */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); /* 添加自定义箭头 */
+    background-repeat: no-repeat;
+    background-position: right calc(var(--base-padding, 1rem) * 0.6) center;
+    background-size: 16px 12px;
+    padding-right: calc(var(--base-padding, 1rem) * 2); /* 为箭头腾出空间 */
+}
+
+
+ .loading-small, .info-small {
+    font-size: 0.85em; /* 调整字号 */
+    color: var(--text-color-secondary, #666);
+    margin-top: calc(var(--base-margin, 0.5rem) * 0.5); /* 调整上边距 */
+    font-family: var(--font-family-sans-serif, sans-serif);
 }
 .error-small {
+    font-size: 0.85em; /* 调整字号 */
     color: red;
+    margin-top: calc(var(--base-margin, 0.5rem) * 0.5); /* 调整上边距 */
+    font-family: var(--font-family-sans-serif, sans-serif);
 }
 
 
 .error-message {
   color: red;
-  margin-bottom: 1rem;
+  margin-bottom: var(--base-margin, 0.5rem);
   text-align: center;
+  font-family: var(--font-family-sans-serif, sans-serif);
+  font-weight: 500; /* 加粗错误信息 */
+  padding: calc(var(--base-padding, 1rem) * 0.5); /* 添加内边距 */
+  background-color: rgba(255, 0, 0, 0.05); /* 添加淡红色背景 */
+  border: 1px solid rgba(255, 0, 0, 0.2); /* 添加边框 */
+  border-radius: 4px;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: calc(var(--base-margin, 0.5rem) * 4); /* 增加顶部间距 */
+  padding-top: calc(var(--base-padding, 1rem) * 1); /* 在按钮上方增加间距 */
+  border-top: 1px solid var(--border-color, #eee); /* 添加分隔线 */
 }
 
 .form-actions button {
-  margin-left: 0.5rem;
-  padding: 0.6rem 1.2rem;
+  margin-left: var(--base-margin, 0.5rem);
+  padding: calc(var(--base-padding, 1rem) * 0.7) calc(var(--base-padding, 1rem) * 1.4); /* 调整按钮内边距 */
   cursor: pointer;
-  border: none;
   border-radius: 4px;
+  font-family: var(--font-family-sans-serif, sans-serif);
+  font-weight: 500; /* 调整按钮字重 */
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* 添加过渡 */
 }
 
 .form-actions button[type="submit"] {
-  background-color: #007bff;
-  color: white;
+  background-color: var(--button-bg-color, #007bff);
+  color: var(--button-text-color, white);
+  border: 1px solid var(--button-bg-color, #007bff); /* 添加边框 */
+}
+.form-actions button[type="submit"]:hover:not(:disabled) {
+  background-color: var(--button-hover-bg-color, #0056b3);
+  border-color: var(--button-hover-bg-color, #0056b3); /* 同步边框色 */
 }
 
 .form-actions button[type="button"] {
-  background-color: #ccc;
-  color: #333;
+  background-color: transparent; /* 取消按钮透明背景 */
+  color: var(--text-color-secondary, #666); /* 使用次要文本颜色 */
+  border: 1px solid var(--border-color, #ccc); /* 添加边框 */
+}
+.form-actions button[type="button"]:hover:not(:disabled) {
+  background-color: var(--border-color, #eee); /* 悬停时淡灰色背景 */
+  border-color: var(--text-color-secondary, #bbb); /* 悬停时边框变深 */
+  color: var(--text-color, #333); /* 悬停时文本变深 */
 }
 
+
 .form-actions button:disabled {
-  opacity: 0.6;
+  opacity: 0.5; /* 调整禁用透明度 */
   cursor: not-allowed;
 }
 </style>

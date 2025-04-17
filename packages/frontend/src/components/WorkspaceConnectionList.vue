@@ -293,7 +293,7 @@ const handleOpenInNewTab = (connectionId: number) => {
 }
 .search-input:focus {
   border-color: var(--button-bg-color); /* Use theme variable */
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Keep existing shadow or define a variable */
+  box-shadow: 0 0 5px var(--button-bg-color, #007bff); /* Use theme variable for glow */
 }
 
 .add-button {
