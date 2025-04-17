@@ -71,7 +71,8 @@ const paneLabels: Record<PaneName, string> = {
   fileManager: t('layout.pane.fileManager'),
   editor: t('layout.pane.editor'),
   statusMonitor: t('layout.pane.statusMonitor'),
-  commandHistory: t('layout.pane.commandHistory', '命令历史'), // 添加命令历史标签
+  commandHistory: t('layout.pane.commandHistory', '命令历史'),
+  quickCommands: t('layout.pane.quickCommands', '快捷指令'), // 添加快捷指令标签
 };
 
 // 获取所有可控制的面板名称

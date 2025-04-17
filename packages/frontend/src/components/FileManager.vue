@@ -529,7 +529,7 @@ onMounted(() => {
 watchEffect((onCleanup) => {
     let unregisterSuccess: (() => void) | undefined;
     let unregisterError: (() => void) | undefined;
-    let timeoutId: number | undefined;
+    let timeoutId: NodeJS.Timeout | undefined; // 修正类型为 NodeJS.Timeout
 
     const cleanupListeners = () => {
         unregisterSuccess?.();

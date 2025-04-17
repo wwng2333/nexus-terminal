@@ -139,6 +139,17 @@ CREATE TABLE IF NOT EXISTS command_history (
     timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
 );
 `;
+
+const createQuickCommandsTableSQL = `
+CREATE TABLE IF NOT EXISTS quick_commands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NULL, -- 名称可选
+    command TEXT NOT NULL, -- 指令必选
+    usage_count INTEGER NOT NULL DEFAULT 0, -- 使用频率
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
 // --- 结束新增表结构定义 ---
 
 
@@ -267,6 +278,15 @@ export const runMigrations = async (db: Database): Promise<void> => {
             db.run(createCommandHistoryTableSQL, (err: Error | null) => {
                 if (err) return reject(new Error(`创建 command_history 表时出错: ${err.message}`));
                 console.log('Command_History 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 quick_commands 表
+        await new Promise<void>((resolve, reject) => {
+            db.run(createQuickCommandsTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 quick_commands 表时出错: ${err.message}`));
+                console.log('Quick_Commands 表已检查/创建。');
                 resolve();
             });
         });

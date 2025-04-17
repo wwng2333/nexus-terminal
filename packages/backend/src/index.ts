@@ -17,6 +17,7 @@ import settingsRoutes from './settings/settings.routes'; // 导入设置路由
 import notificationRoutes from './notifications/notification.routes'; // 导入通知路由
 import auditRoutes from './audit/audit.routes'; // 导入审计路由
 import commandHistoryRoutes from './command-history/command-history.routes'; // 导入命令历史记录路由
+import quickCommandsRoutes from './quick-commands/quick-commands.routes'; // 导入快捷指令路由
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
 
@@ -104,6 +105,7 @@ app.use('/api/v1/settings', settingsRoutes); // 挂载设置相关的路由
 app.use('/api/v1/notifications', notificationRoutes); // 挂载通知相关的路由
 app.use('/api/v1/audit-logs', auditRoutes); // 挂载审计日志相关的路由
 app.use('/api/v1/command-history', commandHistoryRoutes); // 挂载命令历史记录相关的路由
+app.use('/api/v1/quick-commands', quickCommandsRoutes); // 挂载快捷指令相关的路由
 
 // 状态检查接口
 app.get('/api/v1/status', (req: Request, res: Response) => {

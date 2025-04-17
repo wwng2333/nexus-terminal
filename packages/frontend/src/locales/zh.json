@@ -573,5 +573,26 @@
   "confirmClear": "确定要清空所有历史记录吗？",
   "copied": "已复制到剪贴板",
   "copyFailed": "复制失败"
+},
+"quickCommands": {
+  "title": "快捷指令",
+  "searchPlaceholder": "搜索名称或指令...",
+  "add": "添加",
+  "sortBy": "排序:",
+  "sortByName": "名称",
+  "sortByUsage": "使用频率",
+  "usageCount": "使用次数",
+  "empty": "没有快捷指令。点击“添加”按钮创建一个吧！",
+  "confirmDelete": "确定要删除快捷指令 \"{name}\" 吗？",
+  "form": {
+    "titleAdd": "添加快捷指令",
+    "titleEdit": "编辑快捷指令",
+    "name": "名称:",
+    "namePlaceholder": "可选，用于快速识别",
+    "command": "指令:",
+    "commandPlaceholder": "例如：ls -alh /home/user",
+    "errorCommandRequired": "指令内容不能为空",
+    "add": "添加"
+  }
 }
 }

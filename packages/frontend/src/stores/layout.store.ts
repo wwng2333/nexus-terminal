@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-// 定义面板名称的类型，方便管理和引用 (添加 commandHistory)
-export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory';
+// 定义面板名称的类型，方便管理和引用 (添加 quickCommands)
+export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory' | 'quickCommands';
 
 // 定义 Store
 export const useLayoutStore = defineStore('layout', () => {
@@ -14,7 +14,8 @@ export const useLayoutStore = defineStore('layout', () => {
     fileManager: true,
     editor: true,
     statusMonitor: true,
-    commandHistory: true, // 默认可见
+    commandHistory: true,
+    quickCommands: true, // 默认可见
   });
 
   // Action: 切换指定面板的可见性

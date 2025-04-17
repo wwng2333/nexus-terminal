@@ -11,6 +11,7 @@ import TerminalTabBar from '../components/TerminalTabBar.vue';
 import CommandInputBar from '../components/CommandInputBar.vue';
 import FileEditorContainer from '../components/FileEditorContainer.vue'; // 导入编辑器容器
 import CommandHistoryView from './CommandHistoryView.vue'; // 导入命令历史视图
+import QuickCommandsView from './QuickCommandsView.vue'; // 导入快捷指令视图
 import PaneTitleBar from '../components/PaneTitleBar.vue'; // 导入标题栏组件
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 SshTerminalInstance
 import { useSettingsStore } from '../stores/settings.store'; // 导入设置 Store
@@ -124,10 +125,10 @@ onBeforeUnmount(() => {
  
    // 否则，正常发送命令
    if (terminalManager && typeof terminalManager.sendData === 'function') {
-     const commandToSend = command.trim(); // 获取去除首尾空格的命令
+     const commandToSend = command.trim(); // 获取去除首尾空格的命令，用于记录历史
      console.log(`[WorkspaceView] Sending command to active session ${currentSession.sessionId}: ${commandToSend}`);
-     // 注意：CommandInputBar 已经添加了 '\n'
-     terminalManager.sendData(command); // 发送原始命令（包含换行符）
+     // 发送给终端时，需要添加回车符以模拟执行
+     terminalManager.sendData(command + '\r');
 
      // 记录非空命令到历史记录
      if (commandToSend.length > 0) {
@@ -257,11 +258,16 @@ onBeforeUnmount(() => {
 
         <!-- 新增：命令历史 Pane -->
         <pane v-if="paneVisibility.commandHistory" size="15" min-size="10" class="sidebar-pane command-history-pane">
-          <CommandHistoryView class="pane-content" @execute-command="handleSendCommand" /> <!-- 监听事件并调用 handleSendCommand -->
+          <CommandHistoryView class="pane-content" @execute-command="handleSendCommand" />
+        </pane>
+
+        <!-- 新增：快捷指令 Pane -->
+        <pane v-if="paneVisibility.quickCommands" size="15" min-size="10" class="sidebar-pane quick-commands-pane">
+          <QuickCommandsView class="pane-content" @execute-command="handleSendCommand" /> <!-- 监听事件 -->
         </pane>
 
         <!-- 2. 中间区域 Pane (终端/命令栏/文件管理器) - 这个 Pane 本身通常保持可见，内部 Pane 才切换 -->
-        <pane size="40" min-size="30" class="middle-pane"> <!-- 调整中间区域大小 -->
+        <pane size="30" min-size="20" class="middle-pane"> <!-- 再次调整中间区域大小 -->
            <!-- 上下分割 (终端 | 命令栏 | 文件管理器) -->
            <splitpanes :horizontal="true" style="height: 100%" :dbl-click-splitter="false">
               <!-- 上方 Pane (终端) -->
@@ -414,7 +420,8 @@ onBeforeUnmount(() => {
 .file-manager-area-pane, /* 文件管理器区域 Pane */
 .file-manager-pane, /* 内部文件管理器 Pane */
 .status-monitor-pane, /* 状态监视器样式 */
-.command-history-pane { /* 命令历史窗格样式 */
+.command-history-pane, /* 命令历史窗格样式 */
+.quick-commands-pane { /* 快捷指令窗格样式 */
   display: flex; /* 确保 flex 布局 */
   flex-direction: column; /* 确保列方向 */
   overflow: hidden; /* 默认隐藏溢出 */
@@ -482,6 +489,9 @@ onBeforeUnmount(() => {
      /* padding: 1rem; 由内部 wrapper 处理 */
 }
 .command-history-pane {
+    background-color: #f8f9fa; /* 与其他侧边栏一致 */
+}
+.quick-commands-pane {
     background-color: #f8f9fa; /* 与其他侧边栏一致 */
 }
 .status-monitor-content-wrapper {
