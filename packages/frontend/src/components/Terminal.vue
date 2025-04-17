@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'; // 重新导入 nextTick
+import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { ITheme } from 'xterm';
 import { Terminal } from 'xterm';
+import { useSettingsStore } from '../stores/settings.store'; // 导入设置 store
+import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import 'xterm/css/xterm.css'; // 引入 xterm 样式
@@ -26,6 +28,10 @@ let fitAddon: FitAddon | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let debounceTimer: number | null = null; // 用于防抖的计时器 ID
 const fontSize = ref(14); // 字体大小状态, 默认为14
+
+// --- Settings Store ---
+const settingsStore = useSettingsStore();
+const { currentXtermTheme } = storeToRefs(settingsStore); // 获取响应式的 xterm 主题
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
@@ -71,11 +77,7 @@ onMounted(() => {
       cursorBlink: true,
       fontSize: fontSize.value,
       fontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"',
-      theme: { // 简单主题示例
-        background: '#1e1e1e',
-        foreground: '#d4d4d4',
-        cursor: '#d4d4d4',
-      },
+      theme: currentXtermTheme.value, // *** 使用 store 中的当前 xterm 主题 ***
       rows: 24, // 初始行数
       cols: 80, // 初始列数
       allowTransparency: true,
@@ -179,9 +181,19 @@ onMounted(() => {
     }, { immediate: true }); // 立即执行一次 watch
 
     // 触发 ready 事件，传递 sessionId 和 terminal 实例
-    if (terminal) { // 确保 terminal 实例已创建
+    if (terminal) {
         emit('ready', { sessionId: props.sessionId, terminal: terminal });
     }
+
+    // --- 监听 xterm 主题变化 ---
+    watch(currentXtermTheme, (newTheme) => {
+      if (terminal) {
+        console.log(`[Terminal ${props.sessionId}] Applying new xterm theme.`); // 日志改为中文
+        terminal.options.theme = newTheme;
+        // 可能需要重新渲染或刷新终端以完全应用主题，但通常 xterm 会自动处理
+        // terminal.refresh(0, terminal.rows - 1); // 如果需要强制刷新
+      }
+    }, { deep: true }); // 使用 deep watch
 
     // 聚焦终端
     terminal.focus();

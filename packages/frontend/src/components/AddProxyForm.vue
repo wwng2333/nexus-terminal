@@ -153,12 +153,12 @@ const handleSubmit = async () => {
         <div class="form-group">
           <label for="proxy-password">{{ t('proxies.form.password') }} ({{ t('proxies.form.optional') }})</label>
           <input type="password" id="proxy-password" v-model="formData.password" />
-           <small v-if="isEditMode">{{ t('proxies.form.passwordUpdateNote') }}</small>
-        </div>
+            <small v-if="isEditMode">{{ t('proxies.form.passwordUpdateNote') }}</small>
+         </div>
 
-        <div v-if="formError || storeError" class="error-message">
-          {{ formError || storeError }}
-        </div>
+         <div v-if="formError || combinedStoreError" class="error-message">
+           {{ formError || combinedStoreError }}
+         </div>
 
         <div class="form-actions">
           <button type="submit" :disabled="isLoading">

@@ -1,1 +1,47 @@
-/* Global styles will go here */
+/* 全局样式和 CSS 变量定义 */
+:root {
+  /* 基础颜色 */
+  --app-bg-color: #ffffff;       /* 应用背景色 */
+  --text-color: #333333;         /* 主要文字颜色 */
+  --text-color-secondary: #666666; /* 次要文字颜色 */
+  --border-color: #cccccc;       /* 边框颜色 */
+  --link-color: #333;            /* 链接颜色 */
+  --link-hover-color: #0056b3;   /* 链接悬停颜色 */
+  --link-active-color: #007bff;   /* 激活链接/主题色 */
+
+  /* 组件颜色 */
+  --header-bg-color: #f0f0f0;     /* 头部背景色 */
+  --footer-bg-color: #f0f0f0;     /* 底部背景色 */
+  --button-bg-color: #007bff;     /* 按钮背景色 */
+  --button-text-color: #ffffff;   /* 按钮文字颜色 */
+  --button-hover-bg-color: #0056b3;/* 按钮悬停背景色 */
+
+  /* 字体 */
+  --font-family-sans-serif: sans-serif; /* 默认字体 */
+
+  /* 其他 */
+  --base-padding: 1rem;          /* 基础内边距 */
+  --base-margin: 0.5rem;         /* 基础外边距 */
+}
+
+/* 应用基础样式 */
+body {
+  margin: 0; /* 移除默认 body margin */
+  font-family: var(--font-family-sans-serif);
+  background-color: var(--app-bg-color);
+  color: var(--text-color);
+  line-height: 1.6; /* 改善可读性 */
+}
+
+/* 全局链接样式 */
+a {
+  color: var(--link-color);
+  text-decoration: none; /* 移除下划线 */
+}
+
+a:hover {
+  color: var(--link-hover-color);
+  text-decoration: underline; /* 悬停时显示下划线 */
+}
+
+/* 可以添加更多全局样式规则 */

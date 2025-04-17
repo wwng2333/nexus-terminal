@@ -10,7 +10,17 @@
     "tags": "标签管理",
     "notifications": "通知管理",
     "auditLogs": "审计日志",
-    "settings": "设置"
+    "settings": "设置",
+    "customizeStyle": "自定义样式"
+  },
+  "styleCustomizer": {
+    "title": "样式自定义",
+    "uiStyles": "界面样式",
+    "terminalStyles": "终端样式",
+    "uiDescription": "调整应用程序界面的颜色、字体等。",
+    "terminalDescription": "自定义终端的颜色方案和字体。",
+    "resetDefault": "恢复默认",
+    "saveChanges": "保存更改"
   },
   "login": {
     "title": "用户登录",

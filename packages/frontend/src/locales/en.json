@@ -10,7 +10,17 @@
     "tags": "Tags",
     "notifications": "Notifications",
     "auditLogs": "Audit Logs",
-    "settings": "Settings"
+    "settings": "Settings",
+    "customizeStyle": "Customize Style"
+  },
+  "styleCustomizer": {
+    "title": "Style Customizer",
+    "uiStyles": "UI Styles",
+    "terminalStyles": "Terminal Styles",
+    "uiDescription": "Adjust colors, fonts, etc., for the application interface.",
+    "terminalDescription": "Customize the color scheme and font for the terminal.",
+    "resetDefault": "Reset Default",
+    "saveChanges": "Save Changes"
   },
   "login": {
     "title": "User Login",
