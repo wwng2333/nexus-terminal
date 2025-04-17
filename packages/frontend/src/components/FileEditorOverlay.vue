@@ -3,39 +3,63 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import MonacoEditor from './MonacoEditor.vue';
-// import FileEditorTabs from './FileEditorTabs.vue'; // 不再需要标签栏
-import { useFileEditorStore } from '../stores/fileEditor.store';
+import FileEditorTabs from './FileEditorTabs.vue';
+import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store'; // 导入 FileTab 类型
 import { useSettingsStore } from '../stores/settings.store';
 import { useSessionStore } from '../stores/session.store'; // 导入 Session Store
-import type { EditorFileContent, SaveStatus } from '../types/sftp.types'; // 导入类型
-import { getLanguageFromFilename, getFilenameFromPath } from '../stores/fileEditor.store'; // 导入辅助函数
+import type { EditorFileContent, SaveStatus } from '../types/sftp.types';
+import { getLanguageFromFilename, getFilenameFromPath } from '../stores/fileEditor.store';
 
 const { t } = useI18n();
 const fileEditorStore = useFileEditorStore();
 const settingsStore = useSettingsStore();
-const sessionStore = useSessionStore(); // 导入 Session Store
-// const { t } = useI18n(); // 移除重复声明
+const sessionStore = useSessionStore(); // 实例化 Session Store
 
 // --- 本地状态控制弹窗显示 ---
 const isVisible = ref(false);
 
 // --- 从 Store 获取状态 ---
-const { popupTrigger, popupFileInfo } = storeToRefs(fileEditorStore); // 监听触发器和文件信息
-const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
+// 全局 Store (用于共享模式和触发器)
+const {
+    popupTrigger,
+    popupFileInfo, // 包含 sessionId 和 filePath
+    activeTabId: globalActiveTabIdRef, // 获取全局 activeTabId
+    tabs: globalTabsRef, // 获取全局 tabs Map
+} = storeToRefs(fileEditorStore);
 
-// --- 本地状态管理弹窗内的文件 ---
-const popupFilePath = ref<string | null>(null);
-const popupSessionId = ref<string | null>(null);
-const popupFilename = ref<string>('');
-const popupContent = ref<string>('');
-const popupOriginalContent = ref<string>('');
-const popupLanguage = ref<string>('plaintext');
-const popupIsLoading = ref<boolean>(false);
-const popupLoadingError = ref<string | null>(null);
-const popupIsSaving = ref<boolean>(false);
-const popupSaveStatus = ref<SaveStatus>('idle');
-const popupSaveError = ref<string | null>(null);
-const popupIsModified = computed(() => popupContent.value !== popupOriginalContent.value);
+// 设置 Store (用于判断模式)
+const { showPopupFileEditorBoolean, shareFileEditorTabsBoolean } = storeToRefs(settingsStore);
+
+// --- 从 Store 获取方法 ---
+// 全局 Store Actions (用于共享模式)
+const {
+    saveFile: saveGlobalFile,
+    closeTab: closeGlobalTab,
+    setActiveTab: setGlobalActiveTab,
+    updateFileContent: updateGlobalFileContent,
+} = fileEditorStore;
+
+// 会话 Store Actions (用于非共享模式)
+const {
+    saveFileInSession,
+    closeEditorTabInSession,
+    setActiveEditorTabInSession,
+    updateFileContentInSession,
+} = sessionStore;
+
+// --- 移除本地文件状态 ---
+// const popupFilePath = ref<string | null>(null);
+// const popupSessionId = ref<string | null>(null);
+// const popupFilename = ref<string>('');
+// const popupContent = ref<string>('');
+// const popupOriginalContent = ref<string>('');
+// const popupLanguage = ref<string>('plaintext');
+// const popupIsLoading = ref<boolean>(false);
+// const popupLoadingError = ref<string | null>(null);
+// const popupIsSaving = ref<boolean>(false);
+// const popupSaveStatus = ref<SaveStatus>('idle');
+// const popupSaveError = ref<string | null>(null);
+// const popupIsModified = computed(() => popupContent.value !== popupOriginalContent.value);
 
 // --- 弹窗尺寸和拖拽状态 ---
 const popupWidthPx = ref(window.innerWidth * 0.75); // 初始宽度 75vw (像素)
@@ -53,73 +77,135 @@ const popupStyle = computed(() => ({
     width: `${popupWidthPx.value}px`,
     height: `${popupHeightPx.value}px`,
 }));
-// 不再需要基于 activeTab 的计算属性
 
-// --- 事件处理 ---
-// 保存弹窗中的文件
-const handlePopupSave = async () => {
-    if (!popupFilePath.value || !popupSessionId.value || popupIsSaving.value || popupIsLoading.value) {
-        console.warn('[FileEditorOverlay] 保存条件不满足，无法保存。');
-        return;
+// --- 动态计算属性 (根据模式选择数据源) ---
+
+// 获取当前弹窗关联的会话 (仅非共享模式需要)
+const currentSession = computed(() => {
+    if (shareFileEditorTabsBoolean.value || !popupFileInfo.value?.sessionId) {
+        return null;
     }
+    return sessionStore.sessions.get(popupFileInfo.value.sessionId) ?? null;
+});
 
-    const session = sessionStore.sessions.get(popupSessionId.value);
-    if (!session || !session.wsManager.isConnected.value || !session.wsManager.isSftpReady.value) {
-        console.error(`[FileEditorOverlay] 保存失败：会话 ${popupSessionId.value} 无效或未连接/SFTP 未就绪。`);
-        popupSaveStatus.value = 'error';
-        popupSaveError.value = t('fileManager.errors.sessionInvalidOrNotReady');
-        setTimeout(() => { popupSaveStatus.value = 'idle'; popupSaveError.value = null; }, 5000);
-        return;
+// 获取当前模式下的标签页列表
+const orderedTabs = computed(() => {
+    if (shareFileEditorTabsBoolean.value) {
+        return Array.from(globalTabsRef.value.values()); // 全局 Store
+    } else {
+        return currentSession.value?.editorTabs.value ?? []; // 会话 Store
     }
+});
 
-    const sftpManager = session.sftpManager;
-    const contentToSave = popupContent.value;
+// 获取当前模式下的活动标签页 ID
+const activeTabId = computed(() => {
+    if (shareFileEditorTabsBoolean.value) {
+        return globalActiveTabIdRef.value; // 全局 Store
+    } else {
+        return currentSession.value?.activeEditorTabId.value ?? null; // 会话 Store
+    }
+});
 
-    console.log(`[FileEditorOverlay] 开始保存文件: ${popupFilePath.value}`);
-    popupIsSaving.value = true;
-    popupSaveStatus.value = 'saving';
-    popupSaveError.value = null;
+// 获取当前模式下的活动标签页对象
+const activeTab = computed((): FileTab | null => {
+    const currentId = activeTabId.value;
+    if (!currentId) return null;
 
-    try {
-        await sftpManager.writeFile(popupFilePath.value, contentToSave);
-        console.log(`[FileEditorOverlay] 文件 ${popupFilePath.value} 保存成功。`);
-        popupIsSaving.value = false;
-        popupSaveStatus.value = 'success';
-        popupSaveError.value = null;
-        popupOriginalContent.value = contentToSave; // 更新原始内容
-        // popupIsModified 会自动变为 false
+    if (shareFileEditorTabsBoolean.value) {
+        return globalTabsRef.value.get(currentId) ?? null; // 全局 Store
+    } else {
+        // 在会话的 editorTabs 数组中查找
+        return currentSession.value?.editorTabs.value.find(tab => tab.id === currentId) ?? null;
+    }
+});
 
-        setTimeout(() => { if (popupSaveStatus.value === 'success') popupSaveStatus.value = 'idle'; }, 2000);
+// Monaco 编辑器内容绑定 (根据模式调用不同 action)
+const activeEditorContent = computed({
+    get: () => activeTab.value?.content ?? '',
+    set: (value) => {
+        const currentActiveTab = activeTab.value; // 缓存当前活动标签
+        if (!currentActiveTab) return;
 
-    } catch (err: any) {
-        console.error(`[FileEditorOverlay] 保存文件 ${popupFilePath.value} 失败:`, err);
-        popupIsSaving.value = false;
-        popupSaveStatus.value = 'error';
-        popupSaveError.value = `${t('fileManager.errors.saveFailed')}: ${err.message || err}`;
-        setTimeout(() => { if (popupSaveStatus.value === 'error') popupSaveStatus.value = 'idle'; popupSaveError.value = null; }, 5000);
+        if (shareFileEditorTabsBoolean.value) {
+            updateGlobalFileContent(currentActiveTab.id, value); // 全局 Store
+        } else {
+            // 非共享模式需要 sessionId
+            const sessionId = popupFileInfo.value?.sessionId;
+            if (sessionId) {
+                updateFileContentInSession(sessionId, currentActiveTab.id, value); // 会话 Store
+            } else {
+                console.error("[FileEditorOverlay] 无法更新内容：非共享模式下缺少 sessionId。");
+            }
+        }
+    },
+});
+
+
+// --- 从 activeTab 派生的计算属性 (保持不变，因为 activeTab 已动态化) ---
+const currentTabIsLoading = computed(() => activeTab.value?.isLoading ?? false);
+const currentTabLoadingError = computed(() => activeTab.value?.loadingError ?? null);
+const currentTabIsSaving = computed(() => activeTab.value?.isSaving ?? false);
+const currentTabSaveStatus = computed(() => activeTab.value?.saveStatus ?? 'idle');
+const currentTabSaveError = computed(() => activeTab.value?.saveError ?? null);
+const currentTabLanguage = computed(() => activeTab.value?.language ?? 'plaintext');
+const currentTabFilePath = computed(() => activeTab.value?.filePath ?? '');
+const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false);
+
+// --- 事件处理 (根据模式调用不同 action) ---
+
+// 保存当前激活的标签页
+const handleSaveRequest = () => {
+    const currentActiveTab = activeTab.value;
+    if (!currentActiveTab) return;
+
+    if (shareFileEditorTabsBoolean.value) {
+        saveGlobalFile(currentActiveTab.id); // 全局 Store
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            saveFileInSession(sessionId, currentActiveTab.id); // 会话 Store
+        } else {
+             console.error("[FileEditorOverlay] 无法保存：非共享模式下缺少 sessionId。");
+        }
     }
 };
 
-// 关闭弹窗并重置状态
-const handleCloseContainer = () => {
-    if (popupIsModified.value) {
-        if (!confirm(`文件 ${popupFilename.value} 已修改但未保存。确定要关闭吗？`)) {
-            return; // 用户取消关闭
+// 激活标签页
+const handleActivateTab = (tabId: string) => {
+    if (shareFileEditorTabsBoolean.value) {
+        setGlobalActiveTab(tabId); // 全局 Store
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            setActiveEditorTabInSession(sessionId, tabId); // 会话 Store
+        } else {
+             console.error("[FileEditorOverlay] 无法激活标签页：非共享模式下缺少 sessionId。");
         }
     }
+};
+
+// 关闭标签页
+const handleCloseTab = (tabId: string) => {
+     if (shareFileEditorTabsBoolean.value) {
+        closeGlobalTab(tabId); // 全局 Store
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            closeEditorTabInSession(sessionId, tabId); // 会话 Store
+        } else {
+             console.error("[FileEditorOverlay] 无法关闭标签页：非共享模式下缺少 sessionId。");
+        }
+    }
+};
+
+
+// 关闭弹窗 (保持不变)
+const handleCloseContainer = () => {
+    // 关闭前不再检查本地修改状态，因为没有本地状态了
+    // 如果需要检查 store 中 activeTab 的修改状态，可以在这里添加逻辑
+    // if (activeTab.value?.isModified) { ... }
     isVisible.value = false;
-    // 重置本地状态
-    popupFilePath.value = null;
-    popupSessionId.value = null;
-    popupFilename.value = '';
-    popupContent.value = '';
-    popupOriginalContent.value = '';
-    popupLanguage.value = 'plaintext';
-    popupIsLoading.value = false;
-    popupLoadingError.value = null;
-    popupIsSaving.value = false;
-    popupSaveStatus.value = 'idle';
-    popupSaveError.value = null;
+    // 不需要重置本地状态了
 };
 
 // 最小化编辑器容器 (如果需要实现)
@@ -158,73 +244,32 @@ const stopResize = () => {
     }
 };
 
-// 监听 popupTrigger 的变化来加载文件并显示弹窗
-watch(popupTrigger, async () => {
+// 监听 popupTrigger 的变化来显示弹窗
+watch(popupTrigger, () => {
     if (!showPopupFileEditorBoolean.value || !popupFileInfo.value) {
         console.log('[FileEditorOverlay] Popup trigger changed, but overlay is disabled or file info is missing.');
-        isVisible.value = false; // 确保在不应显示时隐藏
+        isVisible.value = false;
         return;
     }
 
     const { filePath, sessionId } = popupFileInfo.value;
-    console.log(`[FileEditorOverlay] Triggered for file: ${filePath}, session: ${sessionId}`);
+    console.log(`[FileEditorOverlay] Triggered for file: ${filePath} in session: ${sessionId}`);
 
-    // 设置状态并显示弹窗
-    popupFilePath.value = filePath;
-    popupSessionId.value = sessionId;
-    popupFilename.value = getFilenameFromPath(filePath);
-    popupLanguage.value = getLanguageFromFilename(filePath);
-    popupIsLoading.value = true;
-    popupLoadingError.value = null;
-    popupContent.value = ''; // 清空旧内容
-    popupOriginalContent.value = '';
-    popupIsSaving.value = false;
-    popupSaveStatus.value = 'idle';
-    popupSaveError.value = null;
-    isVisible.value = true; // 显示弹窗
+    // 仅显示弹窗，激活逻辑由各自 store 的 openFile/openFileInSession 处理
+    // 或者由 handleActivateTab 处理用户点击
+    isVisible.value = true;
 
-    // 获取 SFTP 管理器并加载文件
-    const session = sessionStore.sessions.get(sessionId);
-    if (!session || !session.sftpManager) {
-        console.error(`[FileEditorOverlay] Cannot find SFTP manager for session ${sessionId}`);
-        popupLoadingError.value = t('fileManager.errors.sftpManagerNotFound');
-        popupIsLoading.value = false;
-        return;
-    }
-    const sftpManager = session.sftpManager;
+    // --- 确保激活状态正确 (重要) ---
+    // 在非共享模式下，FileManager 调用 openFileInSession 时会设置会话内的 activeTabId。
+    // 在共享模式下，FileManager 调用 openFile 时会设置全局的 activeTabId。
+    // 这里不再需要强制调用 setActiveTab，因为触发弹窗时，对应的 store 应该已经处理了激活。
+    // 如果发现激活不正确，问题可能在 FileManager 或对应的 store action 中。
 
-    try {
-        const fileData = await sftpManager.readFile(filePath);
-        console.log(`[FileEditorOverlay] File ${filePath} read successfully. Encoding: ${fileData.encoding}`);
+    // 检查激活状态 (调试用)
+    // nextTick(() => { // 确保在 DOM 更新后检查
+    //     console.log(`[FileEditorOverlay] Popup shown. Current activeTabId: ${activeTabId.value}, Active Tab Object:`, activeTab.value);
+    // });
 
-        let decodedContent = '';
-        if (fileData.encoding === 'base64') {
-            try {
-                const binaryString = atob(fileData.content);
-                const bytes = new Uint8Array(binaryString.length);
-                for (let i = 0; i < binaryString.length; i++) { bytes[i] = binaryString.charCodeAt(i); }
-                const decoder = new TextDecoder('utf-8');
-                decodedContent = decoder.decode(bytes);
-            } catch (decodeError) {
-                console.error(`[FileEditorOverlay] Base64/UTF-8 decode error for ${filePath}:`, decodeError);
-                popupLoadingError.value = t('fileManager.errors.fileDecodeError');
-                decodedContent = `// ${popupLoadingError.value}\n// Original Base64:\n${fileData.content}`;
-            }
-        } else {
-            decodedContent = fileData.content;
-            if (decodedContent.includes('\uFFFD')) {
-                 console.warn(`[FileEditorOverlay] File ${filePath} might not be UTF-8.`);
-            }
-        }
-        popupContent.value = decodedContent;
-        popupOriginalContent.value = decodedContent;
-    } catch (err: any) {
-        console.error(`[FileEditorOverlay] Failed to read file ${filePath}:`, err);
-        popupLoadingError.value = `${t('fileManager.errors.readFileFailed')}: ${err.message || err}`;
-        popupContent.value = `// ${popupLoadingError.value}`;
-    } finally {
-        popupIsLoading.value = false;
-    }
 });
 
 
@@ -241,38 +286,51 @@ onBeforeUnmount(() => {
     <!-- 编辑器弹窗/容器，应用动态样式 -->
     <div class="editor-popup" :style="popupStyle">
 
-      <!-- 移除标签栏 -->
+      <!-- 标签栏 (使用动态计算属性和事件处理器) -->
+      <FileEditorTabs
+        :tabs="orderedTabs"
+        :active-tab-id="activeTabId"
+        @activate-tab="handleActivateTab"
+        @close-tab="handleCloseTab"
+      />
 
-      <!-- 编辑器头部 -->
-      <div class="editor-header">
+      <!-- 编辑器头部 (使用动态计算属性) -->
+      <div v-if="activeTab" class="editor-header">
         <span>
-          {{ t('fileManager.editingFile') }}: {{ popupFilename }}
-          <span v-if="popupIsModified" class="modified-indicator">*</span>
+          {{ t('fileManager.editingFile') }}: {{ currentTabFilePath }}
+          <span v-if="currentTabIsModified" class="modified-indicator">*</span>
         </span>
         <div class="editor-actions">
-          <span v-if="popupSaveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
-          <span v-if="popupSaveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
-          <span v-if="popupSaveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ popupSaveError }}</span>
-          <button @click="handlePopupSave" :disabled="popupIsSaving || popupIsLoading || !!popupLoadingError || !popupFilePath" class="save-btn">
-            {{ popupIsSaving ? t('fileManager.saving') : t('fileManager.actions.save') }}
+          <span v-if="currentTabSaveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
+          <span v-if="currentTabSaveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
+          <span v-if="currentTabSaveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ currentTabSaveError }}</span>
+          <button @click="handleSaveRequest" :disabled="currentTabIsSaving || currentTabIsLoading || !!currentTabLoadingError || !activeTab" class="save-btn">
+            {{ currentTabIsSaving ? t('fileManager.saving') : t('fileManager.actions.save') }}
           </button>
           <button @click="handleCloseContainer" class="close-editor-btn" :title="t('fileManager.actions.closeEditor')">✖</button>
         </div>
       </div>
+       <!-- 如果没有活动标签页 -->
+      <div v-else class="editor-header editor-header-placeholder">
+        <span>{{ t('fileManager.noOpenFile') }}</span>
+         <button @click="handleCloseContainer" class="close-editor-btn" :title="t('fileManager.actions.closeEditor')">✖</button>
+      </div>
 
-      <!-- 编辑器内容区域 -->
+      <!-- 编辑器内容区域 (现在基于 activeTab) -->
       <div class="editor-content-area">
-        <div v-if="popupIsLoading" class="editor-loading">{{ t('fileManager.loadingFile') }}</div>
-        <div v-else-if="popupLoadingError" class="editor-error">{{ popupLoadingError }}</div>
+        <div v-if="currentTabIsLoading" class="editor-loading">{{ t('fileManager.loadingFile') }}</div>
+        <div v-else-if="currentTabLoadingError" class="editor-error">{{ currentTabLoadingError }}</div>
         <MonacoEditor
-          v-else-if="popupFilePath"
-          :key="popupFilePath"
-          v-model="popupContent"
-          :language="popupLanguage"
+          v-else-if="activeTab"
+          :key="activeTab.id"
+          v-model="activeEditorContent"
+          :language="currentTabLanguage"
           theme="vs-dark"
           class="editor-instance"
-          @request-save="handlePopupSave"
+          @request-save="handleSaveRequest"
         />
+         <!-- 如果容器可见但没有活动标签页 -->
+        <div v-else class="editor-placeholder">{{ t('fileManager.selectFileToEdit') }}</div>
       </div>
 
       <!-- 添加拖拽手柄 -->
