@@ -12,6 +12,8 @@ import NotificationSettings from '../components/NotificationSettings.vue';
 
 <style scoped>
 .notifications-view {
-  padding: 20px;
+  padding: var(--base-padding, 20px); /* 使用变量 */
+  color: var(--text-color);
+  background-color: var(--app-bg-color);
 }
 </style>

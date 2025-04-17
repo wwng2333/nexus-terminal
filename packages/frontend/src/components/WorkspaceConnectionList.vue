@@ -265,41 +265,43 @@ const handleOpenInNewTab = (connectionId: number) => {
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 防止内部滚动条影响布局 */
-  background-color: #f8f9fa;
+  background-color: var(--app-bg-color); /* Use theme variable */
   font-size: 0.9em;
 }
 
 .search-add-bar {
   display: flex;
-  padding: 0.5rem;
-  border-bottom: 1px solid #dee2e6;
-  background-color: #e9ecef; /* 给搜索栏一个背景色 */
+  padding: var(--base-margin); /* Use theme variable */
+  border-bottom: 1px solid var(--border-color); /* Use theme variable */
+  background-color: var(--header-bg-color); /* Use theme variable */
 }
 
 .search-input {
   flex-grow: 1;
   padding: 0.4rem 0.6rem;
-  border: 1px solid #ced4da;
+  border: 1px solid var(--border-color); /* Use theme variable */
   border-radius: 4px 0 0 4px; /* 左侧圆角 */
   font-size: 0.9em;
   outline: none;
+  background-color: var(--app-bg-color); /* Use theme variable */
+  color: var(--text-color); /* Use theme variable */
 }
 .search-input:focus {
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  border-color: var(--button-bg-color); /* Use theme variable */
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Keep existing shadow or define a variable */
 }
 
 .add-button {
   padding: 0.4rem 0.8rem;
-  border: 1px solid #ced4da;
+  border: 1px solid var(--border-color); /* Use theme variable */
   border-left: none; /* 移除左边框，与输入框合并 */
-  background-color: #f8f9fa;
+  background-color: var(--app-bg-color); /* Use theme variable */
   cursor: pointer;
   border-radius: 0 4px 4px 0; /* 右侧圆角 */
-  color: #495057;
+  color: var(--text-color); /* Use theme variable */
 }
 .add-button:hover {
-  background-color: #e2e6ea;
+  background-color: var(--header-bg-color); /* Use theme variable */
 }
 .add-button i {
   font-size: 1em; /* 图标大小 */
@@ -308,14 +310,13 @@ const handleOpenInNewTab = (connectionId: number) => {
 .connection-list-area {
   flex-grow: 1; /* 占据剩余空间 */
   overflow-y: auto; /* 列表内容滚动 */
-  padding: 0.5rem 0;
 }
 
 
 .loading, .error, .no-connections, .no-results {
-  padding: 1rem;
+  padding: var(--base-padding); /* Use theme variable */
   text-align: center;
-  color: #6c757d;
+  color: var(--text-color-secondary); /* Use theme variable */
 }
 .error {
     color: #dc3545;
@@ -327,19 +328,20 @@ const handleOpenInNewTab = (connectionId: number) => {
 
 .add-connection-button {
     display: block;
-    width: calc(100% - 1rem); /* Adjust width */
-    margin: 0.5rem;
-    padding: 0.5rem;
+    width: calc(100% - 2 * var(--base-margin)); /* Use theme variable */
+    margin: var(--base-margin); /* Use theme variable */
+    padding: var(--base-margin); /* Use theme variable */
     text-align: left;
-    background-color: #e9ecef;
-    border: 1px solid #ced4da;
+    background-color: var(--header-bg-color); /* Use theme variable */
+    border: 1px solid var(--border-color); /* Use theme variable */
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9em;
-    color: #495057;
+    color: var(--text-color); /* Use theme variable */
 }
 .add-connection-button:hover {
-    background-color: #dee2e6;
+    background-color: var(--header-bg-color); /* Use theme variable (or darker variant) */
+    filter: brightness(0.95); /* Example: slightly darken */
 }
 .add-connection-button i {
     margin-right: 0.5rem;
@@ -354,15 +356,16 @@ const handleOpenInNewTab = (connectionId: number) => {
   padding: 0.4rem 0.8rem;
   font-weight: bold;
   cursor: pointer;
-  background-color: #e9ecef;
-  border-top: 1px solid #dee2e6;
-  border-bottom: 1px solid #dee2e6;
+  background-color: var(--header-bg-color); /* Use theme variable */
+  border-top: 1px solid var(--border-color); /* Use theme variable */
+  border-bottom: 1px solid var(--border-color); /* Use theme variable */
   display: flex;
   align-items: center;
-  color: #495057;
+  color: var(--text-color); /* Use theme variable */
 }
 .group-header:hover {
-    background-color: #ced4da;
+    background-color: var(--header-bg-color); /* Use theme variable */
+    filter: brightness(0.95); /* Example: slightly darken on hover */
 }
 
 .group-header i {
@@ -371,13 +374,7 @@ const handleOpenInNewTab = (connectionId: number) => {
   text-align: center;
   transition: transform 0.2s ease-in-out;
 }
-/* Rotate chevron when collapsed */
-.group-header i.fa-chevron-right {
-    /* transform: rotate(0deg); */ /* Default state */
-}
-.group-header i.fa-chevron-down {
-    /* transform: rotate(90deg); */ /* Rotated state */
-}
+
 
 
 .connection-items {
@@ -391,19 +388,20 @@ const handleOpenInNewTab = (connectionId: number) => {
   cursor: pointer;
   display: flex;
   align-items: center;
-  border-bottom: 1px solid #f1f3f5; /* Lighter separator */
+  border-bottom: 1px solid var(--border-color); /* Use theme variable */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  color: var(--text-color); /* Use theme variable */
 }
 
 .connection-item:hover {
-  background-color: #e9ecef;
+  background-color: var(--header-bg-color); /* Use theme variable */
 }
 
 .connection-icon {
   margin-right: 0.6rem;
-  color: #6c757d;
+  color: var(--text-color-secondary); /* Use theme variable */
   width: 1em;
   text-align: center;
 }
@@ -418,11 +416,11 @@ const handleOpenInNewTab = (connectionId: number) => {
 /* Context Menu Styles */
 .context-menu {
   position: fixed;
-  background-color: white;
-  border: 1px solid #ccc;
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15);
+  background-color: var(--app-bg-color); /* Use theme variable */
+  border: 1px solid var(--border-color); /* Use theme variable */
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15); /* Keep shadow or define variable */
   border-radius: 4px;
-  padding: 0.5rem 0;
+  padding: var(--base-margin) 0; /* Use theme variable */
   z-index: 1001; /* Above the list */
   min-width: 150px;
 }
@@ -438,14 +436,15 @@ const handleOpenInNewTab = (connectionId: number) => {
   cursor: pointer;
   display: flex;
   align-items: center;
+  color: var(--text-color); /* Use theme variable */
 }
 .context-menu li:hover {
-  background-color: #f0f0f0;
+  background-color: var(--header-bg-color); /* Use theme variable */
 }
 .context-menu li i {
     margin-right: 0.75rem;
     width: 1em;
     text-align: center;
-    color: #495057;
+    color: var(--text-color); /* Use theme variable */
 }
 </style>

@@ -36,10 +36,10 @@ const sendCommand = () => {
 .command-input-bar {
   display: flex;
   align-items: center;
-  padding: 5px 10px;
-  background-color: #f0f0f0; /* 背景色，可调整 */
-  border-top: 1px solid #ccc;
-  border-bottom: 1px solid #ccc;
+  padding: var(--base-margin); /* Use theme variable */
+  background-color: var(--header-bg-color); /* Use theme variable */
+  border-top: 1px solid var(--border-color); /* Use theme variable */
+  border-bottom: 1px solid var(--border-color); /* Use theme variable */
   min-height: 40px; /* 保证一定高度 */
 }
 
@@ -51,9 +51,11 @@ const sendCommand = () => {
 
 .command-input {
   padding: 6px 10px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-color); /* Use theme variable */
   border-radius: 4px;
   font-size: 0.9em;
+  background-color: var(--app-bg-color); /* Use theme variable */
+  color: var(--text-color); /* Use theme variable */
   width: 60%; /* 输入框宽度，可调整 */
   max-width: 800px; /* 最大宽度 */
   outline: none;
@@ -61,8 +63,8 @@ const sendCommand = () => {
 }
 
 .command-input:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  border-color: var(--button-bg-color); /* Use theme variable */
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25); /* Keep existing shadow or define variable */
 }
 
 /* 可以添加按钮样式 */

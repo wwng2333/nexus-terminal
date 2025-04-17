@@ -845,24 +845,28 @@ const cancelPathEdit = () => {
 
 <style scoped>
 /* Styles remain the same, but add .selected style */
-.file-manager { height: 100%; display: flex; flex-direction: column; font-family: sans-serif; font-size: 0.9rem; overflow: hidden; }
-.toolbar { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background-color: #f0f0f0; border-bottom: 1px solid #ccc; flex-wrap: wrap; }
-.path-bar { white-space: nowrap; overflow-x: auto; flex-grow: 1; margin-right: 1rem; padding: 0.2rem 0.4rem; border-radius: 3px; } /* Remove cursor:text and hover */
+.file-manager { height: 100%; display: flex; flex-direction: column; font-family: var(--font-family-sans-serif); font-size: 0.9rem; overflow: hidden; background-color: var(--app-bg-color); color: var(--text-color); }
+.toolbar { display: flex; justify-content: space-between; align-items: center; padding: var(--base-margin); background-color: var(--header-bg-color); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
+.path-bar { white-space: nowrap; overflow-x: auto; flex-grow: 1; margin-right: var(--base-padding); padding: 0.2rem 0.4rem; border-radius: 3px; } /* Remove cursor:text and hover */
 .path-bar strong.editable-path {
     font-weight: normal;
-    background-color: #e0e0e0;
+    background-color: var(--header-bg-color); /* Use header bg */
+    filter: brightness(0.95); /* Slightly darken */
     padding: 0.1rem 0.4rem;
     border-radius: 3px;
     margin-left: 0.3rem;
     cursor: text; /* Add cursor only to the clickable part */
 }
 .path-bar strong.editable-path:hover {
-    background-color: #d0d0d0; /* Slightly darker hover for the path */
+    background-color: var(--header-bg-color); /* Use header bg */
+    filter: brightness(0.9); /* Darker hover */
 }
 .path-input {
     font-family: inherit;
     font-size: inherit;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color); /* Use theme variable */
+    background-color: var(--app-bg-color); /* Use theme variable */
+    color: var(--text-color); /* Use theme variable */
     padding: 0.1rem 0.4rem;
     border-radius: 3px;
     width: calc(100% - 70px); /* Adjust width based on button sizes */
@@ -872,14 +876,14 @@ const cancelPathEdit = () => {
 .path-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
 .actions-bar button { padding: 0.3rem 0.6rem; cursor: pointer; margin-left: 0.5rem; }
 .actions-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
-.upload-popup { position: fixed; bottom: 1rem; right: 1rem; background-color: white; border: 1px solid #ccc; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 0.8rem; max-width: 300px; max-height: 200px; overflow-y: auto; z-index: 1001; }
-.upload-popup h4 { margin: 0 0 0.5rem 0; font-size: 0.9em; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; }
+.upload-popup { position: fixed; bottom: var(--base-padding); right: var(--base-padding); background-color: var(--app-bg-color); border: 1px solid var(--border-color); border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 0.8rem; max-width: 300px; max-height: 200px; overflow-y: auto; z-index: 1001; color: var(--text-color); } /* Use theme variables */
+.upload-popup h4 { margin: 0 0 var(--base-margin) 0; font-size: 0.9em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem; } /* Use theme variables */
 .upload-popup ul { list-style: none; padding: 0; margin: 0; }
-.upload-popup li { margin-bottom: 0.4rem; font-size: 0.85em; display: flex; align-items: center; flex-wrap: wrap; }
+.upload-popup li { margin-bottom: var(--base-margin); font-size: 0.85em; display: flex; align-items: center; flex-wrap: wrap; } /* Use theme variable */
 .upload-popup progress { margin: 0 0.5rem; width: 80px; height: 0.8em; }
-.upload-popup .error { color: red; margin-left: 0.5rem; flex-basis: 100%; font-size: 0.8em; }
-.upload-popup .cancel-btn { margin-left: auto; padding: 0.1rem 0.4rem; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; cursor: pointer; }
-.loading, .no-files { padding: 1rem; text-align: center; color: #666; }
+.upload-popup .error { color: red; margin-left: 0.5rem; flex-basis: 100%; font-size: 0.8em; } /* Keep error color */
+.upload-popup .cancel-btn { margin-left: auto; padding: 0.1rem 0.4rem; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; cursor: pointer; } /* Keep specific cancel button style */
+.loading, .no-files { padding: var(--base-padding); text-align: center; color: var(--text-color-secondary); } /* Use theme variable */
 /* 移除 .error-alert 和 .close-error-btn 样式 */
 /* .error-alert { ... } */
 /* .close-error-btn { ... } */
@@ -909,9 +913,9 @@ table.resizable-table {
   table-layout: fixed; /* Crucial for resizing */
   overflow: hidden; /* Prevent resizer overflow */
 }
-thead { background-color: #f8f8f8; position: sticky; top: 0; z-index: 1; }
+thead { background-color: var(--header-bg-color); position: sticky; top: 0; z-index: 1; } /* Use theme variable */
 th, td {
-    border: 1px solid #eee;
+    border: 1px solid var(--border-color); /* Use theme variable */
     padding: 0.4rem 0.6rem;
     text-align: left;
     white-space: nowrap;
@@ -922,21 +926,21 @@ th {
     position: relative; /* Needed for absolute positioning of resizer */
 }
 th.sortable { cursor: pointer; }
-th.sortable:hover { background-color: #e9e9e9; }
+th.sortable:hover { background-color: var(--header-bg-color); filter: brightness(0.95); } /* Use theme variable */
 /* Removed fixed width for first column, handled by colgroup */
 td:first-child {
   text-align: center; /* Center the icon */
 }
-tbody tr:hover { background-color: #f5f5f5; }
+tbody tr:hover { background-color: var(--header-bg-color); } /* Use theme variable */
 tbody tr.clickable { cursor: pointer; user-select: none; /* Prevent text selection on click */ }
 /* Removed .actions-cell style */
-tbody tr.selected { background-color: #cce5ff; }
-tbody tr.selected:hover { background-color: #b8daff; }
-.context-menu { position: fixed; background-color: white; border: 1px solid #ccc; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; }
-.context-menu ul { list-style: none; padding: 5px 0; margin: 0; }
-.context-menu li { padding: 8px 12px; cursor: pointer; }
-.context-menu li:hover { background-color: #eee; }
-.context-menu li.disabled { color: #aaa; cursor: not-allowed; background-color: white; }
+tbody tr.selected { background-color: var(--button-bg-color); color: var(--button-text-color); } /* Use theme variables */
+tbody tr.selected:hover { background-color: var(--button-hover-bg-color); color: var(--button-text-color); } /* Use theme variables */
+.context-menu { position: fixed; background-color: var(--app-bg-color); border: 1px solid var(--border-color); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; } /* Use theme variables */
+.context-menu ul { list-style: none; padding: var(--base-margin) 0; margin: 0; } /* Use theme variable */
+.context-menu li { padding: var(--base-margin) var(--base-padding); cursor: pointer; color: var(--text-color); } /* Use theme variables */
+.context-menu li:hover { background-color: var(--header-bg-color); } /* Use theme variable */
+.context-menu li.disabled { color: var(--text-color-secondary); cursor: not-allowed; background-color: var(--app-bg-color); opacity: 0.6; } /* Use theme variables */
 
 /* Resizer Handle Styles */
 .resizer {
@@ -961,42 +965,42 @@ tbody tr.selected:hover { background-color: #b8daff; }
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(40, 40, 40, 0.95); /* Dark semi-transparent background */
+  background-color: rgba(40, 40, 40, 0.95); /* Keep dark background for overlay */
   z-index: 1000; /* Ensure it's above the file list but below popups */
   display: flex;
   flex-direction: column;
-  color: #f0f0f0;
+  color: #f0f0f0; /* Keep light text for dark overlay */
 }
 
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background-color: #333;
-  border-bottom: 1px solid #555;
+  padding: var(--base-margin) var(--base-padding); /* Use theme variables */
+  background-color: #333; /* Keep dark header for overlay */
+  border-bottom: 1px solid #555; /* Keep dark border for overlay */
   font-size: 0.9em;
 }
 
 .close-editor-btn {
   background: none;
   border: none;
-  color: #ccc;
+  color: #ccc; /* Keep light color for dark header */
   font-size: 1.2em;
   cursor: pointer;
   padding: 0.2rem 0.5rem;
 }
 .close-editor-btn:hover {
-  color: white;
+  color: white; /* Keep light hover color */
 }
 
 .editor-loading, .editor-error {
-  padding: 2rem;
+  padding: calc(var(--base-padding) * 2); /* Use theme variable */
   text-align: center;
   font-size: 1.1em;
 }
 .editor-error {
-    color: #ff8a8a;
+    color: #ff8a8a; /* Keep specific error color */
 }
 
 .editor-actions {
@@ -1005,11 +1009,11 @@ tbody tr.selected:hover { background-color: #b8daff; }
 }
 
 .save-btn {
-    background-color: #4CAF50;
-    color: white;
+    background-color: var(--button-bg-color); /* Use theme variable */
+    color: var(--button-text-color); /* Use theme variable */
     border: none;
     padding: 0.4rem 0.8rem;
-    margin-left: 1rem;
+    margin-left: var(--base-padding); /* Use theme variable */
     cursor: pointer;
     border-radius: 3px;
     font-size: 0.9em;
@@ -1019,25 +1023,25 @@ tbody tr.selected:hover { background-color: #b8daff; }
     cursor: not-allowed;
 }
 .save-btn:hover:not(:disabled) {
-    background-color: #45a049;
+    background-color: var(--button-hover-bg-color); /* Use theme variable */
 }
 
 .save-status {
-    margin-left: 1rem;
+    margin-left: var(--base-padding); /* Use theme variable */
     font-size: 0.9em;
     padding: 0.2rem 0.5rem;
     border-radius: 3px;
 }
 .save-status.saving {
-    color: #888;
+    color: var(--text-color-secondary); /* Use theme variable */
 }
 .save-status.success {
-    color: #4CAF50;
-    background-color: #e8f5e9;
+    color: #4CAF50; /* Keep specific success color */
+    background-color: #e8f5e9; /* Keep specific success background */
 }
 .save-status.error {
-    color: #f44336;
-    background-color: #ffebee;
+    color: #f44336; /* Keep specific error color */
+    background-color: #ffebee; /* Keep specific error background */
 }
 
 .editor-instance {

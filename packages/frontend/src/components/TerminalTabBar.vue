@@ -161,11 +161,17 @@ const handleTogglePane = (paneName: PaneName) => {
 <style scoped>
 .terminal-tab-bar {
   display: flex;
-  background-color: #e0e0e0; /* 标签栏背景色 */
-  border-bottom: 1px solid #bdbdbd;
+  background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 */
+  /* border-bottom: 1px solid var(--border-color, #bdbdbd); */ /* 移除底部边框，让主内容区处理 */
+  border: 1px solid var(--border-color, #bdbdbd); /* 添加完整边框 */
+  border-bottom: none; /* 明确移除底部边框 */
   white-space: nowrap;
   height: 2.5rem; /* 固定标签栏高度 */
   box-sizing: border-box; /* 确保 padding 不会增加总高度 */
+  border-radius: 5px 5px 0 0; /* Top-left, Top-right, Bottom-right, Bottom-left */
+  margin: 0 var(--base-margin, 0.5rem); /* Add horizontal margin to match content area */
+  margin-top: var(--base-margin, 0.5rem); /* Add top margin */
+  overflow: hidden; /* Clip content to rounded corners */
 }
 
 /* 包裹标签和+按钮的容器 */
@@ -211,23 +217,22 @@ const handleTogglePane = (paneName: PaneName) => {
   padding: 0 0.8rem; /* 基础内边距 */
   height: 100%;
   cursor: pointer;
-  border-right: 1px solid #bdbdbd;
+  border-right: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
   box-sizing: border-box;
-  background-color: #f0f0f0; /* 未激活标签背景 */
-  color: #616161; /* 未激活标签文字颜色 */
+  background-color: var(--app-bg-color, #f0f0f0); /* 使用变量 - 未激活标签背景 */
+  color: var(--text-color-secondary, #616161); /* 使用变量 - 未激活标签文字颜色 */
   transition: background-color 0.2s ease, color 0.2s ease;
-  /* max-width: 200px; */ /* 移除最大宽度限制 */
   position: relative; /* 保持相对定位，以防万一需要定位子元素 */
 }
 
 .tab-item:hover {
-  background-color: #e0e0e0; /* 悬停时背景 */
+  background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 - 悬停时背景 */
 }
 
 .tab-item.active {
-  background-color: #ffffff; /* 激活标签背景 */
-  color: #333333; /* 激活标签文字颜色 */
-  /* 移除所有可能影响高度的边框或伪元素 */
+  background-color: var(--app-bg-color, #ffffff); /* 使用变量 - 激活标签背景 */
+  color: var(--text-color, #333333); /* 使用变量 - 激活标签文字颜色 */
+  border-bottom-color: transparent; /* 隐藏激活标签的底部边框，模拟连接效果 */
   position: relative;
   z-index: 1;
 }
@@ -244,10 +249,9 @@ const handleTogglePane = (paneName: PaneName) => {
 }
 
 .close-tab-button {
-  /* 恢复简单布局 */
   background: none;
   border: none;
-  color: #9e9e9e;
+  color: var(--text-color-secondary, #9e9e9e); /* 使用变量 */
   cursor: pointer;
   font-size: 1.1em;
   padding: 0 0.3rem;
@@ -262,27 +266,27 @@ const handleTogglePane = (paneName: PaneName) => {
 }
 
 .close-tab-button:hover {
-  background-color: #bdbdbd;
-  color: #ffffff;
+  background-color: var(--border-color, #bdbdbd); /* 使用变量 */
+  color: var(--app-bg-color, #ffffff); /* 使用变量 */
 }
 
 .tab-item.active .close-tab-button {
-    color: #757575;
+    color: var(--text-color-secondary, #757575); /* 使用变量 */
 }
 .tab-item.active .close-tab-button:hover {
-    background-color: #e0e0e0;
-    color: #333333;
+    background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 */
+    color: var(--text-color, #333333); /* 使用变量 */
 }
 
 /* 添加新标签按钮样式 */
 .add-tab-button {
   background: none;
   border: none;
-  border-left: 1px solid #bdbdbd; /* 恢复左侧分隔线 */
+  border-left: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
   padding: 0 0.8rem;
   cursor: pointer;
   font-size: 1.1em;
-  color: #616161;
+  color: var(--text-color-secondary, #616161); /* 使用变量 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -290,7 +294,7 @@ const handleTogglePane = (paneName: PaneName) => {
   flex-shrink: 0; /* 防止按钮被压缩 */
 }
 .add-tab-button:hover {
-  background-color: #d0d0d0;
+  background-color: var(--header-bg-color, #d0d0d0); /* 使用变量 */
 }
 .add-tab-button i {
   line-height: 1; /* 确保图标垂直居中 */
@@ -309,11 +313,11 @@ const handleTogglePane = (paneName: PaneName) => {
 .layout-config-button {
   background: none;
   border: none;
-  border-left: 1px solid #bdbdbd; /* 左侧分隔线 */
+  border-left: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
   padding: 0 0.8rem;
   cursor: pointer;
   font-size: 1.1em; /* 与其他按钮一致 */
-  color: #616161;
+  color: var(--text-color-secondary, #616161); /* 使用变量 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -321,7 +325,7 @@ const handleTogglePane = (paneName: PaneName) => {
   flex-shrink: 0;
 }
 .layout-config-button:hover {
-  background-color: #d0d0d0;
+  background-color: var(--header-bg-color, #d0d0d0); /* 使用变量 */
 }
 .layout-config-button i {
   line-height: 1;
@@ -343,7 +347,7 @@ const handleTogglePane = (paneName: PaneName) => {
 }
 
 .popup-content {
-  background-color: white;
+  background-color: var(--app-bg-color, white); /* 使用变量 */
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
@@ -363,25 +367,25 @@ const handleTogglePane = (paneName: PaneName) => {
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #aaa;
+  color: var(--text-color-secondary, #aaa); /* 使用变量 */
   line-height: 1;
 }
 .popup-close-button:hover {
-  color: #333;
+  color: var(--text-color, #333); /* 使用变量 */
 }
 
 .popup-content h3 {
   margin-top: 0;
   margin-bottom: 15px;
   text-align: center;
-  color: #333;
+  color: var(--text-color, #333); /* 使用变量 */
 }
 
 .popup-connection-list {
   flex-grow: 1; /* 让列表占据剩余空间 */
   overflow-y: auto; /* 列表内容滚动 */
   /* 可能需要覆盖 WorkspaceConnectionList 的一些默认样式 */
-  border: 1px solid #eee;
+  border: 1px solid var(--border-color); /* Use theme variable */
   border-radius: 4px;
 }
 /* 覆盖 WorkspaceConnectionList 内部样式（如果需要） */
@@ -390,6 +394,7 @@ const handleTogglePane = (paneName: PaneName) => {
 /* } */
 :deep(.popup-connection-list .connection-list-area) {
   padding: 0; /* 保持移除内边距 */
+  background-color: var(--app-bg-color); /* 确保列表背景 */
 }
 
 /* 调整：旧布局菜单容器样式 */
@@ -399,7 +404,7 @@ const handleTogglePane = (paneName: PaneName) => {
   align-items: center;
   height: 100%;
   /* margin-left: auto; */ /* 移除：由父容器 .action-buttons-container 控制 */
-  border-left: 1px solid #bdbdbd; /* 保持左侧分隔线 */
+  border-left: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
   flex-shrink: 0; /* 保持：防止被压缩 */
 }
 
@@ -407,11 +412,11 @@ const handleTogglePane = (paneName: PaneName) => {
 .layout-menu-button {
   background: none;
   border: none;
-  /* border-left: 1px solid #bdbdbd; */ /* 移除按钮左侧分隔线 */
+  /* border-left: 1px solid var(--border-color, #bdbdbd); */ /* 移除按钮左侧分隔线 */
   padding: 0 0.8rem;
   cursor: pointer;
   font-size: 1.1em;
-  color: #616161;
+  color: var(--text-color-secondary, #616161); /* 使用变量 */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -419,7 +424,7 @@ const handleTogglePane = (paneName: PaneName) => {
   flex-shrink: 0;
 }
 .layout-menu-button:hover {
-  background-color: #d0d0d0;
+  background-color: var(--header-bg-color, #d0d0d0); /* 使用变量 */
 }
 .layout-menu-button i {
   line-height: 1;
@@ -429,9 +434,9 @@ const handleTogglePane = (paneName: PaneName) => {
   position: absolute; /* 恢复绝对定位 */
   top: 100%; /* 定位在按钮下方 */
   right: 0; /* 对齐到右侧 */
-  background-color: white; /* 恢复默认背景色 */
+  background-color: var(--app-bg-color, white); /* 使用变量 */
   /* min-height: 20px; */ /* 移除临时调试最小高度 */
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-color, #ccc); /* 使用变量 */
   box-shadow: 0 2px 5px rgba(0,0,0,0.15);
   z-index: 9999; /* 保持高 z-index */
   min-width: 150px; /* 最小宽度 */
@@ -451,10 +456,11 @@ const handleTogglePane = (paneName: PaneName) => {
   white-space: nowrap;
   display: flex;
   align-items: center;
+  color: var(--text-color); /* 使用变量 */
 }
 
 .layout-menu-dropdown li:hover {
-  background-color: #f0f0f0;
+  background-color: var(--header-bg-color, #f0f0f0); /* 使用变量 */
 }
 
 .layout-menu-dropdown .checkmark {

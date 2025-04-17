@@ -190,9 +190,9 @@ const swapDisplay = computed(() => {
 
 <style scoped>
 .status-monitor {
-  padding: 1rem;
-  border-left: 1px solid #ccc;
-  background-color: #f9f9f9;
+  padding: var(--base-padding); /* Use theme variable */
+  border-left: 1px solid var(--border-color); /* Use theme variable */
+  background-color: var(--app-bg-color); /* Use theme variable */
   height: 100%;
   overflow-y: auto;
   font-size: 0.9em;
@@ -200,17 +200,17 @@ const swapDisplay = computed(() => {
 
 .status-monitor h4 {
   margin-top: 0;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 0.5rem;
+  margin-bottom: var(--base-padding); /* Use theme variable */
+  border-bottom: 1px solid var(--border-color); /* Use theme variable */
+  padding-bottom: var(--base-margin); /* Use theme variable */
   font-size: 1em;
-  color: #333;
+  color: var(--text-color); /* Use theme variable */
 }
 
 .loading-status, .status-error {
-    color: #888;
+    color: var(--text-color-secondary); /* Use theme variable */
     text-align: center;
-    margin-top: 1rem;
+    margin-top: var(--base-padding); /* Use theme variable */
 }
 .status-error {
     color: #dc3545;
@@ -248,7 +248,7 @@ const swapDisplay = computed(() => {
     text-overflow: ellipsis;
     /* No longer needs grid-column span */
     text-align: left;
-    color: #333;
+    color: var(--text-color); /* Use theme variable */
 }
 
 /* Specific style for OS name row - Keep consistent with general status-item */
@@ -265,20 +265,20 @@ const swapDisplay = computed(() => {
     text-overflow: ellipsis;
     text-align: left; /* Explicitly left align text */
     /* justify-self: start; No longer needed with 2-col grid */
-    color: #333;
+    color: var(--text-color); /* Use theme variable */
     min-width: auto; /* Override generic min-width */
 }
 
 
 .status-item label {
   font-weight: bold;
-  color: #555;
+  color: var(--text-color-secondary); /* Use theme variable */
   text-align: left; /* 改为左对齐 */
   white-space: nowrap;
 }
 
 .progress-bar-container {
-  background-color: #e9ecef;
+  background-color: var(--header-bg-color); /* Use theme variable */
   border-radius: 0.25rem;
   height: 1rem; /* Adjust height */
   overflow: hidden;
@@ -286,7 +286,7 @@ const swapDisplay = computed(() => {
 }
 
 .progress-bar {
-  background-color: #007bff; /* Blue for CPU/Mem/Disk */
+  background-color: var(--button-bg-color); /* Use theme variable for default bar */
   height: 100%;
   transition: width 0.3s ease-in-out;
   text-align: center;
@@ -303,7 +303,7 @@ const swapDisplay = computed(() => {
   font-variant-numeric: tabular-nums; /* Keep numbers aligned */
   min-width: 45px; /* Ensure space for percentage */
   text-align: left; /* 改为左对齐 */
-  color: #333;
+  color: var(--text-color); /* Use theme variable */
 }
 
 .mem-disk-details {

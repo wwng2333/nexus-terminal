@@ -299,13 +299,18 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: calc(100vh - 60px - 30px - 2rem); /* 保持原始高度计算 */
   overflow: hidden;
+  background-color: var(--app-bg-color); /* Added app background */
 }
 
 .main-content-area {
     display: flex;
     flex: 1;
-    overflow: hidden;
-    border-top: 1px solid #ccc;
+    overflow: hidden; /* Keep overflow hidden */
+    border: 1px solid var(--border-color, #ccc); /* Use variable for border */
+    border-top: none; /* Remove top border as it's handled by the tab bar */
+    border-radius: 0 0 5px 5px; /* Top-left, Top-right, Bottom-right, Bottom-left */
+    margin: var(--base-margin, 0.5rem); /* Add some margin around the content area */
+    margin-top: 0; /* Remove top margin if tab bar is directly above */
 }
 
 .layout-renderer-wrapper {
@@ -322,10 +327,10 @@ onBeforeUnmount(() => {
     justify-content: center;
     align-items: center;
     text-align: center;
-    color: #adb5bd;
-    background-color: #f8f9fa;
+    color: var(--text-color-secondary); /* Use secondary text color variable */
+    background-color: var(--header-bg-color); /* Use header background for slight contrast */
     font-size: 0.9em;
-    padding: 1rem;
+    padding: var(--base-padding); /* Use base padding variable */
 }
 
 /* 移除旧的、不再需要的特定面板样式，因为渲染由 LayoutRenderer 处理 */

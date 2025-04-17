@@ -574,14 +574,17 @@ onMounted(async () => {
 
 <style scoped>
 .settings-view {
-  padding: 20px;
+  padding: var(--base-padding, 20px); /* 使用变量，保留默认值 */
+  color: var(--text-color);
+  background-color: var(--app-bg-color);
 }
 
 .settings-section {
-  margin-bottom: 30px;
-  padding: 20px;
-  border: 1px solid #ccc;
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 3); /* 调整间距 */
+  padding: var(--base-padding, 20px); /* 使用变量 */
+  border: 1px solid var(--border-color, #ccc); /* 使用变量 */
   border-radius: 5px;
+  background-color: var(--app-bg-color); /* 确保背景色一致 */
 }
 
 .form-group {
@@ -598,12 +601,14 @@ input[type="text"],
 textarea,
 select { /* Add select style */
   width: 100%;
-  padding: 8px;
+  padding: 8px; /* 保持特定内边距 */
   box-sizing: border-box;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-color, #ccc); /* 使用变量 */
   border-radius: 4px;
-  font-family: inherit;
+  font-family: var(--font-family-sans-serif, sans-serif); /* 使用变量 */
   font-size: inherit;
+  color: var(--text-color); /* 确保输入文本颜色 */
+  background-color: var(--app-bg-color); /* 确保输入背景色 */
 }
 
 textarea {
@@ -615,13 +620,21 @@ small {
     display: block;
     margin-top: 5px;
     font-size: 0.85em;
-    color: #666;
+    color: var(--text-color-secondary, #666); /* 使用变量 */
 }
 
 
 button {
   padding: 10px 15px;
   cursor: pointer;
+  background-color: var(--button-bg-color, #007bff); /* 使用变量 */
+  color: var(--button-text-color, #ffffff); /* 使用变量 */
+  border: none; /* 移除默认边框 */
+  border-radius: 4px;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--button-hover-bg-color, #0056b3); /* 使用变量 */
 }
 
 button:disabled {
@@ -631,14 +644,15 @@ button:disabled {
 
 hr {
     border: none;
-    border-top: 1px solid #eee;
+    border-top: 1px solid var(--border-color, #eee); /* 使用变量 */
     margin: 30px 0;
 }
 
 code {
-    background-color: #f1f1f1;
+    background-color: var(--header-bg-color, #f1f1f1); /* 使用变量 */
     padding: 2px 4px;
     border-radius: 3px;
+    color: var(--text-color); /* 确保代码文本颜色 */
     font-family: monospace;
 }
 
@@ -667,7 +681,7 @@ img {
 
 .blacklist-table th,
 .blacklist-table td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color, #ddd); /* 使用变量 */
   padding: 8px;
   text-align: left;
 }
@@ -690,13 +704,14 @@ img {
 }
 
 .blacklist-table th {
-  background-color: #f2f2f2;
+  background-color: var(--header-bg-color, #f2f2f2); /* 使用变量 */
   font-weight: bold;
+  color: var(--text-color); /* 确保表头文本颜色 */
 }
 
 .blacklist-table .btn-danger {
-  background-color: #dc3545;
-  color: white;
+  background-color: #dc3545; /* 保留危险色 */
+  color: var(--button-text-color, white); /* 使用变量 */
   border: none;
   padding: 5px 10px;
   border-radius: 4px;
@@ -710,7 +725,7 @@ img {
 
 .loading-message {
     margin-top: 15px;
-    color: #666;
+    color: var(--text-color-secondary, #666); /* 使用变量 */
 }
 
 /* Pagination Styles (Optional) */

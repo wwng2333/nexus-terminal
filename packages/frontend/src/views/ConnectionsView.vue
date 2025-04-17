@@ -237,26 +237,44 @@ const handleFileChange = async (event: Event) => {
 
 <style scoped>
 .connections-view {
-  padding: 1rem;
+  padding: var(--base-padding, 1rem); /* 使用变量 */
+  color: var(--text-color);
+  background-color: var(--app-bg-color);
 }
 
 .actions-bar {
     display: flex;
     justify-content: space-between; /* 让按钮和下拉框分开 */
     align-items: center;
-    margin-bottom: 1rem;
+    margin-bottom: var(--base-margin, 1rem); /* 使用变量 */
 }
 
 .actions-bar button {
   /* margin-bottom: 1rem; */ /* 移除按钮的下边距 */
   padding: 0.5rem 1rem;
   cursor: pointer;
+  background-color: var(--button-bg-color, #007bff); /* 使用变量 */
+  color: var(--button-text-color, #ffffff); /* 使用变量 */
+  border: none; /* 移除默认边框 */
+  border-radius: 4px;
+}
+
+.actions-bar button:hover:not(:disabled) {
+  background-color: var(--button-hover-bg-color, #0056b3); /* 使用变量 */
+}
+
+.actions-bar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .tag-filter-select {
     padding: 0.4rem 0.8rem;
-    border: 1px solid #ccc;
+    border: 1px solid var(--border-color, #ccc); /* 使用变量 */
     border-radius: 4px;
     min-width: 150px; /* 给下拉框一个最小宽度 */
+    color: var(--text-color); /* 确保文本颜色 */
+    background-color: var(--app-bg-color); /* 确保背景色 */
+    font-family: var(--font-family-sans-serif, sans-serif); /* 使用变量 */
 }
 </style>

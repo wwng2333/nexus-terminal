@@ -328,7 +328,7 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 隐藏内部滚动条，由子组件处理 */
-  background-color: #f8f9fa; /* 默认背景，可能被子组件覆盖 */
+  background-color: var(--app-bg-color); /* Use app background */
 }
 
 /* 确保动态加载的组件能正确应用 pane-content 样式 */
@@ -346,17 +346,17 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
    justify-content: center;
    align-items: center;
    text-align: center;
-   color: #adb5bd;
-   background-color: #f8f9fa;
+   color: var(--text-color-secondary); /* Use secondary text color */
+   background-color: var(--header-bg-color); /* Use header background */
    font-size: 0.9em;
-   padding: 1rem;
+   padding: var(--base-padding); /* Use base padding */
 }
 
 /* 增强空会话显示样式 */
 :deep(.empty-session) {
-  background-color: #fcfcfc;
+  background-color: var(--app-bg-color); /* Use app background */
   border-radius: 8px;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.03);
+  /* box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.03); */ /* Optional: Consider removing or using theme variables */
   width: 100%;
   height: 100%;
   display: flex;
@@ -377,24 +377,24 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
 :deep(.empty-session-content i) {
   font-size: 2.5rem;
   margin-bottom: 0.75rem;
-  color: #d1d5db;
+  color: var(--text-color-secondary); /* Use secondary text color */
 }
 
 :deep(.empty-session-content span) {
   font-size: 1.1rem;
   font-weight: 500;
-  color: #9ca3af;
+  color: var(--text-color-secondary); /* Use secondary text color */
   margin-bottom: 0.5rem;
 }
 
 :deep(.empty-session-tip) {
   font-size: 0.85rem;
-  color: #c0c5cc;
+  color: var(--text-color-secondary); /* Use secondary text color */
   margin-top: 0.5rem;
 }
 :deep(.layout-pane-wrapper > .pane-placeholder.error) {
-  color: #dc3545; /* 错误用红色 */
-  background-color: #fdd;
+  color: #dc3545; /* Keep hardcoded error color for now */
+  background-color: #fdd; /* Keep hardcoded error background for now */
 }
 
 

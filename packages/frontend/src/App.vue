@@ -39,17 +39,20 @@ const closeStyleCustomizer = () => {
   <div id="app-container">
     <header>
       <nav>
-        <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> |
-        <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink> |
-         <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink> | <!-- 新增终端链接 -->
-         <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink> | <!-- 新增代理链接 -->
-         <!-- <RouterLink to="/tags">{{ t('nav.tags') }}</RouterLink> | --> <!-- 移除标签链接 -->
-         <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink> | <!-- 新增通知链接 -->
-         <RouterLink to="/audit-logs">{{ t('nav.auditLogs') }}</RouterLink> | <!-- 新增审计日志链接 -->
-         <RouterLink to="/settings">{{ t('nav.settings') }}</RouterLink> | <!-- 新增设置链接 -->
-        <a href="#" @click.prevent="openStyleCustomizer" :title="t('nav.customizeStyle')">🎨</a> | <!-- 点击调用 openStyleCustomizer -->
-        <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
-        <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
+        <div class="nav-left"> <!-- Group left-aligned links -->
+            <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink>
+            <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink>
+            <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink>
+            <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink>
+            <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink>
+            <RouterLink to="/audit-logs">{{ t('nav.auditLogs') }}</RouterLink>
+            <RouterLink to="/settings">{{ t('nav.settings') }}</RouterLink>
+        </div>
+        <div class="nav-right"> <!-- Group right-aligned links -->
+            <a href="#" @click.prevent="openStyleCustomizer" :title="t('nav.customizeStyle')">🎨</a>
+            <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
+            <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
+        </div>
       </nav>
     </header>
 
@@ -79,31 +82,101 @@ const closeStyleCustomizer = () => {
   flex-direction: column;
   min-height: 100vh;
   font-family: var(--font-family-sans-serif); /* 使用字体变量 */
+  background-color: var(--app-bg-color); /* Set base background for the whole app */
 }
 
 header {
   background-color: var(--header-bg-color); /* 使用头部背景色变量 */
-  padding: var(--base-padding); /* 使用基础内边距变量 */
+  padding: 0 calc(var(--base-padding) * 1.5); /* Adjust padding: 0 top/bottom, more left/right */
   border-bottom: 1px solid var(--border-color); /* 使用边框颜色变量 */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); /* Softer shadow */
+  height: 55px; /* Slightly taller header */
+  display: flex; /* Use flexbox for alignment */
+  align-items: center; /* Center items vertically */
+  position: sticky; /* Make header sticky */
+  top: 0;
+  z-index: 10; /* Ensure header stays on top */
+}
+
+nav {
+  display: flex;
+  align-items: center; /* Align nav items vertically */
+  width: 100%; /* Make nav take full width */
+  justify-content: space-between; /* Space out left and right groups */
+}
+
+.nav-left, .nav-right {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--base-margin) / 3); /* Add small gap between items */
 }
 
 nav a {
-  margin: 0 var(--base-margin); /* 使用基础外边距变量 */
   text-decoration: none;
-  color: var(--link-color); /* 使用链接颜色变量 */
+  color: var(--text-color-secondary); /* Use secondary text color for inactive links */
+  padding: 0.6rem 0.9rem; /* Adjust padding */
+  border-radius: 6px; /* Slightly more rounded */
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease; /* Smooth transition */
+  font-size: 0.9rem;
+  line-height: 1;
+  white-space: nowrap;
+  position: relative; /* For potential pseudo-elements */
+  border: 1px solid transparent; /* Add transparent border for layout consistency */
 }
 
 nav a:hover {
-  color: var(--link-hover-color); /* 使用链接悬停颜色变量 */
+  color: var(--link-hover-color); /* Use specific hover color */
+  background-color: rgba(128, 128, 128, 0.1); /* Subtle grey background on hover */
 }
 
 nav a.router-link-exact-active {
-  font-weight: bold;
-  color: var(--link-active-color); /* 使用激活链接颜色变量 */
+  font-weight: 500; /* Medium weight */
+  color: var(--link-active-color); /* Use active link color */
+  background-color: transparent; /* Remove background for active link */
+  /* Add a bottom border for active state */
 }
+
+/* Add a pseudo-element for the active indicator */
+nav a.router-link-exact-active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; /* Position slightly below the text, aligning with header border */
+    left: 10%; /* Start slightly indented */
+    right: 10%; /* End slightly indented */
+    height: 2px; /* Thickness of the indicator */
+    background-color: var(--link-active-color); /* Color of the indicator */
+    border-radius: 1px;
+}
+
+
+/* Style the theme icon link */
+nav a[title*="t('nav.customizeStyle')"] {
+    padding: 0.5rem 0.7rem; /* Adjust padding for icon */
+    font-size: 1.1rem; /* Make icon slightly larger */
+    color: var(--text-color-secondary); /* Match other inactive links */
+}
+nav a[title*="t('nav.customizeStyle')"]:hover {
+    color: var(--link-hover-color);
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
+/* Style logout/login link */
+.nav-right a {
+    /* Specific styles if needed, e.g., slightly different color */
+    color: var(--text-color-secondary);
+}
+.nav-right a:hover {
+    color: var(--link-hover-color);
+    background-color: rgba(128, 128, 128, 0.1);
+}
+
 
 main {
   flex-grow: 1;
+  /* padding: var(--base-padding); */ /* Keep padding removed from main */
+}
+
+footer {
   padding: var(--base-padding); /* 使用基础内边距变量 */
 }
 
