@@ -110,11 +110,12 @@ onMounted(() => {
         const container = terminalRef.value; // 捕获引用
         resizeObserver = new ResizeObserver((entries) => {
             const entry = entries[0];
-            const { height } = entry.contentRect;
-            // console.log(`[Terminal ${props.sessionId}] ResizeObserver triggered. Height: ${height}, isActive: ${props.isActive}`);
-            if (height > 0 && terminal) { // 仅在可见时调整
+            const { height, width } = entry.contentRect; // 获取宽度和高度
+            // console.log(`[Terminal ${props.sessionId}] ResizeObserver triggered. Size: ${width}x${height}, isActive: ${props.isActive}`);
+            if (height > 0 && width > 0 && terminal) { // 确保宽度和高度都有效，并且终端实例存在
                  try {
-                    // fitAddon?.fit(); // 视觉上适应 <-- 移除此行，不再强制 fit 内部行数
+                    // *** 新增：立即调用 fit() 来适应前端容器 ***
+                    fitAddon?.fit();
                     // 触发防抖的 resize 发送，通知后端潜在的尺寸变化
                     debouncedEmitResize(terminal);
                  } catch (e) {
@@ -166,15 +167,7 @@ onMounted(() => {
             if (done) break;
             if (terminal && value) {
               terminal.write(value); // 将流数据写入终端
-              // 尝试在写入数据后调用 fit，看是否能触发滚动条
-              nextTick(() => { // 使用 nextTick 确保 DOM 更新后再 fit
-                try {
-                  fitAddon?.fit();
-                  // 注意：这里可能不需要再 emit resize，因为 fit 主要是为了更新内部布局以适应外部滚动
-                } catch (fitError) {
-                  console.warn("Fit addon failed after writing stream data:", fitError);
-                }
-              });
+              // 移除此处不必要的 fit() 调用
             }
           }
         } catch (error) {
@@ -266,15 +259,12 @@ defineExpose({ write });
 </template>
 
 <style scoped>
-/* 恢复默认样式，让 xterm 内部处理滚动 */
+/* 容器样式，确保填满并隐藏自身滚动条 */
 .terminal-container {
   width: 100%;
   height: 100%; /* 高度需要由父容器控制 */
+  overflow: hidden; /* 阻止此容器本身产生滚动条 */
 }
 
-/* 移除之前添加的 :deep 样式 */
-
-.terminal-container :deep(.xterm-viewport) {
-  overflow-y: auto !important; /* 强制垂直滚动条只在需要时显示 */
-}
+/* 移除 :deep 样式，让 xterm 内部自然处理滚动 */
 </style>
