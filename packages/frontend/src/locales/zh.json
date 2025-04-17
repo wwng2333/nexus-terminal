@@ -298,10 +298,13 @@
     },
      "status": {
       "never": "从未"
-    }
-  },
-  "settings": {
-    "title": "设置",
+    },
+    "inputPlaceholder": "输入搜索或创建标签...",
+    "removeSelection": "移除此标签选择",
+    "deleteTagGlobally": "全局删除此标签"
+   },
+   "settings": {
+     "title": "设置",
     "changePassword": {
       "title": "修改密码",
       "currentPassword": "当前密码:",

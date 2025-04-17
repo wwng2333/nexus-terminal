@@ -295,10 +295,13 @@
     },
      "status": {
       "never": "Never"
-    }
-  },
-  "settings": {
-    "title": "Settings",
+    },
+    "inputPlaceholder": "Type to search or create tags...",
+    "removeSelection": "Remove this tag selection",
+    "deleteTagGlobally": "Delete this tag globally"
+   },
+   "settings": {
+     "title": "Settings",
     "changePassword": {
       "title": "Change Password",
       "currentPassword": "Current Password:",

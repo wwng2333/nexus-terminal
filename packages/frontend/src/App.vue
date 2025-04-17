@@ -26,12 +26,12 @@ const handleLogout = () => {
       <nav>
         <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> |
         <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink> |
-        <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink> | <!-- 新增终端链接 -->
-        <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink> | <!-- 新增代理链接 -->
-        <RouterLink to="/tags">{{ t('nav.tags') }}</RouterLink> | <!-- 新增标签链接 -->
-        <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink> | <!-- 新增通知链接 -->
-        <RouterLink to="/audit-logs">{{ t('nav.auditLogs') }}</RouterLink> | <!-- 新增审计日志链接 -->
-        <RouterLink to="/settings">{{ t('nav.settings') }}</RouterLink> | <!-- 新增设置链接 -->
+         <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink> | <!-- 新增终端链接 -->
+         <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink> | <!-- 新增代理链接 -->
+         <!-- <RouterLink to="/tags">{{ t('nav.tags') }}</RouterLink> | --> <!-- 移除标签链接 -->
+         <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink> | <!-- 新增通知链接 -->
+         <RouterLink to="/audit-logs">{{ t('nav.auditLogs') }}</RouterLink> | <!-- 新增审计日志链接 -->
+         <RouterLink to="/settings">{{ t('nav.settings') }}</RouterLink> | <!-- 新增设置链接 -->
         <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
         <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
       </nav>

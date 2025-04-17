@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed } from 'vue';
+import { ref, reactive, watch, computed, onMounted } from 'vue'; // 添加 onMounted
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useProxiesStore, ProxyInfo } from '../stores/proxies.store';
+import { useTagsStore } from '../stores/tags.store'; // 引入标签 Store
+import TagInput from './TagInput.vue'; // 导入新的 TagInput 组件
 
 // 定义组件发出的事件
 const emit = defineEmits(['close', 'proxy-added', 'proxy-updated']);
@@ -14,7 +16,9 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const proxiesStore = useProxiesStore();
-const { isLoading, error: storeError } = storeToRefs(proxiesStore);
+const tagsStore = useTagsStore(); // 获取标签 store 实例
+const { isLoading, error: proxyStoreError } = storeToRefs(proxiesStore); // 重命名 error 避免冲突
+const { isLoading: isTagLoading, error: tagStoreError } = storeToRefs(tagsStore); // 获取标签状态
 
 // 表单数据模型
 const initialFormData = {
@@ -24,10 +28,14 @@ const initialFormData = {
   port: 1080, // 默认 SOCKS5 端口
   username: '',
   password: '',
+  tag_ids: [] as number[], // 新增 tag_ids 字段
 };
 const formData = reactive({ ...initialFormData });
 
 const formError = ref<string | null>(null); // 表单级别的错误信息
+// 合并加载和错误状态
+const isCombinedLoading = computed(() => isLoading.value || isTagLoading.value);
+const combinedStoreError = computed(() => proxyStoreError.value || tagStoreError.value);
 
 // 计算属性判断是否为编辑模式
 const isEditMode = computed(() => !!props.proxyToEdit);

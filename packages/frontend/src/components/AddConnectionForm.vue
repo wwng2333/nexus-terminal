@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useProxiesStore } from '../stores/proxies.store'; // 引入代理 Store
 import { useTagsStore } from '../stores/tags.store'; // 引入标签 Store
+import TagInput from './TagInput.vue'; // 导入新的 TagInput 组件
 
 // 定义组件发出的事件
 const emit = defineEmits(['close', 'connection-added', 'connection-updated']);
@@ -253,25 +254,18 @@ const handleSubmit = async () => {
                 </option>
             </select>
              <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
-             <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
-        </div>
+              <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
+         </div>
 
-        <!-- 新增：标签选择 (多选框) -->
-        <div class="form-group">
-            <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
-            <div class="tag-checkbox-group">
-                 <div v-if="isTagLoading" class="loading-small">{{ t('tags.loading') }}</div>
-                 <div v-else-if="tagStoreError" class="error-small">{{ t('tags.error', { error: tagStoreError }) }}</div>
-                 <div v-else-if="tags.length === 0" class="info-small">{{ t('tags.noTags') }}</div>
-                 <label v-for="tag in tags" :key="tag.id" class="tag-checkbox-label">
-                     <input type="checkbox" :value="tag.id" v-model="formData.tag_ids">
-                     {{ tag.name }}
-                 </label>
-            </div>
-        </div>
+         <!-- 新增：标签选择 (使用新组件) -->
+         <div class="form-group">
+             <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
+             <TagInput v-model="formData.tag_ids" />
+             <!-- TagInput 组件内部会处理加载和错误状态 -->
+         </div>
 
-        <!-- 显示 storeError 或 formError -->
-        <div v-if="formError || storeError" class="error-message">
+         <!-- 显示 storeError 或 formError -->
+         <div v-if="formError || storeError" class="error-message">
           {{ formError || storeError }} <!-- 使用合并后的 storeError -->
         </div>
 
@@ -334,32 +328,14 @@ textarea {
   padding: 0.5rem;
   border: 1px solid #ccc;
   border-radius: 4px;
-  box-sizing: border-box; /* Include padding and border in element's total width and height */
-}
+   box-sizing: border-box; /* Include padding and border in element's total width and height */
+ }
 
-/* 标签选择样式 */
-.tag-checkbox-group {
-    max-height: 150px; /* 限制高度，出现滚动条 */
-    overflow-y: auto;
-    border: 1px solid #ccc;
-    padding: 0.5rem;
-    border-radius: 4px;
-    margin-top: 0.5rem;
-}
+ /* 移除旧的标签选择样式 */
+ /* .tag-checkbox-group ... */
+ /* .tag-checkbox-label ... */
 
-.tag-checkbox-label {
-    display: block; /* 每个标签占一行 */
-    margin-bottom: 0.3rem;
-    font-weight: normal; /* 普通字体 */
-    cursor: pointer;
-}
-
-.tag-checkbox-label input[type="checkbox"] {
-    margin-right: 0.5rem;
-    width: auto; /* 恢复复选框默认宽度 */
-}
-
-.loading-small, .error-small, .info-small {
+ .loading-small, .error-small, .info-small {
     font-size: 0.9em;
     color: #666;
     margin-top: 0.2rem;

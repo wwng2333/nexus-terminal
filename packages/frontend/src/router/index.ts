@@ -26,16 +26,16 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/proxies',
     name: 'Proxies',
-    component: () => import('../views/ProxiesView.vue')
-  },
-  // 新增：标签管理页面
-  {
-    path: '/tags',
-    name: 'Tags',
-    component: () => import('../views/TagsView.vue')
-  },
-  // 工作区页面 (不再需要 connectionId 参数)
-  {
+     component: () => import('../views/ProxiesView.vue')
+   },
+   // 移除：标签管理页面路由
+   // {
+   //   path: '/tags',
+   //   name: 'Tags',
+   //   component: () => import('../views/TagsView.vue')
+   // },
+   // 工作区页面 (不再需要 connectionId 参数)
+   {
     path: '/workspace', // 移除动态路由段
     name: 'Workspace',
     component: () => import('../views/WorkspaceView.vue'),
