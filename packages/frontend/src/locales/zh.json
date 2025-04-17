@@ -181,7 +181,8 @@
       "wsCloseMsg": "--- WebSocket 连接已关闭 (代码: {code}) ---",
       "wsErrorMsg": "--- WebSocket 连接错误 ---",
       "decryptErrorMsg": "--- 错误：无法解密连接凭证 ---",
-      "genericErrorMsg": "--- 错误: {message} ---"
+      "genericErrorMsg": "--- 错误: {message} ---",
+      "reconnectingMsg": "正在尝试重新连接..."
     }
   },
   "fileManager": {
@@ -557,7 +558,20 @@
     "commandBar": "命令栏",
     "fileManager": "文件管理器",
     "editor": "编辑器",
-    "statusMonitor": "状态监视器"
+    "statusMonitor": "状态监视器",
+    "commandHistory": "命令历史"
   }
+},
+"commandHistory": {
+  "title": "命令历史",
+  "searchPlaceholder": "搜索历史记录...",
+  "clear": "清空",
+  "copy": "复制",
+  "delete": "删除",
+  "loading": "加载中...",
+  "empty": "没有历史记录",
+  "confirmClear": "确定要清空所有历史记录吗？",
+  "copied": "已复制到剪贴板",
+  "copyFailed": "复制失败"
 }
 }

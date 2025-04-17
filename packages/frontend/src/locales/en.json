@@ -179,8 +179,9 @@
       "disconnectMsg": "--- SSH Connection Closed ({reason}) ---",
       "wsCloseMsg": "--- WebSocket Connection Closed (Code: {code}) ---",
       "wsErrorMsg": "--- WebSocket Connection Error ---",
-      "decryptErrorMsg": "--- Error: Cannot decrypt credentials ---",
-      "genericErrorMsg": "--- Error: {message} ---"
+      "decryptErrorMsg": "--- Error: Could not decrypt connection credentials ---",
+      "genericErrorMsg": "--- Error: {message} ---",
+      "reconnectingMsg": "Attempting to reconnect..."
     }
   },
   "fileManager": {

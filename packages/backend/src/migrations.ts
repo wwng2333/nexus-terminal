@@ -131,6 +131,14 @@ CREATE TABLE IF NOT EXISTS ip_blacklist (
     blocked_until INTEGER NULL -- 封禁截止时间戳 (秒)，NULL 表示未封禁或永久封禁 (根据逻辑决定)
 );
 `;
+
+const createCommandHistoryTableSQL = `
+CREATE TABLE IF NOT EXISTS command_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    command TEXT NOT NULL,
+    timestamp INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
 // --- 结束新增表结构定义 ---
 
 
@@ -250,6 +258,15 @@ export const runMigrations = async (db: Database): Promise<void> => {
             db.run(createIpBlacklistTableSQL, (err: Error | null) => {
                 if (err) return reject(new Error(`创建 ip_blacklist 表时出错: ${err.message}`));
                 console.log('Ip_Blacklist 表已检查/创建。');
+                resolve();
+            });
+        });
+
+        // 创建 command_history 表
+        await new Promise<void>((resolve, reject) => {
+            db.run(createCommandHistoryTableSQL, (err: Error | null) => {
+                if (err) return reject(new Error(`创建 command_history 表时出错: ${err.message}`));
+                console.log('Command_History 表已检查/创建。');
                 resolve();
             });
         });

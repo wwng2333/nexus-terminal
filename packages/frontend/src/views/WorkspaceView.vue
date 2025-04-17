@@ -10,11 +10,13 @@ import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
 import CommandInputBar from '../components/CommandInputBar.vue';
 import FileEditorContainer from '../components/FileEditorContainer.vue'; // 导入编辑器容器
+import CommandHistoryView from './CommandHistoryView.vue'; // 导入命令历史视图
 import PaneTitleBar from '../components/PaneTitleBar.vue'; // 导入标题栏组件
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 SshTerminalInstance
 import { useSettingsStore } from '../stores/settings.store'; // 导入设置 Store
 import { useFileEditorStore } from '../stores/fileEditor.store'; // 导入文件编辑器 Store
 import { useLayoutStore } from '../stores/layout.store'; // 导入布局 Store
+import { useCommandHistoryStore } from '../stores/commandHistory.store'; // 导入命令历史 Store
 import type { ConnectionInfo } from '../stores/connections.store';
 // 导入 splitpanes 组件
 import { Splitpanes, Pane } from 'splitpanes';
@@ -27,6 +29,7 @@ const sessionStore = useSessionStore();
 const settingsStore = useSettingsStore(); // 初始化设置 Store
 const fileEditorStore = useFileEditorStore(); // 初始化文件编辑器 Store (用于共享模式)
 const layoutStore = useLayoutStore(); // 初始化布局 Store
+const commandHistoryStore = useCommandHistoryStore(); // 初始化命令历史 Store
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession } = storeToRefs(sessionStore);
@@ -99,18 +102,71 @@ onBeforeUnmount(() => {
 
  // 处理命令发送
  const handleSendCommand = (command: string) => {
-   // 类型断言确保 terminalManager 存在 sendData 方法
-   const terminalManager = activeSession.value?.terminalManager as (SshTerminalInstance | undefined);
+   const currentSession = activeSession.value; // 获取当前活动会话
+   if (!currentSession) {
+     console.warn('[WorkspaceView] Cannot send command, no active session.');
+     return;
+   }
+ 
+   const terminalManager = currentSession.terminalManager as (SshTerminalInstance | undefined);
+ 
+   // 检查连接状态和命令内容
+   if (terminalManager?.isSshConnected && !terminalManager.isSshConnected.value && command.trim() === '') {
+     // 如果连接断开且命令为空（仅按回车），则触发重连
+     console.log(`[WorkspaceView] Command bar Enter detected in disconnected session ${currentSession.sessionId}, attempting reconnect...`);
+     // 可选：在终端显示提示
+     if (terminalManager.terminalInstance?.value) {
+         terminalManager.terminalInstance.value.writeln(`\r\n\x1b[33m${t('workspace.terminal.reconnectingMsg')}\x1b[0m`);
+     }
+     sessionStore.handleConnectRequest(currentSession.connectionId);
+     return; // 阻止发送空命令
+   }
+ 
+   // 否则，正常发送命令
    if (terminalManager && typeof terminalManager.sendData === 'function') {
-     console.log(`[WorkspaceView] Sending command to active session ${activeSessionId.value}: ${command.trim()}`);
+     const commandToSend = command.trim(); // 获取去除首尾空格的命令
+     console.log(`[WorkspaceView] Sending command to active session ${currentSession.sessionId}: ${commandToSend}`);
      // 注意：CommandInputBar 已经添加了 '\n'
-     terminalManager.sendData(command);
+     terminalManager.sendData(command); // 发送原始命令（包含换行符）
+
+     // 记录非空命令到历史记录
+     if (commandToSend.length > 0) {
+       commandHistoryStore.addCommand(commandToSend);
+     }
    } else {
-     console.warn('[WorkspaceView] Cannot send command, no active session or terminal manager with sendData method.');
+     console.warn(`[WorkspaceView] Cannot send command for session ${currentSession.sessionId}, terminal manager or sendData method not available.`);
      // 可以考虑给用户一个提示
    }
  };
-
+ 
+ // --- 新增：处理终端输入，包含重连逻辑 ---
+ const handleTerminalInput = (sessionId: string, data: string) => {
+   const session = sessionStore.sessions.get(sessionId); // 获取整个 session 对象
+   const manager = session?.terminalManager as (SshTerminalInstance | undefined); // 获取 terminalManager 并断言类型
+ 
+   if (!session || !manager) {
+     console.warn(`[WorkspaceView] handleTerminalInput: 未找到会话 ${sessionId} 或其 terminalManager`);
+     return;
+   }
+ 
+   // 检查是否按下回车且 SSH 未连接
+   // 确保 manager.isSshConnected 存在再访问 .value
+   if (data === '\r' && manager.isSshConnected && !manager.isSshConnected.value) {
+     console.log(`[WorkspaceView] 检测到在断开的会话 ${sessionId} 中按下回车，尝试重连...`);
+     // 可选：立即在终端显示提示 (需要 manager 暴露 terminalInstance)
+     if (manager.terminalInstance?.value) {
+         manager.terminalInstance.value.writeln(`\r\n\x1b[33m${t('workspace.terminal.reconnectingMsg')}\x1b[0m`);
+     } else {
+         console.warn(`[WorkspaceView] 无法写入重连提示，terminalInstance 不可用。`);
+     }
+     // 调用 sessionStore 中现有的重连逻辑
+     sessionStore.handleConnectRequest(session.connectionId);
+   } else {
+     // 否则，正常处理输入
+     manager.handleTerminalData(data);
+   }
+ };
+ 
  // --- 编辑器操作处理 ---
  const handleCloseEditorTab = (tabId: string) => {
    const isShared = shareFileEditorTabsBoolean.value; // 在函数开始时获取模式
@@ -199,8 +255,13 @@ onBeforeUnmount(() => {
           />
         </pane>
 
+        <!-- 新增：命令历史 Pane -->
+        <pane v-if="paneVisibility.commandHistory" size="15" min-size="10" class="sidebar-pane command-history-pane">
+          <CommandHistoryView class="pane-content" @execute-command="handleSendCommand" /> <!-- 监听事件并调用 handleSendCommand -->
+        </pane>
+
         <!-- 2. 中间区域 Pane (终端/命令栏/文件管理器) - 这个 Pane 本身通常保持可见，内部 Pane 才切换 -->
-        <pane size="50" min-size="30" class="middle-pane">
+        <pane size="40" min-size="30" class="middle-pane"> <!-- 调整中间区域大小 -->
            <!-- 上下分割 (终端 | 命令栏 | 文件管理器) -->
            <splitpanes :horizontal="true" style="height: 100%" :dbl-click-splitter="false">
               <!-- 上方 Pane (终端) -->
@@ -217,7 +278,7 @@ onBeforeUnmount(() => {
                       :session-id="tabInfo.sessionId"
                       :is-active="tabInfo.sessionId === activeSessionId"
                       @ready="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalReady"
-                      @data="sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalData"
+                      @data="(data) => handleTerminalInput(tabInfo.sessionId, data)"
                       @resize="(dims) => { console.log(`[工作区视图 ${tabInfo.sessionId}] 收到 resize 事件:`, dims); sessionStore.sessions.get(tabInfo.sessionId)?.terminalManager.handleTerminalResize(dims); }"
                    />
                    </div>
@@ -352,7 +413,8 @@ onBeforeUnmount(() => {
 .file-editor-pane, /* 编辑器窗格样式 */
 .file-manager-area-pane, /* 文件管理器区域 Pane */
 .file-manager-pane, /* 内部文件管理器 Pane */
-.status-monitor-pane { /* 状态监视器样式 */
+.status-monitor-pane, /* 状态监视器样式 */
+.command-history-pane { /* 命令历史窗格样式 */
   display: flex; /* 确保 flex 布局 */
   flex-direction: column; /* 确保列方向 */
   overflow: hidden; /* 默认隐藏溢出 */
@@ -365,7 +427,7 @@ onBeforeUnmount(() => {
 /* 命令栏 Pane 特定样式 - 恢复原样 */
 .command-bar-pane {
   background-color: #e9ecef; /* 背景色 */
-  justify-content: center; /* 垂直居中输入框 */
+  /* justify-content: center; /* 垂直居中输入框 - 移除此行 */
   overflow: hidden; /* 内容不应超出 */
   display: flex; /* 确保 flex 布局 */
   align-items: center; /* 垂直居中 */
@@ -375,8 +437,9 @@ onBeforeUnmount(() => {
     border: none;
     background-color: transparent;
     min-height: auto;
-    padding: 2px 10px; /* 恢复内边距 */
+    padding: 2px 0; /* 移除水平内边距 */
     flex-grow: 1; /* 让输入框填充 */
+    width: 80%; /* 显式设置宽度为100% */
 }
 
 .terminal-pane {
@@ -417,6 +480,9 @@ onBeforeUnmount(() => {
     background-color: #f8f9fa; /* 外层 pane 背景 */
      /* text-align: center; 由内部 wrapper 处理 */
      /* padding: 1rem; 由内部 wrapper 处理 */
+}
+.command-history-pane {
+    background-color: #f8f9fa; /* 与其他侧边栏一致 */
 }
 .status-monitor-content-wrapper {
     text-align: center;

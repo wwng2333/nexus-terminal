@@ -23,6 +23,7 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
 
     const terminalInstance = ref<Terminal | null>(null);
     const terminalOutputBuffer = ref<string[]>([]); // 缓冲 WebSocket 消息直到终端准备好
+    const isSshConnected = ref(false); // 新增：跟踪 SSH 连接状态
 
     // 辅助函数：获取终端消息文本
     const getTerminalText = (key: string, params?: Record<string, any>): string => {
@@ -181,6 +182,7 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         }
 
         console.log(`[会话 ${sessionId}][SSH终端模块] SSH 会话已连接。`);
+        isSshConnected.value = true; // 更新状态
         // 连接成功后聚焦终端
         terminalInstance.value?.focus();
         // 清空可能存在的旧缓冲（虽然理论上此时应该已经 ready 了）
@@ -199,6 +201,7 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
 
         const reason = payload || t('workspace.terminal.unknownReason'); // 使用 i18n 获取未知原因文本
         console.log(`[会话 ${sessionId}][SSH终端模块] SSH 会话已断开:`, reason);
+        isSshConnected.value = false; // 更新状态
         terminalInstance.value?.writeln(`\r\n\x1b[31m${getTerminalText('disconnectMsg', { reason })}\x1b[0m`);
         // 可以在这里添加其他清理逻辑，例如禁用输入
     };
@@ -211,6 +214,7 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
 
         const errorMsg = payload || t('workspace.terminal.unknownSshError'); // 使用 i18n
         console.error(`[会话 ${sessionId}][SSH终端模块] SSH 错误:`, errorMsg);
+        isSshConnected.value = false; // 更新状态
         terminalInstance.value?.writeln(`\r\n\x1b[31m${getTerminalText('genericErrorMsg', { message: errorMsg })}\x1b[0m`);
     };
 
@@ -299,7 +303,10 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         handleTerminalData, // 这个处理来自 xterm.js 的输入
         handleTerminalResize,
         sendData, // 新增：允许外部直接发送数据
-        cleanup
+        cleanup,
+        // --- 新增暴露 ---
+        isSshConnected: readonly(isSshConnected), // 暴露 SSH 连接状态 (只读)
+        terminalInstance // 暴露 terminal 实例，以便 WorkspaceView 可以写入提示信息
     };
 }
 
