@@ -118,66 +118,133 @@ const handleSave = (savedSetting: NotificationSetting) => {
 
 <style scoped>
 .notification-settings {
-  padding: var(--base-padding, 1rem); /* 使用变量 */
-  /* Inherits text color and background from parent */
-}
-.loading-indicator, .error-message {
-  margin-top: var(--base-margin, 1rem); /* 使用变量 */
-  color: var(--text-color-secondary); /* 使用次要文本颜色 */
-}
-.error-message {
-  color: var(--bs-danger); /* 保留 Bootstrap 变量或特定错误颜色 */
+  padding: var(--base-padding);
+  /* Inherits text color and background from parent (NotificationsView) */
 }
 
-/* Apply variables to list items if needed (assuming Bootstrap classes handle most styling) */
-.list-group-item {
-    background-color: var(--app-bg-color);
-    border-color: var(--border-color);
-    color: var(--text-color);
+h2 {
+  color: var(--text-color);
+  margin-bottom: calc(var(--base-margin) * 2);
+  padding-bottom: var(--base-margin);
+  border-bottom: 1px solid var(--border-color);
 }
-.list-group-item .text-muted {
-    color: var(--text-color-secondary);
+
+.loading-indicator, .error-message, .alert-info {
+  margin-top: var(--base-margin);
+  padding: var(--base-padding);
+  border-radius: 4px;
+  color: var(--text-color-secondary);
+  background-color: var(--header-bg-color); /* Use header bg for subtle background */
+  border: 1px solid var(--border-color);
 }
-/* Apply variables to buttons if not handled by global styles or Bootstrap */
+
+.error-message {
+  color: #dc3545; /* Keep specific error color */
+  border-color: #dc3545;
+  background-color: #f8d7da; /* Light red background for errors */
+}
+
+.alert-info {
+    color: var(--text-color); /* Use primary text color for info */
+}
+
+.btn { /* General button styling */
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    margin: var(--base-margin) 0; /* Add some default margin */
+}
+
 .btn-primary {
     background-color: var(--button-bg-color);
-    border-color: var(--button-bg-color);
+    border: 1px solid var(--button-bg-color);
     color: var(--button-text-color);
 }
 .btn-primary:hover {
      background-color: var(--button-hover-bg-color);
      border-color: var(--button-hover-bg-color);
+     color: var(--button-text-color);
 }
+
 .btn-outline-secondary {
     color: var(--text-color-secondary);
-    border-color: var(--border-color);
+    border: 1px solid var(--border-color);
+    background-color: transparent;
 }
 .btn-outline-secondary:hover {
-    background-color: var(--header-bg-color); /* Example hover */
+    background-color: var(--header-bg-color);
     color: var(--text-color);
+    border-color: var(--border-color);
 }
+
 .btn-outline-danger {
-    color: var(--bs-danger); /* Keep specific color */
-    border-color: var(--bs-danger);
+    color: #dc3545; /* Keep specific danger color */
+    border: 1px solid #dc3545;
+    background-color: transparent;
 }
 .btn-outline-danger:hover {
-    background-color: var(--bs-danger);
+    background-color: #dc3545;
     color: var(--button-text-color);
+    border-color: #dc3545;
 }
-/* Apply variables to badges if needed */
+
+.list-group {
+    list-style: none;
+    padding: 0;
+    margin-top: var(--base-margin);
+}
+
+.list-group-item {
+    background-color: var(--app-bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: var(--base-padding);
+    margin-bottom: var(--base-margin); /* Space between items */
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.list-group-item:last-child {
+    margin-bottom: 0;
+}
+
+.list-group-item strong {
+    color: var(--text-color);
+}
+
+.list-group-item .text-muted {
+    color: var(--text-color-secondary);
+    font-size: 0.9em;
+    margin-top: calc(var(--base-margin) / 2);
+}
+
+.badge {
+    padding: 0.3em 0.6em;
+    font-size: 0.8em;
+    border-radius: 0.25rem;
+    font-weight: bold;
+}
+
 .badge.bg-secondary {
     background-color: var(--text-color-secondary);
-    color: var(--button-text-color); /* Assuming high contrast needed */
+    color: var(--app-bg-color); /* Use app background for contrast */
 }
-/* Keep success/warning colors for status or define specific variables later */
-/* .badge.bg-success {} */
-/* .badge.bg-warning {} */
-
+.badge.bg-success {
+    background-color: #198754; /* Keep specific success color */
+    color: #fff;
+}
+.badge.bg-warning {
+    background-color: #ffc107; /* Keep specific warning color */
+    color: #000; /* Black text for better contrast on yellow */
+}
 
 .modal-placeholder {
-  margin-top: calc(var(--base-margin, 1rem) * 2); /* 使用变量 */
-  padding: var(--base-padding, 1rem); /* 使用变量 */
-  border: 1px dashed var(--border-color, #ccc); /* 使用变量 */
-  background-color: var(--header-bg-color, #f8f9fa); /* 使用变量 */
+  margin-top: calc(var(--base-margin) * 3);
+  padding: var(--base-padding);
+  border: 1px solid var(--border-color);
+  background-color: var(--header-bg-color);
+  border-radius: 4px;
 }
 </style>

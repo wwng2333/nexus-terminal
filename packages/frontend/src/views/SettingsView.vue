@@ -574,200 +574,288 @@ onMounted(async () => {
 
 <style scoped>
 .settings-view {
-  padding: var(--base-padding, 20px); /* 使用变量，保留默认值 */
+  padding: var(--base-padding);
   color: var(--text-color);
   background-color: var(--app-bg-color);
 }
 
-.settings-section {
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 3); /* 调整间距 */
-  padding: var(--base-padding, 20px); /* 使用变量 */
-  border: 1px solid var(--border-color, #ccc); /* 使用变量 */
-  border-radius: 5px;
-  background-color: var(--app-bg-color); /* 确保背景色一致 */
+h1 {
+  margin-bottom: calc(var(--base-margin) * 3);
+  padding-bottom: var(--base-margin);
+  border-bottom: 1px solid var(--border-color);
 }
 
+.settings-section {
+  margin-bottom: calc(var(--base-margin) * 4); /* 增加区域间距 */
+  padding: calc(var(--base-padding) * 1.5); /* 增加区域内边距 */
+  border: 1px solid var(--border-color);
+  border-radius: 6px; /* 稍圆润的边角 */
+  background-color: var(--app-bg-color);
+  /* box-shadow: 0 1px 3px rgba(0,0,0,0.05); */ /* 可选：添加轻微阴影 */
+}
+
+.settings-section h2 {
+  font-size: 1.3rem;
+  color: var(--text-color);
+  margin-top: 0;
+  margin-bottom: calc(var(--base-margin) * 2);
+  padding-bottom: var(--base-margin);
+  border-bottom: 1px dashed var(--border-color); /* 虚线分隔 */
+}
+
+.settings-section p:not([class*="-message"]) { /* 普通段落样式 */
+    color: var(--text-color-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--base-margin);
+}
+.setting-description { /* 特定描述文本 */
+    font-size: 0.9em;
+    color: var(--text-color-secondary);
+    margin-bottom: var(--base-margin);
+}
+
+
 .form-group {
-  margin-bottom: 15px;
+  margin-bottom: calc(var(--base-margin) * 1.5);
 }
 
 label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: calc(var(--base-margin) / 2);
+  font-weight: bold;
+  color: var(--text-color);
 }
 
 input[type="password"],
 input[type="text"],
+input[type="number"], /* 添加 number 类型 */
 textarea,
-select { /* Add select style */
+select {
   width: 100%;
-  padding: 8px; /* 保持特定内边距 */
+  padding: 0.6rem 0.8rem; /* 调整内边距 */
   box-sizing: border-box;
-  border: 1px solid var(--border-color, #ccc); /* 使用变量 */
+  border: 1px solid var(--border-color);
   border-radius: 4px;
-  font-family: var(--font-family-sans-serif, sans-serif); /* 使用变量 */
-  font-size: inherit;
-  color: var(--text-color); /* 确保输入文本颜色 */
-  background-color: var(--app-bg-color); /* 确保输入背景色 */
+  font-family: var(--font-family-sans-serif);
+  font-size: 1rem;
+  color: var(--text-color);
+  background-color: var(--app-bg-color);
+  transition: border-color 0.2s ease;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: var(--link-active-color); /* 聚焦时高亮边框 */
+    outline: 0;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15); /* 细微的聚焦阴影 */
 }
 
 textarea {
     resize: vertical;
-    min-height: 80px;
+    min-height: 100px;
 }
 
 small {
     display: block;
-    margin-top: 5px;
+    margin-top: calc(var(--base-margin) / 2);
     font-size: 0.85em;
-    color: var(--text-color-secondary, #666); /* 使用变量 */
+    color: var(--text-color-secondary);
 }
 
-
-button {
-  padding: 10px 15px;
+button, .btn { /* 统一按钮样式 */
+  padding: 0.6rem 1.2rem; /* 调整按钮内边距 */
   cursor: pointer;
-  background-color: var(--button-bg-color, #007bff); /* 使用变量 */
-  color: var(--button-text-color, #ffffff); /* 使用变量 */
-  border: none; /* 移除默认边框 */
+  background-color: var(--button-bg-color);
+  color: var(--button-text-color);
+  border: 1px solid var(--button-bg-color); /* 添加边框 */
   border-radius: 4px;
+  font-weight: bold;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  margin-right: var(--base-margin); /* 按钮间距 */
+}
+button:last-of-type, .btn:last-of-type {
+    margin-right: 0;
 }
 
-button:hover:not(:disabled) {
-  background-color: var(--button-hover-bg-color, #0056b3); /* 使用变量 */
+button:hover:not(:disabled), .btn:hover:not(:disabled) {
+  background-color: var(--button-hover-bg-color);
+  border-color: var(--button-hover-bg-color);
 }
 
-button:disabled {
+button:disabled, .btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
+/* 次要按钮样式 (例如取消按钮) */
+button[type="button"], .btn-secondary {
+    background-color: var(--header-bg-color);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+button[type="button"]:hover:not(:disabled), .btn-secondary:hover:not(:disabled) {
+    background-color: var(--border-color);
+    border-color: var(--border-color);
+}
+
 hr {
     border: none;
-    border-top: 1px solid var(--border-color, #eee); /* 使用变量 */
-    margin: 30px 0;
+    border-top: 1px solid var(--border-color);
+    margin: calc(var(--base-margin) * 4) 0; /* 增加分隔线间距 */
 }
 
 code {
-    background-color: var(--header-bg-color, #f1f1f1); /* 使用变量 */
-    padding: 2px 4px;
+    background-color: var(--header-bg-color);
+    padding: 0.2em 0.4em;
     border-radius: 3px;
-    color: var(--text-color); /* 确保代码文本颜色 */
+    color: var(--text-color);
     font-family: monospace;
+    font-size: 0.9em;
 }
 
 img {
     display: block;
-    margin: 10px 0;
+    margin: var(--base-margin) auto; /* 居中显示 */
     max-width: 200px;
+    border: 1px solid var(--border-color);
+    padding: 5px;
+    background-color: white; /* 确保二维码背景是白色 */
 }
 
 .success-message {
-  color: green;
-  margin-top: 10px;
+  color: #198754; /* Bootstrap success color */
+  background-color: #d1e7dd; /* Light green background */
+  border: 1px solid #a3cfbb;
+  padding: var(--base-padding);
+  border-radius: 4px;
+  margin-top: var(--base-margin);
 }
 
 .error-message {
-  color: red;
-  margin-top: 10px;
+  color: #842029; /* Bootstrap danger color */
+  background-color: #f8d7da; /* Light red background */
+  border: 1px solid #f5c2c7;
+  padding: var(--base-padding);
+  border-radius: 4px;
+  margin-top: var(--base-margin);
+}
+.loading-message {
+    margin-top: var(--base-margin);
+    color: var(--text-color-secondary);
+    font-style: italic;
 }
 
 /* Blacklist Table Styles */
 .blacklist-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 15px;
+  margin-top: var(--base-padding);
+  font-size: 0.95rem;
 }
 
 .blacklist-table th,
 .blacklist-table td {
-  border: 1px solid var(--border-color, #ddd); /* 使用变量 */
-  padding: 8px;
+  border: 1px solid var(--border-color);
+  padding: 0.75rem; /* 调整单元格内边距 */
   text-align: left;
+  vertical-align: middle;
+}
+
+.blacklist-table th {
+  background-color: var(--header-bg-color);
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.blacklist-table tr:nth-child(even) {
+    background-color: var(--header-bg-color); /* 斑马纹 */
+}
+
+.blacklist-table .btn-danger {
+  background-color: #dc3545;
+  color: var(--button-text-color);
+  border: none;
+  padding: 0.3rem 0.6rem; /* 调整小按钮内边距 */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.blacklist-table .btn-danger:disabled {
+  background-color: #f8d7da;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 /* 复选框组样式 */
 .form-group-checkbox {
   display: flex;
   align-items: center;
+  margin-bottom: var(--base-margin); /* 确保与其他组间距一致 */
 }
 
 .form-group-checkbox input[type="checkbox"] {
-  width: auto; /* 不要占满宽度 */
-  margin-right: 10px;
+  width: auto;
+  margin-right: 0.6rem; /* 调整复选框和标签间距 */
+  flex-shrink: 0; /* 防止复选框被压缩 */
+  appearance: none; /* 自定义样式 */
+  background-color: var(--app-bg-color);
+  border: 1px solid var(--border-color);
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 3px;
+  cursor: pointer;
+  position: relative;
+  top: 2px; /* 微调垂直对齐 */
 }
+.form-group-checkbox input[type="checkbox"]:checked {
+    background-color: var(--button-bg-color);
+    border-color: var(--button-bg-color);
+}
+/* 添加勾选标记 */
+.form-group-checkbox input[type="checkbox"]:checked::after {
+    content: '✔';
+    position: absolute;
+    color: var(--button-text-color);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.8em;
+}
+
 
 .form-group-checkbox label {
-  display: inline-block; /* 让标签和复选框在同一行 */
-  margin-bottom: 0; /* 移除默认的块级标签下边距 */
+  display: inline-block;
+  margin-bottom: 0;
   cursor: pointer;
+  font-weight: normal; /* 普通标签字体重量 */
 }
 
-.blacklist-table th {
-  background-color: var(--header-bg-color, #f2f2f2); /* 使用变量 */
-  font-weight: bold;
-  color: var(--text-color); /* 确保表头文本颜色 */
-}
-
-.blacklist-table .btn-danger {
-  background-color: #dc3545; /* 保留危险色 */
-  color: var(--button-text-color, white); /* 使用变量 */
-  border: none;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.blacklist-table .btn-danger:disabled {
-  background-color: #f8d7da;
-  cursor: not-allowed;
-}
-
-.loading-message {
-    margin-top: 15px;
-    color: var(--text-color-secondary, #666); /* 使用变量 */
-}
-
-/* Pagination Styles (Optional) */
-.pagination {
-    margin-top: 15px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-.pagination button {
-    margin: 0 5px;
-}
-.pagination span {
-    margin: 0 10px;
-}
 
 /* Blacklist Settings Form Styles */
 .blacklist-settings-form {
-    margin-top: 15px;
+    margin-top: var(--base-padding);
+    padding-top: var(--base-padding);
+    border-top: 1px dashed var(--border-color);
 }
 .blacklist-settings-form .inline-group {
-    display: inline-block;
-    margin-right: 20px;
-    margin-bottom: 10px;
+    display: inline-flex; /* 使用 flex 布局 */
+    align-items: center; /* 垂直居中 */
+    margin-right: calc(var(--base-margin) * 2);
+    margin-bottom: var(--base-margin);
 }
 .blacklist-settings-form .inline-group label {
-    display: inline-block;
-    margin-right: 5px;
-    width: auto;
-    margin-bottom: 0;
+    margin-right: var(--base-margin);
+    margin-bottom: 0; /* 移除 label 下边距 */
+    white-space: nowrap; /* 防止标签换行 */
 }
 .blacklist-settings-form .inline-group input[type="number"] {
-    width: 80px;
-    display: inline-block;
-    padding: 6px;
+    width: 80px; /* 固定宽度 */
+    padding: 0.5rem; /* 调整内边距 */
 }
 .blacklist-settings-form button {
-    vertical-align: bottom;
+    vertical-align: middle; /* 尝试对齐按钮 */
 }
 .blacklist-settings-form p {
-    margin-top: 10px;
+    margin-top: var(--base-margin);
 }
-
 
 </style>

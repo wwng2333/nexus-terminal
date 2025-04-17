@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router';
+import { RouterLink, RouterView, useRoute } from 'vue-router';
+import { ref, onMounted, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from './stores/auth.store';
 import { useSettingsStore } from './stores/settings.store';
@@ -20,6 +21,35 @@ const { isAuthenticated } = storeToRefs(authStore);
 const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
 const { isStyleCustomizerVisible } = storeToRefs(appearanceStore); // 从外观 store 获取可见性状态
 
+const route = useRoute();
+const navRef = ref<HTMLElement | null>(null);
+const underlineRef = ref<HTMLElement | null>(null);
+
+const updateUnderline = async () => {
+  await nextTick(); // 等待 DOM 更新
+  if (navRef.value && underlineRef.value) {
+    const activeLink = navRef.value.querySelector('.router-link-exact-active') as HTMLElement;
+    if (activeLink) {
+      underlineRef.value.style.left = `${activeLink.offsetLeft}px`;
+      underlineRef.value.style.width = `${activeLink.offsetWidth}px`;
+      underlineRef.value.style.opacity = '1'; // Make it visible
+    } else {
+      underlineRef.value.style.opacity = '0'; // Hide if no active link (e.g., on login page if not a nav link)
+    }
+  }
+};
+
+onMounted(() => {
+  // Initial position update
+  // Use setTimeout to ensure styles are applied and elements have dimensions
+  setTimeout(updateUnderline, 100);
+});
+
+watch(route, () => {
+  updateUnderline();
+});
+
+
 const handleLogout = () => {
   authStore.logout();
 };
@@ -38,7 +68,7 @@ const closeStyleCustomizer = () => {
 <template>
   <div id="app-container">
     <header>
-      <nav>
+      <nav ref="navRef">
         <div class="nav-left"> <!-- Group left-aligned links -->
             <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink>
             <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink>
@@ -53,6 +83,8 @@ const closeStyleCustomizer = () => {
             <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
             <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
         </div>
+        <!-- Sliding underline element -->
+        <div ref="underlineRef" class="nav-underline"></div>
       </nav>
     </header>
 
@@ -133,19 +165,19 @@ nav a.router-link-exact-active {
   font-weight: 500; /* Medium weight */
   color: var(--link-active-color); /* Use active link color */
   background-color: transparent; /* Remove background for active link */
-  /* Add a bottom border for active state */
+  /* The underline is now handled by a separate element */
 }
 
-/* Add a pseudo-element for the active indicator */
-nav a.router-link-exact-active::after {
-    content: '';
-    position: absolute;
-    bottom: -1px; /* Position slightly below the text, aligning with header border */
-    left: 10%; /* Start slightly indented */
-    right: 10%; /* End slightly indented */
-    height: 2px; /* Thickness of the indicator */
-    background-color: var(--link-active-color); /* Color of the indicator */
-    border-radius: 1px;
+/* Style for the sliding underline */
+.nav-underline {
+  position: absolute;
+  bottom: 0px; /* Position at the very bottom of the nav */
+  height: 2px; /* Thickness of the indicator */
+  background-color: var(--link-active-color); /* Color of the indicator */
+  border-radius: 1px;
+  transition: left 0.3s ease-in-out, width 0.3s ease-in-out; /* Smooth transition for sliding */
+  opacity: 0; /* Initially hidden */
+  pointer-events: none; /* Prevent interaction */
 }
 
 

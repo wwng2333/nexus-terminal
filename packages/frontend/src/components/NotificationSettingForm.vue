@@ -458,15 +458,161 @@ const handleTestNotification = async () => {
 
 <style scoped>
 .notification-setting-form {
-  padding: 1.5rem;
-  background-color: #fff;
-  border-radius: 0.3rem;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  padding: var(--base-padding);
+  background-color: var(--app-bg-color); /* Use app background */
+  border: 1px solid var(--border-color); /* Add border consistent with theme */
+  border-radius: 4px;
+  color: var(--text-color);
+  /* Removed box-shadow for a flatter look, can be added back if desired */
 }
+
+h3 {
+  color: var(--text-color);
+  margin-bottom: calc(var(--base-margin) * 2);
+  padding-bottom: var(--base-margin);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 1.25rem; /* Slightly larger heading */
+}
+
+.mb-3 { /* Bootstrap margin bottom class */
+  margin-bottom: calc(var(--base-margin) * 1.5) !important; /* Use variable, increase slightly */
+}
+
+.form-label {
+  display: block;
+  margin-bottom: calc(var(--base-margin) / 2);
+  color: var(--text-color);
+  font-weight: bold;
+}
+
+.form-control, .form-select, .form-check-input {
+  background-color: var(--app-bg-color);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  width: 100%; /* Ensure inputs take full width */
+  box-sizing: border-box; /* Include padding and border in element's total width */
+}
+.form-control:focus, .form-select:focus {
+    border-color: var(--link-active-color); /* Highlight focus */
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Optional focus shadow */
+}
+
+textarea.form-control {
+    min-height: 80px; /* Give textareas more space */
+}
+
+.form-check {
+  display: flex; /* Align checkbox and label */
+  align-items: center;
+  padding-left: 0; /* Reset Bootstrap padding */
+}
+.form-check-input {
+  width: auto; /* Don't force checkbox to full width */
+  margin-right: 0.5rem; /* Space between checkbox and label */
+  margin-top: 0; /* Align vertically */
+  border: 1px solid var(--border-color); /* Ensure border is visible */
+}
+.form-check-label {
+  margin-bottom: 0; /* Reset label margin */
+  font-weight: normal; /* Normal weight for checkbox labels */
+}
+
+.text-muted {
+  color: var(--text-color-secondary);
+  font-size: 0.85em;
+  display: block; /* Ensure it takes its own line */
+  margin-top: calc(var(--base-margin) / 2);
+}
+.text-danger {
+    color: #dc3545; /* Keep specific danger color */
+}
+.text-success {
+    color: #198754; /* Keep specific success color */
+}
+
+.channel-config {
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: var(--base-padding);
+  margin-top: var(--base-margin);
+  background-color: var(--header-bg-color); /* Slightly different background */
+}
+
 .channel-config h4 {
     font-size: 1rem;
     font-weight: bold;
-    margin-bottom: 1rem;
+    margin-bottom: var(--base-margin);
+    color: var(--text-color);
+    padding-bottom: calc(var(--base-margin) / 2);
+    border-bottom: 1px dashed var(--border-color); /* Dashed separator */
 }
-/* Add more specific styling if needed */
+
+/* Button styling (reuse from NotificationSettings or define globally) */
+.btn {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    font-weight: bold;
+}
+.btn-primary {
+    background-color: var(--button-bg-color);
+    border: 1px solid var(--button-bg-color);
+    color: var(--button-text-color);
+}
+.btn-primary:hover {
+     background-color: var(--button-hover-bg-color);
+     border-color: var(--button-hover-bg-color);
+     color: var(--button-text-color);
+}
+.btn-primary:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+.btn-secondary {
+    background-color: var(--text-color-secondary);
+    border: 1px solid var(--text-color-secondary);
+    color: var(--app-bg-color);
+}
+.btn-secondary:hover {
+    background-color: var(--text-color);
+    border-color: var(--text-color);
+    color: var(--app-bg-color);
+}
+.btn-outline-secondary {
+    color: var(--text-color-secondary);
+    border: 1px solid var(--border-color);
+    background-color: transparent;
+}
+.btn-outline-secondary:hover {
+    background-color: var(--header-bg-color);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+    border-width: 0.2em;
+    vertical-align: -0.125em; /* Align spinner better with text */
+}
+
+.alert { /* General alert styling */
+    padding: var(--base-padding);
+    margin-top: var(--base-margin);
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+.alert-danger {
+    color: #842029;
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+}
 </style>

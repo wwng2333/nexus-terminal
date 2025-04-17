@@ -517,77 +517,87 @@ const formatXtermLabel = (key: keyof ITheme): string => {
 <style scoped>
 .style-customizer-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  inset: 0; /* top, right, bottom, left = 0 */
+  background-color: rgba(0, 0, 0, 0.6); /* 更深的遮罩 */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000; /* 确保在顶层 */
+  z-index: 1000;
 }
 
 .style-customizer-panel {
-  background-color: var(--app-bg-color, #fff);
-  color: var(--text-color, #333);
+  background-color: var(--app-bg-color);
+  color: var(--text-color);
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  width: 80%;
-  max-width: 700px; /* 最大宽度 */
-  max-height: 80vh; /* 最大高度 */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  width: 90%;
+  max-width: 800px; /* 增加最大宽度 */
+  height: 85vh; /* 使用视口高度 */
+  max-height: 700px; /* 限制最大高度 */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 防止内容溢出 */
+  overflow: hidden;
 }
 
 .panel-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--base-padding, 1rem);
-  border-bottom: 1px solid var(--border-color, #ccc);
-  background-color: var(--header-bg-color, #f0f0f0); /* 使用头部背景色 */
+  padding: calc(var(--base-padding) * 0.8) var(--base-padding); /* 调整内边距 */
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--header-bg-color);
+  flex-shrink: 0; /* 防止头部被压缩 */
 }
 
 .panel-header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.25rem; /* 稍大标题 */
+  color: var(--text-color);
 }
 
 .close-button {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.8rem; /* 增大关闭按钮 */
+  line-height: 1;
   cursor: pointer;
-  color: var(--text-color-secondary, #666);
+  color: var(--text-color-secondary);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+.close-button:hover {
+    color: var(--text-color);
+    background-color: rgba(0,0,0,0.1);
 }
 
 .panel-content {
   display: flex;
   flex-grow: 1;
-  overflow-y: auto; /* 内部滚动 */
+  overflow: hidden; /* 防止内部滚动条影响布局 */
 }
 
 .panel-nav {
-  width: 150px; /* 固定导航宽度 */
-  border-right: 1px solid var(--border-color, #ccc);
-  padding: var(--base-padding, 1rem);
-  background-color: var(--header-bg-color, #f0f0f0); /* 轻微区分背景 */
-  flex-shrink: 0; /* 防止导航栏被压缩 */
+  width: 180px; /* 增加导航宽度 */
+  border-right: 1px solid var(--border-color);
+  padding: var(--base-padding);
+  background-color: var(--header-bg-color);
+  flex-shrink: 0;
+  overflow-y: auto; /* 导航内部滚动 */
 }
 
 .panel-nav button {
   display: block;
   width: 100%;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
+  padding: 0.7rem 0.8rem; /* 增加导航按钮内边距 */
+  margin-bottom: var(--base-margin);
   text-align: left;
   background: none;
   border: 1px solid transparent;
   border-radius: 4px;
   cursor: pointer;
-  color: var(--text-color, #333);
+  color: var(--text-color);
+  font-size: 0.95rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .panel-nav button:hover {
@@ -595,222 +605,328 @@ const formatXtermLabel = (key: keyof ITheme): string => {
 }
 
 .panel-nav button.active {
-  background-color: var(--link-active-color, #007bff);
-  color: var(--button-text-color, #fff);
+  background-color: var(--button-bg-color); /* 使用按钮背景色 */
+  color: var(--button-text-color);
   font-weight: bold;
 }
 .panel-nav button:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-    background-color: transparent !important; /* 确保禁用时背景透明 */
-    color: var(--text-color-secondary, #999); /* 禁用时文字颜色变灰 */
+    background-color: transparent !important;
+    color: var(--text-color-secondary);
 }
-
 
 .panel-main {
   flex-grow: 1;
-  padding: var(--base-padding, 1rem);
+  padding: var(--base-padding) calc(var(--base-padding) * 1.5); /* 增加左右内边距 */
   overflow-y: auto; /* 主要内容区域滚动 */
 }
 
 .panel-main h3 {
   margin-top: 0;
-  border-bottom: 1px solid var(--border-color, #ccc);
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: var(--base-margin);
+  margin-bottom: calc(var(--base-margin) * 2);
+  font-size: 1.15rem;
+  color: var(--text-color);
 }
 .panel-main h4 {
-    margin-top: 1.5rem;
-    margin-bottom: 0.8rem;
+    margin-top: calc(var(--base-margin) * 2.5);
+    margin-bottom: var(--base-margin);
     color: var(--text-color);
+    font-size: 1.05rem;
 }
 
-.panel-main p {
+.panel-main p:not(.error-message):not(.setting-description) {
     color: var(--text-color-secondary);
     font-size: 0.9rem;
-    margin-bottom: 1.5rem;
+    line-height: 1.6;
+    margin-bottom: calc(var(--base-margin) * 1.5);
 }
 
 .setting-description {
     font-size: 0.85rem;
     color: var(--text-color-secondary);
-    margin-top: -0.5rem; /* 减少与上方元素的间距 */
-    margin-bottom: 1rem;
+    margin-top: calc(var(--base-margin) / -2); /* 减少与上方元素的间距 */
+    margin-bottom: var(--base-margin);
 }
 
 .form-group {
-    margin-bottom: 1rem;
-    display: flex; /* 使用 flex 布局 */
-    align-items: center; /* 垂直居中对齐 */
-    flex-wrap: wrap; /* 允许换行 */
+    margin-bottom: calc(var(--base-margin) * 1.5);
+    display: grid;
+    /* Define grid columns: Auto label, flexible control, auto button */
+    grid-template-columns: auto minmax(0, 1fr) auto; /* Let label width adjust */
+    align-items: center; /* Vertically center items in the row */
+    gap: calc(var(--base-margin) * 1.5); /* Increase gap slightly for better spacing */
 }
+/* Adjust grid for rows without a third element (like inline buttons) */
+.form-group > *:nth-child(2):last-child {
+    grid-column: 2 / 4; /* Let the second element span if it's the last */
+}
+/* Specific adjustments for theme editor rows if needed */
+section[v-if*="isEditingTheme"] .form-group {
+     /* Keep 2 columns for editor: auto label + flexible input */
+    grid-template-columns: auto 1fr;
+    margin-bottom: var(--base-margin);
+    gap: var(--base-margin); /* Keep editor gap smaller */
+}
+
 
 .form-group label {
-    /* display: inline-block; */
-    min-width: 150px; /* 调整标签最小宽度以适应更长的文本 */
-    margin-right: 0.5rem;
-    /* vertical-align: middle; */
-    text-align: right; /* 标签右对齐 */
-    padding-right: 5px; /* 标签和输入框间距 */
-    flex-shrink: 0; /* 防止标签被压缩 */
+    grid-column: 1 / 2;
+    text-align: left; /* Keep text aligned to the left */
+    /* justify-self: start; Removed */
+    padding-right: 0; /* Ensure no right padding interferes */
+    padding-left: 0; /* Ensure no left padding interferes */
+    color: var(--text-color);
+    font-size: 0.9rem;
+    margin-bottom: 0;
+    /* white-space: nowrap; Removed in case it affects alignment */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500; /* 稍微加粗标签 */
+    /* Ensure it behaves predictably within the grid cell */
+    display: block; /* Or inline-block if needed, but block is usually fine */
+    width: 100%; /* Occupy the auto-calculated width */
 }
 
-.form-group input[type="color"] {
-    /* vertical-align: middle; */
-    border: 1px solid var(--border-color);
-    padding: 2px;
-    cursor: pointer;
-    width: 150px; /* 统一输入框宽度 */
-    height: 30px; /* 增加高度 */
-}
-
-.form-group input[type="text"].text-input {
-    /* vertical-align: middle; */
-    border: 1px solid var(--border-color);
-    padding: 4px 6px;
-    border-radius: 3px;
-    width: 150px; /* 统一文本输入框宽度 */
-    flex-grow: 1; /* 允许输入框扩展 */
-    min-width: 100px; /* 最小宽度 */
-}
-.form-group input[type="text"].wide-input {
-    /* width: calc(100% - 200px); */ /* 调整宽度以适应按钮 */
-    /* min-width: 200px; */
-    flex-grow: 1; /* 占据更多空间 */
-}
+/* 输入控件 */
+.form-group input[type="color"],
+.form-group input[type="text"].text-input,
 .form-group select {
-    padding: 4px 6px;
+    grid-column: 2 / 3;
     border: 1px solid var(--border-color);
-    border-radius: 3px;
-    flex-grow: 1;
-    min-width: 150px;
+    padding: 0.5rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: var(--app-bg-color);
+    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* 添加过渡效果 */
 }
-.form-group input[type="range"] {
-    flex-grow: 1;
-    margin: 0 10px;
+.form-group input[type="color"] {
+    padding: 2px;
+    height: 34px;
+    min-width: 50px;
+    max-width: 70px;
+    justify-self: start;
+    border-radius: 4px; /* 保持圆角一致 */
+}
+.form-group input:focus, .form-group select:focus {
+    border-color: var(--link-active-color);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); /* 调整聚焦阴影 */
+}
+
+/* Input controls (text, color, select) */
+.form-group input[type="color"],
+.form-group input[type="text"].text-input,
+.form-group select {
+    grid-column: 2 / 3; /* Place in the second column */
+    /* Existing styles below... */
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: var(--app-bg-color);
+    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* 添加过渡效果 */
+}
+.form-group input[type="color"] {
+    padding: 2px;
+    height: 34px;
+    min-width: 50px;
+    max-width: 70px;
+    justify-self: start;
+    border-radius: 4px; /* 保持圆角一致 */
+}
+.form-group input:focus, .form-group select:focus {
+    border-color: var(--link-active-color);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); /* 调整聚焦阴影 */
 }
 
 
-.panel-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--base-padding, 1rem);
-  border-top: 1px solid var(--border-color, #ccc);
-  background-color: var(--footer-bg-color, #f0f0f0); /* 使用底部背景色 */
+/* Inline buttons within form-group */
+.form-group .button-inline,
+.form-group .button-danger {
+    grid-column: 3 / 4; /* Place in the third column */
+    margin-left: 0; /* Reset margin if needed */
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+    justify-self: start;
+    border-radius: 4px; /* 统一圆角 */
+    transition: background-color 0.2s ease, border-color 0.2s ease; /* 添加过渡 */
 }
-
-.panel-footer button {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-left: 0.5rem;
-  border: 1px solid transparent;
-}
-
-.button-primary {
-  background-color: var(--button-bg-color, #007bff);
-  color: var(--button-text-color, #fff);
-  border-color: var(--button-bg-color, #007bff);
-}
-.button-primary:hover {
-  background-color: var(--button-hover-bg-color, #0056b3);
-  border-color: var(--button-hover-bg-color, #0056b3);
-}
-
-.button-secondary {
-  background-color: #6c757d; /* 暂时硬编码，后续可改为变量 */
-  color: #fff;
-  border-color: #6c757d;
-}
-.button-secondary:hover {
-  background-color: #5a6268;
-  border-color: #545b62;
-}
-
 .button-inline {
-    margin-left: 10px;
-    padding: 4px 8px;
-    /* vertical-align: middle; */
-    flex-shrink: 0; /* 防止按钮被压缩 */
+    background-color: var(--header-bg-color); /* Default inline button style */
+    color: var(--text-color);
 }
+.form-group .button-inline:hover:not(:disabled) {
+    background-color: var(--border-color);
+    border-color: var(--text-color-secondary);
+}
+/* Danger button specific styles remain */
+.form-group .button-danger {
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #f5c2c7;
+}
+.form-group .button-danger:hover:not(:disabled) {
+    background-color: #f1aeb5;
+    border-color: #ec8a98;
+}
+.form-group .button-danger:disabled,
+.form-group .button-inline:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+
 
 hr {
     border: none;
-    border-top: 1px solid var(--border-color, #eee);
-    margin: 1.5rem 0;
+    border-top: 1px solid var(--border-color);
+    margin: calc(var(--base-padding) * 2) 0;
 }
 
 /* Theme Management Styles */
 .theme-management-buttons {
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+    margin-top: var(--base-padding);
+    margin-bottom: calc(var(--base-padding) * 1.5);
     display: flex;
-    gap: 10px; /* 按钮间距 */
-    flex-wrap: wrap; /* 允许换行 */
+    gap: var(--base-margin);
+    flex-wrap: wrap;
+    padding-bottom: var(--base-padding);
+    border-bottom: 1px dashed var(--border-color);
 }
+/* Apply unified styles to theme management buttons - matching button-inline */
 .theme-management-buttons button {
-    padding: 0.5rem 1rem;
+    padding: 0.4rem 0.8rem; /* Match button-inline */
+    font-size: 0.9rem; /* Match button-inline */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--header-bg-color); /* Match button-inline */
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap; /* Match button-inline */
 }
+.theme-management-buttons button:hover:not(:disabled) {
+    background-color: var(--border-color); /* Match button-inline hover */
+    border-color: var(--text-color-secondary);
+}
+.theme-management-buttons button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 
 .theme-list {
     list-style: none;
     padding: 0;
-    margin-top: 1rem;
-    max-height: 200px; /* 限制列表高度并滚动 */
+    margin-top: 0;
+    max-height: 280px;
     overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 4px;
+    background-color: var(--app-bg-color);
 }
 
 .theme-list li {
-    display: flex;
-    justify-content: space-between;
+    display: grid; /* 使用 Grid 布局列表项 */
+    grid-template-columns: 1fr auto; /* 名称弹性，按钮固定 */
     align-items: center;
-    padding: 0.5rem 1rem;
+    padding: 0.7rem 1rem;
     border-bottom: 1px solid var(--border-color);
+    font-size: 0.95rem;
+    transition: background-color 0.2s ease;
+    gap: var(--base-margin); /* 列间距 */
+}
+.theme-list li:hover {
+    background-color: var(--header-bg-color);
 }
 .theme-list li:last-child {
     border-bottom: none;
+}
+.theme-list li span { /* 主题名称 */
+    grid-column: 1 / 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .theme-list li.preset-theme span {
     font-style: italic;
     color: var(--text-color-secondary);
 }
 .theme-actions {
-    flex-shrink: 0; /* 防止按钮组被压缩 */
+    grid-column: 2 / 3; /* 按钮组在第二列 */
+    flex-shrink: 0;
+    display: flex;
+    gap: 0.5rem;
 }
+/* Apply unified styles to theme action buttons - matching button-inline */
 .theme-actions button {
-    margin-left: 0.5rem;
-    padding: 2px 6px;
-    font-size: 0.8rem;
+    margin-left: 0;
+    padding: 0.4rem 0.8rem; /* Corrected padding to match button-inline */
+    font-size: 0.9rem; /* Corrected font size to match button-inline */
+    border: 1px solid var(--border-color);
+    border-radius: 4px; /* Match border-radius */
+    background-color: var(--header-bg-color); /* Default style */
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
 }
-.button-danger {
-    background-color: #dc3545;
-    color: white;
-    border-color: #dc3545;
+.theme-actions button:hover:not(:disabled) {
+    background-color: var(--border-color);
+    border-color: var(--text-color-secondary);
 }
-.button-danger:hover {
-    background-color: #c82333;
-    border-color: #bd2130;
+/* Specific style for danger button within theme actions */
+/* Specific style for danger button within theme actions */
+.theme-actions button.button-danger {
+    /* Danger colors override default */
+    background-color: #f8d7da;
+    color: #842029;
+    border-color: #f5c2c7;
+    /* Size and padding are inherited from the base .theme-actions button rule */
 }
-.button-danger:disabled {
-    opacity: 0.5;
+.theme-actions button.button-danger:hover:not(:disabled) {
+    /* Danger hover overrides default hover */
+    background-color: #f1aeb5;
+    border-color: #ec8a98;
+}
+.theme-actions button:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
 }
 
+
 .editor-footer {
-    margin-top: 1.5rem;
+    margin-top: var(--base-padding);
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
+    gap: var(--base-margin);
+    padding-top: var(--base-padding);
+    border-top: 1px solid var(--border-color);
+}
+.editor-footer button { /* 确保页脚按钮样式统一 */
+    padding: 0.6rem 1.2rem;
+    border-radius: 4px;
+    font-weight: bold;
 }
 
 /* Background Styles */
 .background-preview {
     width: 100%;
-    height: 100px;
+    height: 150px;
     border: 1px dashed var(--border-color);
-    margin-bottom: 10px;
+    margin-bottom: var(--base-margin);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -818,21 +934,115 @@ hr {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+    border-radius: 4px;
+    background-color: var(--header-bg-color);
+    position: relative;
+    overflow: hidden; /* 防止背景图溢出圆角 */
 }
+.background-preview span {
+    background-color: rgba(255, 255, 255, 0.8); /* 增加背景不透明度 */
+    padding: 0.4rem 0.8rem; /* 增加内边距 */
+    border-radius: 3px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-color); /* 使用主文本颜色 */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1); /* 添加轻微阴影 */
+}
+
 .background-controls {
     display: flex;
-    gap: 10px;
-    margin-bottom: 1rem;
+    gap: var(--base-margin);
+    margin-bottom: var(--base-padding);
     flex-wrap: wrap;
+    align-items: center;
 }
-.background-controls button {
-    padding: 0.5rem 1rem;
+/* Style default buttons in background-controls - matching button-inline */
+.background-controls button:not(.button-danger) {
+    padding: 0.4rem 0.8rem; /* Match button-inline */
+    font-size: 0.9rem; /* Match button-inline */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--header-bg-color); /* Match button-inline */
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap; /* Match button-inline */
+}
+.background-controls button:not(.button-danger):hover:not(:disabled) {
+    background-color: var(--border-color); /* Match button-inline hover */
+    border-color: var(--text-color-secondary);
+}
+/* Ensure danger button styles override default if necessary */
+.background-controls button.button-danger {
+    /* Keep specific danger styles */
+    padding: 0.4rem 0.8rem; /* Match padding */
+    font-size: 0.9rem; /* Match font size */
+    border-radius: 4px; /* Match border radius */
+    white-space: nowrap; /* Match button-inline */
+    background-color: #f8d7da; /* 淡红色背景 */
+    color: #842029; /* 深红色文字 */
+    border-color: #f5c2c7; /* 边框颜色 */
+}
+.background-controls button.button-danger:hover:not(:disabled) {
+    background-color: #f1aeb5;
+    border-color: #ec8a98;
+}
+.background-controls button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .error-message {
-    color: red;
-    font-size: 0.9rem;
-    margin-top: 5px;
-    width: 100%; /* 确保错误消息占满宽度 */
+  color: #842029;
+  background-color: #f8d7da;
+  border: 1px solid #f5c2c7;
+  padding: calc(var(--base-padding) * 0.75);
+  border-radius: 4px;
+  margin-top: var(--base-margin);
+  font-size: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+  grid-column: 1 / -1; /* 错误消息横跨所有列 */
 }
+
+.panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--base-padding);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--footer-bg-color);
+  flex-shrink: 0;
+}
+
+.panel-footer button {
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: var(--base-margin);
+  border: 1px solid transparent;
+  font-weight: bold;
+}
+
+.panel-footer .button-primary {
+  background-color: var(--button-bg-color);
+  color: var(--button-text-color);
+  border-color: var(--button-bg-color);
+}
+.panel-footer .button-primary:hover:not(:disabled) {
+  background-color: var(--button-hover-bg-color);
+  border-color: var(--button-hover-bg-color);
+}
+.panel-footer .button-secondary {
+  background-color: var(--header-bg-color);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+.panel-footer .button-secondary:hover:not(:disabled) {
+  background-color: var(--border-color);
+}
+.panel-footer button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 </style>
