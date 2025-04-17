@@ -27,7 +27,12 @@ const props = defineProps({
 });
 
 // 定义事件
-const emit = defineEmits(['activate-session', 'close-session', 'open-layout-configurator']); // 添加新事件
+const emit = defineEmits([
+  'activate-session',
+  'close-session',
+  'open-layout-configurator',
+  'request-add-connection-from-popup' // 新增：声明从弹窗发出的添加请求事件
+]);
 
 const activateSession = (sessionId: string) => {
   if (sessionId !== props.activeSessionId) {
@@ -55,6 +60,13 @@ const handlePopupConnect = (connectionId: number) => {
   // 使用 sessionStore 的方法来处理连接请求（它现在总是新建标签）
   sessionStore.handleConnectRequest(connectionId);
   showConnectionListPopup.value = false; // 关闭弹出窗口
+};
+
+// 新增：处理从弹窗内部发出的添加连接请求
+const handleRequestAddFromPopup = () => {
+  console.log('[TabBar] Received request-add-connection from popup component.');
+  showConnectionListPopup.value = false; // 关闭弹窗
+  emit('request-add-connection-from-popup'); // 向上发出事件
 };
 
 // --- 新增：布局菜单处理 ---
@@ -151,6 +163,7 @@ const handleTogglePane = (paneName: PaneName) => {
         <WorkspaceConnectionListComponent
           @connect-request="handlePopupConnect"
           @open-new-session="handlePopupConnect"
+          @request-add-connection="handleRequestAddFromPopup"
           class="popup-connection-list"
         />
       </div>

@@ -197,7 +197,13 @@ const handleOpenInNewTab = (connectionId: number) => {
         :placeholder="t('workspaceConnectionList.searchPlaceholder')"
         class="search-input"
       />
-      <!-- Add button removed -->
+      <button
+        class="add-button"
+        @click="handleMenuAction('add')"
+        :title="t('connections.addConnection')"
+      >
+        <i class="fas fa-plus"></i>
+      </button>
     </div>
 
     <!-- 连接列表区域 -->

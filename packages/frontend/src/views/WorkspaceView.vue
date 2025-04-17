@@ -64,8 +64,9 @@ onBeforeUnmount(() => {
   sessionStore.cleanupAllSessions();
 });
 
-// --- 本地方法 (仅处理 UI 状态) ---
+ // --- 本地方法 (仅处理 UI 状态) ---
  const handleRequestAddConnection = () => {
+   console.log('[WorkspaceView] handleRequestAddConnection 被调用！'); // 添加日志确认事件到达
    connectionToEdit.value = null;
    showAddEditForm.value = true;
  };
@@ -249,6 +250,7 @@ onBeforeUnmount(() => {
         @activate-session="sessionStore.activateSession"
         @close-session="sessionStore.closeSession"
         @open-layout-configurator="handleOpenLayoutConfigurator"
+        @request-add-connection-from-popup="handleRequestAddConnection"
     />
 
     <div class="main-content-area">

@@ -155,11 +155,11 @@ const componentProps = computed(() => {
        // WorkspaceConnectionList 需要转发 connect-request 等事件
        return {
          class: 'pane-content',
-         // 绑定内部处理器以转发事件 (修正为 kebab-case)
+         // 绑定内部处理器以转发事件 (除了 request-add-connection)
          onConnectRequest: (id: number) => emit('connect-request', id),
          onOpenNewSession: (id: number) => emit('open-new-session', id),
-         onRequestAddConnection: () => emit('request-add-connection'),
-         onRequestEditConnection: (conn: any) => emit('request-edit-connection', conn), // 使用 any 避免类型问题
+         // onRequestAddConnection: () => { ... }, // 移除，将在模板中处理
+         onRequestEditConnection: (conn: any) => emit('request-edit-connection', conn),
        };
     case 'commandHistory':
     case 'quickCommands':
@@ -234,7 +234,10 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
             @save-editor-tab="emit('saveEditorTab', $event)"
             @connect-request="emit('connect-request', $event)"
             @open-new-session="emit('open-new-session', $event)"
-            @request-add-connection="emit('request-add-connection')"
+            @request-add-connection="() => { // 添加日志
+                console.log(`[LayoutRenderer ${props.layoutNode.id}] Received recursive 'request-add-connection', emitting upwards.`);
+                emit('request-add-connection');
+            }"
             @request-edit-connection="emit('request-edit-connection', $event)"
           />
         </pane>
@@ -297,7 +300,22 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
         </template>
         <!-- 其他面板正常渲染 (不依赖 activeSession 的) -->
         <template v-else-if="currentComponent">
-            <component :is="currentComponent" v-bind="componentProps" />
+            <!-- 特别处理 connections 组件以添加事件监听器 -->
+            <component
+              v-if="layoutNode.component === 'connections'"
+              :is="currentComponent"
+              v-bind="componentProps"
+              @request-add-connection="() => {
+                  console.log(`[LayoutRenderer ${props.layoutNode.id}] Template received 'request-add-connection', emitting upwards.`);
+                  emit('request-add-connection');
+              }"
+            />
+            <!-- 渲染其他组件 -->
+            <component
+              v-else
+              :is="currentComponent"
+              v-bind="componentProps"
+            />
         </template>
         <!-- 如果找不到组件 -->
         <div v-else class="pane-placeholder error">
