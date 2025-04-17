@@ -86,7 +86,7 @@ watch(() => props.isVisible, (newValue) => {
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', handleMouseUp);
   }
-}, { immediate: true }); // immediate: true 可能导致初始计算问题，先去掉试试
+}, /*{ immediate: true }*/); // 移除 immediate: true 解决初始化顺序问题
 
 // 监听本地布局树的变化，标记有未保存更改
 watch(localLayoutTree, (newValue, oldValue) => {
@@ -175,33 +175,7 @@ const resetToDefault = () => {
 };
 
 // --- Resizing Methods ---
-const handleMouseDown = (event: MouseEvent, handle: string) => {
-  if (!dialogRef.value) return;
-  event.preventDefault(); // 阻止默认行为，如文本选择
-  event.stopPropagation();
-
-  isResizing.value = true;
-  resizeHandle.value = handle;
-  startDragPos.x = event.clientX;
-  startDragPos.y = event.clientY;
-
-  // 解析当前的 px 值
-  const currentWidth = parseFloat(dialogStyle.width);
-  const currentHeight = parseFloat(dialogStyle.height);
-  const currentTop = parseFloat(dialogStyle.top);
-  const currentLeft = parseFloat(dialogStyle.left);
-
-  startDialogRect.width = isNaN(currentWidth) ? initialDialogState.width : currentWidth;
-  startDialogRect.height = isNaN(currentHeight) ? initialDialogState.height : currentHeight;
-  startDialogRect.top = isNaN(currentTop) ? (window.innerHeight - startDialogRect.height) / 2 : currentTop;
-  startDialogRect.left = isNaN(currentLeft) ? (window.innerWidth - startDialogRect.width) / 2 : currentLeft;
-
-  console.log(`[LayoutConfigurator] MouseDown on handle ${handle}. Start rect:`, { ...startDialogRect });
-
-
-  window.addEventListener('mousemove', handleMouseMove);
-  window.addEventListener('mouseup', handleMouseUp);
-};
+// 将 handleMouseMove 和 handleMouseUp 定义移到 watch 之前
 
 const handleMouseMove = (event: MouseEvent) => {
   if (!isResizing.value || !resizeHandle.value) return;
@@ -261,10 +235,42 @@ const handleMouseUp = () => {
     console.log(`[LayoutConfigurator] MouseUp. Final rect:`, { width: dialogStyle.width, height: dialogStyle.height, top: dialogStyle.top, left: dialogStyle.left });
     isResizing.value = false;
     resizeHandle.value = null;
+    // 确保移除监听器
     window.removeEventListener('mousemove', handleMouseMove);
     window.removeEventListener('mouseup', handleMouseUp);
   }
 };
+
+
+const handleMouseDown = (event: MouseEvent, handle: string) => {
+  if (!dialogRef.value) return;
+  event.preventDefault(); // 阻止默认行为，如文本选择
+  event.stopPropagation();
+
+  isResizing.value = true;
+  resizeHandle.value = handle;
+  startDragPos.x = event.clientX;
+  startDragPos.y = event.clientY;
+
+  // 解析当前的 px 值
+  const currentWidth = parseFloat(dialogStyle.width);
+  const currentHeight = parseFloat(dialogStyle.height);
+  const currentTop = parseFloat(dialogStyle.top);
+  const currentLeft = parseFloat(dialogStyle.left);
+
+  startDialogRect.width = isNaN(currentWidth) ? initialDialogState.width : currentWidth;
+  startDialogRect.height = isNaN(currentHeight) ? initialDialogState.height : currentHeight;
+  startDialogRect.top = isNaN(currentTop) ? (window.innerHeight - startDialogRect.height) / 2 : currentTop;
+  startDialogRect.left = isNaN(currentLeft) ? (window.innerWidth - startDialogRect.width) / 2 : currentLeft;
+
+  console.log(`[LayoutConfigurator] MouseDown on handle ${handle}. Start rect:`, { ...startDialogRect });
+
+
+  // 添加监听器
+  window.addEventListener('mousemove', handleMouseMove);
+  window.addEventListener('mouseup', handleMouseUp);
+};
+
 
 // --- Drag & Drop Methods (for panes, unchanged) ---
 // 克隆函数：当从可用列表拖拽时，创建新的 LayoutNode 对象

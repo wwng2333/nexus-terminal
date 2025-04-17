@@ -575,7 +575,9 @@
     "title": "布局配置器",
     "availablePanes": "可用面板",
     "layoutPreview": "布局预览",
-    "resetDefault": "重置为默认布局"
+    "resetDefault": "重置为默认布局",
+    "noAvailablePanes": "所有面板都已在布局中",
+    "emptyLayout": "布局为空，请从左侧拖拽面板或添加容器。"
   },
   "auditLog": {
     "title": "审计日志",

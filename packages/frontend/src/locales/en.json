@@ -570,7 +570,9 @@
     "title": "Layout Configurator",
     "availablePanes": "Available Panes",
     "layoutPreview": "Layout Preview",
-    "resetDefault": "Reset to Default Layout"
+    "resetDefault": "Reset to Default",
+    "noAvailablePanes": "All panes are already in the layout",
+    "emptyLayout": "Layout is empty. Drag panes from the left or add a container."
   },
   "auditLog": {
     "title": "Audit Logs",
