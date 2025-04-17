@@ -170,6 +170,7 @@ const handleOpenInNewTab = (connectionId: number) => {
   emit('open-new-session', connectionId);
   console.log(`[WkspConnList] Emitted 'open-new-session' for ID: ${connectionId}`);
   closeContextMenu(); // 如果右键菜单是打开的，也关闭它
+  return false; // 尝试显式阻止进一步处理
 };
 </script>
 
@@ -227,8 +228,6 @@ const handleOpenInNewTab = (connectionId: number) => {
               :key="conn.id"
               class="connection-item"
               @click.left="handleConnect(conn.id)"
-              @click.middle.prevent="handleOpenInNewTab(conn.id)"
-              @auxclick.prevent="handleOpenInNewTab(conn.id)"
               @contextmenu.prevent="showContextMenu($event, conn)"
             >
               <i class="fas fa-server connection-icon"></i>
