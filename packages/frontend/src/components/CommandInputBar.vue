@@ -36,17 +36,16 @@ const sendCommand = () => {
 .command-input-bar {
   display: flex;
   align-items: center;
-  padding: var(--base-margin); /* Use theme variable */
+  padding: 5px 0px;
   background-color: var(--header-bg-color); /* Use theme variable */
-  border-top: 1px solid var(--border-color); /* Use theme variable */
-  border-bottom: 1px solid var(--border-color); /* Use theme variable */
-  min-height: 40px; /* 保证一定高度 */
+  min-height: 30px; /* 保证一定高度 */
 }
 
 .input-wrapper {
   flex-grow: 1; /* 让输入框容器占据大部分空间 */
   display: flex;
   justify-content: center; /* 水平居中输入框 */
+  background-color: transparent;
 }
 
 .command-input {
@@ -56,7 +55,7 @@ const sendCommand = () => {
   font-size: 0.9em;
   background-color: var(--app-bg-color); /* Use theme variable */
   color: var(--text-color); /* Use theme variable */
-  width: 60%; /* 输入框宽度，可调整 */
+  width: 80%; /* 输入框宽度，可调整 */
   max-width: 800px; /* 最大宽度 */
   outline: none;
   transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
