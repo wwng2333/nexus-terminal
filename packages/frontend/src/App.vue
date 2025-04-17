@@ -2,8 +2,8 @@
 import { RouterLink, RouterView } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from './stores/auth.store';
-import { useSettingsStore } from './stores/settings.store'; // 导入设置 Store
-import { ref } from 'vue'; // 导入 ref
+import { useSettingsStore } from './stores/settings.store';
+import { useAppearanceStore } from './stores/appearance.store'; // 导入外观 Store
 import { storeToRefs } from 'pinia';
 // 导入通知显示组件
 import UINotificationDisplay from './components/UINotificationDisplay.vue';
@@ -14,25 +14,24 @@ import StyleCustomizer from './components/StyleCustomizer.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
-const settingsStore = useSettingsStore(); // 实例化设置 Store
-const { isAuthenticated } = storeToRefs(authStore); // 获取登录状态
-const { showPopupFileEditorBoolean } = storeToRefs(settingsStore); // 获取弹窗编辑器设置
-
-// 控制样式自定义器可见性的状态
-const isStyleCustomizerVisible = ref(false);
+const settingsStore = useSettingsStore();
+const appearanceStore = useAppearanceStore(); // 实例化外观 Store
+const { isAuthenticated } = storeToRefs(authStore);
+const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
+const { isStyleCustomizerVisible } = storeToRefs(appearanceStore); // 从外观 store 获取可见性状态
 
 const handleLogout = () => {
   authStore.logout();
 };
 
-// 打开样式自定义器
+// 打开样式自定义器的方法现在直接调用 store action
 const openStyleCustomizer = () => {
-  isStyleCustomizerVisible.value = true;
+  appearanceStore.toggleStyleCustomizer(true);
 };
 
-// 关闭样式自定义器 (由子组件触发)
+// 关闭样式自定义器的方法现在也调用 store action
 const closeStyleCustomizer = () => {
-  isStyleCustomizerVisible.value = false;
+  appearanceStore.toggleStyleCustomizer(false);
 };
 </script>
 
@@ -48,7 +47,7 @@ const closeStyleCustomizer = () => {
          <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink> | <!-- 新增通知链接 -->
          <RouterLink to="/audit-logs">{{ t('nav.auditLogs') }}</RouterLink> | <!-- 新增审计日志链接 -->
          <RouterLink to="/settings">{{ t('nav.settings') }}</RouterLink> | <!-- 新增设置链接 -->
-        <a href="#" @click.prevent="openStyleCustomizer" :title="t('nav.customizeStyle')">🎨</a> | <!-- 添加调色板按钮 -->
+        <a href="#" @click.prevent="openStyleCustomizer" :title="t('nav.customizeStyle')">🎨</a> | <!-- 点击调用 openStyleCustomizer -->
         <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
         <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
       </nav>
@@ -64,7 +63,7 @@ const closeStyleCustomizer = () => {
     <!-- 根据设置条件渲染全局文件编辑器弹窗 -->
     <FileEditorOverlay v-if="showPopupFileEditorBoolean" />
 
-    <!-- 条件渲染样式自定义器 -->
+    <!-- 条件渲染样式自定义器，使用 store 的状态和方法 -->
     <StyleCustomizer v-if="isStyleCustomizerVisible" @close="closeStyleCustomizer" />
 
     <footer>

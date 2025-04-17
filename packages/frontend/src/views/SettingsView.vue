@@ -143,10 +143,17 @@
       </form>
     </div>
 
+    <!-- 外观设置 -->
+    <div class="settings-section">
+        <h2>{{ $t('settings.appearance.title') }}</h2>
+        <p>{{ $t('settings.appearance.description') }}</p>
+        <button @click="openStyleCustomizer">{{ t('settings.appearance.customizeButton') }}</button>
+    </div>
+
+
     <hr>
 
-    <!-- IP 黑名单管理 -->
-    <div class="settings-section">
+     <div class="settings-section">
       <h2>IP 黑名单管理</h2>
       <p>配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。</p>
 
@@ -208,17 +215,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive, watch, toRefs } from 'vue';
+import { ref, onMounted, computed, reactive, watch } from 'vue'; // 移除 toRefs
 import { useAuthStore } from '../stores/auth.store';
 import { useSettingsStore } from '../stores/settings.store';
+import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观 store
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
+import { storeToRefs } from 'pinia';
 // setLocale is handled by the store now
 import axios from 'axios';
 import { startRegistration } from '@simplewebauthn/browser';
 
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
+const appearanceStore = useAppearanceStore(); // 实例化外观 store
 const { t } = useI18n();
 
 // --- Reactive state from store ---
@@ -315,6 +324,10 @@ const handleUpdateShareTabsSetting = async () => {
     }
 };
 
+// --- 外观设置 ---
+const openStyleCustomizer = () => {
+    appearanceStore.toggleStyleCustomizer(true);
+};
 
 // --- Passkey state & methods --- (Keep as is)
 const passkeyName = ref('');

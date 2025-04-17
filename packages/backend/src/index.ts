@@ -18,6 +18,8 @@ import notificationRoutes from './notifications/notification.routes'; // 导入�
 import auditRoutes from './audit/audit.routes'; // 导入审计路由
 import commandHistoryRoutes from './command-history/command-history.routes'; // 导入命令历史记录路由
 import quickCommandsRoutes from './quick-commands/quick-commands.routes'; // 导入快捷指令路由
+import terminalThemeRoutes from './terminal-themes/terminal-theme.routes'; // 导入终端主题路由
+import appearanceRoutes from './appearance/appearance.routes'; // 导入外观设置路由
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
 
@@ -83,6 +85,13 @@ const sessionMiddleware = session({
 });
 app.use(sessionMiddleware); // 应用会话中间件
 
+// --- 静态文件服务 ---
+// 提供上传的背景图片等静态资源
+const uploadsPath = path.join(__dirname, '../uploads'); // 指向 backend/uploads 目录
+app.use('/uploads', express.static(uploadsPath));
+console.log(`静态文件服务已启动，路径: ${uploadsPath}`);
+// --- 结束静态文件服务 ---
+
 
 // 扩展 Express Request 类型以包含 session 数据 (如果需要更明确的类型提示)
 declare module 'express-session' {
@@ -106,6 +115,8 @@ app.use('/api/v1/notifications', notificationRoutes); // 挂载通知相关的�
 app.use('/api/v1/audit-logs', auditRoutes); // 挂载审计日志相关的路由
 app.use('/api/v1/command-history', commandHistoryRoutes); // 挂载命令历史记录相关的路由
 app.use('/api/v1/quick-commands', quickCommandsRoutes); // 挂载快捷指令相关的路由
+app.use('/api/v1/terminal-themes', terminalThemeRoutes); // 挂载终端主题路由
+app.use('/api/v1/appearance', appearanceRoutes); // 挂载外观设置路由
 
 // 状态检查接口
 app.get('/api/v1/status', (req: Request, res: Response) => {

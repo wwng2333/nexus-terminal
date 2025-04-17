@@ -14,13 +14,65 @@
     "customizeStyle": "Customize Style"
   },
   "styleCustomizer": {
-    "title": "Style Customizer",
+    "title": "Appearance Customizer",
     "uiStyles": "UI Styles",
     "terminalStyles": "Terminal Styles",
-    "uiDescription": "Adjust colors, fonts, etc., for the application interface.",
+    "backgroundSettings": "Background",
+    "uiDescription": "Adjust colors, fonts, etc. for the application interface.",
     "terminalDescription": "Customize the color scheme and font for the terminal.",
-    "resetDefault": "Reset Default",
-    "saveChanges": "Save Changes"
+    "resetDefault": "Reset to Default",
+    "saveChanges": "Save Changes",
+    "resetUiTheme": "Reset UI Theme",
+    "saveUiTheme": "Save UI Theme",
+    "terminalFontFamily": "Terminal Font",
+    "terminalFontPlaceholder": "e.g., \"Fira Code\", Consolas, monospace",
+    "terminalFontDescription": "Enter font names, separated by commas. Use quotes for names with spaces.",
+    "terminalThemeSelection": "Terminal Theme",
+    "activeTheme": "Active Theme",
+    "selectThemePrompt": "Select a theme...",
+    "preset": "Preset",
+    "addNewTheme": "New Theme",
+    "importTheme": "Import Theme",
+    "exportTheme": "Export Selected",
+    "editThemeTitle": "Edit Terminal Theme",
+    "newThemeTitle": "New Terminal Theme",
+    "themeName": "Theme Name",
+    "confirmDeleteTheme": "Are you sure you want to delete the theme \"{name}\"? This action cannot be undone.",
+    "confirmCloseEditing": "You are currently editing a theme. Closing will discard unsaved changes. Are you sure?",
+    "errorThemeNameRequired": "Theme name cannot be empty.",
+    "themeUpdatedSuccess": "Theme updated successfully.",
+    "themeCreatedSuccess": "Theme created successfully.",
+    "themeSaveFailed": "Failed to save theme.",
+    "themeDeletedSuccess": "Theme deleted successfully.",
+    "themeDeleteFailed": "Failed to delete theme: {message}",
+    "importSuccess": "Theme imported successfully.",
+    "importFailed": "Theme import failed.",
+    "exportFailed": "Failed to export theme: {message}",
+    "pageBackground": "Page Background",
+    "terminalBackground": "Terminal Background",
+    "noBackground": "No background",
+    "uploadPageBg": "Upload Page Bg",
+    "removePageBg": "Remove Page Bg",
+    "uploadTerminalBg": "Upload Terminal Bg",
+    "removeTerminalBg": "Remove Terminal Bg",
+    "pageBgOpacity": "Page Bg Opacity",
+    "terminalBgOpacity": "Terminal Bg Opacity",
+    "uploadFailed": "Upload failed: {message}",
+    "pageBgUploadSuccess": "Page background uploaded successfully.",
+    "terminalBgUploadSuccess": "Terminal background uploaded successfully.",
+    "confirmRemovePageBg": "Are you sure you want to remove the page background image?",
+    "confirmRemoveTerminalBg": "Are you sure you want to remove the terminal background image?",
+    "pageBgRemoved": "Page background removed.",
+    "terminalBgRemoved": "Terminal background removed.",
+    "removeBgFailed": "Failed to remove background: {message}",
+    "setOpacityFailed": "Failed to set opacity: {message}",
+    "uiThemeSaved": "UI theme saved.",
+    "uiThemeSaveFailed": "Failed to save UI theme: {message}",
+    "uiThemeReset": "UI theme reset to default.",
+    "uiThemeResetFailed": "Failed to reset UI theme: {message}",
+    "terminalFontSaved": "Terminal font saved.",
+    "terminalFontSaveFailed": "Failed to save terminal font: {message}",
+    "setActiveThemeFailed": "Failed to set active terminal theme: {message}"
   },
   "login": {
     "title": "User Login",
@@ -308,7 +360,7 @@
     },
     "inputPlaceholder": "Type to search or create tags...",
     "removeSelection": "Remove this tag selection",
-    "deleteTagGlobally": "Delete this tag globally"
+      "deleteTagGlobally": "Delete this tag globally"
    },
    "settings": {
      "title": "Settings",
@@ -491,6 +543,11 @@
         "IP_BLACKLISTED": "IP Blacklisted",
         "SERVER_ERROR": "Server Error"
       }
+    },
+     "appearance": {
+        "title": "Appearance Settings",
+        "description": "Customize the visual theme and background of the application.",
+        "customizeButton": "Customize Appearance"
     }
   },
   "common": {
@@ -575,7 +632,42 @@
     "commandBar": "Command Bar",
     "fileManager": "File Manager",
     "editor": "Editor",
-    "statusMonitor": "Status Monitor"
+    "statusMonitor": "Status Monitor",
+    "commandHistory": "Command History",
+    "quickCommands": "Quick Commands"
+  }
+},
+"commandHistory": {
+  "title": "Command History",
+  "searchPlaceholder": "Search history...",
+  "clear": "Clear",
+  "copy": "Copy",
+  "delete": "Delete",
+  "loading": "Loading...",
+  "empty": "No history records",
+  "confirmClear": "Are you sure you want to clear all history?",
+  "copied": "Copied to clipboard",
+  "copyFailed": "Copy failed"
+},
+"quickCommands": {
+  "title": "Quick Commands",
+  "searchPlaceholder": "Search name or command...",
+  "add": "Add",
+  "sortBy": "Sort by:",
+  "sortByName": "Name",
+  "sortByUsage": "Usage Frequency",
+  "usageCount": "Usage Count",
+  "empty": "No quick commands. Click 'Add' to create one!",
+  "confirmDelete": "Are you sure you want to delete the quick command \"{name}\"?",
+  "form": {
+    "titleAdd": "Add Quick Command",
+    "titleEdit": "Edit Quick Command",
+    "name": "Name:",
+    "namePlaceholder": "Optional, for quick identification",
+    "command": "Command:",
+    "commandPlaceholder": "e.g., ls -alh /home/user",
+    "errorCommandRequired": "Command cannot be empty",
+    "add": "Add"
   }
 }
 }

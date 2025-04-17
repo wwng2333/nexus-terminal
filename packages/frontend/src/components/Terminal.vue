@@ -2,7 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { ITheme } from 'xterm';
 import { Terminal } from 'xterm';
-import { useSettingsStore } from '../stores/settings.store'; // 导入设置 store
+import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观 store
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -27,25 +27,25 @@ let terminal: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let debounceTimer: number | null = null; // 用于防抖的计时器 ID
-const fontSize = ref(14); // 字体大小状态, 默认为14
+const fontSize = ref(14); // 字体大小状态, 默认为14 (这个可以保留，或者也移到 appearance store)
 
-// --- Settings Store ---
-const settingsStore = useSettingsStore();
-const { currentXtermTheme } = storeToRefs(settingsStore); // 获取响应式的 xterm 主题
+// --- Appearance Store ---
+const appearanceStore = useAppearanceStore();
+const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage, terminalBackgroundOpacity } = storeToRefs(appearanceStore); // 获取外观状态
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
+  let timeoutId: number | null = null; // Use a local variable for the timeout ID
   return (...args: any[]) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
     }
-    debounceTimer = window.setTimeout(() => {
+    timeoutId = window.setTimeout(() => {
       func(...args);
-      debounceTimer = null;
+      timeoutId = null;
     }, delay);
   };
 };
-
 // 防抖处理由 ResizeObserver 触发的 resize 事件
 const debouncedEmitResize = debounce((term: Terminal) => {
     if (term && props.isActive) { // 仅当标签仍处于活动状态时才发送防抖后的 resize
@@ -75,9 +75,9 @@ onMounted(() => {
   if (terminalRef.value) {
     terminal = new Terminal({
       cursorBlink: true,
-      fontSize: fontSize.value,
-      fontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"',
-      theme: currentXtermTheme.value, // *** 使用 store 中的当前 xterm 主题 ***
+      fontSize: fontSize.value, // 初始字体大小
+      fontFamily: currentTerminalFontFamily.value, // 使用 store 中的字体设置
+      theme: currentTerminalTheme.value, // 使用 store 中的当前 xterm 主题
       rows: 24, // 初始行数
       cols: 80, // 初始列数
       allowTransparency: true,
@@ -185,19 +185,35 @@ onMounted(() => {
         emit('ready', { sessionId: props.sessionId, terminal: terminal });
     }
 
-    // --- 监听 xterm 主题变化 ---
-    watch(currentXtermTheme, (newTheme) => {
+    // --- 监听外观变化 ---
+    watch(currentTerminalTheme, (newTheme) => {
       if (terminal) {
-        console.log(`[Terminal ${props.sessionId}] Applying new xterm theme.`); // 日志改为中文
+        console.log(`[Terminal ${props.sessionId}] 应用新终端主题。`);
         terminal.options.theme = newTheme;
-        // 可能需要重新渲染或刷新终端以完全应用主题，但通常 xterm 会自动处理
-        // terminal.refresh(0, terminal.rows - 1); // 如果需要强制刷新
       }
-    }, { deep: true }); // 使用 deep watch
+    }, { deep: true });
 
-    // 聚焦终端
-    terminal.focus();
-    
+    watch(currentTerminalFontFamily, (newFontFamily) => {
+        if (terminal) {
+            console.log(`[Terminal ${props.sessionId}] 应用新终端字体: ${newFontFamily}`);
+            terminal.options.fontFamily = newFontFamily;
+            // 字体变化可能影响尺寸，重新 fit
+            fitAndEmitResizeNow(terminal);
+        }
+    });
+
+    // 监听背景图片和透明度 (恢复之前的监听方式，因为监听整个对象可能引入其他问题)
+    watch([terminalBackgroundImage, terminalBackgroundOpacity], () => {
+        console.log(`[Terminal Watcher] terminalBackgroundImage or Opacity changed. New image: ${terminalBackgroundImage.value}`); // 添加日志确认 watcher 触发
+        applyTerminalBackground();
+    }, { immediate: true }); // 添加 immediate: true，强制立即执行一次
+    // 移除 onMounted 中的 applyTerminalBackground 调用，完全依赖 watch
+    // applyTerminalBackground(); // 初始应用一次
+
+    // 聚焦终端 (添加 null check)
+    if (terminal) {
+        terminal.focus();
+    }
     // 重新添加鼠标滚轮缩放功能
     if (terminalRef.value) {
       terminalRef.value.addEventListener('wheel', (event: WheelEvent) => {
@@ -264,6 +280,53 @@ const write = (data: string | Uint8Array) => {
 };
 defineExpose({ write });
 
+// --- 应用终端背景 ---
+const applyTerminalBackground = () => {
+    if (terminalRef.value) {
+        if (terminalBackgroundImage.value) {
+            // --- 修改开始 ---
+            // 使用环境变量获取后端基础 URL
+            const backendUrl = import.meta.env.VITE_API_BASE_URL || ''; // 提供一个默认空字符串以防万一
+            const imagePath = terminalBackgroundImage.value;
+            console.log(`[Terminal applyTerminalBackground] backendUrl: "${backendUrl}", imagePath: "${imagePath}"`); // 详细日志
+            const fullImageUrl = `${backendUrl}${imagePath}`;
+            console.log(`[Terminal applyTerminalBackground] fullImageUrl: "${fullImageUrl}"`); // 打印完整 URL
+            // --- 修改结束 ---
+            // --- 使用 nextTick 包装样式应用 ---
+            nextTick(() => {
+                if (terminalRef.value) { // 再次检查 ref 是否存在
+                    terminalRef.value.style.backgroundImage = `url(${fullImageUrl})`;
+                    terminalRef.value.style.backgroundSize = 'cover'; // Or 'contain', 'auto', etc.
+                    terminalRef.value.style.backgroundPosition = 'center';
+                    terminalRef.value.style.backgroundRepeat = 'no-repeat';
+                    // 添加 CSS 类
+                    terminalRef.value.classList.add('has-terminal-background');
+                }
+            });
+            // 应用透明度: 通过设置背景色实现，需要 xterm 的 allowTransparency: true
+            // 注意：这会影响整个终端的背景，包括文本后的背景
+            // 一个常见的做法是设置一个稍微透明的背景色，让图片透出来
+            // 例如，将 xterm 主题的 background 设置为 rgba(r, g, b, opacity)
+            // 这里我们简单设置容器的 opacity，但这会影响文本！更好的方法是修改主题。
+            // 另一种方法是用伪元素做背景层。
+            // 为了简单起见，我们暂时只设置背景图，透明度让用户在主题中调整 background 的 alpha 值。
+            // terminalRef.value.style.opacity = terminalBackgroundOpacity.value.toString(); // 不推荐直接设置 opacity
+            console.log(`[Terminal ${props.sessionId}] 应用终端背景图片: ${terminalBackgroundImage.value}`);
+        } else {
+            // --- 使用 nextTick 包装样式移除 ---
+            nextTick(() => {
+                 if (terminalRef.value) { // 再次检查 ref 是否存在
+                    terminalRef.value.style.backgroundImage = 'none';
+                    // 移除 CSS 类
+                    terminalRef.value.classList.remove('has-terminal-background');
+                 }
+            });
+            // terminalRef.value.style.opacity = '1'; // 移除背景时恢复不透明
+             console.log(`[Terminal ${props.sessionId}] 移除终端背景图片。`);
+        }
+    }
+};
+
 </script>
 
 <template>
@@ -276,7 +339,32 @@ defineExpose({ write });
   width: 100%;
   height: 100%; /* 高度需要由父容器控制 */
   overflow: hidden; /* 阻止此容器本身产生滚动条 */
+  position: relative; /* 用于可能的伪元素背景 */
 }
 
 /* 移除 :deep 样式，让 xterm 内部自然处理滚动 */
+
+/* 示例：使用伪元素添加带透明度的背景层 (如果需要独立于主题的透明度) */
+/*
+.terminal-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image: var(--terminal-bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: var(--terminal-bg-opacity);
+  z-index: -1; // 确保在 xterm 内容后面
+}
+*/
+
+/* 当容器有背景图时，强制内部 xterm 视口和屏幕背景透明 */
+.terminal-container.has-terminal-background :deep(.xterm-viewport),
+.terminal-container.has-terminal-background :deep(.xterm-screen) {
+  background-color: transparent !important;
+}
 </style>

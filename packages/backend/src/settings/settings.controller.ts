@@ -30,18 +30,38 @@ export const settingsController = {
         res.status(400).json({ message: '无效的请求体，应为 JSON 对象' });
         return;
       }
-      // 可以在这里添加更严格的验证，例如检查值的类型等
 
-      await settingsService.setMultipleSettings(settingsToUpdate);
+      // --- 过滤掉外观设置相关的键 ---
+      const allowedSettingsKeys = [
+          'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
+          'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled' // 添加 ipWhitelistEnabled
+          // 在这里添加其他允许的通用设置键
+      ];
+      const filteredSettings: Record<string, string> = {};
+      for (const key in settingsToUpdate) {
+          if (allowedSettingsKeys.includes(key)) {
+              filteredSettings[key] = settingsToUpdate[key];
+          }
+      }
+      // --- 结束过滤 ---
+
+      // 只传递过滤后的设置给 service
+      if (Object.keys(filteredSettings).length > 0) {
+          await settingsService.setMultipleSettings(filteredSettings);
+      }
+
       // 记录审计日志
       // 区分 IP 白名单更新和其他设置更新
-      const updatedKeys = Object.keys(settingsToUpdate);
-      if (updatedKeys.includes('ipWhitelist')) {
-          auditLogService.logAction('IP_WHITELIST_UPDATED', { updatedKeys });
-      } else {
-          auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys });
+      // 注意：现在审计日志可能需要更精细的逻辑，因为它只记录了实际更新的通用设置
+      const updatedKeys = Object.keys(filteredSettings); // 使用过滤后的键
+      if (updatedKeys.length > 0) { // 只有实际更新了才记录
+          if (updatedKeys.includes('ipWhitelist') || updatedKeys.includes('ipWhitelistEnabled')) {
+              auditLogService.logAction('IP_WHITELIST_UPDATED', { updatedKeys });
+          } else {
+              auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys });
+          }
       }
-      res.status(200).json({ message: '设置已成功更新' });
+      res.status(200).json({ message: '设置已成功更新' }); // 即使没有更新通用设置也返回成功
     } catch (error: any) {
       console.error('更新设置时出错:', error);
       res.status(500).json({ message: '更新设置失败', error: error.message });
