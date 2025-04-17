@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, type PropType, type Component } from 'vue';
+// 添加依赖 font-awesome
+import '@fortawesome/fontawesome-free/css/all.min.css';
 import { Splitpanes, Pane } from 'splitpanes';
 import 'splitpanes/dist/splitpanes.css'; // 引入 splitpanes 样式
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
@@ -251,7 +253,13 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
                   v-bind="componentProps"
                 />
             </keep-alive>
-            <div v-if="!activeSession" class="pane-placeholder">无活动会话</div> <!-- 处理无活动会话的情况 -->
+            <div v-if="!activeSession" class="pane-placeholder empty-session">
+              <div class="empty-session-content">
+                <i class="fas fa-terminal-slash"></i>
+                <span>无活动会话</span>
+                <div class="empty-session-tip">请先连接一个会话</div>
+              </div>
+            </div>
         </template>
         <!-- FileManager 需要 keep-alive 处理 -->
         <template v-else-if="layoutNode.component === 'fileManager'">
@@ -263,7 +271,13 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
                   v-bind="componentProps"
                 />
             </keep-alive>
-            <div v-if="!activeSession" class="pane-placeholder">无活动会话</div>
+            <div v-if="!activeSession" class="pane-placeholder empty-session">
+              <div class="empty-session-content">
+                <i class="fas fa-terminal-slash"></i>
+                <span>无活动会话</span>
+                <div class="empty-session-tip">请先连接一个会话</div>
+              </div>
+            </div>
         </template>
         <!-- StatusMonitor 仅在有活动会话时渲染，并添加 key (无 keep-alive) -->
         <template v-else-if="layoutNode.component === 'statusMonitor'">
@@ -273,7 +287,13 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
                :key="activeSessionId"
                v-bind="componentProps"
              />
-             <div v-else class="pane-placeholder">无活动会话</div>
+             <div v-else class="pane-placeholder empty-session">
+              <div class="empty-session-content">
+                <i class="fas fa-terminal-slash"></i>
+                <span>无活动会话</span>
+                <div class="empty-session-tip">请先连接一个会话</div>
+              </div>
+            </div>
         </template>
         <!-- 其他面板正常渲染 (不依赖 activeSession 的) -->
         <template v-else-if="currentComponent">
@@ -330,6 +350,47 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
    background-color: #f8f9fa;
    font-size: 0.9em;
    padding: 1rem;
+}
+
+/* 增强空会话显示样式 */
+:deep(.empty-session) {
+  background-color: #fcfcfc;
+  border-radius: 8px;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+:deep(.empty-session-content) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  width: 100%;
+  height: 100%;
+}
+
+:deep(.empty-session-content i) {
+  font-size: 2.5rem;
+  margin-bottom: 0.75rem;
+  color: #d1d5db;
+}
+
+:deep(.empty-session-content span) {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-bottom: 0.5rem;
+}
+
+:deep(.empty-session-tip) {
+  font-size: 0.85rem;
+  color: #c0c5cc;
+  margin-top: 0.5rem;
 }
 :deep(.layout-pane-wrapper > .pane-placeholder.error) {
   color: #dc3545; /* 错误用红色 */
