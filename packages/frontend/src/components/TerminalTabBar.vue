@@ -48,7 +48,6 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
 // --- 本地状态 ---
 const sessionStore = useSessionStore(); // Session store 保持不变
 const showConnectionListPopup = ref(false); // 连接列表弹出状态
-const showLayoutMenu = ref(false); // 新增：布局菜单弹出状态
 
 const togglePopup = () => {
   showConnectionListPopup.value = !showConnectionListPopup.value;
@@ -69,40 +68,10 @@ const handleRequestAddFromPopup = () => {
   emit('request-add-connection-from-popup'); // 向上发出事件
 };
 
-// --- 新增：布局菜单处理 ---
-const toggleLayoutMenu = () => {
-  console.log('Toggling layout menu visibility. Current state:', showLayoutMenu.value); // 添加日志
-  showLayoutMenu.value = !showLayoutMenu.value;
-  console.log('New state:', showLayoutMenu.value); // 添加日志
-};
-
 // 新增：处理打开布局配置器的事件
 const openLayoutConfigurator = () => {
   console.log('[TabBar] Emitting open-layout-configurator event');
   emit('open-layout-configurator'); // 发出事件
-};
-
-// --- 旧的布局菜单相关代码 (暂时保留，但功能已失效) ---
-// 定义面板名称到显示文本的映射 (保留用于旧菜单显示)
-const paneLabels: Record<PaneName, string> = {
-  connections: t('layout.pane.connections'),
-  terminal: t('layout.pane.terminal'),
-  commandBar: t('layout.pane.commandBar'),
-  fileManager: t('layout.pane.fileManager'),
-  editor: t('layout.pane.editor'),
-  statusMonitor: t('layout.pane.statusMonitor'),
-  commandHistory: t('layout.pane.commandHistory', '命令历史'),
-  quickCommands: t('layout.pane.quickCommands', '快捷指令'),
-};
-
-// 获取所有理论上的面板名称 (用于旧菜单显示)
-const allPanesForMenu = computed(() => layoutStore.allPossiblePanes); // 使用新的 allPossiblePanes
-
-// 处理旧菜单项点击 (功能已失效，仅打印日志)
-const handleTogglePane = (paneName: PaneName) => {
-  console.warn(`[TabBar] 旧的 handleTogglePane 被调用，但 togglePaneVisibility 已移除。面板: ${paneName}`);
-  // layoutStore.togglePaneVisibility(paneName); // 此方法已不存在
-  // showLayoutMenu.value = false;
 };
 
 </script>
@@ -137,23 +106,6 @@ const handleTogglePane = (paneName: PaneName) => {
       <button class="layout-config-button" @click="openLayoutConfigurator" title="配置工作区布局">
         <i class="fas fa-th-large"></i> <!-- 网格布局图标 -->
       </button>
-      <!-- 保留旧的布局菜单按钮 -->
-      <div class="layout-menu-container">
-        <button class="layout-menu-button" @click="toggleLayoutMenu" title="切换面板可见性 (旧)">
-          <i class="fas fa-bars"></i> <!-- 汉堡菜单图标 -->
-        </button>
-        <!-- 旧布局菜单下拉列表 (显示所有面板，但勾选状态和点击功能失效) -->
-          <div v-if="showLayoutMenu" class="layout-menu-dropdown">
-            <ul>
-              <!-- 使用 allPanesForMenu 迭代 -->
-              <li v-for="pane in allPanesForMenu" :key="pane" @click="handleTogglePane(pane)">
-                <!-- 移除基于 paneVisibility 的勾选 -->
-                <span class="checkmark"></span> <!-- 占位符保持对齐 -->
-                {{ paneLabels[pane] || pane }}
-              </li>
-            </ul>
-          </div>
-        </div>
       </div>
     <!-- 连接列表弹出窗口 (保持不变) -->
     <div v-if="showConnectionListPopup" class="connection-list-popup" @click.self="togglePopup">
@@ -408,81 +360,6 @@ const handleTogglePane = (paneName: PaneName) => {
 :deep(.popup-connection-list .connection-list-area) {
   padding: 0; /* 保持移除内边距 */
   background-color: var(--app-bg-color); /* 确保列表背景 */
-}
-
-/* 调整：旧布局菜单容器样式 */
-.layout-menu-container {
-  position: relative; /* 用于定位下拉菜单 */
-  display: flex; /* 确保按钮垂直居中 */
-  align-items: center;
-  height: 100%;
-  /* margin-left: auto; */ /* 移除：由父容器 .action-buttons-container 控制 */
-  border-left: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
-  flex-shrink: 0; /* 保持：防止被压缩 */
-}
-
-/* 调整：旧布局菜单按钮样式 */
-.layout-menu-button {
-  background: none;
-  border: none;
-  /* border-left: 1px solid var(--border-color, #bdbdbd); */ /* 移除按钮左侧分隔线 */
-  padding: 0 0.8rem;
-  cursor: pointer;
-  font-size: 1.1em;
-  color: var(--text-color-secondary, #616161); /* 使用变量 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  flex-shrink: 0;
-}
-.layout-menu-button:hover {
-  background-color: var(--header-bg-color, #d0d0d0); /* 使用变量 */
-}
-.layout-menu-button i {
-  line-height: 1;
-}
-
-.layout-menu-dropdown {
-  position: absolute; /* 恢复绝对定位 */
-  top: 100%; /* 定位在按钮下方 */
-  right: 0; /* 对齐到右侧 */
-  background-color: var(--app-bg-color, white); /* 使用变量 */
-  /* min-height: 20px; */ /* 移除临时调试最小高度 */
-  border: 1px solid var(--border-color, #ccc); /* 使用变量 */
-  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
-  z-index: 9999; /* 保持高 z-index */
-  min-width: 150px; /* 最小宽度 */
-  padding: 5px 0;
-  border-radius: 4px;
-}
-
-.layout-menu-dropdown ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.layout-menu-dropdown li {
-  padding: 8px 15px;
-  cursor: pointer;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  color: var(--text-color); /* 使用变量 */
-}
-
-.layout-menu-dropdown li:hover {
-  background-color: var(--header-bg-color, #f0f0f0); /* 使用变量 */
-}
-
-.layout-menu-dropdown .checkmark {
-  display: inline-block;
-  width: 20px; /* 固定宽度以便对齐 */
-  text-align: center;
-  margin-right: 5px;
-  font-weight: bold;
-  color: #28a745; /* 勾选标记颜色 */
 }
 
 </style>

@@ -707,18 +707,18 @@ const cancelPathEdit = () => {
             @keyup.esc="cancelPathEdit"
           />
           <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-          <button @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')">🔄</button>
+          <button @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button>
           <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-          <button @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')">⬆️</button>
+          <button @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
         </div>
         <div class="actions-bar">
              <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-             <button @click="triggerFileUpload" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')">📤 {{ t('fileManager.actions.upload') }}</button>
+             <button @click="triggerFileUpload" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')"><i class="fas fa-upload"></i> {{ t('fileManager.actions.upload') }}</button>
              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-              <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')">➕ {{ t('fileManager.actions.newFolder') }}</button>
+              <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')"><i class="fas fa-folder-plus"></i> {{ t('fileManager.actions.newFolder') }}</button>
               <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-              <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')">📄 {{ t('fileManager.actions.newFile') }}</button>
+              <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')"><i class="far fa-file-alt"></i> {{ t('fileManager.actions.newFile') }}</button>
          </div>
      </div>
 
@@ -781,7 +781,7 @@ const cancelPathEdit = () => {
                 class="clickable"
                 @click="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
                 @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" >
-              <td>📁</td>
+              <td><i class="fas fa-level-up-alt file-icon"></i></td>
               <td>..</td>
               <td></td><td></td><td></td>
             </tr>
@@ -790,7 +790,9 @@ const cancelPathEdit = () => {
                 @click="handleItemClick($event, item)"
                 :class="{ clickable: item.attrs.isDirectory || item.attrs.isFile, selected: selectedItems.has(item.filename) }"
                 @contextmenu.prevent.stop="showContextMenu($event, item)">
-              <td>{{ item.attrs.isDirectory ? '📁' : (item.attrs.isSymbolicLink ? '🔗' : '📄') }}</td>
+              <td>
+                <i :class="['file-icon', item.attrs.isDirectory ? 'fas fa-folder' : (item.attrs.isSymbolicLink ? 'fas fa-link' : 'far fa-file')]"></i>
+              </td>
               <td>{{ item.filename }}</td>
               <td>{{ item.attrs.isFile ? formatSize(item.attrs.size) : '' }}</td>
               <td>{{ formatMode(item.attrs.mode) }}</td>
@@ -844,40 +846,132 @@ const cancelPathEdit = () => {
 </template>
 
 <style scoped>
-/* Styles remain the same, but add .selected style */
+/* Enhanced Styles */
 .file-manager { height: 100%; display: flex; flex-direction: column; font-family: var(--font-family-sans-serif); font-size: 0.9rem; overflow: hidden; background-color: var(--app-bg-color); color: var(--text-color); }
-.toolbar { display: flex; justify-content: space-between; align-items: center; padding: var(--base-margin); background-color: var(--header-bg-color); border-bottom: 1px solid var(--border-color); flex-wrap: wrap; }
-.path-bar { white-space: nowrap; overflow-x: auto; flex-grow: 1; margin-right: var(--base-padding); padding: 0.2rem 0.4rem; border-radius: 3px; } /* Remove cursor:text and hover */
+
+/* Toolbar美化 */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: calc(var(--base-padding, 1rem) * 0.5) var(--base-padding, 1rem); /* 调整内边距 */
+  background-color: var(--header-bg-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap; /* 允许换行 */
+  gap: var(--base-margin, 0.5rem); /* 添加元素间距 */
+}
+
+/* Path Bar美化 */
+.path-bar {
+  display: flex; /* 使用flex布局 */
+  align-items: center; /* 垂直居中 */
+  background-color: var(--app-bg-color); /* 使用主背景色 */
+  border: 1px solid var(--border-color); /* 添加边框 */
+  border-radius: 4px; /* 圆角 */
+  padding: 0.2rem 0.4rem; /* 内边距 */
+  flex-grow: 1; /* 占据可用空间 */
+  overflow: hidden; /* 防止内部溢出 */
+  min-width: 200px; /* 最小宽度 */
+}
+.path-bar span { /* 路径文本容器 */
+    white-space: nowrap;
+    overflow-x: auto; /* 允许路径横向滚动 */
+    padding-right: 0.5rem; /* 给滚动条留空间 */
+    color: var(--text-color-secondary); /* 次要文本颜色 */
+}
 .path-bar strong.editable-path {
-    font-weight: normal;
-    background-color: var(--header-bg-color); /* Use header bg */
-    filter: brightness(0.95); /* Slightly darken */
+    font-weight: 500; /* 稍加粗 */
+    color: var(--link-color); /* 使用链接颜色 */
     padding: 0.1rem 0.4rem;
     border-radius: 3px;
     margin-left: 0.3rem;
-    cursor: text; /* Add cursor only to the clickable part */
+    cursor: text;
+    transition: background-color 0.2s ease;
 }
 .path-bar strong.editable-path:hover {
-    background-color: var(--header-bg-color); /* Use header bg */
-    filter: brightness(0.9); /* Darker hover */
+    background-color: rgba(0, 0, 0, 0.05); /* 悬停背景 */
+}
+.path-bar strong.editable-path.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 .path-input {
     font-family: inherit;
     font-size: inherit;
-    border: 1px solid var(--border-color); /* Use theme variable */
-    background-color: var(--app-bg-color); /* Use theme variable */
-    color: var(--text-color); /* Use theme variable */
+    border: none; /* 移除边框，依赖外部容器 */
+    background-color: transparent; /* 透明背景 */
+    color: var(--text-color);
     padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    width: calc(100% - 70px); /* Adjust width based on button sizes */
-    box-sizing: border-box;
+    flex-grow: 1; /* 占据空间 */
+    outline: none; /* 移除默认outline */
+    min-width: 100px; /* 最小宽度 */
 }
-.path-bar button { margin-left: 0.5rem; background: none; border: none; cursor: pointer; font-size: 1.1em; padding: 0.1rem 0.3rem; vertical-align: middle; }
+/* 路径栏按钮美化 */
+.path-bar button {
+    margin-left: 0.4rem; /* 调整按钮间距 */
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 0.2rem 0.4rem; /* 调整内边距 */
+    vertical-align: middle;
+    color: var(--text-color-secondary); /* 次要颜色 */
+    border-radius: 3px;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+.path-bar button:hover:not(:disabled) {
+    background-color: rgba(0, 0, 0, 0.08); /* 悬停背景 */
+    color: var(--text-color); /* 悬停时主颜色 */
+}
 .path-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
-.actions-bar button { padding: 0.3rem 0.6rem; cursor: pointer; margin-left: 0.5rem; }
+
+/* Actions Bar美化 */
+.actions-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--base-margin, 0.5rem); /* 按钮间距 */
+    flex-shrink: 0; /* 防止被压缩 */
+}
+.actions-bar button {
+    padding: 0.4rem 0.8rem; /* 调整按钮内边距 */
+    cursor: pointer;
+    border: 1px solid var(--border-color); /* 添加边框 */
+    border-radius: 4px;
+    background-color: var(--app-bg-color); /* 按钮背景 */
+    color: var(--text-color); /* 按钮文字颜色 */
+    font-size: 0.9em;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    display: flex; /* 用于图标和文字对齐 */
+    align-items: center;
+    gap: 0.3rem; /* 图标和文字间距 */
+}
+.actions-bar button:hover:not(:disabled) {
+    background-color: var(--header-bg-color); /* 悬停背景 */
+    border-color: var(--button-bg-color); /* 悬停时边框变色 */
+    color: var(--button-bg-color); /* 悬停时文字变色 */
+}
 .actions-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
-.upload-popup { position: fixed; bottom: var(--base-padding); right: var(--base-padding); background-color: var(--app-bg-color); border: 1px solid var(--border-color); border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 0.8rem; max-width: 300px; max-height: 200px; overflow-y: auto; z-index: 1001; color: var(--text-color); } /* Use theme variables */
-.upload-popup h4 { margin: 0 0 var(--base-margin) 0; font-size: 0.9em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem; } /* Use theme variables */
+/* 明确设置图标颜色 */
+.actions-bar button i {
+    font-size: 1em;
+    color: var(--button-bg-color); /* 默认状态图标颜色改为按钮背景色 */
+    transition: color 0.2s ease;
+}
+.actions-bar button:hover:not(:disabled) i {
+    /* 悬停时可以保持按钮背景色，或者根据需要调整 */
+    color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
+}
+.path-bar button i {
+    color: var(--button-bg-color); /* 默认状态图标颜色改为按钮背景色 */
+    transition: color 0.2s ease;
+}
+.path-bar button:hover:not(:disabled) i {
+    color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
+}
+
+
+.upload-popup { position: fixed; bottom: var(--base-padding); right: var(--base-padding); background-color: var(--app-bg-color); border: 1px solid var(--border-color); border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 0.8rem; max-width: 300px; max-height: 200px; overflow-y: auto; z-index: 1001; color: var(--text-color); }
+.upload-popup h4 { margin: 0 0 var(--base-margin) 0; font-size: 0.9em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem; }
 .upload-popup ul { list-style: none; padding: 0; margin: 0; }
 .upload-popup li { margin-bottom: var(--base-margin); font-size: 0.85em; display: flex; align-items: center; flex-wrap: wrap; } /* Use theme variable */
 .upload-popup progress { margin: 0 0.5rem; width: 80px; height: 0.8em; }
@@ -948,6 +1042,14 @@ td:first-child {
   padding-left: 1rem; /* More padding for icon */
   padding-right: 0.5rem;
 }
+td:first-child .file-icon { /* 文件类型图标颜色 */
+    color: var(--button-bg-color); /* 默认使用按钮背景色 */
+    transition: color 0.15s ease; /* 添加过渡 */
+}
+tbody tr.selected td:first-child .file-icon { /* 选中行图标颜色 */
+    color: var(--button-text-color); /* 选中时使用按钮文字颜色 */
+}
+
 tbody tr {
     transition: background-color 0.15s ease; /* Smooth hover transition */
 }

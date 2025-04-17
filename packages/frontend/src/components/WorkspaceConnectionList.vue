@@ -282,6 +282,7 @@ const handleOpenInNewTab = (connectionId: number) => {
 }
 
 .search-input {
+  min-width: 8px;
   flex-grow: 1;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--border-color); /* Use theme variable */
