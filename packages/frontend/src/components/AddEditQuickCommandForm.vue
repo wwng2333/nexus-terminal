@@ -108,105 +108,127 @@ const closeForm = () => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(0, 0, 0, 0.6); /* 半透明背景保持不变 */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1050; /* 比其他 UI 高 */
+  z-index: 1050;
 }
 
 .modal-content {
-  background-color: #ffffff; /* 强制设置不透明白色背景 */
-  padding: 2rem;
+  background-color: var(--app-bg-color); /* 使用应用背景色 */
+  padding: calc(var(--base-padding, 1rem) * 1.5); /* 使用基础内边距 */
   border-radius: 8px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color); /* 添加边框 */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* 调整阴影 */
   width: 90%;
   max-width: 500px;
+  color: var(--text-color); /* 默认文字颜色 */
 }
 
 h2 {
-  margin: 0 0 1.5rem 0; /* 确保顶部 margin 为 0 */
-  color: #333; /* 使用具体的颜色值 */
+  margin: 0 0 calc(var(--base-margin, 0.5rem) * 3) 0; /* 使用基础外边距 */
+  color: var(--text-color); /* 使用主要文字颜色 */
   text-align: center;
-  font-size: 1.4rem; /* 调整字体大小 */
-  font-weight: 500; /* 调整字重 */
+  font-size: 1.4rem;
+  font-weight: 500;
 }
 
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: var(--base-margin, 0.5rem) * 2; /* 使用基础外边距 */
 }
 
 label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--base-margin, 0.5rem); /* 使用基础外边距 */
   font-weight: bold;
-  color: var(--color-text-secondary);
+  color: var(--text-color-secondary); /* 使用次要文字颜色 */
+  font-size: 0.95rem;
 }
 
 input[type="text"],
 textarea {
   width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--color-border);
+  padding: calc(var(--base-padding, 1rem) * 0.75); /* 使用基础内边距 */
+  border: 1px solid var(--border-color); /* 使用边框颜色 */
   border-radius: 4px;
-  background-color: var(--color-input-bg);
-  color: var(--color-text);
-  box-sizing: border-box; /* 确保 padding 不会撑大元素 */
+  background-color: var(--app-bg-color); /* 输入框背景与应用背景一致 */
+  color: var(--text-color); /* 使用主要文字颜色 */
+  box-sizing: border-box;
   font-family: inherit;
   font-size: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input[type="text"]:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--button-bg-color); /* 聚焦时边框使用按钮背景色 */
+    /* 使用按钮背景色变量创建光晕效果，移除 rgba 回退 */
+    box-shadow: 0 0 0 3px rgba(from var(--button-bg-color) r g b / 0.25);
 }
 
+
 textarea {
-  resize: vertical; /* 允许垂直调整大小 */
+  resize: vertical;
   min-height: 80px;
 }
 
 .required {
-  color: var(--color-danger);
+  color: var(--bs-danger, red); /* 使用 Bootstrap 危险色或备用色 */
   margin-left: 0.2rem;
 }
 
 .error-message {
-  color: var(--color-danger);
+  color: var(--bs-danger, red); /* 使用 Bootstrap 危险色或备用色 */
   font-size: 0.85em;
-  margin-top: 0.3rem;
+  margin-top: calc(var(--base-margin, 0.5rem) * 0.6); /* 使用基础外边距 */
   display: block;
 }
 
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 1.5rem;
+  margin-top: calc(var(--base-margin, 0.5rem) * 3); /* 使用基础外边距 */
+  padding-top: calc(var(--base-padding, 1rem) * 0.5); /* 添加顶部内边距 */
+  border-top: 1px solid var(--border-color); /* 添加分隔线 */
 }
 
 .cancel-btn,
 .confirm-btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
+  padding: calc(var(--base-padding, 1rem) * 0.6) calc(var(--base-padding, 1rem) * 1.2); /* 使用基础内边距 */
+  border: 1px solid transparent; /* 添加透明边框以便悬停时改变 */
   border-radius: 4px;
   cursor: pointer;
-  font-size: 1rem;
-  transition: background-color 0.2s ease;
+  font-size: 0.95rem; /* 调整字体大小 */
+  font-weight: 500; /* 调整字重 */
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 
 .cancel-btn {
-  background-color: var(--color-bg-secondary);
-  color: var(--color-text);
-  margin-right: 0.5rem;
+  background-color: var(--header-bg-color); /* 使用头部背景色作为次要按钮背景 */
+  color: var(--text-color); /* 使用主要文字颜色 */
+  border-color: var(--border-color); /* 使用边框颜色 */
+  margin-right: var(--base-margin, 0.5rem); /* 使用基础外边距 */
 }
 .cancel-btn:hover {
-  background-color: var(--color-bg-tertiary);
+  background-color: darken(var(--header-bg-color, #f0f0f0), 5%); /* 悬停时稍微变暗 */
+  border-color: darken(var(--border-color, #cccccc), 10%);
 }
 
 .confirm-btn {
-  background-color: var(--color-primary);
-  color: white;
+  background-color: var(--button-bg-color); /* 使用按钮背景色 */
+  color: var(--button-text-color); /* 使用按钮文字颜色 */
+  border-color: var(--button-bg-color); /* 边框与背景同色 */
 }
 .confirm-btn:hover:not(:disabled) {
-  background-color: var(--color-primary-dark);
+  background-color: var(--button-hover-bg-color); /* 使用按钮悬停背景色 */
+  border-color: var(--button-hover-bg-color);
 }
 .confirm-btn:disabled {
-  background-color: var(--color-disabled);
+  background-color: var(--text-color-secondary); /* 禁用时使用次要文字颜色作为背景 */
+  border-color: var(--text-color-secondary);
+  color: var(--app-bg-color); /* 禁用时文字颜色反转 */
+  opacity: 0.65;
   cursor: not-allowed;
 }
 </style>
