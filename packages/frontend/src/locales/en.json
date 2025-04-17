@@ -660,7 +660,7 @@
   "sortByName": "Name",
   "sortByUsage": "Usage Frequency",
   "usageCount": "Usage Count",
-  "empty": "No quick commands. Click 'Add' to create one!",
+  "empty": "No quick commands. Click '+' to create one!",
   "confirmDelete": "Are you sure you want to delete the quick command \"{name}\"?",
   "form": {
     "titleAdd": "Add Quick Command",

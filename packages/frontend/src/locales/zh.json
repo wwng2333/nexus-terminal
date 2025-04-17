@@ -665,7 +665,7 @@
   "sortByName": "名称",
   "sortByUsage": "使用频率",
   "usageCount": "使用次数",
-  "empty": "没有快捷指令。点击“添加”按钮创建一个吧！",
+  "empty": "没有快捷指令。点击“+”按钮创建一个吧！",
   "confirmDelete": "确定要删除快捷指令 \"{name}\" 吗？",
   "form": {
     "titleAdd": "添加快捷指令",
