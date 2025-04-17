@@ -3,7 +3,6 @@ import { computed, defineAsyncComponent, type PropType, type Component } from 'v
 // 添加依赖 font-awesome
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { Splitpanes, Pane } from 'splitpanes';
-import 'splitpanes/dist/splitpanes.css'; // 引入 splitpanes 样式
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
 import { useSessionStore } from '../stores/session.store';
 import { storeToRefs } from 'pinia';

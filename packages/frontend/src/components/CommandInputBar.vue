@@ -37,7 +37,7 @@ const sendCommand = () => {
   display: flex;
   align-items: center;
   padding: 5px 0px;
-  background-color: var(--header-bg-color); /* Use theme variable */
+  background-color: var(--app-bg-color); /* Use theme variable */
   min-height: 30px; /* 保证一定高度 */
 }
 
