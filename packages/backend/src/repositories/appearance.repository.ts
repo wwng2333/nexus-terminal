@@ -17,9 +17,7 @@ const createTableIfNotExists = () => {
       active_terminal_theme_id TEXT,
       terminal_font_family TEXT,
       terminal_background_image TEXT,
-      terminal_background_opacity REAL, -- Use REAL for floating point numbers
       page_background_image TEXT,
-      page_background_opacity REAL,
       updated_at INTEGER NOT NULL
     );
   `;
@@ -42,9 +40,9 @@ const mapRowToAppearanceSettings = (row: any): AppearanceSettings => {
         activeTerminalThemeId: row.active_terminal_theme_id,
         terminalFontFamily: row.terminal_font_family,
         terminalBackgroundImage: row.terminal_background_image,
-        terminalBackgroundOpacity: row.terminal_background_opacity,
+        // terminalBackgroundOpacity: row.terminal_background_opacity, // Removed
         pageBackgroundImage: row.page_background_image,
-        pageBackgroundOpacity: row.page_background_opacity,
+        // pageBackgroundOpacity: row.page_background_opacity, // Removed
         updatedAt: row.updated_at,
     };
 };
@@ -59,9 +57,9 @@ const getDefaultAppearanceSettings = (): AppearanceSettings => {
         activeTerminalThemeId: undefined, // Needs to be set after querying default theme ID
         terminalFontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"', // Default font
         terminalBackgroundImage: undefined,
-        terminalBackgroundOpacity: 1.0,
+        // terminalBackgroundOpacity: 1.0, // Removed
         pageBackgroundImage: undefined,
-        pageBackgroundOpacity: 1.0,
+        // pageBackgroundOpacity: 1.0, // Removed
         updatedAt: Date.now(),
     };
 };
@@ -82,9 +80,10 @@ const ensureDefaultSettingsExist = () => {
             const sqlInsert = `
                 INSERT INTO ${TABLE_NAME} (
                     id, custom_ui_theme, active_terminal_theme_id, terminal_font_family,
-                    terminal_background_image, terminal_background_opacity,
-                    page_background_image, page_background_opacity, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    terminal_background_image, -- terminal_background_opacity, -- Removed
+                    page_background_image, -- page_background_opacity, -- Removed
+                    updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?) -- Adjusted placeholder count
             `;
             db.run(sqlInsert, [
                 SETTINGS_ID,
@@ -92,9 +91,9 @@ const ensureDefaultSettingsExist = () => {
                 defaults.activeTerminalThemeId, // Initially undefined
                 defaults.terminalFontFamily,
                 defaults.terminalBackgroundImage,
-                defaults.terminalBackgroundOpacity,
+                // defaults.terminalBackgroundOpacity, // Removed
                 defaults.pageBackgroundImage,
-                defaults.pageBackgroundOpacity,
+                // defaults.pageBackgroundOpacity, // Removed
                 defaults.updatedAt
             ], (insertErr) => {
                 if (insertErr) {
@@ -176,8 +175,8 @@ export const updateAppearanceSettings = async (settingsDto: UpdateAppearanceDto)
   for (const key in settingsDto) {
       if (Object.prototype.hasOwnProperty.call(settingsDto, key)) {
           const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`); // Convert camelCase to snake_case
-          // Ensure only valid keys are updated
-          if (['custom_ui_theme', 'active_terminal_theme_id', 'terminal_font_family', 'terminal_background_image', 'terminal_background_opacity', 'page_background_image', 'page_background_opacity'].includes(dbKey)) {
+          // Ensure only valid keys are updated (Removed opacity keys)
+          if (['custom_ui_theme', 'active_terminal_theme_id', 'terminal_font_family', 'terminal_background_image', 'page_background_image'].includes(dbKey)) {
               updates.push(`${dbKey} = ?`);
               params.push((settingsDto as any)[key]);
           }

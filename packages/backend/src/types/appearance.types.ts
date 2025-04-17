@@ -10,9 +10,7 @@ export interface AppearanceSettings {
   activeTerminalThemeId?: string; // 当前激活的终端主题 ID (对应 terminal_themes 表的 _id)
   terminalFontFamily?: string; // 终端字体列表字符串
   terminalBackgroundImage?: string; // 终端背景图片 URL 或路径
-  terminalBackgroundOpacity?: number; // 终端背景透明度 (0-1)
   pageBackgroundImage?: string; // 页面背景图片 URL 或路径
-  pageBackgroundOpacity?: number; // 页面背景透明度 (0-1)
   updatedAt?: number;
 }
 

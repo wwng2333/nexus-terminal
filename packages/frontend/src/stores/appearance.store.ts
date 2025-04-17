@@ -53,13 +53,9 @@ export const useAppearanceStore = defineStore('appearance', () => {
 
     // 页面背景图片 URL
     const pageBackgroundImage = computed(() => appearanceSettings.value.pageBackgroundImage);
-    // 页面背景透明度
-    const pageBackgroundOpacity = computed(() => appearanceSettings.value.pageBackgroundOpacity ?? 1.0); // 默认 1
 
     // 终端背景图片 URL
     const terminalBackgroundImage = computed(() => appearanceSettings.value.terminalBackgroundImage);
-    // 终端背景透明度
-    const terminalBackgroundOpacity = computed(() => appearanceSettings.value.terminalBackgroundOpacity ?? 1.0); // 默认 1
 
     // --- Actions ---
 
@@ -121,7 +117,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
             console.log('[AppearanceStore] 外观设置已更新:', appearanceSettings.value);
             // 如果 UI 主题或背景更新，重新应用
             if (updates.customUiTheme !== undefined) applyUiTheme(currentUiTheme.value);
-            if (updates.pageBackgroundImage !== undefined || updates.pageBackgroundOpacity !== undefined) applyPageBackground();
+            if (updates.pageBackgroundImage !== undefined) applyPageBackground(); // 移除 pageBackgroundOpacity 检查
             // 终端相关设置由 Terminal 组件监听应用
 
         } catch (err: any) {
@@ -322,22 +318,6 @@ export const useAppearanceStore = defineStore('appearance', () => {
     }
 
     /**
-     * 设置页面背景透明度
-     * @param opacity 0-1 之间的数字
-     */
-    async function setPageBackgroundOpacity(opacity: number) {
-        await updateAppearanceSettings({ pageBackgroundOpacity: opacity });
-    }
-
-    /**
-     * 设置终端背景透明度
-     * @param opacity 0-1 之间的数字
-     */
-    async function setTerminalBackgroundOpacity(opacity: number) {
-        await updateAppearanceSettings({ terminalBackgroundOpacity: opacity });
-    }
-
-    /**
      * 移除页面背景
      */
     async function removePageBackground() {
@@ -410,7 +390,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
     }, { deep: true });
 
     // 监听页面背景变化并应用
-    watch([pageBackgroundImage, pageBackgroundOpacity], () => {
+    watch(pageBackgroundImage, () => { // 只监听图片变化
         applyPageBackground();
     });
 
@@ -427,9 +407,9 @@ export const useAppearanceStore = defineStore('appearance', () => {
         currentTerminalTheme,
         currentTerminalFontFamily,
         pageBackgroundImage,
-        pageBackgroundOpacity,
+        // pageBackgroundOpacity, // Removed
         terminalBackgroundImage,
-        terminalBackgroundOpacity,
+        // terminalBackgroundOpacity, // Removed
         // Actions
         loadInitialAppearanceData,
         updateAppearanceSettings,
@@ -445,8 +425,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
         exportTerminalTheme,
         uploadPageBackground,
         uploadTerminalBackground,
-        setPageBackgroundOpacity,
-        setTerminalBackgroundOpacity,
+        // setPageBackgroundOpacity, // Removed
+        // setTerminalBackgroundOpacity, // Removed
         removePageBackground,
         removeTerminalBackground,
         // Visibility control

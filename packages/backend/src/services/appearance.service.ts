@@ -38,15 +38,6 @@ export const updateSettings = async (settingsDto: UpdateAppearanceDto): Promise<
       // We just need to ensure the key exists in the DTO if it's meant to be cleared.
   }
 
-
-  // 验证透明度值 (如果提供了)
-  if (settingsDto.terminalBackgroundOpacity !== undefined && (settingsDto.terminalBackgroundOpacity < 0 || settingsDto.terminalBackgroundOpacity > 1)) {
-      throw new Error('终端背景透明度必须在 0 和 1 之间');
-  }
-   if (settingsDto.pageBackgroundOpacity !== undefined && (settingsDto.pageBackgroundOpacity < 0 || settingsDto.pageBackgroundOpacity > 1)) {
-      throw new Error('页面背景透明度必须在 0 和 1 之间');
-  }
-
   // TODO: 如果实现了背景图片上传，这里需要处理文件路径或 URL 的验证/保存逻辑
 
   return appearanceRepository.updateAppearanceSettings(settingsDto);

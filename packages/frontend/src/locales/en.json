@@ -36,6 +36,7 @@
     "exportTheme": "Export Selected",
     "editThemeTitle": "Edit Terminal Theme",
     "newThemeTitle": "New Terminal Theme",
+    "newThemeDefaultName": "New Theme",
     "themeName": "Theme Name",
     "confirmDeleteTheme": "Are you sure you want to delete the theme \"{name}\"? This action cannot be undone.",
     "confirmCloseEditing": "You are currently editing a theme. Closing will discard unsaved changes. Are you sure?",

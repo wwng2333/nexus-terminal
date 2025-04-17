@@ -16,16 +16,16 @@ const {
     availableTerminalThemes,
     currentTerminalFontFamily,
     pageBackgroundImage,
-    pageBackgroundOpacity,
+    // pageBackgroundOpacity, // Removed
     terminalBackgroundImage,
-    terminalBackgroundOpacity,
+    // terminalBackgroundOpacity, // Removed
 } = storeToRefs(appearanceStore);
 
 // --- 本地状态用于编辑 ---
 const editableUiTheme = ref<Record<string, string>>({});
 const editableTerminalFontFamily = ref('');
-const editablePageBackgroundOpacity = ref(1.0);
-const editableTerminalBackgroundOpacity = ref(1.0);
+// const editablePageBackgroundOpacity = ref(1.0); // Removed
+// const editableTerminalBackgroundOpacity = ref(1.0); // Removed
 
 // 终端主题管理相关状态
 const selectedTerminalThemeId = ref<string | null>(null); // 下拉框选择的 ID
@@ -50,8 +50,8 @@ const initializeEditableState = () => {
   editableUiTheme.value = JSON.parse(JSON.stringify(currentUiTheme.value || {}));
   editableTerminalFontFamily.value = currentTerminalFontFamily.value;
   selectedTerminalThemeId.value = activeTerminalThemeId.value ?? null; // 初始化下拉框
-  editablePageBackgroundOpacity.value = pageBackgroundOpacity.value;
-  editableTerminalBackgroundOpacity.value = terminalBackgroundOpacity.value;
+  // editablePageBackgroundOpacity.value = pageBackgroundOpacity.value; // Removed
+  // editableTerminalBackgroundOpacity.value = terminalBackgroundOpacity.value; // Removed
   // 不在 store 变化时重置编辑状态，除非是显式取消或保存
   uploadError.value = null;
   importError.value = null;
@@ -63,8 +63,8 @@ onMounted(initializeEditableState);
 // 监听 store 变化以更新本地状态 (例如重置或外部更改)
 // 只监听不需要编辑的状态或用于初始化的状态
 watch([
-    currentUiTheme, currentTerminalFontFamily, activeTerminalThemeId,
-    pageBackgroundOpacity, terminalBackgroundOpacity
+    currentUiTheme, currentTerminalFontFamily, activeTerminalThemeId
+    // pageBackgroundOpacity, terminalBackgroundOpacity // Removed dependencies
 ], (newVals, oldVals) => {
     // 仅当非编辑状态时，或活动主题ID变化时，才同步下拉框和非编辑状态
     if (!isEditingTheme.value || newVals[2] !== oldVals[2]) {
@@ -73,8 +73,8 @@ watch([
         // 如果正在编辑，只更新非编辑相关的部分 (例如 UI 主题可以在编辑终端主题时同时更新)
         editableUiTheme.value = JSON.parse(JSON.stringify(newVals[0] || {}));
         editableTerminalFontFamily.value = newVals[1];
-        editablePageBackgroundOpacity.value = newVals[3];
-        editableTerminalBackgroundOpacity.value = newVals[4];
+        // editablePageBackgroundOpacity.value = newVals[3]; // Removed
+        // editableTerminalBackgroundOpacity.value = newVals[4]; // Removed
     }
 }, { deep: true });
 
@@ -328,26 +328,7 @@ const handleRemoveTerminalBg = async () => {
     }
 };
 
-const handlePageOpacityChange = async () => {
-    try {
-        await appearanceStore.setPageBackgroundOpacity(editablePageBackgroundOpacity.value);
-    } catch (error: any) {
-        console.error("设置页面背景透明度失败:", error);
-        // 恢复旧值
-        editablePageBackgroundOpacity.value = pageBackgroundOpacity.value;
-         alert(t('styleCustomizer.setOpacityFailed', { message: error.message }));
-    }
-};
-const handleTerminalOpacityChange = async () => {
-     try {
-        await appearanceStore.setTerminalBackgroundOpacity(editableTerminalBackgroundOpacity.value);
-    } catch (error: any) {
-        console.error("设置终端背景透明度失败:", error);
-        editableTerminalBackgroundOpacity.value = terminalBackgroundOpacity.value;
-         alert(t('styleCustomizer.setOpacityFailed', { message: error.message }));
-    }
-};
-
+// Removed handlePageOpacityChange and handleTerminalOpacityChange functions
 
 // --- 辅助函数 ---
 // 格式化 UI 主题标签
@@ -501,11 +482,7 @@ const formatXtermLabel = (key: keyof ITheme): string => {
                     <button @click="handleRemovePageBg" :disabled="!pageBackgroundImage" class="button-danger">{{ t('styleCustomizer.removePageBg') }}</button>
                     <input type="file" ref="pageBgFileInput" @change="handlePageBgUpload" accept="image/*" style="display: none;" />
                 </div>
-                 <div class="form-group">
-                    <label for="pageBgOpacity">{{ t('styleCustomizer.pageBgOpacity') }}:</label>
-                    <input type="range" id="pageBgOpacity" v-model.number="editablePageBackgroundOpacity" min="0" max="1" step="0.05" @change="handlePageOpacityChange"/>
-                    <span>{{ Math.round(editablePageBackgroundOpacity * 100) }}%</span>
-                </div>
+                 <!-- Removed Opacity Slider -->
                  <p v-if="uploadError" class="error-message">{{ uploadError }}</p>
 
                 <hr>
@@ -520,11 +497,7 @@ const formatXtermLabel = (key: keyof ITheme): string => {
                     <button @click="handleRemoveTerminalBg" :disabled="!terminalBackgroundImage" class="button-danger">{{ t('styleCustomizer.removeTerminalBg') }}</button>
                     <input type="file" ref="terminalBgFileInput" @change="handleTerminalBgUpload" accept="image/*" style="display: none;" />
                 </div>
-                 <div class="form-group">
-                    <label for="terminalBgOpacity">{{ t('styleCustomizer.terminalBgOpacity') }}:</label>
-                    <input type="range" id="terminalBgOpacity" v-model.number="editableTerminalBackgroundOpacity" min="0" max="1" step="0.05" @change="handleTerminalOpacityChange"/>
-                    <span>{{ Math.round(editableTerminalBackgroundOpacity * 100) }}%</span>
-                </div>
+                 <!-- Removed Opacity Slider -->
 
            </section>
         </main>

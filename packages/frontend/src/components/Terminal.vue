@@ -31,7 +31,7 @@ const fontSize = ref(14); // 字体大小状态, 默认为14 (这个可以保留
 
 // --- Appearance Store ---
 const appearanceStore = useAppearanceStore();
-const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage, terminalBackgroundOpacity } = storeToRefs(appearanceStore); // 获取外观状态
+const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage } = storeToRefs(appearanceStore); // 获取外观状态 (移除 terminalBackgroundOpacity)
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
@@ -202,9 +202,9 @@ onMounted(() => {
         }
     });
 
-    // 监听背景图片和透明度 (恢复之前的监听方式，因为监听整个对象可能引入其他问题)
-    watch([terminalBackgroundImage, terminalBackgroundOpacity], () => {
-        console.log(`[Terminal Watcher] terminalBackgroundImage or Opacity changed. New image: ${terminalBackgroundImage.value}`); // 添加日志确认 watcher 触发
+    // 监听背景图片变化
+    watch(terminalBackgroundImage, () => { // 只监听图片
+        console.log(`[Terminal Watcher] terminalBackgroundImage changed. New image: ${terminalBackgroundImage.value}`); // 添加日志确认 watcher 触发
         applyTerminalBackground();
     }, { immediate: true }); // 添加 immediate: true，强制立即执行一次
     // 移除 onMounted 中的 applyTerminalBackground 调用，完全依赖 watch

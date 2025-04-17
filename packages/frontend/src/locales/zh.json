@@ -36,6 +36,7 @@
     "exportTheme": "导出选中主题",
     "editThemeTitle": "编辑终端主题",
     "newThemeTitle": "新建终端主题",
+    "newThemeDefaultName": "新主题",
     "themeName": "主题名称",
     "confirmDeleteTheme": "确定要删除主题 \"{name}\" 吗？此操作不可撤销。",
     "confirmCloseEditing": "您正在编辑主题，关闭将丢失未保存的更改。确定要关闭吗？",
