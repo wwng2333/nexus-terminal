@@ -144,6 +144,7 @@ const handleMenuAction = (action: 'add' | 'edit' | 'delete') => {
   closeContextMenu(); // 先关闭菜单
 
   if (action === 'add') {
+    console.log('[WorkspaceConnectionList] handleMenuAction called with action: add. Emitting request-add-connection...'); // 添加日志
     // router.push('/connections/add'); // 改为触发事件
     emit('request-add-connection');
   } else if (conn) {
@@ -196,9 +197,7 @@ const handleOpenInNewTab = (connectionId: number) => {
         :placeholder="t('workspaceConnectionList.searchPlaceholder')"
         class="search-input"
       />
-      <button class="add-button" @click="handleMenuAction('add')" :title="t('connections.addConnection')">
-        <i class="fas fa-plus"></i>
-      </button>
+      <!-- Add button removed -->
     </div>
 
     <!-- 连接列表区域 -->
