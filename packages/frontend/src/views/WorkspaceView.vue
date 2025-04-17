@@ -189,8 +189,7 @@ onBeforeUnmount(() => {
       <splitpanes class="default-theme" :horizontal="false" style="height: 100%">
 
         <!-- 1. 左侧边栏 Pane (连接列表) -->
-        <pane v-if="paneVisibility.connections" size="15" min-size="10" class="sidebar-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
-          <PaneTitleBar :title="t('layout.pane.connections')" pane-name="connections" />
+        <pane v-if="paneVisibility.connections" size="15" min-size="10" class="sidebar-pane"> <!-- 移除 pane-with-title class -->
           <WorkspaceConnectionListComponent
             class="pane-content"
             @connect-request="(id) => { console.log(`[WorkspaceView] Received 'connect-request' event for ID: ${id}`); sessionStore.handleConnectRequest(id); }"
@@ -205,8 +204,7 @@ onBeforeUnmount(() => {
            <!-- 上下分割 (终端 | 命令栏 | 文件管理器) -->
            <splitpanes :horizontal="true" style="height: 100%" :dbl-click-splitter="false">
               <!-- 上方 Pane (终端) -->
-              <pane v-if="paneVisibility.terminal" size="55" min-size="20" class="terminal-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
-                 <PaneTitleBar :title="t('layout.pane.terminal')" pane-name="terminal" />
+              <pane v-if="paneVisibility.terminal" size="55" min-size="20" class="terminal-pane"> <!-- 移除 pane-with-title class -->
                  <div class="pane-content terminal-content-wrapper"> <!-- 添加包裹 div -->
                    <div
                      v-for="tabInfo in sessionTabsWithStatus"
@@ -239,8 +237,7 @@ onBeforeUnmount(() => {
               </pane> <!-- End Command Bar Pane -->
 
               <!-- 下方 Pane (文件管理器区域 - 包含新的水平分割) -->
-              <pane v-if="paneVisibility.fileManager" size="40" min-size="15" class="file-manager-area-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
-                <PaneTitleBar :title="t('layout.pane.fileManager')" pane-name="fileManager" />
+              <pane v-if="paneVisibility.fileManager" size="40" min-size="15" class="file-manager-area-pane"> <!-- 移除 pane-with-title class -->
                 <!-- 新增：内部水平分割，允许未来添加列 -->
                 <splitpanes :horizontal="false" style="height: 100%" :dbl-click-splitter="false" class="pane-content"> <!-- 添加 class -->
                   <!-- 初始的文件管理器 Pane -->
@@ -274,8 +271,7 @@ onBeforeUnmount(() => {
         </pane> <!-- End Middle Pane -->
 
         <!-- 3. 右侧区域 1 Pane (文件编辑器) -->
-        <pane v-if="paneVisibility.editor" size="20" min-size="15" class="file-editor-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
-           <PaneTitleBar :title="t('layout.pane.editor')" pane-name="editor" />
+        <pane v-if="paneVisibility.editor" size="20" min-size="15" class="file-editor-pane"> <!-- 移除 pane-with-title class -->
            <FileEditorContainer
              class="pane-content"
              :tabs="editorTabs"
@@ -289,8 +285,7 @@ onBeforeUnmount(() => {
         </pane>
 
         <!-- 4. 右侧区域 2 Pane (状态监视器) -->
-        <pane v-if="paneVisibility.statusMonitor" size="15" min-size="10" class="sidebar-pane status-monitor-pane pane-with-title"> <!-- 使用 v-if 控制, 添加 class -->
-           <PaneTitleBar :title="t('layout.pane.statusMonitor')" pane-name="statusMonitor" />
+        <pane v-if="paneVisibility.statusMonitor" size="15" min-size="10" class="sidebar-pane status-monitor-pane"> <!-- 移除 pane-with-title class -->
            <div class="pane-content status-monitor-content-wrapper"> <!-- 添加包裹 div -->
              <div
                v-for="tabInfo in sessionTabsWithStatus"
@@ -342,11 +337,7 @@ onBeforeUnmount(() => {
 }
 
 /* 为 Pane 添加一些基本样式 */
-.pane-with-title { /* 给包含标题栏的 Pane 添加基础样式 */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* .pane-with-title 已移除 */
 .pane-content { /* 让内容区域填充剩余空间 */
   flex-grow: 1;
   overflow: auto; /* 或者 hidden，根据需要 */
@@ -362,7 +353,9 @@ onBeforeUnmount(() => {
 .file-manager-area-pane, /* 文件管理器区域 Pane */
 .file-manager-pane, /* 内部文件管理器 Pane */
 .status-monitor-pane { /* 状态监视器样式 */
-  /* display: flex; flex-direction: column; overflow: hidden; 已被 pane-with-title 或 pane-content 处理 */
+  display: flex; /* 确保 flex 布局 */
+  flex-direction: column; /* 确保列方向 */
+  overflow: hidden; /* 默认隐藏溢出 */
   background-color: #f8f9fa; /* 默认背景色 */
 }
 .middle-pane {
@@ -396,7 +389,7 @@ onBeforeUnmount(() => {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden; /* <-- 重新添加，隐藏外部滚动条 */
 }
 .file-editor-pane {
     background-color: #f8f9fa; /* 外层 pane 背景 */
@@ -440,7 +433,7 @@ onBeforeUnmount(() => {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden; /* <-- 重新添加，隐藏外部滚动条 */
 }
 
 /* 文件管理器包装器 (内部组件应填充) */

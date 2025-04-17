@@ -114,8 +114,8 @@ onMounted(() => {
             // console.log(`[Terminal ${props.sessionId}] ResizeObserver triggered. Height: ${height}, isActive: ${props.isActive}`);
             if (height > 0 && terminal) { // 仅在可见时调整
                  try {
-                    fitAddon?.fit(); // 视觉上适应
-                    // 触发防抖的 resize 发送，主要应对窗口 resize
+                    // fitAddon?.fit(); // 视觉上适应 <-- 移除此行，不再强制 fit 内部行数
+                    // 触发防抖的 resize 发送，通知后端潜在的尺寸变化
                     debouncedEmitResize(terminal);
                  } catch (e) {
                     console.warn("Fit addon resize failed (observer):", e);
@@ -166,6 +166,15 @@ onMounted(() => {
             if (done) break;
             if (terminal && value) {
               terminal.write(value); // 将流数据写入终端
+              // 尝试在写入数据后调用 fit，看是否能触发滚动条
+              nextTick(() => { // 使用 nextTick 确保 DOM 更新后再 fit
+                try {
+                  fitAddon?.fit();
+                  // 注意：这里可能不需要再 emit resize，因为 fit 主要是为了更新内部布局以适应外部滚动
+                } catch (fitError) {
+                  console.warn("Fit addon failed after writing stream data:", fitError);
+                }
+              });
             }
           }
         } catch (error) {
@@ -182,9 +191,29 @@ onMounted(() => {
     // 聚焦终端
     terminal.focus();
     
-    // 添加鼠标滚轮缩放功能
+    // 重新添加鼠标滚轮缩放功能
     if (terminalRef.value) {
       terminalRef.value.addEventListener('wheel', (event: WheelEvent) => {
+    //     // 只在按下Ctrl键时才触发缩放
+    //     if (event.ctrlKey) {
+    //       event.preventDefault(); // 阻止默认的滚动行为
+          
+    //       // 根据滚轮方向调整字体大小
+    //       if (event.deltaY < 0) {
+    //         // 向上滚动，增大字体
+    //         fontSize.value = Math.min(fontSize.value + 1, 40); // 设置最大字体大小为40
+    //       } else {
+    //         // 向下滚动，减小字体
+    //         fontSize.value = Math.max(fontSize.value - 1, 8); // 设置最小字体大小为8
+    //       }
+          
+    //       // 更新终端字体大小
+    //       if (terminal) {
+    //         terminal.options.fontSize = fontSize.value;
+    //         // 调整终端大小以适应新的字体大小
+    //         fitAddon?.fit();
+    //         emit('resize', { cols: terminal.cols, rows: terminal.rows });
+    //       }
         // 只在按下Ctrl键时才触发缩放
         if (event.ctrlKey) {
           event.preventDefault(); // 阻止默认的滚动行为
@@ -235,26 +264,11 @@ defineExpose({ write });
 </template>
 
 <style scoped>
+/* 恢复默认样式，让 xterm 内部处理滚动 */
 .terminal-container {
   width: 100%;
   height: 100%; /* 高度需要由父容器控制 */
-  overflow: hidden; /* 防止滚动条出现 */
 }
 
-/* 终端屏幕样式 - 移除上下间距 */
-.terminal-container :deep(.xterm-screen) {
-  padding: 0; /* 移除内边距，解决上下有间距的问题 */
-  box-sizing: border-box;
-  /* 覆盖 xterm.css 可能设置的 position: absolute */
-  position: relative !important;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* 确保 viewport 填满容器，隐藏滚动条 */
-.terminal-container :deep(.xterm-viewport) {
-  width: 100% !important;
-  height: 100% !important;
-  overflow: hidden !important;
-}
+/* 移除之前添加的 :deep 样式 */
 </style>
