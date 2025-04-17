@@ -45,3 +45,20 @@ a:hover {
 }
 
 /* 可以添加更多全局样式规则 */
+
+/* 为 xterm 终端添加内边距 */
+.xterm-screen {
+  padding: 10px; /* 你可以根据需要调整这个值 */
+}
+
+/* 为历史记录和快捷命令列表设置字体 */
+/* 注意：这里的选择器可能需要根据实际组件结构调整 */
+.command-history-item, 
+.quick-command-item { /* 假设这些是列表项的类名 */
+  font-family: var(--font-family-sans-serif);
+}
+
+/* 如果是 Element Plus 的 Table 组件 */
+.el-table .cell {
+  font-family: var(--font-family-sans-serif);
+}

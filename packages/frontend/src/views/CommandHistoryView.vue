@@ -219,7 +219,7 @@ const executeCommand = (command: string) => {
   text-overflow: ellipsis;
   margin-right: 10px;
   flex-grow: 1;
-  font-family: var(--font-family-mono, monospace); /* Use mono font variable */
+  font-family: var(--font-family-sans-serif);
   font-size: 0.9em;
   color: var(--text-color); /* Use standard text color */
 }

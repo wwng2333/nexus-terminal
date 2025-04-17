@@ -296,7 +296,7 @@ const executeCommand = (command: QuickCommandFE) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--font-family-mono, monospace); /* Use mono font variable */
+  font-family: var(--font-family-sans-serif);
   font-size: 0.85em;
   color: var(--text-color-secondary); /* Use standard secondary text color */
 }
