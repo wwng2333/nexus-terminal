@@ -495,7 +495,14 @@
     "disabled": "已禁用",
     "settings": "设置",
     "errorOccurred": "发生错误。",
-    "dismiss": "关闭"
+    "dismiss": "关闭",
+    "close": "关闭"
+  },
+  "layoutConfigurator": {
+    "title": "布局配置器",
+    "availablePanes": "可用面板",
+    "layoutPreview": "布局预览",
+    "resetDefault": "重置为默认布局"
   },
   "auditLog": {
     "title": "审计日志",
@@ -559,7 +566,8 @@
     "fileManager": "文件管理器",
     "editor": "编辑器",
     "statusMonitor": "状态监视器",
-    "commandHistory": "命令历史"
+    "commandHistory": "命令历史",
+    "quickCommands": "快捷指令"
   }
 },
 "commandHistory": {

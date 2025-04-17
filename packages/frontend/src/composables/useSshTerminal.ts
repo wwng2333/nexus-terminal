@@ -38,8 +38,18 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
     const handleTerminalReady = (term: Terminal) => {
         console.log(`[会话 ${sessionId}][SSH终端模块] 终端实例已就绪。`);
         terminalInstance.value = term;
+        // --- 添加日志：检查缓冲区处理 ---
+        console.log(`[会话 ${sessionId}][SSH前端] handleTerminalReady: 准备处理缓冲区，缓冲区长度: ${terminalOutputBuffer.value.length}`);
+        if (terminalOutputBuffer.value.length > 0) {
+            console.log(`[会话 ${sessionId}][SSH前端] handleTerminalReady: 缓冲区内容 (前100字符):`, terminalOutputBuffer.value.map(d => d.substring(0, 100)).join(' | '));
+        }
+        // ---------------------------------
         // 将缓冲区的输出写入终端
-        terminalOutputBuffer.value.forEach(data => term.write(data));
+        terminalOutputBuffer.value.forEach(data => {
+             console.log(`[会话 ${sessionId}][SSH前端] handleTerminalReady: 正在写入缓冲数据 (前100字符):`, data.substring(0, 100));
+             term.write(data);
+        });
+        console.log(`[会话 ${sessionId}][SSH前端] handleTerminalReady: 缓冲区处理完成。`);
         terminalOutputBuffer.value = []; // 清空缓冲区
         // 可以在这里自动聚焦或执行其他初始化操作
         // term.focus(); // 也许在 ssh:connected 时聚焦更好
@@ -166,11 +176,18 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
             }
         }
 
+        // --- 添加前端日志 ---
+        console.log(`[会话 ${sessionId}][SSH前端] 收到 ssh:output 原始 payload (解码前):`, payload);
+        console.log(`[会话 ${sessionId}][SSH前端] 解码后的数据 (尝试写入):`, outputData);
+        // --------------------
 
         if (terminalInstance.value) {
+            console.log(`[会话 ${sessionId}][SSH前端] 终端实例存在，尝试写入...`);
             terminalInstance.value.write(outputData);
+            console.log(`[会话 ${sessionId}][SSH前端] 写入完成。`);
         } else {
             // 如果终端还没准备好，先缓冲输出
+            console.log(`[会话 ${sessionId}][SSH前端] 终端实例不存在，缓冲数据...`);
             terminalOutputBuffer.value.push(outputData);
         }
     };

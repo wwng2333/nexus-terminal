@@ -195,6 +195,10 @@ export const initializeWebSocket = (server: http.Server, sessionParser: RequestH
 
                                 // 5. 设置 Shell 事件转发
                                 shellStream.on('data', (data: Buffer) => {
+                                    // --- 添加日志：打印收到的原始数据 ---
+                                    console.log(`SSH Data (会话: ${newSessionId}, 原始): `, data.toString()); // 添加原始数据日志 (尝试 utf8)
+                                    console.log(`SSH Data (会话: ${newSessionId}, Hex): `, data.toString('hex')); // 添加 Hex 日志
+                                    // ------------------------------------
                                     if (ws.readyState === WebSocket.OPEN) {
                                         ws.send(JSON.stringify({ type: 'ssh:output', payload: data.toString('base64'), encoding: 'base64' }));
                                     }

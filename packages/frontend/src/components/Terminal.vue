@@ -17,7 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'data', data: string): void; // 用户输入事件
   (e: 'resize', dimensions: { cols: number; rows: number }): void; // 终端大小调整事件
-  (e: 'ready', terminal: Terminal): void; // 终端准备就绪事件
+  (e: 'ready', payload: { sessionId: string; terminal: Terminal }): void; // *** 修正：ready 事件传递包含 sessionId 和 terminal 实例的对象 ***
 }>();
 
 const terminalRef = ref<HTMLElement | null>(null); // 终端容器的引用
@@ -185,8 +185,10 @@ onMounted(() => {
       }
     }, { immediate: true }); // 立即执行一次 watch
 
-    // 触发 ready 事件
-    emit('ready', terminal);
+    // 触发 ready 事件，传递 sessionId 和 terminal 实例
+    if (terminal) { // 确保 terminal 实例已创建
+        emit('ready', { sessionId: props.sessionId, terminal: terminal });
+    }
 
     // 聚焦终端
     terminal.focus();

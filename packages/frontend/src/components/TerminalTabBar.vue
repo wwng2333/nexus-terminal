@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, PropType } from 'vue'; // 导入 ref 和 computed
 import { useI18n } from 'vue-i18n'; // 导入 i18n
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
+// import { storeToRefs } from 'pinia'; // 移除 storeToRefs 导入，因为 paneVisibility 不再使用
 import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue'; // 导入连接列表组件
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
 import { useLayoutStore, type PaneName } from '../stores/layout.store'; // 导入布局 store 和类型
@@ -11,7 +11,7 @@ import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导�
 // --- Setup ---
 const { t } = useI18n(); // 初始化 i18n
 const layoutStore = useLayoutStore(); // 初始化布局 store
-const { paneVisibility } = storeToRefs(layoutStore); // 修正：使用 storeToRefs 获取响应式状态
+// const { paneVisibility } = storeToRefs(layoutStore); // 移除：paneVisibility 不再存在
 
 // 定义 Props
 const props = defineProps({
@@ -20,13 +20,14 @@ const props = defineProps({
     required: true,
   },
   activeSessionId: {
-    type: String as PropType<string | null>,
-    required: true,
+    type: String as PropType<string | null>, // 类型已包含 null
+    required: false, // 改为非必需，允许初始为 null
+    default: null,   // 提供默认值 null
   },
 });
 
 // 定义事件
-const emit = defineEmits(['activate-session', 'close-session']);
+const emit = defineEmits(['activate-session', 'close-session', 'open-layout-configurator']); // 添加新事件
 
 const activateSession = (sessionId: string) => {
   if (sessionId !== props.activeSessionId) {
@@ -63,25 +64,32 @@ const toggleLayoutMenu = () => {
   console.log('New state:', showLayoutMenu.value); // 添加日志
 };
 
-// 定义面板名称到显示文本的映射 (恢复 commandBar)
+// 新增：处理打开布局配置器的事件
+const openLayoutConfigurator = () => {
+  console.log('[TabBar] Emitting open-layout-configurator event');
+  emit('open-layout-configurator'); // 发出事件
+};
+
+// --- 旧的布局菜单相关代码 (暂时保留，但功能已失效) ---
+// 定义面板名称到显示文本的映射 (保留用于旧菜单显示)
 const paneLabels: Record<PaneName, string> = {
   connections: t('layout.pane.connections'),
   terminal: t('layout.pane.terminal'),
-  commandBar: t('layout.pane.commandBar'), // 恢复
+  commandBar: t('layout.pane.commandBar'),
   fileManager: t('layout.pane.fileManager'),
   editor: t('layout.pane.editor'),
   statusMonitor: t('layout.pane.statusMonitor'),
   commandHistory: t('layout.pane.commandHistory', '命令历史'),
-  quickCommands: t('layout.pane.quickCommands', '快捷指令'), // 添加快捷指令标签
+  quickCommands: t('layout.pane.quickCommands', '快捷指令'),
 };
 
-// 获取所有可控制的面板名称
-const availablePanes = computed(() => Object.keys(paneVisibility.value) as PaneName[]); // 修正：使用 .value
+// 获取所有理论上的面板名称 (用于旧菜单显示)
+const allPanesForMenu = computed(() => layoutStore.allPossiblePanes); // 使用新的 allPossiblePanes
 
-// 处理菜单项点击
+// 处理旧菜单项点击 (功能已失效，仅打印日志)
 const handleTogglePane = (paneName: PaneName) => {
-  layoutStore.togglePaneVisibility(paneName);
-  // 可以选择点击后关闭菜单，或者保持打开
+  console.warn(`[TabBar] 旧的 handleTogglePane 被调用，但 togglePaneVisibility 已移除。面板: ${paneName}`);
+  // layoutStore.togglePaneVisibility(paneName); // 此方法已不存在
   // showLayoutMenu.value = false;
 };
 
@@ -111,22 +119,30 @@ const handleTogglePane = (paneName: PaneName) => {
         <i class="fas fa-plus"></i>
       </button>
     </div>
-    <!-- 布局菜单按钮容器（推到最右侧） -->
-    <div class="layout-menu-container">
-      <button class="layout-menu-button" @click="toggleLayoutMenu" title="调整布局">
-        <i class="fas fa-bars"></i> <!-- 使用 Font Awesome bars 图标 -->
+    <!-- 按钮容器（推到最右侧） -->
+    <div class="action-buttons-container">
+      <!-- 新增：布局配置器按钮 -->
+      <button class="layout-config-button" @click="openLayoutConfigurator" title="配置工作区布局">
+        <i class="fas fa-th-large"></i> <!-- 网格布局图标 -->
       </button>
-      <!-- 布局菜单下拉列表 (保持不变) -->
-        <div v-if="showLayoutMenu" class="layout-menu-dropdown">
-          <ul>
-            <li v-for="pane in availablePanes" :key="pane" @click="handleTogglePane(pane)">
-              <span class="checkmark">{{ paneVisibility[pane] ? '✓' : '' }}</span>
-              {{ paneLabels[pane] || pane }}
-            </li>
-          </ul>
+      <!-- 保留旧的布局菜单按钮 -->
+      <div class="layout-menu-container">
+        <button class="layout-menu-button" @click="toggleLayoutMenu" title="切换面板可见性 (旧)">
+          <i class="fas fa-bars"></i> <!-- 汉堡菜单图标 -->
+        </button>
+        <!-- 旧布局菜单下拉列表 (显示所有面板，但勾选状态和点击功能失效) -->
+          <div v-if="showLayoutMenu" class="layout-menu-dropdown">
+            <ul>
+              <!-- 使用 allPanesForMenu 迭代 -->
+              <li v-for="pane in allPanesForMenu" :key="pane" @click="handleTogglePane(pane)">
+                <!-- 移除基于 paneVisibility 的勾选 -->
+                <span class="checkmark"></span> <!-- 占位符保持对齐 -->
+                {{ paneLabels[pane] || pane }}
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
-    <!-- 移除多余的结束标签 -->
     <!-- 连接列表弹出窗口 (保持不变) -->
     <div v-if="showConnectionListPopup" class="connection-list-popup" @click.self="togglePopup">
       <div class="popup-content">
@@ -280,7 +296,37 @@ const handleTogglePane = (paneName: PaneName) => {
   line-height: 1; /* 确保图标垂直居中 */
 }
 
-/* 移除 action-buttons-container 样式 */
+/* 新增：包裹右侧操作按钮的容器 */
+.action-buttons-container {
+  display: flex;
+  align-items: center;
+  margin-left: auto; /* 将整个容器推到右侧 */
+  height: 100%;
+  flex-shrink: 0; /* 防止被压缩 */
+}
+
+/* 新增：布局配置器按钮样式 */
+.layout-config-button {
+  background: none;
+  border: none;
+  border-left: 1px solid #bdbdbd; /* 左侧分隔线 */
+  padding: 0 0.8rem;
+  cursor: pointer;
+  font-size: 1.1em; /* 与其他按钮一致 */
+  color: #616161;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  flex-shrink: 0;
+}
+.layout-config-button:hover {
+  background-color: #d0d0d0;
+}
+.layout-config-button i {
+  line-height: 1;
+}
+
 
 /* 弹出窗口样式 */
 .connection-list-popup {
@@ -346,17 +392,18 @@ const handleTogglePane = (paneName: PaneName) => {
   padding: 0; /* 保持移除内边距 */
 }
 
-/* 新增：布局菜单样式 */
+/* 调整：旧布局菜单容器样式 */
 .layout-menu-container {
   position: relative; /* 用于定位下拉菜单 */
   display: flex; /* 确保按钮垂直居中 */
   align-items: center;
   height: 100%;
-  margin-left: auto; /* 保持：将布局按钮推到最右侧 */
-  border-left: 1px solid #bdbdbd; /* 确保布局按钮左侧有分隔线 */
+  /* margin-left: auto; */ /* 移除：由父容器 .action-buttons-container 控制 */
+  border-left: 1px solid #bdbdbd; /* 保持左侧分隔线 */
   flex-shrink: 0; /* 保持：防止被压缩 */
 }
 
+/* 调整：旧布局菜单按钮样式 */
 .layout-menu-button {
   background: none;
   border: none;

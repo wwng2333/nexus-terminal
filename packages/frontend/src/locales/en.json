@@ -492,7 +492,14 @@
     "disabled": "Disabled",
     "settings": "Settings",
     "errorOccurred": "An error occurred.",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "close": "Close"
+  },
+  "layoutConfigurator": {
+    "title": "Layout Configurator",
+    "availablePanes": "Available Panes",
+    "layoutPreview": "Layout Preview",
+    "resetDefault": "Reset to Default Layout"
   },
   "auditLog": {
     "title": "Audit Logs",

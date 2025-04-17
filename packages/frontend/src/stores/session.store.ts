@@ -352,18 +352,25 @@ export const useSessionStore = defineStore('session', () => {
         // 不需要再调用 activateSession，因为它已经是活动的
       } else {
         // 如果状态正常，则无需操作
-        console.log(`[SessionStore] 活动会话 ${existingSessionId} 状态正常，无需操作。`);
-      }
-    } else {
-      // 点击的不是当前活动标签（可能是非活动标签，或根本不存在），总是新建标签页
-      if (existingSessionId) {
-         console.log(`[SessionStore] 点击的连接 ${connIdStr} 存在于非活动会话 ${existingSessionId} 中，将打开新会话。`);
-      } else {
-         console.log(`[SessionStore] 未找到 ID 为 ${connIdStr} 的现有会话，将打开新会话。`);
-      }
-      openNewSession(connIdStr); // 直接调用 openNewSession
-    }
-  };
+         console.log(`[SessionStore] 活动会话 ${existingSessionId} 状态正常，无需操作。`);
+       }
+     } else if (existingSessionId && existingSession) {
+       // 点击的是一个已存在但非活动的会话
+       console.log(`[SessionStore] 点击的连接 ${connIdStr} 存在于非活动会话 ${existingSessionId} 中，将激活它。`);
+       activateSession(existingSessionId);
+       // 激活后检查状态并尝试重连 (如果需要)
+       const currentStatus = existingSession.wsManager.connectionStatus.value;
+       if (currentStatus === 'disconnected' || currentStatus === 'error') {
+         console.log(`[SessionStore] 激活的会话 ${existingSessionId} 已断开或出错，尝试重连...`);
+         const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
+         existingSession.wsManager.connect(wsUrl);
+       }
+     } else {
+       // 点击的连接没有对应的会话，创建新会话
+       console.log(`[SessionStore] 未找到 ID 为 ${connIdStr} 的现有会话，将打开新会话。`);
+       openNewSession(connIdStr);
+     }
+   };
 
   /**
    * 处理连接列表的中键点击（总是打开新会话）
