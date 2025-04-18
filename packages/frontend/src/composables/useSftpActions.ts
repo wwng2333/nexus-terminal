@@ -433,10 +433,27 @@ export function createSftpActionsManager(
                     // 更新缓存
                     directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
                 } else {
-                    // 如果后端未能提供新项信息，则刷新
-                    console.warn(`[SFTP ${instanceSessionId}] Rename success for ${renamePayload.newPath} but no item details received. Reloading.`);
-                    invalidateCache(currentPathRef.value);
-                    loadDirectory(currentPathRef.value);
+                    // 如果后端未能提供新项信息，尝试本地更新文件名
+                    console.warn(`[SFTP ${instanceSessionId}] Rename success for ${renamePayload.newPath} but no item details received. Attempting local update.`);
+                    const newFilename = renamePayload.newPath.substring(renamePayload.newPath.lastIndexOf('/') + 1);
+                    const oldItem = fileList.value[oldIndex]; // 获取旧项引用
+                    // 创建更新后的项，保留大部分属性，只更新文件名
+                    const updatedItemLocally: FileListItem = {
+                        ...oldItem,
+                        filename: newFilename,
+                        // 可选：如果 longname 存在且包含旧文件名，也更新它
+                        longname: oldItem.longname.includes(oldFilename) ? oldItem.longname.replace(oldFilename, newFilename) : newFilename,
+                    };
+                    // 移除旧项，插入更新后的项到正确位置
+                    fileList.value.splice(oldIndex, 1); // 先移除
+                    let insertIndex = 0;
+                    while (insertIndex < fileList.value.length && sortFiles(updatedItemLocally, fileList.value[insertIndex]) > 0) {
+                        insertIndex++;
+                    }
+                    fileList.value.splice(insertIndex, 0, updatedItemLocally); // 插入新位置
+                    console.log(`[SFTP ${instanceSessionId}] Locally updated item: ${oldFilename} -> ${newFilename}`);
+                    // 更新缓存
+                    directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
                 }
             } else {
                  // 旧文件不在当前列表，可能列表已过时，刷新
@@ -445,13 +462,28 @@ export function createSftpActionsManager(
                  loadDirectory(currentPathRef.value);
             }
         } else {
-            // 如果涉及不同目录，使两个目录的缓存都失效
-            invalidateCache(oldParentPath);
-            invalidateCache(newParentPath);
-            // 如果当前目录是其中之一，则刷新
-            if (currentPathRef.value === oldParentPath || currentPathRef.value === newParentPath) {
-                loadDirectory(currentPathRef.value);
+            // 如果涉及不同目录（移动操作）
+            invalidateCache(oldParentPath); // 使源目录缓存失效
+            invalidateCache(newParentPath); // 使目标目录缓存失效
+
+            // 检查文件是否从当前目录移出
+            if (currentPathRef.value === oldParentPath) {
+                const oldIndex = fileList.value.findIndex(item => item.filename === oldFilename);
+                if (oldIndex !== -1) {
+                    fileList.value.splice(oldIndex, 1); // 从当前列表中移除
+                    console.log(`[SFTP ${instanceSessionId}] Removed moved item ${oldFilename} from current list.`);
+                    // 不需要 loadDirectory，因为只是移除了项
+                } else {
+                    // 如果旧文件不在当前列表，可能列表已过时，还是需要刷新一下以防万一
+                    console.warn(`[SFTP ${instanceSessionId}] Moved item ${oldFilename} from current directory, but not found in list. Reloading.`);
+                    loadDirectory(currentPathRef.value);
+                }
+            } else if (currentPathRef.value === newParentPath) {
+                 // 如果文件移入当前目录，则需要刷新以显示新文件
+                 console.log(`[SFTP ${instanceSessionId}] Item moved into current directory ${newParentPath}. Reloading.`);
+                 loadDirectory(currentPathRef.value);
             }
+             // 如果当前目录既不是源目录也不是目标目录，则无需操作
         }
     };
 
