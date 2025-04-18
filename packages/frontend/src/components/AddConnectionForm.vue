@@ -194,88 +194,98 @@ const handleSubmit = async () => {
   <div class="add-connection-form-overlay">
     <div class="add-connection-form">
       <h3>{{ formTitle }}</h3> <!-- 使用计算属性 -->
-      <form @submit.prevent="handleSubmit"> <!-- 移除 form-content class -->
-        <div class="form-fields two-columns"> <!-- 添加 two-columns class -->
-          <!-- Column 1: Basic Info -->
-          <div class="form-column">
-            <div class="form-group">
-              <label for="conn-name">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label>
-              <input type="text" id="conn-name" v-model="formData.name" />
-            </div>
-            <div class="form-group">
-              <label for="conn-host">{{ t('connections.form.host') }}</label>
-              <input type="text" id="conn-host" v-model="formData.host" required />
-            </div>
-            <div class="form-group">
-              <label for="conn-port">{{ t('connections.form.port') }}</label>
-              <input type="number" id="conn-port" v-model.number="formData.port" required min="1" max="65535" />
-            </div>
-            <div class="form-group">
-              <label for="conn-username">{{ t('connections.form.username') }}</label>
-              <input type="text" id="conn-username" v-model="formData.username" required />
-            </div>
-          </div>
+      <form @submit.prevent="handleSubmit">
+         <div class="form-sections"> <!-- Container for sections -->
 
-          <!-- Column 2: Authentication, Proxy, Tags -->
-          <div class="form-column">
-            <div class="form-group">
-              <label for="conn-auth-method">{{ t('connections.form.authMethod') }}</label>
-              <select id="conn-auth-method" v-model="formData.auth_method">
-                <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
-                <option value="key">{{ t('connections.form.authMethodKey') }}</option>
-              </select>
-            </div>
+           <fieldset class="form-section">
+             <legend>{{ t('connections.form.sectionBasic', '基本信息') }}</legend>
+             <div class="form-group">
+               <label for="conn-name">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label>
+               <input type="text" id="conn-name" v-model="formData.name" />
+             </div>
+             <!-- Host and Port Row -->
+             <div class="form-row">
+               <div class="form-group form-group-host">
+                 <label for="conn-host">{{ t('connections.form.host') }}</label>
+                 <input type="text" id="conn-host" v-model="formData.host" required />
+               </div>
+               <div class="form-group form-group-port">
+                 <label for="conn-port">{{ t('connections.form.port') }}</label>
+                 <input type="number" id="conn-port" v-model.number="formData.port" required min="1" max="65535" />
+               </div>
+             </div>
+           </fieldset>
 
-            <div class="form-group" v-if="formData.auth_method === 'password'">
-              <label for="conn-password">{{ t('connections.form.password') }}</label>
-              <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" />
-            </div>
-
-            <div v-if="formData.auth_method === 'key'">
+           <fieldset class="form-section">
+              <legend>{{ t('connections.form.sectionAuth', '认证方式') }}</legend>
+              <!-- Username moved here -->
               <div class="form-group">
-                <label for="conn-private-key">{{ t('connections.form.privateKey') }}</label>
-                <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"></textarea>
+                <label for="conn-username">{{ t('connections.form.username') }}</label>
+                <input type="text" id="conn-username" v-model="formData.username" required />
               </div>
+              <!-- Auth Method -->
               <div class="form-group">
-                <label for="conn-passphrase">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
-                <input type="password" id="conn-passphrase" v-model="formData.passphrase" />
-              </div>
-              <div class="form-group" v-if="isEditMode && formData.auth_method === 'key'">
-                <small>{{ t('connections.form.keyUpdateNote') }}</small>
-              </div>
-            </div>
+                <label for="conn-auth-method">{{ t('connections.form.authMethod') }}</label>
+                <select id="conn-auth-method" v-model="formData.auth_method">
+                     <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
+                     <option value="key">{{ t('connections.form.authMethodKey') }}</option>
+                   </select>
+                 </div>
 
-            <div class="form-group">
-              <label for="conn-proxy">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
-              <select id="conn-proxy" v-model="formData.proxy_id">
-                <option :value="null">{{ t('connections.form.noProxy') }}</option>
-                <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">
-                  {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
-                </option>
-              </select>
-              <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
-              <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
-            </div>
+                 <div class="form-group" v-if="formData.auth_method === 'password'">
+                   <label for="conn-password">{{ t('connections.form.password') }}</label>
+                   <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" />
+                 </div>
 
-            <div class="form-group">
-              <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
-              <TagInput v-model="formData.tag_ids" />
-            </div>
-          </div> <!-- End Column 2 -->
+                 <div v-if="formData.auth_method === 'key'">
+                   <div class="form-group">
+                     <label for="conn-private-key">{{ t('connections.form.privateKey') }}</label>
+                     <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"></textarea>
+                   </div>
+                   <div class="form-group">
+                     <label for="conn-passphrase">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
+                     <input type="password" id="conn-passphrase" v-model="formData.passphrase" />
+                   </div>
+                   <div class="form-group" v-if="isEditMode && formData.auth_method === 'key'">
+                     <small>{{ t('connections.form.keyUpdateNote') }}</small>
+                   </div>
+                 </div>
+           </fieldset>
 
-          <!-- Error message spans across columns -->
-          <div v-if="formError || storeError" class="error-message full-width-error">
-            {{ formError || storeError }}
-          </div>
-        </div> <!-- 结束 form-fields -->
+           <fieldset class="form-section">
+             <legend>{{ t('connections.form.sectionAdvanced', '高级选项') }}</legend>
+              <div class="form-group">
+               <label for="conn-proxy">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
+               <select id="conn-proxy" v-model="formData.proxy_id">
+                 <option :value="null">{{ t('connections.form.noProxy') }}</option>
+                 <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">
+                   {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
+                 </option>
+               </select>
+               <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
+               <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
+             </div>
 
-        <div class="form-actions">
-          <button type="submit" :disabled="isLoading">
-            {{ submitButtonText }}
-          </button>
-          <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button>
-        </div>
-      </form>
+             <div class="form-group">
+               <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
+               <TagInput v-model="formData.tag_ids" />
+             </div>
+           </fieldset>
+
+           <!-- Error message remains outside sections -->
+           <div v-if="formError || storeError" class="error-message">
+             {{ formError || storeError }}
+           </div>
+
+         </div> <!-- 结束 form-sections -->
+
+         <div class="form-actions">
+           <button type="submit" :disabled="isLoading">
+             {{ submitButtonText }}
+           </button>
+           <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button>
+         </div>
+       </form>
     </div>
   </div>
 </template>
@@ -300,58 +310,88 @@ const handleSubmit = async () => {
   padding: calc(var(--base-padding, 1rem) * 2);
   border-radius: 8px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); /* 调整阴影 */
-  min-width: 350px;
-  max-width: 750px; /* 增加最大宽度以容纳两列 */
-  width: 80vw; /* 宽度适应视口 */
+  min-width: 320px; /* 减小最小宽度 */
+  max-width: 600px; /* 调回宽度 */
+  width: 90vw;
   border: 1px solid var(--border-color, #ccc);
-  /* 移除 max-height 和 flex 布局 */
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--base-padding, 1rem) * 1.5); /* 减少整体内边距 */
 }
 
 h3 {
   margin-top: 0;
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 4); /* 增加标题下边距 */
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 2); /* 进一步减少标题下边距 */
   text-align: center;
   color: var(--text-color, #333);
   font-family: var(--font-family-sans-serif, sans-serif);
-  font-size: 1.4em; /* 稍微增大标题字号 */
-  font-weight: 600; /* 加粗标题 */
-  flex-shrink: 0; /* 防止标题被压缩 */
-  padding-bottom: calc(var(--base-padding, 1rem) * 1); /* 增加标题和内容间距 */
+  font-size: 1.3em; /* 减小标题字号 */
+  font-weight: 600;
+  flex-shrink: 0;
+  padding-bottom: calc(var(--base-padding, 1rem) * 0.3); /* 进一步减少标题和内容间距 */
 }
 
-/* 移除 .form-content 滚动相关样式 */
+/* 移除两列布局相关样式 (.two-columns, .form-column, .full-width-error) */
 
-/* 两列布局样式 */
-.form-fields.two-columns {
+/* 新增：表单分段样式 */
+.form-sections {
+  flex-grow: 1; /* 占据主要空间 */
+  overflow-y: auto; /* 使 sections 内部可滚动 */
+  padding: 5px; /* 增加一点内边距防止滚动条遮挡 */
+  margin: -5px; /* 抵消内边距 */
+}
+
+.form-section {
+  border: 1px solid var(--border-color, #ddd);
+  border-radius: 5px; /* 稍小圆角 */
+  padding: calc(var(--base-padding, 1rem) * 1); /* 进一步减少 fieldset 内边距 */
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 1.5); /* 进一步减少 fieldset 间距 */
+}
+
+.form-section legend {
+  padding: 0 calc(var(--base-padding, 1rem) * 0.5); /* legend 左右内边距 */
+  font-weight: 600; /* 加粗 legend */
+  color: var(--text-color, #333);
+  font-size: 1.05em; /* 减小 legend 字号 */
+  margin-left: calc(var(--base-margin, 0.5rem) * 0.8); /* 减少 legend 左边距 */
+}
+
+/* 认证部分内部可以考虑两列，如果需要的话 */
+/* .auth-section-content { display: flex; gap: 1rem; } */
+/* .auth-section-content > * { flex: 1; } */
+
+
+/* Host/Port 行样式 */
+.form-row {
   display: flex;
-  flex-wrap: wrap; /* 允许换行，虽然主要目的是两列 */
-  gap: calc(var(--base-padding, 1rem) * 2); /* 列之间的间距 */
+  gap: calc(var(--base-padding, 1rem) * 1); /* Host 和 Port 之间的间距 */
+  align-items: flex-start; /* 顶部对齐 */
 }
-
-.form-column {
-  flex: 1; /* 每列占据可用空间 */
-  min-width: 250px; /* 设置最小宽度，防止列过窄 */
+.form-row .form-group {
+  margin-bottom: 0; /* 移除行内元素的下边距，由行处理 */
 }
-
-/* 错误消息跨列 */
-.full-width-error {
-    width: 100%; /* 占据父容器（.two-columns）的全部宽度 */
-    order: 99; /* 确保错误消息在列之后显示 */
-    margin-top: var(--base-margin, 0.5rem); /* 与上方元素保持间距 */
+.form-group-host {
+  flex: 3; /* Host 占据更多空间 */
+}
+.form-group-port {
+  flex: 1; /* Port 占据较少空间 */
 }
 
 
 .form-group {
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 2); /* 保持组间距 */
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 1.2); /* 进一步减少组间距 */
 }
 
 label {
   display: block;
   margin-bottom: calc(var(--base-margin, 0.5rem) * 0.8); /* 调整标签下边距 */
-  font-weight: 500; /* 调整标签字重 */
-  font-size: 0.95em; /* 调整标签字号 */
-  color: var(--text-color-secondary, #666); /* 使用次要文本颜色 */
+  font-weight: 500;
+  font-size: 0.9em; /* 减小标签字号 */
+  color: var(--text-color-secondary, #666);
   font-family: var(--font-family-sans-serif, sans-serif);
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 0.5); /* 减少标签下边距 */
 }
 
 input[type="text"],
@@ -360,9 +400,9 @@ input[type="password"],
 select,
 textarea {
   width: 100%;
-  padding: calc(var(--base-padding, 1rem) * 0.6); /* 调整输入框内边距 */
+  padding: calc(var(--base-padding, 1rem) * 0.5); /* 减少输入框内边距 */
   border: 1px solid var(--border-color, #ccc);
-  border-radius: 4px;
+  border-radius: 3px; /* 稍小圆角 */
   box-sizing: border-box;
   background-color: var(--app-bg-color, white);
   color: var(--text-color, #333);
@@ -382,8 +422,8 @@ textarea:focus {
 }
 
 textarea {
-    min-height: 60px; /* 减小文本域最小高度 */
-    resize: vertical; /* 允许垂直调整大小 */
+    min-height: 50px; /* 进一步减小文本域最小高度 */
+    resize: vertical;
 }
 
 select {
@@ -425,17 +465,24 @@ select {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: calc(var(--base-margin, 0.5rem) * 2); /* 减少顶部间距 */
-  padding-top: calc(var(--base-padding, 1rem) * 1); /* 在按钮上方增加间距 */
-  border-top: 1px solid var(--border-color, #eee); /* 添加分隔线 */
-  /* 移除 flex-shrink 和背景色、内外边距调整 */
+  margin-top: calc(var(--base-margin, 0.5rem) * 1.5); /* 减少顶部间距 */
+  padding-top: calc(var(--base-padding, 1rem) * 0.8); /* 减少按钮上方间距 */
+  border-top: 1px solid var(--border-color, #eee);
+  flex-shrink: 0; /* 防止按钮区域压缩 */
+  /* 确保按钮区域背景色，避免滚动内容透视 */
+  background-color: var(--app-bg-color, white);
+  padding-left: calc(var(--base-padding, 1rem) * 0.5);
+  padding-right: calc(var(--base-padding, 1rem) * 0.5);
+  padding-bottom: calc(var(--base-padding, 1rem) * 0.5);
+  margin-left: calc(var(--base-padding, 1rem) * -0.5); /* 抵消容器内边距 */
+  margin-right: calc(var(--base-padding, 1rem) * -0.5);
 }
 
 .form-actions button {
-  margin-left: var(--base-margin, 0.5rem);
-  padding: calc(var(--base-padding, 1rem) * 0.7) calc(var(--base-padding, 1rem) * 1.4); /* 调整按钮内边距 */
+  margin-left: calc(var(--base-margin, 0.5rem) * 0.8); /* 减少按钮左边距 */
+  padding: calc(var(--base-padding, 1rem) * 0.5) calc(var(--base-padding, 1rem) * 1.2); /* 减少按钮内边距 */
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 3px; /* 稍小圆角 */
   font-family: var(--font-family-sans-serif, sans-serif);
   font-weight: 500; /* 调整按钮字重 */
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* 添加过渡 */
