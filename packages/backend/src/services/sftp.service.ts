@@ -641,11 +641,38 @@ export class SftpService {
                  this.cancelUploadInternal(uploadId, 'Bytes written exceeded total size');
 
             } else if (uploadState.bytesWritten === uploadState.totalSize) {
-                console.log(`[SFTP Upload ${uploadId}] All bytes (${uploadState.bytesWritten}) received for ${uploadState.remotePath}. Sending success and ending stream.`);
-                // Send success message IMMEDIATELY upon receiving the last expected byte
-                state.ws.send(JSON.stringify({ type: 'sftp:upload:success', payload: { uploadId, remotePath: uploadState.remotePath } }));
-                // Now end the stream. The 'close' event will handle cleanup.
-                uploadState.stream.end();
+                console.log(`[SFTP Upload ${uploadId}] All bytes (${uploadState.bytesWritten}) received for ${uploadState.remotePath}. Fetching stats before sending success...`);
+
+                // Get stats for the newly uploaded file before sending success
+                state.sftp!.lstat(uploadState.remotePath, (statErr, stats) => {
+                    let newItemPayload: any = null; // Default to null payload
+                    if (statErr) {
+                        console.error(`[SFTP Upload ${uploadId}] lstat after upload ${uploadState.remotePath} failed:`, statErr);
+                        // Still send success, but with null payload as item details are unavailable
+                    } else {
+                        newItemPayload = {
+                            filename: uploadState.remotePath.substring(uploadState.remotePath.lastIndexOf('/') + 1),
+                            longname: '', // lstat doesn't provide longname
+                            attrs: {
+                                size: stats.size, uid: stats.uid, gid: stats.gid, mode: stats.mode,
+                                atime: stats.atime * 1000, mtime: stats.mtime * 1000,
+                                isDirectory: stats.isDirectory(), isFile: stats.isFile(), isSymbolicLink: stats.isSymbolicLink(),
+                            }
+                        };
+                        console.log(`[SFTP Upload ${uploadId}] Sending upload success with new item details for ${uploadState.remotePath}`);
+                    }
+                    // Send success message with the newItem payload (or null if lstat failed)
+                    state.ws.send(JSON.stringify({ type: 'sftp:upload:success', payload: newItemPayload, uploadId: uploadId, path: uploadState.remotePath })); // Include uploadId and path for frontend context
+
+                    // End the stream *after* lstat completes and success message is sent
+                    uploadState.stream.end((endErr: Error | undefined) => { // Add type annotation
+                         if (endErr) {
+                              console.error(`[SFTP Upload ${uploadId}] Error ending write stream after success for ${uploadState.remotePath}:`, endErr);
+                         } else {
+                              console.log(`[SFTP Upload ${uploadId}] Write stream ended successfully after success for ${uploadState.remotePath}.`);
+                         }
+                    });
+                });
             }
 
         } catch (error: any) {

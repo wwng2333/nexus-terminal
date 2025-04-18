@@ -80,7 +80,7 @@ const {
 } = useFileUploader(
     currentPath, // 使用从 sftpManager 获取的 currentPath
     fileList, // 传递来自 sftpManager 的 fileList ref
-    () => loadDirectory(currentPath.value), // Refresh function uses manager's loadDirectory
+    // () => loadDirectory(currentPath.value), // 不再需要传递 refresh 函数
     // props.sessionId, // 不再传递 sessionId
     // props.dbConnectionId // 不再传递 dbConnectionId
     props.wsDeps // 传递注入的 WebSocket 依赖项

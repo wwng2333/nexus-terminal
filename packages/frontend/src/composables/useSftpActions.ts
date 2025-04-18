@@ -561,6 +561,40 @@ export function createSftpActionsManager(
         }
     };
 
+    // *** 新增：处理上传成功 ***
+    const onUploadSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        const newItem = payload as FileListItem | null; // 后端应发送 FileListItem 或 null
+        const parentPath = currentPathRef.value; // 上传总是发生在当前路径
+        const filename = newItem?.filename; // 从 newItem 获取文件名
+
+        console.log(`[SFTP ${instanceSessionId}] 上传文件成功: ${filename ? joinPath(parentPath, filename) : '(未知文件名)'}`); // 改进日志
+
+        if (newItem && filename) { // 确保 newItem 和 filename 都存在
+            const index = fileList.value.findIndex(item => item.filename === filename);
+            if (index !== -1) {
+                // 文件已存在 (覆盖上传)，替换
+                fileList.value.splice(index, 1, newItem);
+                console.log(`[SFTP ${instanceSessionId}] 直接更新被覆盖的文件信息: ${filename}`);
+            } else {
+                // 文件是新建的，插入
+                let insertIndex = 0;
+                while (insertIndex < fileList.value.length && sortFiles(newItem, fileList.value[insertIndex]) > 0) {
+                    insertIndex++;
+                }
+                fileList.value.splice(insertIndex, 0, newItem);
+                console.log(`[SFTP ${instanceSessionId}] 直接添加新上传的文件到列表: ${filename}`);
+            }
+            // 更新缓存
+            directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
+        } else if (!newItem) { // 检查 newItem 是否为 null 或 undefined
+             // 如果后端未能提供更新信息，则刷新
+             const filePathForLog = message.path || '(未知路径)'; // 尝试从 message 获取路径用于日志
+             console.warn(`[SFTP ${instanceSessionId}] Upload success for ${filePathForLog} but no item details received. Reloading.`);
+             invalidateCache(currentPathRef.value);
+             loadDirectory(currentPathRef.value);
+        }
+        // 注意：移除了多余的 else 和 else if (!newItem) 块
+    }; // <--- 确保右花括号在这里
 
     const onActionError = (payload: MessagePayload, message: WebSocketMessage) => {
         // 类型断言，因为我们知道这些错误的 payload 是 string
@@ -589,6 +623,7 @@ export function createSftpActionsManager(
     unregisterCallbacks.push(onMessage('sftp:rename:success', onRenameSuccess));
     unregisterCallbacks.push(onMessage('sftp:chmod:success', onChmodSuccess));
     unregisterCallbacks.push(onMessage('sftp:writefile:success', onWriteFileSuccess)); // 使用 onWriteFileSuccess
+    unregisterCallbacks.push(onMessage('sftp:upload:success', onUploadSuccess)); // *** 新增：监听上传成功 ***
     unregisterCallbacks.push(onMessage('sftp:mkdir:error', onActionError));
     unregisterCallbacks.push(onMessage('sftp:rmdir:error', onActionError));
     unregisterCallbacks.push(onMessage('sftp:unlink:error', onActionError));

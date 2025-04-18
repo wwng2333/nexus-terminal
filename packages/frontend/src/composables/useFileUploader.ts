@@ -25,7 +25,7 @@ const joinPath = (base: string, name: string): string => {
 export function useFileUploader(
     currentPathRef: Ref<string>,
     fileListRef: Readonly<Ref<readonly FileListItem[]>>, // 使用 Readonly 类型
-    refreshDirectory: () => void, // 上传成功后刷新目录的回调函数
+    // refreshDirectory: () => void, // 不再需要此回调
     // sessionId: string, // 不再需要，因为 wsDeps 包含了会话上下文
     // dbConnectionId: string, // 不再需要
     wsDeps: WebSocketDependencies // 注入 WebSocket 依赖项
@@ -204,8 +204,8 @@ export function useFileUploader(
             upload.status = 'success';
             upload.progress = 100;
 
-            // 使用回调刷新目录
-            refreshDirectory();
+            // 不再调用 refreshDirectory()，由 useSftpActions 处理列表更新
+            // refreshDirectory();
 
             // 延迟后从列表中移除
             setTimeout(() => {
