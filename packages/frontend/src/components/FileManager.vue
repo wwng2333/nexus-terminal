@@ -130,6 +130,7 @@ const isFetchingInitialPath = ref(false);
 const isEditingPath = ref(false);
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
+const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for context menu element
 
 // --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
@@ -226,31 +227,49 @@ const showContextMenu = (event: MouseEvent, item?: FileListItem) => {
 
     contextMenuItems.value = menu;
 
-    // Calculate initial position
-    let posX = event.clientX;
-    let posY = event.clientY;
+    // Set initial position based on click event
+    contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+    contextMenuVisible.value = true; // Make menu visible so we can measure it
 
-    // Estimate menu dimensions
-    const estimatedMenuWidth = 180;
-    const estimatedMenuHeight = contextMenuItems.value.length * 35; // Estimate height based on items
-
-    // Adjust position if menu would go off-screen
-    if (posX + estimatedMenuWidth > window.innerWidth) {
-        posX = window.innerWidth - estimatedMenuWidth - 5;
-    }
-    if (posY + estimatedMenuHeight > window.innerHeight) {
-        posY = window.innerHeight - estimatedMenuHeight - 5;
-    }
-    posX = Math.max(0, posX);
-    posY = Math.max(0, posY);
-
-    contextMenuPosition.value = { x: posX, y: posY };
-    contextMenuVisible.value = true;
-
-    // Add global listener to hide menu
+    // Use nextTick to allow the DOM to update and the menu to render
     nextTick(() => {
-        document.removeEventListener('click', hideContextMenu, { capture: true });
-        document.addEventListener('click', hideContextMenu, { capture: true, once: true });
+        if (contextMenuRef.value && contextMenuVisible.value) {
+            const menuElement = contextMenuRef.value;
+            const menuRect = menuElement.getBoundingClientRect(); // Get actual dimensions and position
+            const menuWidth = menuRect.width;
+            const menuHeight = menuRect.height;
+
+            let finalX = contextMenuPosition.value.x;
+            let finalY = contextMenuPosition.value.y;
+
+            // Adjust horizontally if needed
+            if (finalX + menuWidth > window.innerWidth) {
+                finalX = window.innerWidth - menuWidth - 5; // Adjust left
+            }
+
+            // Adjust vertically if needed (using actual height)
+            if (finalY + menuHeight > window.innerHeight) {
+                finalY = window.innerHeight - menuHeight - 5; // Adjust up
+            }
+
+            // Ensure menu doesn't go off-screen top or left
+            finalX = Math.max(5, finalX); // Add small margin from left edge
+            finalY = Math.max(5, finalY); // Add small margin from top edge
+
+            // Update the position state if adjustments were made
+            if (finalX !== contextMenuPosition.value.x || finalY !== contextMenuPosition.value.y) {
+                 console.log(`[FileManager ${props.sessionId}] Adjusting context menu position: (${contextMenuPosition.value.x}, ${contextMenuPosition.value.y}) -> (${finalX}, ${finalY})`);
+                 contextMenuPosition.value = { x: finalX, y: finalY };
+            }
+
+            // Add global listener to hide menu *after* positioning
+            document.removeEventListener('click', hideContextMenu, { capture: true });
+            document.addEventListener('click', hideContextMenu, { capture: true, once: true });
+        } else {
+             // Fallback listener if measurement fails
+             document.removeEventListener('click', hideContextMenu, { capture: true });
+             document.addEventListener('click', hideContextMenu, { capture: true, once: true });
+        }
     });
 };
 
@@ -811,10 +830,11 @@ const cancelPathEdit = () => {
      <!-- 使用 FileUploadPopup 组件 -->
      <FileUploadPopup :uploads="uploads" @cancel-upload="cancelUpload" />
 
-    <div v-if="contextMenuVisible"
+    <div ref="contextMenuRef"
+         v-if="contextMenuVisible"
          class="context-menu"
          :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
-         @click.stop>
+         @click.stop> <!-- Keep @click.stop to prevent clicks inside menu from closing it immediately -->
       <ul>
         <li v-for="(menuItem, index) in contextMenuItems"
             :key="index"
