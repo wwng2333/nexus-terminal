@@ -1384,7 +1384,7 @@ const handleWheel = (event: WheelEvent) => {
     position: relative; /* Needed for overlay */
     /* 定义基础变量 */
     --base-font-size: 0.9rem;
-    --base-padding-vertical: 0.6rem;
+    --base-padding-vertical: 0.4rem; /* 减小基础垂直 padding */
     --base-padding-horizontal: 0.8rem;
     --base-icon-size: 1.1em; /* 相对于 base-font-size */
 }
@@ -1431,7 +1431,9 @@ th, td {
     overflow: hidden;
     text-overflow: ellipsis;
     vertical-align: middle; /* Align content vertically */
-    font-size: calc(var(--base-font-size) * var(--row-size-multiplier)); /* 使用变量调整字体大小 */
+    /* 调整字体大小缩放，使其变化不那么剧烈，并设置下限 (例如 0.85 * base) */
+    font-size: calc(var(--base-font-size) * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5)); /* 示例：缩放幅度减半，最低 85% */
+    padding: calc(var(--base-padding-vertical) * var(--row-size-multiplier)) calc(var(--base-padding-horizontal) * var(--row-size-multiplier)); /* padding 正常缩放 */
     /* 移除过渡效果以优化性能 */
     /* transition: font-size 0.1s ease, padding 0.1s ease; */
 }
@@ -1452,7 +1454,8 @@ td:first-child {
   padding-right: calc(0.5rem * var(--row-size-multiplier)); /* 使用变量调整 padding */
 }
 td:first-child .file-icon { /* 文件类型图标颜色 */
-    font-size: calc(var(--base-icon-size) * var(--row-size-multiplier)); /* 使用变量调整图标大小 */
+    /* 图标大小与字体大小保持类似缩放逻辑 */
+    font-size: calc(var(--base-icon-size) * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5));
     color: var(--button-bg-color); /* 默认使用按钮背景色 */
     /* 移除字体大小过渡 */
     transition: color 0.15s ease; /* 只保留颜色过渡 */
@@ -1497,8 +1500,8 @@ td:nth-child(3), /* Size */
 td:nth-child(4), /* Permissions */
 td:nth-child(5) { /* Modified */
     color: var(--text-color-secondary); /* Dim metadata */
-    /* 相对基础字体大小再小一点 */
-    font-size: calc(var(--base-font-size) * 0.9 * var(--row-size-multiplier));
+    /* 元数据字体大小也应用类似缩放逻辑 */
+    font-size: calc(var(--base-font-size) * 0.9 * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5));
 }
 
 .context-menu { position: fixed; background-color: var(--app-bg-color); border: 1px solid var(--border-color); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; border-radius: 4px; } /* Add radius */
