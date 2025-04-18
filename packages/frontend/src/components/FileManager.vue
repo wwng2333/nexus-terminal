@@ -137,6 +137,8 @@ const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for cont
 const draggedItem = ref<FileListItem | null>(null); // 新增：存储被拖拽的项
 const dragOverTarget = ref<string | null>(null); // 新增：存储当前拖拽悬停的目标文件夹名称
 
+const rowSizeMultiplier = ref(1); // 新增：行大小（字体）乘数
+
 // --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
 const colWidths = ref({
@@ -939,6 +941,18 @@ const cancelSearch = () => {
     isSearchActive.value = false;
 };
 
+// --- 行大小调整逻辑 ---
+const handleWheel = (event: WheelEvent) => {
+    if (event.ctrlKey) {
+        event.preventDefault(); // 阻止页面默认滚动行为
+        const delta = event.deltaY > 0 ? -0.05 : 0.05; // 滚轮向下减小，向上增大
+        // 限制字体大小乘数在 0.5 到 2 之间
+        const newMultiplier = Math.max(0.5, Math.min(2, rowSizeMultiplier.value + delta));
+        rowSizeMultiplier.value = parseFloat(newMultiplier.toFixed(2)); // 保留两位小数避免浮点数问题
+        // console.log(`Row size multiplier: ${rowSizeMultiplier.value}`); // 调试日志
+    }
+};
+
 </script>
 
 <template>
@@ -1012,6 +1026,8 @@ const cancelSearch = () => {
       @dragover.prevent="handleDragOver"
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
+      @wheel="handleWheel"
+      :style="{ '--row-size-multiplier': rowSizeMultiplier }"
     >
         <!-- Error display is handled globally by UINotificationDisplay -->
 
@@ -1362,7 +1378,16 @@ const cancelSearch = () => {
 /* 移除 .error-alert 和 .close-error-btn 样式 */
 /* .error-alert { ... } */
 /* .close-error-btn { ... } */
-.file-list-container { flex-grow: 1; overflow-y: auto; position: relative; /* Needed for overlay */ }
+.file-list-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    position: relative; /* Needed for overlay */
+    /* 定义基础变量 */
+    --base-font-size: 0.9rem;
+    --base-padding-vertical: 0.6rem;
+    --base-padding-horizontal: 0.8rem;
+    --base-icon-size: 1.1em; /* 相对于 base-font-size */
+}
 .file-list-container.drag-over {
   outline: 2px dashed #007bff; /* Blue dashed outline */
   outline-offset: -2px; /* Offset inside */
@@ -1400,32 +1425,37 @@ thead {
 th, td {
     /* border: 1px solid var(--border-color); */ /* Remove individual cell borders */
     border-bottom: 1px solid var(--border-color); /* Use bottom border for separation */
-    padding: 0.6rem 0.8rem; /* Increase padding for more space */
+    padding: calc(var(--base-padding-vertical) * var(--row-size-multiplier)) calc(var(--base-padding-horizontal) * var(--row-size-multiplier)); /* 使用变量调整 padding */
     text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     vertical-align: middle; /* Align content vertically */
+    font-size: calc(var(--base-font-size) * var(--row-size-multiplier)); /* 使用变量调整字体大小 */
+    /* 移除过渡效果以优化性能 */
+    /* transition: font-size 0.1s ease, padding 0.1s ease; */
 }
 th {
     position: relative;
     font-weight: 500; /* Slightly lighter header weight */
     color: var(--text-color-secondary); /* Use secondary color for header text */
     text-transform: uppercase; /* Uppercase headers */
-    font-size: 0.9em; /* Adjusted header font size */
+    /* font-size 继承自 th, td */
     border-bottom-width: 2px; /* Thicker bottom border for header */
 }
 th.sortable { cursor: pointer; }
 th.sortable:hover { background-color: var(--header-bg-color); filter: brightness(0.95); }
 td:first-child {
   text-align: center;
-  font-size: 1.1em; /* Slightly larger icon */
-  padding-left: 1rem; /* More padding for icon */
-  padding-right: 0.5rem;
+  /* font-size 继承自 th, td */
+  padding-left: calc(1rem * var(--row-size-multiplier)); /* 使用变量调整 padding */
+  padding-right: calc(0.5rem * var(--row-size-multiplier)); /* 使用变量调整 padding */
 }
 td:first-child .file-icon { /* 文件类型图标颜色 */
+    font-size: calc(var(--base-icon-size) * var(--row-size-multiplier)); /* 使用变量调整图标大小 */
     color: var(--button-bg-color); /* 默认使用按钮背景色 */
-    transition: color 0.15s ease; /* 添加过渡 */
+    /* 移除字体大小过渡 */
+    transition: color 0.15s ease; /* 只保留颜色过渡 */
 }
 tbody tr.selected td:first-child .file-icon { /* 选中行图标颜色 */
     color: var(--button-text-color); /* 选中时使用按钮文字颜色 */
@@ -1467,7 +1497,8 @@ td:nth-child(3), /* Size */
 td:nth-child(4), /* Permissions */
 td:nth-child(5) { /* Modified */
     color: var(--text-color-secondary); /* Dim metadata */
-    font-size: 0.85em; /* Smaller metadata font */
+    /* 相对基础字体大小再小一点 */
+    font-size: calc(var(--base-font-size) * 0.9 * var(--row-size-multiplier));
 }
 
 .context-menu { position: fixed; background-color: var(--app-bg-color); border: 1px solid var(--border-color); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; border-radius: 4px; } /* Add radius */
