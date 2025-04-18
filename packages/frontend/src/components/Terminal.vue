@@ -70,6 +70,17 @@ const fitAndEmitResizeNow = (term: Terminal) => {
     }
 };
 
+// 创建防抖版的字体大小保存函数
+const debouncedSetTerminalFontSize = debounce(async (size: number) => {
+    try {
+        await appearanceStore.setTerminalFontSize(size);
+        console.log(`[Terminal ${props.sessionId}] Debounced font size saved: ${size}`);
+    } catch (error) {
+        console.error(`[Terminal ${props.sessionId}] Debounced font size save failed:`, error);
+        // Optionally show an error to the user
+    }
+}, 500); // 500ms 防抖延迟，可以调整
+
 // 初始化终端
 onMounted(() => {
   if (terminalRef.value) {
@@ -262,10 +273,14 @@ onMounted(() => {
               // 向下滚动，减小字体
               newSize = Math.max((terminal.options.fontSize ?? currentTerminalFontSize.value) - 1, 8); // 使用当前实例值或 store 值作为基础
             }
+            // 立即更新视觉效果
             terminal.options.fontSize = newSize;
-            // 调整终端大小以适应新的字体大小
             fitAddon?.fit();
-            emit('resize', { cols: terminal.cols, rows: terminal.rows });
+            // 注意：fit() 内部可能不会触发 resize 事件，如果需要精确通知后端，可能需要额外处理，但 fitAndEmitResizeNow 应该足够
+            // emit('resize', { cols: terminal.cols, rows: terminal.rows }); // 避免重复发送 resize
+
+            // 调用防抖函数来保存设置
+            debouncedSetTerminalFontSize(newSize);
           }
         }
       });
