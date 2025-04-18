@@ -752,13 +752,8 @@ const cancelPathEdit = () => {
     >
         <!-- Error display is handled globally by UINotificationDisplay -->
 
-        <!-- 1. Loading Indicator -->
-        <div v-if="isLoading" class="loading">{{ t('fileManager.loading') }}</div>
-
-        <!-- 2. Content when not loading -->
-        <template v-else>
-          <!-- File Table (Show if list has items OR not at root to show '..') -->
-          <table v-if="sortedFileList.length > 0 || currentPath !== '/'" ref="tableRef" class="resizable-table" @contextmenu.prevent>
+        <!-- File Table -->
+        <table ref="tableRef" class="resizable-table" @contextmenu.prevent>
             <colgroup>
                  <col :style="{ width: `${colWidths.type}px` }">
                 <col :style="{ width: `${colWidths.name}px` }">
@@ -766,7 +761,7 @@ const cancelPathEdit = () => {
                 <col :style="{ width: `${colWidths.permissions}px` }">
                 <col :style="{ width: `${colWidths.modified}px` }">
            </colgroup>
-          <thead>
+          <thead> <!-- Header is always visible -->
             <tr>
               <!-- Remove width style from th, controlled by colgroup -->
               <th @click="handleSort('type')" class="sortable">
@@ -794,7 +789,23 @@ const cancelPathEdit = () => {
               </th>
             </tr>
           </thead>
-          <tbody @contextmenu.prevent="showContextMenu($event)">
+
+          <!-- Loading State -->
+          <tbody v-if="isLoading">
+              <tr>
+                  <td :colspan="5" class="loading">{{ t('fileManager.loading') }}</td> <!-- Span across all columns -->
+              </tr>
+          </tbody>
+
+          <!-- Empty Directory State (Root Only) -->
+          <tbody v-else-if="sortedFileList.length === 0 && currentPath === '/'">
+               <tr>
+                   <td :colspan="5" class="no-files">{{ t('fileManager.emptyDirectory') }}</td> <!-- Span across all columns -->
+               </tr>
+          </tbody>
+
+          <!-- File List State -->
+          <tbody v-else @contextmenu.prevent="showContextMenu($event)">
             <!-- '..' 条目 -->
             <tr v-if="currentPath !== '/'"
                 class="clickable"
@@ -804,6 +815,7 @@ const cancelPathEdit = () => {
               <td>..</td>
               <td></td><td></td><td></td>
             </tr>
+            <!-- File Entries -->
             <tr v-for="(item, index) in sortedFileList"
                 :key="item.filename"
                 @click="handleItemClick($event, item)"
@@ -819,12 +831,7 @@ const cancelPathEdit = () => {
             </tr>
           </tbody>
         </table>
-
-        <!-- 4. Empty Directory Message (Show if not initial loading, no error, list is empty, and at root) -->
-         <!-- Empty Directory Message (Show only if at root AND list is empty) -->
-         <div v-else-if="currentPath === '/'" class="no-files">{{ t('fileManager.emptyDirectory') }}</div>
-         <!-- Note: The table above handles the case where the directory is not root but empty (shows '..') -->
-        </template> <!-- Add missing end tag for v-else template -->
+        <!-- Removed separate loading/empty divs -->
      </div>
 
      <!-- 使用 FileUploadPopup 组件 -->
