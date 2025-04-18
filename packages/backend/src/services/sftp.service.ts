@@ -240,8 +240,27 @@ export class SftpService {
             // Listen for the 'close' event which indicates the stream has finished writing and the file descriptor is closed.
             writeStream.on('close', () => {
                 if (!errorOccurred) {
-                    console.log(`[SFTP ${sessionId}] writefile ${path} stream closed successfully (ID: ${requestId})`);
-                    state.ws.send(JSON.stringify({ type: 'sftp:writefile:success', path: path, requestId: requestId }));
+                    console.log(`[SFTP ${sessionId}] writefile ${path} stream closed successfully (ID: ${requestId}). Fetching updated stats...`);
+                    // Get updated stats after writing
+                    state.sftp!.lstat(path, (statErr, stats) => {
+                        if (statErr) {
+                            console.error(`[SFTP ${sessionId}] lstat after writefile ${path} failed (ID: ${requestId}):`, statErr);
+                            // Send success anyway, but without updated item details
+                            state.ws.send(JSON.stringify({ type: 'sftp:writefile:success', path: path, payload: null, requestId: requestId }));
+                        } else {
+                            const updatedItem = {
+                                filename: path.substring(path.lastIndexOf('/') + 1),
+                                longname: '', // lstat doesn't provide longname
+                                attrs: {
+                                    size: stats.size, uid: stats.uid, gid: stats.gid, mode: stats.mode,
+                                    atime: stats.atime * 1000, mtime: stats.mtime * 1000,
+                                    isDirectory: stats.isDirectory(), isFile: stats.isFile(), isSymbolicLink: stats.isSymbolicLink(),
+                                }
+                            };
+                            console.log(`[SFTP ${sessionId}] Sending writefile success with updated item for ${path} (ID: ${requestId})`);
+                            state.ws.send(JSON.stringify({ type: 'sftp:writefile:success', path: path, payload: updatedItem, requestId: requestId }));
+                        }
+                    });
                 }
             });
 
@@ -272,8 +291,27 @@ export class SftpService {
                     console.error(`[SFTP ${sessionId}] mkdir ${path} failed (ID: ${requestId}):`, err);
                     state.ws.send(JSON.stringify({ type: 'sftp:mkdir:error', path: path, payload: `创建目录失败: ${err.message}`, requestId: requestId }));
                 } else {
-                    console.log(`[SFTP ${sessionId}] mkdir ${path} success (ID: ${requestId})`);
-                    state.ws.send(JSON.stringify({ type: 'sftp:mkdir:success', path: path, requestId: requestId })); // Send specific success type
+                    console.log(`[SFTP ${sessionId}] mkdir ${path} success (ID: ${requestId}). Fetching stats...`);
+                    // Get stats for the new directory
+                    state.sftp!.lstat(path, (statErr, stats) => {
+                         if (statErr) {
+                            console.error(`[SFTP ${sessionId}] lstat after mkdir ${path} failed (ID: ${requestId}):`, statErr);
+                            // Send success anyway, but without item details
+                            state.ws.send(JSON.stringify({ type: 'sftp:mkdir:success', path: path, payload: null, requestId: requestId }));
+                         } else {
+                            const newItem = {
+                                filename: path.substring(path.lastIndexOf('/') + 1),
+                                longname: '', // lstat doesn't provide longname
+                                attrs: {
+                                    size: stats.size, uid: stats.uid, gid: stats.gid, mode: stats.mode,
+                                    atime: stats.atime * 1000, mtime: stats.mtime * 1000,
+                                    isDirectory: stats.isDirectory(), isFile: stats.isFile(), isSymbolicLink: stats.isSymbolicLink(),
+                                }
+                            };
+                            console.log(`[SFTP ${sessionId}] Sending mkdir success with new item for ${path} (ID: ${requestId})`);
+                            state.ws.send(JSON.stringify({ type: 'sftp:mkdir:success', path: path, payload: newItem, requestId: requestId }));
+                         }
+                    });
                 }
             });
         } catch (error: any) {
@@ -372,8 +410,27 @@ export class SftpService {
                     console.error(`[SFTP ${sessionId}] rename ${oldPath} -> ${newPath} failed (ID: ${requestId}):`, err);
                     state.ws.send(JSON.stringify({ type: 'sftp:rename:error', oldPath: oldPath, newPath: newPath, payload: `重命名/移动失败: ${err.message}`, requestId: requestId }));
                 } else {
-                    console.log(`[SFTP ${sessionId}] rename ${oldPath} -> ${newPath} success (ID: ${requestId})`);
-                    state.ws.send(JSON.stringify({ type: 'sftp:rename:success', oldPath: oldPath, newPath: newPath, requestId: requestId })); // Send specific success type
+                    console.log(`[SFTP ${sessionId}] rename ${oldPath} -> ${newPath} success (ID: ${requestId}). Fetching stats for new path...`);
+                    // Get stats for the new path
+                    state.sftp!.lstat(newPath, (statErr, stats) => {
+                        if (statErr) {
+                            console.error(`[SFTP ${sessionId}] lstat after rename ${newPath} failed (ID: ${requestId}):`, statErr);
+                            // Send success anyway, but without item details
+                            state.ws.send(JSON.stringify({ type: 'sftp:rename:success', payload: { oldPath: oldPath, newPath: newPath, newItem: null }, requestId: requestId }));
+                        } else {
+                            const newItem = {
+                                filename: newPath.substring(newPath.lastIndexOf('/') + 1),
+                                longname: '', // lstat doesn't provide longname
+                                attrs: {
+                                    size: stats.size, uid: stats.uid, gid: stats.gid, mode: stats.mode,
+                                    atime: stats.atime * 1000, mtime: stats.mtime * 1000,
+                                    isDirectory: stats.isDirectory(), isFile: stats.isFile(), isSymbolicLink: stats.isSymbolicLink(),
+                                }
+                            };
+                            console.log(`[SFTP ${sessionId}] Sending rename success with new item for ${newPath} (ID: ${requestId})`);
+                            state.ws.send(JSON.stringify({ type: 'sftp:rename:success', payload: { oldPath: oldPath, newPath: newPath, newItem: newItem }, requestId: requestId }));
+                        }
+                    });
                 }
             });
         } catch (error: any) {
@@ -397,8 +454,27 @@ export class SftpService {
                     console.error(`[SFTP ${sessionId}] chmod ${path} to ${mode.toString(8)} failed (ID: ${requestId}):`, err);
                     state.ws.send(JSON.stringify({ type: 'sftp:chmod:error', path: path, payload: `修改权限失败: ${err.message}`, requestId: requestId }));
                 } else {
-                    console.log(`[SFTP ${sessionId}] chmod ${path} to ${mode.toString(8)} success (ID: ${requestId})`);
-                    state.ws.send(JSON.stringify({ type: 'sftp:chmod:success', path: path, requestId: requestId })); // Send specific success type
+                    console.log(`[SFTP ${sessionId}] chmod ${path} to ${mode.toString(8)} success (ID: ${requestId}). Fetching updated stats...`);
+                    // Get updated stats after chmod
+                    state.sftp!.lstat(path, (statErr, stats) => {
+                        if (statErr) {
+                            console.error(`[SFTP ${sessionId}] lstat after chmod ${path} failed (ID: ${requestId}):`, statErr);
+                            // Send success anyway, but without updated item details
+                            state.ws.send(JSON.stringify({ type: 'sftp:chmod:success', path: path, payload: null, requestId: requestId }));
+                        } else {
+                            const updatedItem = {
+                                filename: path.substring(path.lastIndexOf('/') + 1),
+                                longname: '', // lstat doesn't provide longname
+                                attrs: {
+                                    size: stats.size, uid: stats.uid, gid: stats.gid, mode: stats.mode,
+                                    atime: stats.atime * 1000, mtime: stats.mtime * 1000,
+                                    isDirectory: stats.isDirectory(), isFile: stats.isFile(), isSymbolicLink: stats.isSymbolicLink(),
+                                }
+                            };
+                            console.log(`[SFTP ${sessionId}] Sending chmod success with updated item for ${path} (ID: ${requestId})`);
+                            state.ws.send(JSON.stringify({ type: 'sftp:chmod:success', path: path, payload: updatedItem, requestId: requestId }));
+                        }
+                    });
                 }
             });
         } catch (error: any) {

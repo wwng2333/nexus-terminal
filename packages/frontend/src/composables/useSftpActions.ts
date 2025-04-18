@@ -58,6 +58,10 @@ export function createSftpActionsManager(
     // 用于存储注销函数的数组
     const unregisterCallbacks: (() => void)[] = [];
 
+    // *** 新增：缓存定义 ***
+    const directoryCache = new Map<string, { list: FileListItem[], timestamp: number }>();
+    const CACHE_EXPIRY_MS = 5000; // 缓存 5 秒
+
     // 清理函数，用于注销所有消息处理器
     const cleanup = () => {
         console.log(`[SFTP ${instanceSessionId}] Cleaning up message handlers.`);
@@ -71,18 +75,28 @@ export function createSftpActionsManager(
     // --- Action Methods ---
 
     const loadDirectory = (path: string) => {
+        // *** 新增：检查缓存 ***
+        const cachedData = directoryCache.get(path);
+        const now = Date.now();
+        if (cachedData && (now - cachedData.timestamp < CACHE_EXPIRY_MS)) {
+            console.log(`[SFTP ${instanceSessionId}] 使用缓存加载目录: ${path}`);
+            fileList.value = cachedData.list; // 直接使用缓存数据
+            isLoading.value = false;
+            currentPathRef.value = path; // 确保当前路径更新
+            return; // 从缓存加载，不再发送请求
+        }
+
         if (!isSftpReady.value) {
             // 使用通知 store 显示错误
-            // *** 新增：如果已经在加载，则阻止新的加载请求 ***
-            if (isLoading.value) {
-                console.warn(`[SFTP ${instanceSessionId}] 尝试加载目录 ${path} 但已在加载中。`);
-                return;
-            }
-
             uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
             isLoading.value = false;
-            fileList.value = [];
+            fileList.value = []; // 清空列表，因为 SFTP 未就绪
             console.warn(`[SFTP ${instanceSessionId}] 尝试加载目录 ${path} 但 SFTP 未就绪。`); // 日志改为中文
+            return;
+        }
+        // *** 新增：如果已经在加载，则阻止新的加载请求 ***
+        if (isLoading.value) {
+            console.warn(`[SFTP ${instanceSessionId}] 尝试加载目录 ${path} 但已在加载中。`);
             return;
         }
 
@@ -266,12 +280,54 @@ export function createSftpActionsManager(
         // 类型断言，因为我们知道 readdir:success 的 payload 是 FileListItem[]
         const fileListPayload = payload as FileListItem[];
         if (message.path === currentPathRef.value) {
-            console.log(`[SFTP ${instanceSessionId}] 收到目录 ${message.path} 的文件列表`); // 日志改为中文
-            fileList.value = fileListPayload.sort(sortFiles);
+            console.log(`[SFTP ${instanceSessionId}] 收到目录 ${message.path} 的文件列表`);
+            const newList = fileListPayload.sort(sortFiles); // 先排序
+
+            // *** 新增：更新缓存 ***
+            directoryCache.set(message.path, { list: newList, timestamp: Date.now() });
+
+            // *** 新增：增量更新逻辑 ***
+            const oldList = fileList.value; // 当前显示的列表
+            const newListMap = new Map(newList.map(item => [item.filename, item]));
+            const oldListMap = new Map(oldList.map(item => [item.filename, item]));
+
+            // 1. 找出需要删除的项
+            const itemsToRemove: number[] = []; // 存储要删除的索引
+            for (let i = oldList.length - 1; i >= 0; i--) {
+                if (!newListMap.has(oldList[i].filename)) {
+                    itemsToRemove.push(i);
+                }
+            }
+            // 从后往前删除，避免索引错乱
+            itemsToRemove.forEach(index => oldList.splice(index, 1));
+
+            // 2. 找出需要更新和添加的项
+            for (let i = 0; i < newList.length; i++) {
+                const newItem = newList[i];
+                const oldItem = oldListMap.get(newItem.filename);
+
+                if (oldItem) {
+                    // 更新现有项 (比较关键属性，避免不必要的更新)
+                    const oldIndex = oldList.findIndex(item => item.filename === newItem.filename);
+                    // 简单比较 attrs 的 JSON 字符串，如果不同则更新
+                    if (oldIndex !== -1 && JSON.stringify(oldList[oldIndex].attrs) !== JSON.stringify(newItem.attrs)) {
+                         oldList.splice(oldIndex, 1, newItem); // 使用 splice 替换，确保响应性
+                         console.log(`[SFTP ${instanceSessionId}] 更新文件: ${newItem.filename}`);
+                    }
+                } else {
+                    // 添加新项 (找到合适的插入位置以保持排序)
+                    let insertIndex = 0;
+                    while (insertIndex < oldList.length && sortFiles(newItem, oldList[insertIndex]) > 0) {
+                        insertIndex++;
+                    }
+                    oldList.splice(insertIndex, 0, newItem);
+                    console.log(`[SFTP ${instanceSessionId}] 添加文件: ${newItem.filename}`);
+                }
+            }
+
             isLoading.value = false;
-            // error.value = null; // 不再需要
         } else {
-             console.log(`[SFTP ${instanceSessionId}] 忽略目录 ${message.path} 的 readdir 成功消息 (当前: ${currentPathRef.value})`); // 日志改为中文
+             console.log(`[SFTP ${instanceSessionId}] 忽略目录 ${message.path} 的 readdir 成功消息 (当前: ${currentPathRef.value})`);
         }
     };
 
@@ -286,11 +342,190 @@ export function createSftpActionsManager(
         }
     };
 
-    const onActionSuccessRefresh = (payload: MessagePayload, message: WebSocketMessage) => {
-        console.log(`[SFTP ${instanceSessionId}] 操作 ${message.type} 成功。正在刷新当前目录: ${currentPathRef.value}`); // 日志改为中文
-        loadDirectory(currentPathRef.value);
-        // error.value = null; // 不再需要
+    // 移除通用的 onActionSuccessRefresh
+
+    // *** 新增：具体操作成功后的处理函数 ***
+
+    // 使缓存失效的辅助函数
+    const invalidateCache = (path: string) => {
+        if (directoryCache.has(path)) {
+            directoryCache.delete(path);
+            console.log(`[SFTP ${instanceSessionId}] 目录缓存已失效: ${path}`);
+        }
     };
+
+    // 处理创建目录成功
+    const onMkdirSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        const newItem = payload as FileListItem | null; // 后端现在会发送 FileListItem 或 null
+        const parentPath = message.path?.substring(0, message.path.lastIndexOf('/')) || '/';
+
+        console.log(`[SFTP ${instanceSessionId}] 创建目录成功: ${message.path}`);
+
+        if (parentPath === currentPathRef.value) {
+            if (newItem) {
+                // 将新项插入排序列表
+                let insertIndex = 0;
+                while (insertIndex < fileList.value.length && sortFiles(newItem, fileList.value[insertIndex]) > 0) {
+                    insertIndex++;
+                }
+                fileList.value.splice(insertIndex, 0, newItem);
+                console.log(`[SFTP ${instanceSessionId}] 直接添加新目录到列表: ${newItem.filename}`);
+                // 更新缓存
+                directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
+            } else {
+                // 如果后端未能提供新项信息，则刷新
+                console.warn(`[SFTP ${instanceSessionId}] Mkdir success for ${message.path} but no item details received. Reloading.`);
+                invalidateCache(currentPathRef.value);
+                loadDirectory(currentPathRef.value);
+            }
+        } else {
+            // 如果创建在其他目录，只需使那个目录的缓存失效
+            invalidateCache(parentPath);
+        }
+    };
+
+    // 处理删除目录/文件成功
+    const onRemoveSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        const removedPath = message.path;
+        const parentPath = removedPath?.substring(0, removedPath.lastIndexOf('/')) || '/';
+        const removedFilename = removedPath?.substring(removedPath.lastIndexOf('/') + 1);
+
+        console.log(`[SFTP ${instanceSessionId}] 删除成功: ${removedPath}`);
+        if (parentPath === currentPathRef.value && removedFilename) {
+            const index = fileList.value.findIndex(item => item.filename === removedFilename);
+            if (index !== -1) {
+                fileList.value.splice(index, 1);
+                console.log(`[SFTP ${instanceSessionId}] 从列表中移除: ${removedFilename}`);
+            }
+            invalidateCache(currentPathRef.value); // 使当前目录缓存失效
+        } else {
+            // 如果删除的是其他目录的内容，只需使那个目录的缓存失效
+            invalidateCache(parentPath);
+        }
+    };
+
+    // 处理重命名成功
+    const onRenameSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        // 后端现在发送 { oldPath: string, newPath: string, newItem: FileListItem | null }
+        const renamePayload = payload as { oldPath: string, newPath: string, newItem: FileListItem | null };
+        const oldParentPath = renamePayload.oldPath.substring(0, renamePayload.oldPath.lastIndexOf('/')) || '/';
+        const newParentPath = renamePayload.newPath.substring(0, renamePayload.newPath.lastIndexOf('/')) || '/';
+        const oldFilename = renamePayload.oldPath.substring(renamePayload.oldPath.lastIndexOf('/') + 1);
+        const newItem = renamePayload.newItem;
+
+        console.log(`[SFTP ${instanceSessionId}] 重命名成功: ${renamePayload.oldPath} -> ${renamePayload.newPath}`);
+
+        if (oldParentPath === currentPathRef.value && newParentPath === currentPathRef.value) {
+            const oldIndex = fileList.value.findIndex(item => item.filename === oldFilename);
+            if (oldIndex !== -1) {
+                fileList.value.splice(oldIndex, 1); // 先移除旧项
+                if (newItem) {
+                    // 插入新项到正确位置
+                    let insertIndex = 0;
+                    while (insertIndex < fileList.value.length && sortFiles(newItem, fileList.value[insertIndex]) > 0) {
+                        insertIndex++;
+                    }
+                    fileList.value.splice(insertIndex, 0, newItem);
+                    console.log(`[SFTP ${instanceSessionId}] 直接更新重命名项: ${oldFilename} -> ${newItem.filename}`);
+                    // 更新缓存
+                    directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
+                } else {
+                    // 如果后端未能提供新项信息，则刷新
+                    console.warn(`[SFTP ${instanceSessionId}] Rename success for ${renamePayload.newPath} but no item details received. Reloading.`);
+                    invalidateCache(currentPathRef.value);
+                    loadDirectory(currentPathRef.value);
+                }
+            } else {
+                 // 旧文件不在当前列表，可能列表已过时，刷新
+                 console.warn(`[SFTP ${instanceSessionId}] Rename success but old item ${oldFilename} not found in list. Reloading.`);
+                 invalidateCache(currentPathRef.value);
+                 loadDirectory(currentPathRef.value);
+            }
+        } else {
+            // 如果涉及不同目录，使两个目录的缓存都失效
+            invalidateCache(oldParentPath);
+            invalidateCache(newParentPath);
+            // 如果当前目录是其中之一，则刷新
+            if (currentPathRef.value === oldParentPath || currentPathRef.value === newParentPath) {
+                loadDirectory(currentPathRef.value);
+            }
+        }
+    };
+
+     // 处理修改权限成功
+    const onChmodSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        const updatedItem = payload as FileListItem | null; // 后端现在会发送 FileListItem 或 null
+        const targetPath = message.path;
+        const parentPath = targetPath?.substring(0, targetPath.lastIndexOf('/')) || '/';
+        const filename = targetPath?.substring(targetPath.lastIndexOf('/') + 1);
+
+        console.log(`[SFTP ${instanceSessionId}] 修改权限成功: ${targetPath}`);
+
+        if (parentPath === currentPathRef.value && filename) {
+            if (updatedItem) {
+                const index = fileList.value.findIndex(item => item.filename === filename);
+                if (index !== -1) {
+                    fileList.value.splice(index, 1, updatedItem); // 使用 splice 替换以确保响应性
+                    console.log(`[SFTP ${instanceSessionId}] 直接更新权限: ${filename}`);
+                    // 更新缓存
+                    directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
+                } else {
+                    // 文件不在列表，可能列表已过时，刷新
+                    console.warn(`[SFTP ${instanceSessionId}] Chmod success but item ${filename} not found in list. Reloading.`);
+                    invalidateCache(currentPathRef.value);
+                    loadDirectory(currentPathRef.value);
+                }
+            } else {
+                 // 如果后端未能提供更新信息，则刷新
+                 console.warn(`[SFTP ${instanceSessionId}] Chmod success for ${targetPath} but no item details received. Reloading.`);
+                 invalidateCache(currentPathRef.value);
+                 loadDirectory(currentPathRef.value);
+            }
+        } else {
+            // 如果修改的是其他目录的内容，只需使那个目录的缓存失效
+            invalidateCache(parentPath);
+        }
+    };
+
+    // 处理写入文件成功 (新建或修改)
+    const onWriteFileSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        const updatedItem = payload as FileListItem | null; // 后端现在会发送 FileListItem 或 null
+        const filePath = message.path;
+        const parentPath = filePath?.substring(0, filePath.lastIndexOf('/')) || '/';
+        const filename = filePath?.substring(filePath.lastIndexOf('/') + 1);
+
+        console.log(`[SFTP ${instanceSessionId}] 写入文件成功: ${filePath}`);
+
+        if (parentPath === currentPathRef.value && filename) {
+            if (updatedItem) {
+                const index = fileList.value.findIndex(item => item.filename === filename);
+                if (index !== -1) {
+                    // 文件已存在，替换
+                    fileList.value.splice(index, 1, updatedItem);
+                    console.log(`[SFTP ${instanceSessionId}] 直接更新文件信息: ${filename}`);
+                } else {
+                    // 文件是新建的，插入
+                    let insertIndex = 0;
+                    while (insertIndex < fileList.value.length && sortFiles(updatedItem, fileList.value[insertIndex]) > 0) {
+                        insertIndex++;
+                    }
+                    fileList.value.splice(insertIndex, 0, updatedItem);
+                    console.log(`[SFTP ${instanceSessionId}] 直接添加新文件到列表: ${filename}`);
+                }
+                // 更新缓存
+                directoryCache.set(currentPathRef.value, { list: [...fileList.value], timestamp: Date.now() });
+            } else {
+                 // 如果后端未能提供更新信息，则刷新
+                 console.warn(`[SFTP ${instanceSessionId}] WriteFile success for ${filePath} but no item details received. Reloading.`);
+                 invalidateCache(currentPathRef.value);
+                 loadDirectory(currentPathRef.value);
+            }
+        } else {
+            // 如果写入的是其他目录的内容，只需使那个目录的缓存失效
+            invalidateCache(parentPath);
+        }
+    };
+
 
     const onActionError = (payload: MessagePayload, message: WebSocketMessage) => {
         // 类型断言，因为我们知道这些错误的 payload 是 string
@@ -312,12 +547,13 @@ export function createSftpActionsManager(
     // --- Register Handlers & Store Unregister Callbacks ---
     unregisterCallbacks.push(onMessage('sftp:readdir:success', onSftpReaddirSuccess));
     unregisterCallbacks.push(onMessage('sftp:readdir:error', onSftpReaddirError));
-    unregisterCallbacks.push(onMessage('sftp:mkdir:success', onActionSuccessRefresh));
-    unregisterCallbacks.push(onMessage('sftp:rmdir:success', onActionSuccessRefresh));
-    unregisterCallbacks.push(onMessage('sftp:unlink:success', onActionSuccessRefresh));
-    unregisterCallbacks.push(onMessage('sftp:rename:success', onActionSuccessRefresh));
-    unregisterCallbacks.push(onMessage('sftp:chmod:success', onActionSuccessRefresh));
-    unregisterCallbacks.push(onMessage('sftp:writefile:success', onActionSuccessRefresh));
+    // *** 修改：绑定到新的具体处理函数 ***
+    unregisterCallbacks.push(onMessage('sftp:mkdir:success', onMkdirSuccess));
+    unregisterCallbacks.push(onMessage('sftp:rmdir:success', onRemoveSuccess)); // 使用 onRemoveSuccess
+    unregisterCallbacks.push(onMessage('sftp:unlink:success', onRemoveSuccess)); // 使用 onRemoveSuccess
+    unregisterCallbacks.push(onMessage('sftp:rename:success', onRenameSuccess));
+    unregisterCallbacks.push(onMessage('sftp:chmod:success', onChmodSuccess));
+    unregisterCallbacks.push(onMessage('sftp:writefile:success', onWriteFileSuccess)); // 使用 onWriteFileSuccess
     unregisterCallbacks.push(onMessage('sftp:mkdir:error', onActionError));
     unregisterCallbacks.push(onMessage('sftp:rmdir:error', onActionError));
     unregisterCallbacks.push(onMessage('sftp:unlink:error', onActionError));
