@@ -136,6 +136,8 @@ const editablePath = ref('');
 const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for context menu element
 const draggedItem = ref<FileListItem | null>(null); // 新增：存储被拖拽的项
 const dragOverTarget = ref<string | null>(null); // 新增：存储当前拖拽悬停的目标文件夹名称
+const fileListContainerRef = ref<HTMLDivElement | null>(null); // 新增：文件列表容器引用
+const scrollIntervalId = ref<number | null>(null); // 新增：自动滚动计时器 ID
 
 const rowSizeMultiplier = ref(1); // 新增：行大小（字体）乘数
 
@@ -391,6 +393,10 @@ const handleDragEnter = (event: DragEvent) => {
     }
 };
 
+// --- 自动滚动相关常量 ---
+const SCROLL_ZONE_HEIGHT = 50; // px，触发滚动的区域高度
+const SCROLL_SPEED = 10; // px per interval，基础滚动速度
+
 const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
     const isExternalFileDrag = event.dataTransfer?.types.includes('Files') ?? false;
@@ -445,7 +451,60 @@ const handleDragOver = (event: DragEvent) => {
     }
     dragOverTarget.value = currentTargetFilename; // Set specific row target for highlighting
 
+    // --- 处理自动滚动 ---
+    const container = fileListContainerRef.value;
+    if (container && (isExternalFileDrag || draggedItem.value)) { // 仅在有效拖拽时处理滚动
+        const rect = container.getBoundingClientRect();
+        const mouseY = event.clientY - rect.top; // 鼠标在容器内的 Y 坐标
+
+        if (mouseY < SCROLL_ZONE_HEIGHT) {
+            // 向上滚动
+            if (scrollIntervalId.value === null) {
+                scrollIntervalId.value = window.setInterval(() => {
+                    if (container.scrollTop > 0) {
+                        container.scrollTop -= SCROLL_SPEED;
+                    } else {
+                        clearInterval(scrollIntervalId.value!);
+                        scrollIntervalId.value = null;
+                    }
+                }, 30); // 每 30ms 滚动一次
+            }
+        } else if (mouseY > container.clientHeight - SCROLL_ZONE_HEIGHT) {
+            // 向下滚动
+            if (scrollIntervalId.value === null) {
+                scrollIntervalId.value = window.setInterval(() => {
+                    if (container.scrollTop < container.scrollHeight - container.clientHeight) {
+                        container.scrollTop += SCROLL_SPEED;
+                    } else {
+                        clearInterval(scrollIntervalId.value!);
+                        scrollIntervalId.value = null;
+                    }
+                }, 30); // 每 30ms 滚动一次
+            }
+        } else {
+            // 不在滚动区域，停止滚动
+            if (scrollIntervalId.value !== null) {
+                clearInterval(scrollIntervalId.value);
+                scrollIntervalId.value = null;
+            }
+        }
+    } else {
+         // 如果拖拽无效或容器不存在，确保停止滚动
+         if (scrollIntervalId.value !== null) {
+             clearInterval(scrollIntervalId.value);
+             scrollIntervalId.value = null;
+         }
+    }
     // console.log(`[FileManager ${props.sessionId}] Drag Over: effect=${effect}, target=${currentTargetFilename}, isDraggingOver=${isDraggingOver.value}`);
+};
+
+// --- 停止自动滚动的辅助函数 ---
+const stopAutoScroll = () => {
+    if (scrollIntervalId.value !== null) {
+        clearInterval(scrollIntervalId.value);
+        scrollIntervalId.value = null;
+        // console.log("Auto scroll stopped");
+    }
 };
 
 const handleDragLeave = (event: DragEvent) => {
@@ -457,6 +516,7 @@ const handleDragLeave = (event: DragEvent) => {
     if (!target || !container.contains(target)) {
        isDraggingOver.value = false; // Clear general drag-over state
        dragOverTarget.value = null; // Also clear specific target highlighting
+       stopAutoScroll(); // 停止自动滚动
        // console.log(`[FileManager ${props.sessionId}] Drag Leave Container`);
     }
     // Note: Leaving individual rows during drag is handled implicitly by handleDragOver recalculating the target.
@@ -470,6 +530,7 @@ const handleDrop = (event: DragEvent) => {
     // Clear drag states immediately
     isDraggingOver.value = false;
     dragOverTarget.value = null;
+    stopAutoScroll(); // 停止自动滚动
 
     // Check if it was an external file drop and connection is active
     const files = event.dataTransfer?.files;
@@ -526,6 +587,7 @@ const handleDragEnd = () => {
     // console.log(`[FileManager ${props.sessionId}] Drag End`);
     draggedItem.value = null;
     dragOverTarget.value = null; // 清除悬停目标
+    stopAutoScroll(); // 停止自动滚动
     // 移除所有可能的高亮（以防万一）
     document.querySelectorAll('.file-row.drop-target').forEach(el => el.classList.remove('drop-target'));
 };
@@ -1020,6 +1082,7 @@ const handleWheel = (event: WheelEvent) => {
 
     <!-- 文件列表容器 -->
     <div
+      ref="fileListContainerRef"
       class="file-list-container"
       :class="{ 'drag-over': isDraggingOver }"
       @dragenter.prevent="handleDragEnter"
