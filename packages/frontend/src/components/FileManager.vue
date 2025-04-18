@@ -400,60 +400,68 @@ const SCROLL_SPEED = 10; // px per interval，基础滚动速度
 const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
     const isExternalFileDrag = event.dataTransfer?.types.includes('Files') ?? false;
-    const isInternalDrag = !!draggedItem.value;
+    const isInternalDrag = !!draggedItem.value; // Check if an internal item is being dragged
 
-    // --- Determine Drop Effect ---
     let effect: 'copy' | 'move' | 'none' = 'none';
     let currentTargetFilename: string | null = null;
+    let highlightContainer = false; // Flag to control container highlighting
 
     const targetElement = event.target as HTMLElement;
-    const targetRow = targetElement.closest('tr.file-row'); // Find closest row (folder or file)
-    // Safely access dataset only if targetRow is an HTMLElement
+    const targetRow = targetElement.closest('tr.file-row');
     const targetFilename = (targetRow instanceof HTMLElement) ? targetRow.dataset.filename : undefined;
     const targetIsFolder = targetRow?.classList.contains('folder-row');
 
-    if (props.wsDeps.isConnected.value && isExternalFileDrag) {
-        // External Drag (Upload)
-        if (targetIsFolder && targetFilename && targetFilename !== '..') {
-            effect = 'copy'; // Allow dropping into subfolders
-            currentTargetFilename = targetFilename;
-        } else if (!targetRow) {
-             effect = 'copy'; // Allow dropping into the main container area (current path)
-             currentTargetFilename = null; // No specific target row
-        } else {
-             effect = 'none'; // Don't allow dropping external files onto file rows or '..'
-             currentTargetFilename = null;
-        }
-        isDraggingOver.value = (effect === 'copy'); // Set general drag-over state if allowed
+    if (props.wsDeps.isConnected.value) {
+        if (isExternalFileDrag) {
+            // External Drag (Upload)
+            effect = 'copy'; // Always allow copy for external files
+            highlightContainer = true; // Highlight the container
 
-    } else if (isInternalDrag && draggedItem.value) {
-        // Internal Drag (Move)
-        if (targetIsFolder && targetFilename && targetFilename !== draggedItem.value.filename) {
-             // Allow dropping onto any folder row (including '..') except itself
-             effect = 'move';
-             currentTargetFilename = targetFilename;
-        } else {
-             effect = 'none';
-             currentTargetFilename = null;
-        }
-         isDraggingOver.value = false; // Don't use general drag-over for internal moves
+            // Determine the specific target folder for potential drop and row highlighting
+            if (targetIsFolder && targetFilename && targetFilename !== '..') {
+                currentTargetFilename = targetFilename; // Target is a subfolder row
+            } else {
+                currentTargetFilename = null; // Target is the current directory (or invalid row)
+            }
 
+        } else if (isInternalDrag && draggedItem.value) {
+            // Internal Drag (Move)
+            highlightContainer = false; // Do not highlight the container for internal moves
+
+            if (targetIsFolder && targetFilename && targetFilename !== draggedItem.value.filename) {
+                // Allow dropping onto any folder row (including '..') except itself
+                effect = 'move';
+                currentTargetFilename = targetFilename; // Target is the specific folder row
+            } else {
+                // Invalid target for internal move
+                effect = 'none';
+                currentTargetFilename = null;
+            }
+        } else {
+            // Other drag types
+            effect = 'none';
+            currentTargetFilename = null;
+            highlightContainer = false;
+        }
     } else {
-        // Other drag types or not connected
+        // Not connected
         effect = 'none';
         currentTargetFilename = null;
-        isDraggingOver.value = false;
+        highlightContainer = false;
     }
+
 
     // --- Apply Drop Effect and Target Highlighting ---
     if (event.dataTransfer) {
         event.dataTransfer.dropEffect = effect;
     }
+    isDraggingOver.value = highlightContainer; // Control container highlight based on flag
     dragOverTarget.value = currentTargetFilename; // Set specific row target for highlighting
 
     // --- 处理自动滚动 ---
     const container = fileListContainerRef.value;
-    if (container && (isExternalFileDrag || draggedItem.value)) { // 仅在有效拖拽时处理滚动
+    // 仅在有效拖拽 (外部文件或内部文件) 且效果不是 'none' 时处理滚动
+    if (container && (isExternalFileDrag || isInternalDrag) && effect !== 'none') {
         const rect = container.getBoundingClientRect();
         const mouseY = event.clientY - rect.top; // 鼠标在容器内的 Y 坐标
 
@@ -489,7 +497,7 @@ const handleDragOver = (event: DragEvent) => {
             }
         }
     } else {
-         // 如果拖拽无效或容器不存在，确保停止滚动
+         // 如果拖拽无效、效果为 'none' 或容器不存在，确保停止滚动
          if (scrollIntervalId.value !== null) {
              clearInterval(scrollIntervalId.value);
              scrollIntervalId.value = null;
@@ -615,14 +623,30 @@ const handleDragLeaveRow = (targetItem: FileListItem) => {
 
 const handleDropOnRow = (targetItem: FileListItem, event: DragEvent) => {
     event.preventDefault();
-    event.stopPropagation(); // 阻止事件冒泡到父容器的 drop 处理
+    // 检查是否是外部文件拖拽
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+        // 如果是外部文件拖拽，不阻止冒泡，让父容器的 handleDrop 处理上传
+        console.log(`[FileManager ${props.sessionId}] External file drop detected on row, letting parent handle.`);
+        // 不需要清除 draggedItem.value，因为外部拖拽时它应该为 null
+        // dragOverTarget.value = null; // 清除悬停状态 (父容器 handleDrop 会处理)
+        return;
+    }
+
+    // --- 以下是处理内部文件移动的逻辑 ---
+    event.stopPropagation(); // 仅在处理内部移动时阻止冒泡
     const sourceItem = draggedItem.value;
     dragOverTarget.value = null; // 清除悬停状态
 
-    // 验证拖放操作的有效性 (与之前相同)
+    // 验证内部拖放操作的有效性
+    // 注意：这里的 !sourceItem 检查现在只会在非外部文件拖拽时发生，
+    // 如果 sourceItem 仍然是 null，说明不是有效的内部拖拽。
     if (!sourceItem || sourceItem.filename === '..' || (targetItem.filename !== '..' && !targetItem.attrs.isDirectory) || sourceItem.filename === targetItem.filename) {
-        console.log(`[FileManager ${props.sessionId}] Drop on row ignored: Invalid target or source. Source: ${sourceItem?.filename}, Target: ${targetItem.filename}`);
-        draggedItem.value = null;
+        console.log(`[FileManager ${props.sessionId}] Internal drop on row ignored: Invalid target or source. Source: ${sourceItem?.filename}, Target: ${targetItem.filename}`);
+        // 如果 sourceItem 存在但无效，才需要清除
+        if (sourceItem) {
+             draggedItem.value = null;
+        }
         return;
     }
 
@@ -1681,4 +1705,5 @@ td:nth-child(5) { /* Modified */
 }
 
 </style>
+
 
