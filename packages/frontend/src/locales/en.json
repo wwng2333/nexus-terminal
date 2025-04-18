@@ -77,7 +77,12 @@
     "terminalFontSize": "Terminal Font Size",
     "errorInvalidFontSize": "Invalid font size. Please enter a positive number.",
     "terminalFontSizeSaved": "Terminal font size saved.",
-    "terminalFontSizeSaveFailed": "Failed to save terminal font size: {message}"
+    "terminalFontSizeSaveFailed": "Failed to save terminal font size: {message}",
+    "otherSettings": "Other Settings",
+    "editorFontSize": "Editor Font Size",
+    "editorFontSizeSaved": "Editor font size saved.",
+    "editorFontSizeSaveFailed": "Failed to save editor font size: {message}",
+    "errorInvalidEditorFontSize": "Invalid font size. Please enter a positive number."
   },
   "login": {
     "title": "User Login",

@@ -64,6 +64,13 @@ export const useAppearanceStore = defineStore('appearance', () => {
     // 终端背景图片 URL
     const terminalBackgroundImage = computed(() => appearanceSettings.value.terminalBackgroundImage);
 
+    // 当前编辑器字体大小
+    const currentEditorFontSize = computed<number>(() => {
+        // 提供默认值 14，如果后端没有设置或设置无效
+        const size = appearanceSettings.value.editorFontSize;
+        return typeof size === 'number' && size > 0 ? size : 14;
+    });
+
     // --- Actions ---
 
     /**
@@ -170,6 +177,14 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function setTerminalFontSize(size: number) {
         await updateAppearanceSettings({ terminalFontSize: size });
+    }
+
+    /**
+     * 设置编辑器字体大小
+     * @param size 字体大小 (数字)
+     */
+    async function setEditorFontSize(size: number) {
+        await updateAppearanceSettings({ editorFontSize: size });
     }
 
     // --- 终端主题列表管理 Actions ---
@@ -421,7 +436,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
         activeTerminalThemeId,
         currentTerminalTheme,
         currentTerminalFontFamily,
-        currentTerminalFontSize, // <-- 添加
+        currentTerminalFontSize,
+        currentEditorFontSize, // <-- 新增
         pageBackgroundImage,
         // pageBackgroundOpacity, // Removed
         terminalBackgroundImage,
@@ -433,7 +449,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
         resetCustomUiTheme,
         setActiveTerminalTheme,
         setTerminalFontFamily,
-        setTerminalFontSize, // <-- 添加
+        setTerminalFontSize,
+        setEditorFontSize, // <-- 新增
         reloadTerminalThemes,
         createTerminalTheme,
         updateTerminalTheme,

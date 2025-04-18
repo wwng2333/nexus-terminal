@@ -48,6 +48,16 @@ export const updateSettings = async (settingsDto: UpdateAppearanceDto): Promise<
       settingsDto.terminalFontSize = size;
   }
 
+  // 验证 editorFontSize (如果提供了)
+  if (settingsDto.editorFontSize !== undefined && settingsDto.editorFontSize !== null) {
+      const size = Number(settingsDto.editorFontSize);
+      if (isNaN(size) || size <= 0) {
+          throw new Error(`无效的编辑器字体大小: ${settingsDto.editorFontSize}。必须是一个正数。`);
+      }
+      // 确保类型正确传递给仓库层
+      settingsDto.editorFontSize = size;
+  }
+
   // TODO: 如果实现了背景图片上传，这里需要处理文件路径或 URL 的验证/保存逻辑
 
   return appearanceRepository.updateAppearanceSettings(settingsDto);

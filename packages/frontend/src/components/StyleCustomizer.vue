@@ -15,7 +15,8 @@ const {
     activeTerminalThemeId,
     availableTerminalThemes,
     currentTerminalFontFamily,
-    currentTerminalFontSize, // <-- 添加
+    currentTerminalFontSize,
+    currentEditorFontSize, // <-- 新增
     pageBackgroundImage,
     // pageBackgroundOpacity, // Removed
     terminalBackgroundImage,
@@ -25,7 +26,8 @@ const {
 // --- 本地状态用于编辑 ---
 const editableUiTheme = ref<Record<string, string>>({});
 const editableTerminalFontFamily = ref('');
-const editableTerminalFontSize = ref(14); // <-- 添加，默认值 14
+const editableTerminalFontSize = ref(14);
+const editableEditorFontSize = ref(14); // <-- 新增，编辑器字体大小
 // const editablePageBackgroundOpacity = ref(1.0); // Removed
 // const editableTerminalBackgroundOpacity = ref(1.0); // Removed
 
@@ -52,7 +54,8 @@ const initializeEditableState = () => {
   // 深拷贝 UI 主题
   editableUiTheme.value = JSON.parse(JSON.stringify(currentUiTheme.value || {}));
   editableTerminalFontFamily.value = currentTerminalFontFamily.value;
-  editableTerminalFontSize.value = currentTerminalFontSize.value; // <-- 添加
+  editableTerminalFontSize.value = currentTerminalFontSize.value;
+  editableEditorFontSize.value = currentEditorFontSize.value; // <-- 新增
   selectedTerminalThemeId.value = activeTerminalThemeId.value ?? null; // 初始化下拉框
   // editablePageBackgroundOpacity.value = pageBackgroundOpacity.value; // Removed
   // editableTerminalBackgroundOpacity.value = terminalBackgroundOpacity.value; // Removed
@@ -67,20 +70,22 @@ onMounted(initializeEditableState);
 // 监听 store 变化以更新本地状态 (例如重置或外部更改)
 // 只监听不需要编辑的状态或用于初始化的状态
 watch([
-    currentUiTheme, currentTerminalFontFamily, currentTerminalFontSize, activeTerminalThemeId // <-- 添加 currentTerminalFontSize
+    currentUiTheme, currentTerminalFontFamily, currentTerminalFontSize, currentEditorFontSize, activeTerminalThemeId // <-- 添加 currentEditorFontSize
     // pageBackgroundOpacity, terminalBackgroundOpacity // Removed dependencies
 ], (newVals, oldVals) => {
     // 仅当非编辑状态时，或活动主题ID变化时，才同步下拉框和非编辑状态
-    // 注意：索引现在需要调整，因为 newVals 数组长度变了
-    if (!isEditingTheme.value || newVals[3] !== oldVals[3]) { // <-- 索引从 2 改为 3
+    // 注意：索引现在需要调整
+    const activeThemeIdIndex = 4; // activeTerminalThemeId 的新索引
+    if (!isEditingTheme.value || newVals[activeThemeIdIndex] !== oldVals[activeThemeIdIndex]) {
         initializeEditableState();
     } else {
         // 如果正在编辑，只更新非编辑相关的部分
         editableUiTheme.value = JSON.parse(JSON.stringify(newVals[0] || {}));
         editableTerminalFontFamily.value = newVals[1];
-        editableTerminalFontSize.value = newVals[2]; // <-- 添加
-        // editablePageBackgroundOpacity.value = newVals[4]; // Removed
-        // editableTerminalBackgroundOpacity.value = newVals[5]; // Removed
+        editableTerminalFontSize.value = newVals[2];
+        editableEditorFontSize.value = newVals[3]; // <-- 新增同步
+        // editablePageBackgroundOpacity.value = newVals[5]; // Removed
+        // editableTerminalBackgroundOpacity.value = newVals[6]; // Removed
     }
 }, { deep: true });
 
@@ -101,7 +106,7 @@ const closeCustomizer = () => {
 };
 
 // 当前活动的标签页
-const currentTab = ref<'ui' | 'terminal' | 'background'>('ui');
+const currentTab = ref<'ui' | 'terminal' | 'background' | 'other'>('ui'); // <-- 添加 'other'
 
 // --- 处理函数 ---
 
@@ -154,6 +159,22 @@ const handleSaveTerminalFontSize = async () => {
     } catch (error: any) {
         console.error("保存终端字体大小失败:", error);
         alert(t('styleCustomizer.terminalFontSizeSaveFailed', { message: error.message })); // 需要添加翻译
+    }
+};
+
+// 保存编辑器字体大小
+const handleSaveEditorFontSize = async () => {
+    try {
+        const size = Number(editableEditorFontSize.value);
+        if (isNaN(size) || size <= 0) {
+            alert(t('styleCustomizer.errorInvalidEditorFontSize')); // 需要添加翻译
+            return;
+        }
+        await appearanceStore.setEditorFontSize(size);
+        alert(t('styleCustomizer.editorFontSizeSaved')); // 需要添加翻译
+    } catch (error: any) {
+        console.error("保存编辑器字体大小失败:", error);
+        alert(t('styleCustomizer.editorFontSizeSaveFailed', { message: error.message })); // 需要添加翻译
     }
 };
 
@@ -388,6 +409,9 @@ const formatXtermLabel = (key: keyof ITheme): string => {
            <button @click="currentTab = 'background'" :class="{ active: currentTab === 'background' }" :disabled="isEditingTheme">
             {{ t('styleCustomizer.backgroundSettings') }}
           </button>
+          <button @click="currentTab = 'other'" :class="{ active: currentTab === 'other' }" :disabled="isEditingTheme">
+            {{ t('styleCustomizer.otherSettings') }} <!-- 需要添加翻译 -->
+          </button>
         </nav>
         <main class="panel-main">
           <section v-if="currentTab === 'ui'">
@@ -528,6 +552,15 @@ const formatXtermLabel = (key: keyof ITheme): string => {
                 </div>
                  <!-- Removed Opacity Slider -->
 
+           </section>
+           <section v-if="currentTab === 'other'">
+             <h3>{{ t('styleCustomizer.otherSettings') }}</h3> <!-- 需要添加翻译 -->
+             <!-- 编辑器字体大小设置 -->
+             <div class="form-group">
+                 <label for="editorFontSize">{{ t('styleCustomizer.editorFontSize') }}:</label> <!-- 需要添加翻译 -->
+                 <input type="number" id="editorFontSize" v-model.number="editableEditorFontSize" class="number-input" min="1" />
+                 <button @click="handleSaveEditorFontSize" class="button-inline">{{ t('common.save') }}</button>
+             </div>
            </section>
         </main>
       </div>
@@ -722,6 +755,7 @@ section[v-if*="isEditingTheme"] .form-group {
 /* 输入控件 */
 .form-group input[type="color"],
 .form-group input[type="text"].text-input,
+.form-group input[type="number"].number-input, /* <-- 添加 number-input */
 .form-group select {
     grid-column: 2 / 3;
     border: 1px solid var(--border-color);
@@ -751,6 +785,7 @@ section[v-if*="isEditingTheme"] .form-group {
 /* Input controls (text, color, select) */
 .form-group input[type="color"],
 .form-group input[type="text"].text-input,
+.form-group input[type="number"].number-input, /* <-- 添加 number-input */
 .form-group select {
     grid-column: 2 / 3; /* Place in the second column */
     /* Existing styles below... */
@@ -772,7 +807,11 @@ section[v-if*="isEditingTheme"] .form-group {
     justify-self: start;
     border-radius: 4px; /* 保持圆角一致 */
 }
-.form-group input:focus, .form-group select:focus {
+.form-group input[type="number"].number-input {
+    max-width: 100px; /* 限制数字输入框宽度 */
+    justify-self: start;
+}
+.form-group input:focus, .form-group select:focus, .form-group input[type="number"]:focus { /* <-- 添加 number input focus */
     border-color: var(--link-active-color);
     outline: 0;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); /* 调整聚焦阴影 */

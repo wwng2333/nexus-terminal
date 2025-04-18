@@ -5,9 +5,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import * as monaco from 'monaco-editor';
+import { useAppearanceStore } from '../stores/appearance.store'; // <-- 导入 Store
+import { storeToRefs } from 'pinia'; // <-- 导入 storeToRefs
 
 // Props for the component (will be expanded later)
-const fontSize = ref(14); // 添加字体大小状态，默认 14
+// const fontSize = ref(14); // <-- 移除本地 fontSize ref
 
 const props = defineProps({
   modelValue: { // Use modelValue for v-model support
@@ -34,13 +36,37 @@ const emit = defineEmits(['update:modelValue', 'request-save']);
 const editorContainer = ref<HTMLElement | null>(null);
 let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
 
+// --- Appearance Store ---
+const appearanceStore = useAppearanceStore();
+const { currentEditorFontSize } = storeToRefs(appearanceStore); // <-- 获取编辑器字体大小
+
+// --- Debounce function ---
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+const debounce = (func: Function, delay: number) => {
+  return (...args: any[]) => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(() => {
+      func(...args);
+      debounceTimer = null;
+    }, delay);
+  };
+};
+
+// Debounced function to save font size setting
+const debouncedSetEditorFontSize = debounce((size: number) => {
+    console.log(`[MonacoEditor] Debounced save triggered. Saving font size: ${size}`);
+    appearanceStore.setEditorFontSize(size);
+}, 500); // 500ms delay
+
 onMounted(() => {
   if (editorContainer.value) {
     editorInstance = monaco.editor.create(editorContainer.value, {
       value: props.modelValue,
       language: props.language,
       theme: props.theme,
-      fontSize: fontSize.value, // 使用 ref 作为初始字体大小
+      fontSize: currentEditorFontSize.value, // <-- 使用 Store 的字体大小
       automaticLayout: true, // Auto resize editor on container resize
       readOnly: props.readOnly,
       // Add more options as needed
@@ -103,41 +129,51 @@ onMounted(() => {
       },
     });
 
-    // 添加鼠标滚轮缩放功能
-    const editorDomNode = editorInstance?.getDomNode(); // 获取编辑器 DOM 节点
-    if (editorDomNode) { // 确认编辑器 DOM 节点存在
-      console.log('[MonacoEditor] Adding wheel event listener to editor DOM node.'); // 调试日志
-      editorDomNode.addEventListener('wheel', (event: WheelEvent) => {
-        console.log('[MonacoEditor] Wheel event detected on editor DOM node.'); // 调试日志
-        // 只在按下Ctrl键时才触发缩放
-        if (event.ctrlKey) {
-          console.log('[MonacoEditor] Ctrl key pressed during wheel event.'); // 调试日志
-          event.preventDefault(); // 阻止默认的滚动行为
+    // --- 添加带防抖的鼠标滚轮缩放功能 ---
+    const editorDomNode = editorInstance?.getDomNode();
+    if (editorDomNode) {
+        console.log('[MonacoEditor] Adding wheel event listener with debounce.');
+        editorDomNode.addEventListener('wheel', (event: WheelEvent) => {
+            if (event.ctrlKey) {
+                event.preventDefault();
 
-        // 根据滚轮方向调整字体大小
-        if (event.deltaY < 0) {
-          // 向上滚动，增大字体
-          fontSize.value = Math.min(fontSize.value + 1, 40); // 设置最大字体大小为40
-        } else {
-          // 向下滚动，减小字体
-          fontSize.value = Math.max(fontSize.value - 1, 8); // 设置最小字体大小为8
-        }
+                // Calculate new font size immediately
+                const currentSize = editorInstance?.getOption(monaco.editor.EditorOption.fontSize) ?? currentEditorFontSize.value;
+                let newSize: number;
+                if (event.deltaY < 0) {
+                    newSize = Math.min(currentSize + 1, 40); // Increase size, max 40
+                } else {
+                    newSize = Math.max(currentSize - 1, 8); // Decrease size, min 8
+                }
 
-        // 更新编辑器字体大小
-        if (editorInstance) {
-          console.log(`[MonacoEditor] Attempting to update font size to: ${fontSize.value}`); // 调试日志
-          editorInstance.updateOptions({ fontSize: fontSize.value });
-          console.log(`[MonacoEditor] Font size changed to: ${fontSize.value}`); // 添加日志
-        } else {
-          console.warn('[MonacoEditor] editorInstance is null, cannot update font size.'); // 调试日志
-        }
-      } else {
-         // console.log('[MonacoEditor] Ctrl key NOT pressed during wheel event.'); // 可选调试日志
-      }
-    }, { passive: false }); // 设置 passive: false 允许 preventDefault
+                // Update visual font size immediately
+                if (editorInstance && newSize !== currentSize) {
+                    console.log(`[MonacoEditor] Immediate visual update to font size: ${newSize}`);
+                    editorInstance.updateOptions({ fontSize: newSize });
+
+                    // Trigger debounced save
+                    debouncedSetEditorFontSize(newSize);
+                }
+            }
+        }, { passive: false }); // passive: false allows preventDefault
     } else {
-       console.error('[MonacoEditor] editorDomNode is null, cannot add wheel listener.'); // 调试日志
+        console.error('[MonacoEditor] editorDomNode is null, cannot add wheel listener.');
     }
+    // --- End of wheel event listener ---
+
+    // --- 移除鼠标滚轮缩放功能 ---
+    // const editorDomNode = editorInstance?.getDomNode();
+    // if (editorDomNode) {
+    //   editorDomNode.addEventListener('wheel', (event: WheelEvent) => {
+    //     if (event.ctrlKey) {
+    //       event.preventDefault();
+    //       // ... (移除字体大小调整逻辑) ...
+    //       // if (editorInstance) {
+    //       //   editorInstance.updateOptions({ fontSize: fontSize.value }); // 使用本地 fontSize
+    //       // }
+    //     }
+    //   }, { passive: false });
+    // }
 
   }
 });
@@ -170,6 +206,14 @@ watch(() => props.readOnly, (newReadOnly) => {
   }
 });
 
+
+// Watch for changes in the global editor font size setting
+watch(currentEditorFontSize, (newSize) => {
+  if (editorInstance) {
+    console.log(`[MonacoEditor] Global font size changed to: ${newSize}. Updating editor.`);
+    editorInstance.updateOptions({ fontSize: newSize });
+  }
+});
 
 onBeforeUnmount(() => {
   if (editorInstance) {

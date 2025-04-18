@@ -16,7 +16,8 @@ const createTableIfNotExists = () => {
       custom_ui_theme TEXT,
       active_terminal_theme_id TEXT,
       terminal_font_family TEXT,
-      terminal_font_size INTEGER, -- 添加字体大小列
+      terminal_font_size INTEGER,
+      editor_font_size INTEGER, -- 新增：编辑器字体大小
       terminal_background_image TEXT,
       page_background_image TEXT,
       updated_at INTEGER NOT NULL
@@ -40,7 +41,8 @@ const mapRowToAppearanceSettings = (row: any): AppearanceSettings => {
         customUiTheme: row.custom_ui_theme,
         activeTerminalThemeId: row.active_terminal_theme_id,
         terminalFontFamily: row.terminal_font_family,
-        terminalFontSize: row.terminal_font_size, // 添加字体大小映射
+        terminalFontSize: row.terminal_font_size,
+        editorFontSize: row.editor_font_size, // 新增：编辑器字体大小映射
         terminalBackgroundImage: row.terminal_background_image,
         // terminalBackgroundOpacity: row.terminal_background_opacity, // Removed
         pageBackgroundImage: row.page_background_image,
@@ -58,7 +60,8 @@ const getDefaultAppearanceSettings = (): AppearanceSettings => {
         customUiTheme: JSON.stringify(defaultUiTheme), // Use default UI theme
         activeTerminalThemeId: undefined, // Needs to be set after querying default theme ID
         terminalFontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"', // Default font
-        terminalFontSize: 14, // 添加默认字体大小
+        terminalFontSize: 14,
+        editorFontSize: 14, // 新增：默认编辑器字体大小
         terminalBackgroundImage: undefined,
         // terminalBackgroundOpacity: 1.0, // Removed
         pageBackgroundImage: undefined,
@@ -82,18 +85,19 @@ const ensureDefaultSettingsExist = () => {
         if (!row) {
             const sqlInsert = `
                 INSERT INTO ${TABLE_NAME} (
-                    id, custom_ui_theme, active_terminal_theme_id, terminal_font_family, terminal_font_size, -- 添加列
+                    id, custom_ui_theme, active_terminal_theme_id, terminal_font_family, terminal_font_size, editor_font_size, -- 添加 editor_font_size 列
                     terminal_background_image, -- terminal_background_opacity, -- Removed
                     page_background_image, -- page_background_opacity, -- Removed
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?) -- 调整占位符数量
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) -- 调整占位符数量
             `;
             db.run(sqlInsert, [
                 SETTINGS_ID,
                 defaults.customUiTheme,
                 defaults.activeTerminalThemeId, // Initially undefined
                 defaults.terminalFontFamily,
-                defaults.terminalFontSize, // 添加默认值参数
+                defaults.terminalFontSize,
+                defaults.editorFontSize, // 添加 editor_font_size 默认值参数
                 defaults.terminalBackgroundImage,
                 // defaults.terminalBackgroundOpacity, // Removed
                 defaults.pageBackgroundImage,
@@ -179,8 +183,8 @@ export const updateAppearanceSettings = async (settingsDto: UpdateAppearanceDto)
   for (const key in settingsDto) {
       if (Object.prototype.hasOwnProperty.call(settingsDto, key)) {
           const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`); // Convert camelCase to snake_case
-          // Ensure only valid keys are updated (Added terminal_font_size)
-          if (['custom_ui_theme', 'active_terminal_theme_id', 'terminal_font_family', 'terminal_font_size', 'terminal_background_image', 'page_background_image'].includes(dbKey)) {
+          // Ensure only valid keys are updated (Added editor_font_size)
+          if (['custom_ui_theme', 'active_terminal_theme_id', 'terminal_font_family', 'terminal_font_size', 'editor_font_size', 'terminal_background_image', 'page_background_image'].includes(dbKey)) {
               updates.push(`${dbKey} = ?`);
               params.push((settingsDto as any)[key]);
           }
