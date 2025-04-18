@@ -312,7 +312,8 @@
       "fileDecodeError": "文件解码失败 (可能不是 UTF-8 编码)",
       "saveFailed": "保存文件失败",
       "saveTimeout": "保存超时",
-      "fileExists": "文件 \"{name}\" 已存在。"
+      "fileExists": "文件 \"{name}\" 已存在。",
+      "loadDirectoryFailed": "加载目录失败"
     },
     "prompts": {
       "enterFolderName": "请输入新文件夹的名称:",

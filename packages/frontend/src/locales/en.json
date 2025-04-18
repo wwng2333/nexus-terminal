@@ -312,7 +312,8 @@
       "fileDecodeError": "File decoding failed (likely not UTF-8)",
       "saveFailed": "Failed to save file",
       "saveTimeout": "Save timed out",
-      "fileExists": "File \"{name}\" already exists."
+      "fileExists": "File \"{name}\" already exists.",
+      "loadDirectoryFailed": "Failed to load directory"
     },
     "prompts": {
       "enterFolderName": "Enter the name for the new folder:",
