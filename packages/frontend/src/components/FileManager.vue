@@ -1009,7 +1009,7 @@ const cancelSearch = () => {
     color: var(--text-color-secondary); /* 次要颜色 */
     border-radius: 3px;
     transition: background-color 0.2s ease, color 0.2s ease;
-    margin-left: 0.4rem; /* 与 path-bar 或其他元素保持间距 */
+    margin-left: 0; /* 移除与 path-bar 或其他元素保持间距 */
 }
 .toolbar-button:hover:not(:disabled) {
     background-color: rgba(0, 0, 0, 0.08); /* 悬停背景 */
@@ -1077,7 +1077,7 @@ const cancelSearch = () => {
    display: flex;
    align-items: center;
    /* margin-left: auto; /* 移除，让其自然流动 */
-   margin-right: var(--base-margin, 0.5rem); /* 与操作按钮保持间距 */
+   margin-right: 0; /* 移除与操作按钮保持间距 */
 }
 
 /* 搜索激活按钮样式 (复用 toolbar-button) */
