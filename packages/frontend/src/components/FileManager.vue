@@ -129,6 +129,8 @@ const initialLoadDone = ref(false);
 const isFetchingInitialPath = ref(false);
 const isEditingPath = ref(false);
 const searchQuery = ref(''); // 新增：搜索查询 ref
+const isSearchActive = ref(false); // 新增：控制搜索框激活状态
+const searchInputRef = ref<HTMLInputElement | null>(null); // 新增：搜索输入框 ref
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
 const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for context menu element
@@ -717,6 +719,28 @@ const cancelPathEdit = () => {
 //     clearSftpError();
 // };
 
+// --- 搜索框激活/取消逻辑 ---
+const activateSearch = () => {
+  isSearchActive.value = true;
+  nextTick(() => {
+    searchInputRef.value?.focus();
+  });
+};
+
+const deactivateSearch = () => {
+  // 延迟失活以允许点击内部元素（如果需要）
+  // setTimeout(() => {
+  //   if (!searchInputRef.value?.contains(document.activeElement)) { // 检查焦点是否还在输入框内
+        isSearchActive.value = false;
+  //   }
+  // }, 100); // 100ms 延迟
+};
+
+const cancelSearch = () => {
+    searchQuery.value = ''; // 按 Esc 清空并失活
+    isSearchActive.value = false;
+};
+
 </script>
 
 <template>
@@ -743,14 +767,35 @@ const cancelPathEdit = () => {
         <button class="toolbar-button" @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button>
         <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
         <button class="toolbar-button" @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
-        <!-- 新增搜索框 -->
-        <div class="search-bar">
-            <input type="text" v-model="searchQuery" :placeholder="t('fileManager.searchPlaceholder')" class="search-input" />
-            <i class="fas fa-search search-icon"></i>
-        </div>
-        <div class="actions-bar">
-             <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
-             <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+       <!-- 修改后的搜索区域 -->
+       <div class="search-container">
+           <button
+               v-if="!isSearchActive"
+               class="toolbar-button search-activate-button"
+               @click.stop="activateSearch"
+               :disabled="isLoading || !props.wsDeps.isConnected.value"
+               :title="t('fileManager.searchPlaceholder')"
+           >
+               <i class="fas fa-search"></i>
+           </button>
+           <div v-else class="search-bar active">
+               <i class="fas fa-search search-icon"></i>
+               <input
+                   ref="searchInputRef"
+                   type="text"
+                   v-model="searchQuery"
+                   :placeholder="t('fileManager.searchPlaceholder')"
+                   class="search-input"
+                   @blur="deactivateSearch"
+                   @keyup.esc="cancelSearch"
+               />
+               <!-- 可选：添加清除按钮 -->
+               <!-- <button @click="searchQuery = ''; searchInputRef?.focus()" v-if="searchQuery" class="clear-search-button">&times;</button> -->
+           </div>
+       </div>
+       <div class="actions-bar">
+            <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
+            <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
              <button @click="triggerFileUpload" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')"><i class="fas fa-upload"></i> {{ t('fileManager.actions.upload') }}</button>
              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
               <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')"><i class="fas fa-folder-plus"></i> {{ t('fileManager.actions.newFolder') }}</button>
@@ -1027,17 +1072,35 @@ const cancelPathEdit = () => {
 }
 */
 
-/* 新增搜索框样式 */
-.search-bar {
-    min-width: 10px;
+/* 新增搜索容器样式 */
+.search-container {
+   display: flex;
+   align-items: center;
+   /* margin-left: auto; /* 移除，让其自然流动 */
+   margin-right: var(--base-margin, 0.5rem); /* 与操作按钮保持间距 */
+}
+
+/* 搜索激活按钮样式 (复用 toolbar-button) */
+.search-activate-button {
+   /* 继承 .toolbar-button 样式 */
+}
+
+/* 修改后的搜索框样式 */
+.search-bar.active { /* 添加 .active 类 */
+   min-width: 150px; /* 激活时给一个最小宽度 */
     display: flex;
     align-items: center;
     position: relative; /* 为了定位图标 */
     /* margin-left: auto; /* 移除这个规则，防止换行后不靠左 */
     margin-right: var(--base-margin, 0.5rem); /* 与操作按钮保持间距 */
-    /* flex-shrink: 0; /* 移除此行，允许搜索框收缩 */
+    flex-shrink: 1; /* 允许收缩 */
+    display: flex; /* 保持内部 flex 布局 */
+    align-items: center; /* 保持内部垂直居中 */
+    position: relative; /* 保持图标定位 */
 }
 .search-input {
+    /* 保持原有样式，但可能需要调整宽度或 flex 属性 */
+    flex-grow: 1; /* 让输入框填充 .search-bar.active */
     padding: 0.4rem 0.8rem 0.4rem 2rem; /* 左侧留出图标空间 */
     border: 1px solid var(--border-color);
     border-radius: 4px;
