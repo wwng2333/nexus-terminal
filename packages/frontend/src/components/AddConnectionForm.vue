@@ -194,86 +194,86 @@ const handleSubmit = async () => {
   <div class="add-connection-form-overlay">
     <div class="add-connection-form">
       <h3>{{ formTitle }}</h3> <!-- 使用计算属性 -->
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="conn-name">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label> <!-- 添加可选提示 -->
-          <input type="text" id="conn-name" v-model="formData.name" /> <!-- 移除 required -->
-        </div>
-        <div class="form-group">
-          <label for="conn-host">{{ t('connections.form.host') }}</label>
-          <input type="text" id="conn-host" v-model="formData.host" required />
-        </div>
-        <div class="form-group">
-          <label for="conn-port">{{ t('connections.form.port') }}</label>
-          <input type="number" id="conn-port" v-model.number="formData.port" required min="1" max="65535" />
-        </div>
-        <div class="form-group">
-          <label for="conn-username">{{ t('connections.form.username') }}</label>
-          <input type="text" id="conn-username" v-model="formData.username" required />
-        </div>
+      <form @submit.prevent="handleSubmit"> <!-- 移除 form-content class -->
+        <div class="form-fields two-columns"> <!-- 添加 two-columns class -->
+          <!-- Column 1: Basic Info -->
+          <div class="form-column">
+            <div class="form-group">
+              <label for="conn-name">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label>
+              <input type="text" id="conn-name" v-model="formData.name" />
+            </div>
+            <div class="form-group">
+              <label for="conn-host">{{ t('connections.form.host') }}</label>
+              <input type="text" id="conn-host" v-model="formData.host" required />
+            </div>
+            <div class="form-group">
+              <label for="conn-port">{{ t('connections.form.port') }}</label>
+              <input type="number" id="conn-port" v-model.number="formData.port" required min="1" max="65535" />
+            </div>
+            <div class="form-group">
+              <label for="conn-username">{{ t('connections.form.username') }}</label>
+              <input type="text" id="conn-username" v-model="formData.username" required />
+            </div>
+          </div>
 
-        <!-- 认证方式选择 -->
-        <div class="form-group">
-            <label for="conn-auth-method">{{ t('connections.form.authMethod') }}</label>
-            <select id="conn-auth-method" v-model="formData.auth_method">
+          <!-- Column 2: Authentication, Proxy, Tags -->
+          <div class="form-column">
+            <div class="form-group">
+              <label for="conn-auth-method">{{ t('connections.form.authMethod') }}</label>
+              <select id="conn-auth-method" v-model="formData.auth_method">
                 <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
                 <option value="key">{{ t('connections.form.authMethodKey') }}</option>
-            </select>
-        </div>
-
-        <!-- 密码输入 (条件渲染) -->
-        <div class="form-group" v-if="formData.auth_method === 'password'">
-          <label for="conn-password">{{ t('connections.form.password') }}</label>
-          <!-- 编辑模式下非必填 -->
-          <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" />
-        </div>
-
-        <!-- 密钥输入 (条件渲染) -->
-        <div v-if="formData.auth_method === 'key'">
-            <div class="form-group">
-                <label for="conn-private-key">{{ t('connections.form.privateKey') }}</label>
-                <!-- 编辑模式下非必填 -->
-                <textarea id="conn-private-key" v-model="formData.private_key" rows="6" :required="formData.auth_method === 'key' && !isEditMode"></textarea>
+              </select>
             </div>
-            <div class="form-group">
+
+            <div class="form-group" v-if="formData.auth_method === 'password'">
+              <label for="conn-password">{{ t('connections.form.password') }}</label>
+              <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" />
+            </div>
+
+            <div v-if="formData.auth_method === 'key'">
+              <div class="form-group">
+                <label for="conn-private-key">{{ t('connections.form.privateKey') }}</label>
+                <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"></textarea>
+              </div>
+              <div class="form-group">
                 <label for="conn-passphrase">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
                 <input type="password" id="conn-passphrase" v-model="formData.passphrase" />
+              </div>
+              <div class="form-group" v-if="isEditMode && formData.auth_method === 'key'">
+                <small>{{ t('connections.form.keyUpdateNote') }}</small>
+              </div>
             </div>
-             <div class="form-group" v-if="isEditMode && formData.auth_method === 'key'">
-                 <small>{{ t('connections.form.keyUpdateNote') }}</small>
-             </div>
-        </div>
 
-        <!-- 新增：代理选择 -->
-        <div class="form-group">
-            <label for="conn-proxy">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
-            <select id="conn-proxy" v-model="formData.proxy_id">
+            <div class="form-group">
+              <label for="conn-proxy">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
+              <select id="conn-proxy" v-model="formData.proxy_id">
                 <option :value="null">{{ t('connections.form.noProxy') }}</option>
                 <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">
-                    {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
+                  {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
                 </option>
-            </select>
-             <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
+              </select>
+              <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
               <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
-         </div>
+            </div>
 
-         <!-- 新增：标签选择 (使用新组件) -->
-         <div class="form-group">
-             <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
-             <TagInput v-model="formData.tag_ids" />
-             <!-- TagInput 组件内部会处理加载和错误状态 -->
-         </div>
+            <div class="form-group">
+              <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
+              <TagInput v-model="formData.tag_ids" />
+            </div>
+          </div> <!-- End Column 2 -->
 
-         <!-- 显示 storeError 或 formError -->
-         <div v-if="formError || storeError" class="error-message">
-          {{ formError || storeError }} <!-- 使用合并后的 storeError -->
-        </div>
+          <!-- Error message spans across columns -->
+          <div v-if="formError || storeError" class="error-message full-width-error">
+            {{ formError || storeError }}
+          </div>
+        </div> <!-- 结束 form-fields -->
 
         <div class="form-actions">
-          <button type="submit" :disabled="isLoading"> <!-- 使用合并后的 isLoading -->
+          <button type="submit" :disabled="isLoading">
             {{ submitButtonText }}
           </button>
-          <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button> <!-- 使用合并后的 isLoading -->
+          <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button>
         </div>
       </form>
     </div>
@@ -300,9 +300,11 @@ const handleSubmit = async () => {
   padding: calc(var(--base-padding, 1rem) * 2);
   border-radius: 8px;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); /* 调整阴影 */
-  min-width: 350px; /* 稍微加宽 */
-  max-width: 550px; /* 调整最大宽度 */
+  min-width: 350px;
+  max-width: 750px; /* 增加最大宽度以容纳两列 */
+  width: 80vw; /* 宽度适应视口 */
   border: 1px solid var(--border-color, #ccc);
+  /* 移除 max-height 和 flex 布局 */
 }
 
 h3 {
@@ -313,10 +315,34 @@ h3 {
   font-family: var(--font-family-sans-serif, sans-serif);
   font-size: 1.4em; /* 稍微增大标题字号 */
   font-weight: 600; /* 加粗标题 */
+  flex-shrink: 0; /* 防止标题被压缩 */
+  padding-bottom: calc(var(--base-padding, 1rem) * 1); /* 增加标题和内容间距 */
 }
 
+/* 移除 .form-content 滚动相关样式 */
+
+/* 两列布局样式 */
+.form-fields.two-columns {
+  display: flex;
+  flex-wrap: wrap; /* 允许换行，虽然主要目的是两列 */
+  gap: calc(var(--base-padding, 1rem) * 2); /* 列之间的间距 */
+}
+
+.form-column {
+  flex: 1; /* 每列占据可用空间 */
+  min-width: 250px; /* 设置最小宽度，防止列过窄 */
+}
+
+/* 错误消息跨列 */
+.full-width-error {
+    width: 100%; /* 占据父容器（.two-columns）的全部宽度 */
+    order: 99; /* 确保错误消息在列之后显示 */
+    margin-top: var(--base-margin, 0.5rem); /* 与上方元素保持间距 */
+}
+
+
 .form-group {
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 2.5); /* 增加组间距 */
+  margin-bottom: calc(var(--base-margin, 0.5rem) * 2); /* 保持组间距 */
 }
 
 label {
@@ -356,7 +382,7 @@ textarea:focus {
 }
 
 textarea {
-    min-height: 80px; /* 设置文本域最小高度 */
+    min-height: 60px; /* 减小文本域最小高度 */
     resize: vertical; /* 允许垂直调整大小 */
 }
 
@@ -399,9 +425,10 @@ select {
 .form-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: calc(var(--base-margin, 0.5rem) * 4); /* 增加顶部间距 */
+  margin-top: calc(var(--base-margin, 0.5rem) * 2); /* 减少顶部间距 */
   padding-top: calc(var(--base-padding, 1rem) * 1); /* 在按钮上方增加间距 */
   border-top: 1px solid var(--border-color, #eee); /* 添加分隔线 */
+  /* 移除 flex-shrink 和背景色、内外边距调整 */
 }
 
 .form-actions button {
