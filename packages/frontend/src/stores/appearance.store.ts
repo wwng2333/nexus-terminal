@@ -384,28 +384,50 @@ export const useAppearanceStore = defineStore('appearance', () => {
     function applyPageBackground() {
         const body = document.body;
         if (pageBackgroundImage.value) {
-            // --- 修改开始 ---
-            // 使用环境变量获取后端基础 URL
-            const backendUrl = import.meta.env.VITE_API_BASE_URL || ''; // 提供一个默认空字符串以防万一
+            // --- 修改开始：使用 URL 构造函数改进 URL 拼接 ---
+            const backendUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin; // 如果未设置 VITE_API_BASE_URL，则回退到当前页面源
             const imagePath = pageBackgroundImage.value;
-            console.log(`[AppearanceStore applyPageBackground] backendUrl: "${backendUrl}", imagePath: "${imagePath}"`); // 详细日志
-            const fullImageUrl = `${backendUrl}${imagePath}`;
-            console.log(`[AppearanceStore applyPageBackground] fullImageUrl: "${fullImageUrl}"`); // 打印完整 URL
+            console.log(`[AppearanceStore applyPageBackground] Base URL: "${backendUrl}", Image Path: "${imagePath}"`);
+
+            let fullImageUrl = '';
+            try {
+                // 假设 imagePath 是相对于后端根目录的路径 (例如 /uploads/image.jpg)
+                // 使用 URL 构造函数确保路径正确拼接
+                const baseUrl = new URL(backendUrl);
+                // 确保 imagePath 是以 / 开头，如果不是则添加
+                const correctedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+                fullImageUrl = new URL(correctedPath, baseUrl).href;
+                console.log(`[AppearanceStore applyPageBackground] Constructed Full Image URL: "${fullImageUrl}"`);
+            } catch (e) {
+                console.error(`[AppearanceStore applyPageBackground] Error constructing image URL:`, e);
+                // URL 构建失败，清除背景并退出
+                body.style.backgroundImage = 'none';
+                return; // 停止执行
+            }
             // --- 修改结束 ---
 
-            // Use the full URL
-            // 先设置为空，强制更新
+            // 应用背景图片
+            // 先设置为空，强制浏览器重新请求（可能有助于避免缓存问题）
             body.style.backgroundImage = 'none';
-            // 在下一个 tick 中设置图片，尝试解决时序问题
+            // 使用 nextTick 确保 DOM 更新后再设置背景
             nextTick(() => {
-                body.style.backgroundImage = `url(${fullImageUrl})`;
-                body.style.backgroundSize = 'cover';
-                body.style.backgroundPosition = 'center';
-                body.style.backgroundRepeat = 'no-repeat';
+                // 再次检查 fullImageUrl 是否有效
+                if (fullImageUrl) {
+                    body.style.backgroundImage = `url(${fullImageUrl})`;
+                    body.style.backgroundSize = 'cover'; // 覆盖整个区域
+                    body.style.backgroundPosition = 'center'; // 居中显示
+                    body.style.backgroundRepeat = 'no-repeat'; // 不重复
+                    body.style.backgroundAttachment = 'fixed'; // 背景固定，不随滚动条滚动 (可选)
+                    console.log(`[AppearanceStore applyPageBackground] Applied background image: ${fullImageUrl}`);
+                } else {
+                     console.warn(`[AppearanceStore applyPageBackground] Skipping background application due to invalid URL.`);
+                     body.style.backgroundImage = 'none'; // 确保清除
+                }
             });
-            // 可以考虑添加透明度处理，例如通过伪元素
         } else {
+            // 如果没有设置背景图片，则清除背景
             body.style.backgroundImage = 'none';
+            console.log(`[AppearanceStore applyPageBackground] Cleared background image.`);
         }
          // 注意：直接设置 body 透明度会影响所有子元素，通常不建议。
          // 如果需要背景透明效果，通常结合伪元素或额外 div 实现。

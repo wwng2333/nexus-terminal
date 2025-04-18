@@ -114,7 +114,7 @@ const closeStyleCustomizer = () => {
   flex-direction: column;
   min-height: 100vh;
   font-family: var(--font-family-sans-serif); /* 使用字体变量 */
-  background-color: var(--app-bg-color); /* Set base background for the whole app */
+  /* background-color: var(--app-bg-color); */ /* 移除容器背景色，让 body 背景透出来 */
 }
 
 header {

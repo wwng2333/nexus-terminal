@@ -368,6 +368,7 @@ const handleCloseEditorTab = (tabId: string) => {
 <style scoped>
 .workspace-view {
   display: flex;
+  background-color: transparent;
   flex-direction: column;
   height: calc(100vh - 60px - 30px - 2rem); /* 保持原始高度计算 */
   overflow: hidden;
