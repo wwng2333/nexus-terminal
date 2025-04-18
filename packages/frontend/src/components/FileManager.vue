@@ -128,6 +128,7 @@ const sortDirection = ref<'asc' | 'desc'>('asc');
 const initialLoadDone = ref(false);
 const isFetchingInitialPath = ref(false);
 const isEditingPath = ref(false);
+const searchQuery = ref(''); // 新增：搜索查询 ref
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
 const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for context menu element
@@ -528,6 +529,17 @@ const sortedFileList = computed(() => {
     return list;
 });
 
+// 新增：过滤后的文件列表计算属性
+const filteredFileList = computed(() => {
+    if (!searchQuery.value) {
+        return sortedFileList.value; // 如果没有搜索查询，返回原始排序列表
+    }
+    const lowerCaseQuery = searchQuery.value.toLowerCase();
+    return sortedFileList.value.filter(item =>
+        item.filename.toLowerCase().includes(lowerCaseQuery)
+    );
+});
+
 const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
     if (sortKey.value === key) {
         sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
@@ -725,10 +737,16 @@ const cancelPathEdit = () => {
             @blur="handlePathInput"
             @keyup.esc="cancelPathEdit"
           />
-          <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-          <button @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button>
-          <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-          <button @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
+        </div>
+        <!-- 按钮移到 path-bar 外面 -->
+        <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+        <button class="toolbar-button" @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button>
+        <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+        <button class="toolbar-button" @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
+        <!-- 新增搜索框 -->
+        <div class="search-bar">
+            <input type="text" v-model="searchQuery" :placeholder="t('fileManager.searchPlaceholder')" class="search-input" />
+            <i class="fas fa-search search-icon"></i>
         </div>
         <div class="actions-bar">
              <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
@@ -816,7 +834,8 @@ const cancelPathEdit = () => {
               <td></td><td></td><td></td>
             </tr>
             <!-- File Entries -->
-            <tr v-for="(item, index) in sortedFileList"
+            <!-- 修改 v-for 以使用 filteredFileList -->
+            <tr v-for="(item, index) in filteredFileList"
                 :key="item.filename"
                 @click="handleItemClick($event, item)"
                 :class="{ clickable: item.attrs.isDirectory || item.attrs.isFile, selected: selectedItems.has(item.filename) }"
@@ -885,6 +904,7 @@ const cancelPathEdit = () => {
   background-color: var(--header-bg-color);
   border-bottom: 1px solid var(--border-color);
   flex-wrap: wrap; /* 允许换行 */
+  align-content: flex-start; /* 让换行后的行靠上（或靠左，取决于flex-direction）对齐 */
   gap: var(--base-margin, 0.5rem); /* 添加元素间距 */
 }
 
@@ -898,7 +918,7 @@ const cancelPathEdit = () => {
   padding: 0.2rem 0.4rem; /* 内边距 */
   flex-grow: 1; /* 占据可用空间 */
   overflow: hidden; /* 防止内部溢出 */
-  min-width: 200px; /* 最小宽度 */
+  min-width: 100px; /* 最小宽度 */
 }
 .path-bar span { /* 路径文本容器 */
     white-space: nowrap;
@@ -933,9 +953,8 @@ const cancelPathEdit = () => {
     outline: none; /* 移除默认outline */
     min-width: 100px; /* 最小宽度 */
 }
-/* 路径栏按钮美化 */
-.path-bar button {
-    margin-left: 0.4rem; /* 调整按钮间距 */
+/* 移出 path-bar 的按钮样式 (可以根据需要调整或合并到 .actions-bar button) */
+.toolbar-button {
     background: none;
     border: none;
     cursor: pointer;
@@ -945,12 +964,21 @@ const cancelPathEdit = () => {
     color: var(--text-color-secondary); /* 次要颜色 */
     border-radius: 3px;
     transition: background-color 0.2s ease, color 0.2s ease;
+    margin-left: 0.4rem; /* 与 path-bar 或其他元素保持间距 */
 }
-.path-bar button:hover:not(:disabled) {
+.toolbar-button:hover:not(:disabled) {
     background-color: rgba(0, 0, 0, 0.08); /* 悬停背景 */
     color: var(--text-color); /* 悬停时主颜色 */
 }
-.path-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+.toolbar-button:disabled { opacity: 0.5; cursor: not-allowed; }
+.toolbar-button i {
+    color: var(--button-bg-color); /* 默认状态图标颜色改为按钮背景色 */
+    transition: color 0.2s ease;
+}
+.toolbar-button:hover:not(:disabled) i {
+    color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
+}
+
 
 /* Actions Bar美化 */
 .actions-bar {
@@ -988,12 +1016,49 @@ const cancelPathEdit = () => {
     /* 悬停时可以保持按钮背景色，或者根据需要调整 */
     color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
 }
+/* .path-bar button i 的样式不再需要，因为按钮已移出 */
+/*
 .path-bar button i {
-    color: var(--button-bg-color); /* 默认状态图标颜色改为按钮背景色 */
+    color: var(--button-bg-color);
     transition: color 0.2s ease;
 }
 .path-bar button:hover:not(:disabled) i {
-    color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
+    color: var(--button-hover-bg-color, var(--button-bg-color));
+}
+*/
+
+/* 新增搜索框样式 */
+.search-bar {
+    min-width: 10px;
+    display: flex;
+    align-items: center;
+    position: relative; /* 为了定位图标 */
+    /* margin-left: auto; /* 移除这个规则，防止换行后不靠左 */
+    margin-right: var(--base-margin, 0.5rem); /* 与操作按钮保持间距 */
+    /* flex-shrink: 0; /* 移除此行，允许搜索框收缩 */
+}
+.search-input {
+    padding: 0.4rem 0.8rem 0.4rem 2rem; /* 左侧留出图标空间 */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--app-bg-color);
+    color: var(--text-color);
+    font-size: 0.9em;
+    min-width: 10px; /* 最小宽度 */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.search-input:focus {
+    outline: none;
+    border-color: var(--button-bg-color);
+    box-shadow: 0 0 0 2px rgba(var(--button-rgb), 0.2); /* 模拟焦点环 */
+}
+.search-icon {
+    position: absolute;
+    left: 0.8rem; /* 定位在输入框内左侧 */
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-color-secondary);
+    pointer-events: none; /* 防止图标干扰点击 */
 }
 
 
@@ -1224,3 +1289,4 @@ td:nth-child(5) { /* Modified */
 }
 
 </style>
+

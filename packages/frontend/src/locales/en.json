@@ -326,7 +326,8 @@
     "noActiveSession": "No active session",
     "loadDirectoryFailed": "Failed to load directory",
     "noOpenFile": "No file open",
-    "selectFileToEdit": "Select a file from the file manager to start editing."
+    "selectFileToEdit": "Select a file from the file manager to start editing.",
+    "searchPlaceholder": "Search files..."
   },
   "statusMonitor": {
       "noActiveSession": "No active session"

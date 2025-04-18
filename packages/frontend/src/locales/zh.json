@@ -331,7 +331,8 @@
     "editPathTooltip": "点击路径进行编辑",
     "noActiveSession": "无活动会话",
     "noOpenFile": "未打开文件",
-    "selectFileToEdit": "请从文件管理器中选择文件以开始编辑。"
+    "selectFileToEdit": "请从文件管理器中选择文件以开始编辑。",
+    "searchPlaceholder": "搜索文件..."
   },
   "statusMonitor": {
       "noActiveSession": "无活动会话"
