@@ -121,7 +121,7 @@ header {
   background-color: var(--header-bg-color); /* 使用头部背景色变量 */
   padding: 0 calc(var(--base-padding) * 1.5); /* Adjust padding: 0 top/bottom, more left/right */
   border-bottom: 1px solid var(--border-color); /* 使用边框颜色变量 */
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); /* Softer shadow */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Enhanced shadow for more depth */
   height: 55px; /* Slightly taller header */
   display: flex; /* Use flexbox for alignment */
   align-items: center; /* Center items vertically */
