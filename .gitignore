@@ -136,3 +136,4 @@ dist
 *.db
 *.db
 *.jpg
+/packages/backend/uploads/backgrounds
