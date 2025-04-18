@@ -127,11 +127,11 @@ const openLayoutConfigurator = () => {
 .terminal-tab-bar {
   display: flex;
   background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 */
-  border-bottom: 1px solid var(--border-color, #bdbdbd); /* 恢复底部边框 */
+  border: 1px solid var(--border-color, #bdbdbd); /* 应用到所有四边 */
   white-space: nowrap;
   height: 2.5rem; /* 固定标签栏高度 */
   box-sizing: border-box; /* 确保 padding 不会增加总高度 */
-  border-radius: 5px 5px 0 0; /* Top-left, Top-right, Bottom-right, Bottom-left */
+  border-radius: 5px 5px 0 0; /* 保持左上和右上圆角 */
   margin: 0 var(--base-margin, 0.5rem); /* Add horizontal margin to match content area */
   margin-top: var(--base-margin, 0.5rem); /* Add top margin */
   overflow: hidden; /* Clip content to rounded corners */
@@ -196,6 +196,8 @@ const openLayoutConfigurator = () => {
   background-color: var(--app-bg-color, #ffffff); /* 使用变量 - 激活标签背景 */
   color: var(--text-color, #333333); /* 使用变量 - 激活标签文字颜色 */
   border-bottom-color: transparent; /* 隐藏激活标签的底部边框，模拟连接效果 */
+  /* Ensure right border is explicitly set for active tab as well */
+  border-right-color: var(--border-color, #bdbdbd);
   position: relative;
   z-index: 1;
 }
@@ -361,3 +363,4 @@ const openLayoutConfigurator = () => {
 }
 
 </style>
+
