@@ -55,7 +55,7 @@ const sendCommand = () => {
   font-size: 0.9em;
   background-color: var(--app-bg-color); /* Use theme variable */
   color: var(--text-color); /* Use theme variable */
-  width: 80%; /* 输入框宽度，可调整 */
+  width: 60%; /* 输入框宽度，可调整 */
   max-width: 800px; /* 最大宽度 */
   outline: none;
   transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
