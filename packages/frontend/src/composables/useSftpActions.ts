@@ -73,6 +73,12 @@ export function createSftpActionsManager(
     const loadDirectory = (path: string) => {
         if (!isSftpReady.value) {
             // 使用通知 store 显示错误
+            // *** 新增：如果已经在加载，则阻止新的加载请求 ***
+            if (isLoading.value) {
+                console.warn(`[SFTP ${instanceSessionId}] 尝试加载目录 ${path} 但已在加载中。`);
+                return;
+            }
+
             uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
             isLoading.value = false;
             fileList.value = [];
