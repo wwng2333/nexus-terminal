@@ -114,7 +114,7 @@
     </div>
 
     <!-- Unified Test Button Area -->
-    <div class="mb-3 text-center">
+    <div class="test-button-area"> <!-- Added class -->
         <!-- Show button if editing OR if adding and required fields are filled -->
         <button
             v-if="isEditing || canTestUnsaved"
@@ -140,8 +140,8 @@
     <!-- Enabled Events -->
     <div class="mb-3">
         <label class="form-label">{{ $t('settings.notifications.form.enabledEvents') }}</label>
-        <div class="row">
-            <div v-for="event in allNotificationEvents" :key="event" class="col-md-4 col-sm-6">
+        <div class="enabled-events-grid"> <!-- Changed class -->
+            <div v-for="event in allNotificationEvents" :key="event"> <!-- Removed col classes -->
                 <div class="form-check">
                     <input
                         type="checkbox"
@@ -157,7 +157,7 @@
     </div>
 
 
-    <div class="d-flex justify-content-end">
+    <div class="form-actions"> <!-- Added class -->
       <button type="button" @click="handleCancel" class="btn btn-secondary me-2">{{ $t('common.cancel') }}</button>
       <button type="submit" class="btn btn-primary" :disabled="store.isLoading || !!headerError || testingNotification">
         {{ store.isLoading ? $t('common.saving') : $t('common.save') }}
@@ -457,162 +457,234 @@ const handleTestNotification = async () => {
 </script>
 
 <style scoped>
+/* Form container - Inherits styles from .form-section in parent */
 .notification-setting-form {
-  padding: var(--base-padding);
-  background-color: var(--app-bg-color); /* Use app background */
-  border: 1px solid var(--border-color); /* Add border consistent with theme */
-  border-radius: 4px;
   color: var(--text-color);
-  /* Removed box-shadow for a flatter look, can be added back if desired */
+  max-width: 800px; /* Limit form width */
+  margin: 0 auto; /* Center the form */
 }
 
 h3 {
   color: var(--text-color);
-  margin-bottom: calc(var(--base-margin) * 2);
+  margin-bottom: calc(var(--base-margin) * 1.5); /* Adjust margin */
   padding-bottom: var(--base-margin);
-  border-bottom: 1px solid var(--border-color);
-  font-size: 1.25rem; /* Slightly larger heading */
+  border-bottom: 1px solid var(--border-color-light, var(--border-color)); /* Lighter border */
+  font-size: 1.4rem; /* Adjust size */
+  font-weight: 600;
 }
 
-.mb-3 { /* Bootstrap margin bottom class */
-  margin-bottom: calc(var(--base-margin) * 1.5) !important; /* Use variable, increase slightly */
+.mb-3 {
+  margin-bottom: calc(var(--base-margin) * 1.2) !important; /* Consistent margin */
 }
 
+/* Form Elements Styling (Consistent with SettingsView) */
 .form-label {
   display: block;
-  margin-bottom: calc(var(--base-margin) / 2);
+  margin-bottom: calc(var(--base-margin) / 3);
+  font-weight: 600;
   color: var(--text-color);
-  font-weight: bold;
+  font-size: 0.9rem;
 }
 
-.form-control, .form-select, .form-check-input {
-  background-color: var(--app-bg-color);
-  color: var(--text-color);
+.form-control, .form-select {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  box-sizing: border-box;
   border: 1px solid var(--border-color);
-  padding: 0.5rem 0.75rem;
-  border-radius: 4px;
-  width: 100%; /* Ensure inputs take full width */
-  box-sizing: border-box; /* Include padding and border in element's total width */
+  border-radius: 5px;
+  font-family: var(--font-family-sans-serif);
+  font-size: 0.95rem;
+  color: var(--text-color);
+  background-color: var(--input-bg-color, var(--app-bg-color));
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .form-control:focus, .form-select:focus {
-    border-color: var(--link-active-color); /* Highlight focus */
+    border-color: var(--link-active-color);
     outline: 0;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* Optional focus shadow */
+    box-shadow: 0 0 0 3px rgba(var(--rgb-link-active-color, 0, 123, 255), 0.2);
+}
+.form-select {
+    appearance: none; /* Custom arrow styling might be needed */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
 }
 
 textarea.form-control {
-    min-height: 80px; /* Give textareas more space */
+    min-height: 100px; /* Adjust height */
+    resize: vertical;
 }
 
+/* Checkbox Styling (Consistent with SettingsView) */
 .form-check {
-  display: flex; /* Align checkbox and label */
+  display: flex;
   align-items: center;
-  padding-left: 0; /* Reset Bootstrap padding */
+  padding-left: 0;
+  margin-bottom: calc(var(--base-margin) / 2); /* Spacing for checkbox groups */
 }
 .form-check-input {
-  width: auto; /* Don't force checkbox to full width */
-  margin-right: 0.5rem; /* Space between checkbox and label */
-  margin-top: 0; /* Align vertically */
-  border: 1px solid var(--border-color); /* Ensure border is visible */
-}
-.form-check-label {
-  margin-bottom: 0; /* Reset label margin */
-  font-weight: normal; /* Normal weight for checkbox labels */
-}
-
-.text-muted {
-  color: var(--text-color-secondary);
-  font-size: 0.85em;
-  display: block; /* Ensure it takes its own line */
-  margin-top: calc(var(--base-margin) / 2);
-}
-.text-danger {
-    color: #dc3545; /* Keep specific danger color */
-}
-.text-success {
-    color: #198754; /* Keep specific success color */
-}
-
-.channel-config {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.7rem;
+  flex-shrink: 0;
+  appearance: none;
+  background-color: var(--input-bg-color, var(--app-bg-color));
   border: 1px solid var(--border-color);
   border-radius: 4px;
-  padding: var(--base-padding);
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.form-check-input:checked {
+    background-color: var(--button-bg-color);
+    border-color: var(--button-bg-color);
+}
+.form-check-input:checked::after {
+    content: '✔';
+    position: absolute;
+    color: var(--button-text-color);
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.85em;
+    font-weight: bold;
+}
+.form-check-input:focus {
+    box-shadow: 0 0 0 3px rgba(var(--rgb-link-active-color, 0, 123, 255), 0.2);
+    outline: 0;
+}
+.form-check-label {
+  margin-bottom: 0;
+  cursor: pointer;
+  font-weight: normal;
+  font-size: 0.95rem;
+  user-select: none;
+}
+
+/* Channel Config Section */
+.channel-config {
+  border: 1px solid var(--border-color-light, var(--border-color)); /* Lighter border */
+  border-radius: 6px; /* Slightly rounded */
+  padding: calc(var(--base-padding) * 1.2); /* Adjust padding */
   margin-top: var(--base-margin);
-  background-color: var(--header-bg-color); /* Slightly different background */
+  margin-bottom: calc(var(--base-margin) * 1.5); /* Ensure space below */
+  background-color: rgba(0,0,0,0.02); /* Very subtle background */
 }
 
 .channel-config h4 {
-    font-size: 1rem;
-    font-weight: bold;
+    font-size: 1.1rem; /* Adjust size */
+    font-weight: 600;
     margin-bottom: var(--base-margin);
     color: var(--text-color);
-    padding-bottom: calc(var(--base-margin) / 2);
-    border-bottom: 1px dashed var(--border-color); /* Dashed separator */
+    padding-bottom: calc(var(--base-margin) * 0.75);
+    border-bottom: 1px dashed var(--border-color-light, var(--border-color));
 }
 
-/* Button styling (reuse from NotificationSettings or define globally) */
-.btn {
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    font-weight: bold;
-}
-.btn-primary {
-    background-color: var(--button-bg-color);
-    border: 1px solid var(--button-bg-color);
-    color: var(--button-text-color);
-}
-.btn-primary:hover {
-     background-color: var(--button-hover-bg-color);
-     border-color: var(--button-hover-bg-color);
-     color: var(--button-text-color);
-}
-.btn-primary:disabled {
-    opacity: 0.65;
-    cursor: not-allowed;
-}
-.btn-secondary {
-    background-color: var(--text-color-secondary);
-    border: 1px solid var(--text-color-secondary);
-    color: var(--app-bg-color);
-}
-.btn-secondary:hover {
-    background-color: var(--text-color);
-    border-color: var(--text-color);
-    color: var(--app-bg-color);
-}
-.btn-outline-secondary {
-    color: var(--text-color-secondary);
-    border: 1px solid var(--border-color);
-    background-color: transparent;
-}
-.btn-outline-secondary:hover {
-    background-color: var(--header-bg-color);
-    color: var(--text-color);
-    border-color: var(--border-color);
-}
-.btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.875rem;
+/* Enabled Events Layout */
+.enabled-events-grid { /* Use this class on the div wrapping the events */
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
+    gap: calc(var(--base-margin) / 2) var(--base-margin); /* Row and column gap */
+    margin-top: calc(var(--base-margin) / 2);
 }
 
+/* Helper Text and Errors */
+.text-muted {
+  color: var(--text-color-secondary);
+  font-size: 0.85em;
+  display: block;
+  margin-top: calc(var(--base-margin) / 3);
+}
+.text-danger, .alert-danger {
+    color: #842029;
+    font-size: 0.9em;
+}
+.text-success {
+    color: #0f5132;
+    font-size: 0.9em;
+}
+.alert-danger { /* Style for form error */
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+    border-left: 4px solid #842029;
+    padding: 0.8rem 1rem;
+    border-radius: 5px;
+    margin-top: var(--base-margin);
+}
+
+/* Test Button Area */
+.test-button-area { /* Add this class to the div wrapping the test button */
+    margin-top: calc(var(--base-margin) * 1.5);
+    margin-bottom: calc(var(--base-margin) * 1.5);
+    text-align: center;
+}
+.test-button-area .btn-outline-secondary {
+    /* Use base btn-outline-secondary */
+}
+.test-button-area .text-muted,
+.test-button-area .text-danger,
+.test-button-area .text-success {
+    margin-top: calc(var(--base-margin) / 2);
+}
+
+
+/* Button Styles (Inherited from parent component's style block) */
+/* Ensure .btn, .btn-primary, .btn-secondary, .btn-sm are defined there or globally */
 .spinner-border-sm {
     width: 1rem;
     height: 1rem;
     border-width: 0.2em;
-    vertical-align: -0.125em; /* Align spinner better with text */
+    vertical-align: -0.125em;
+    margin-right: 0.3rem; /* Space between spinner and text */
 }
 
-.alert { /* General alert styling */
-    padding: var(--base-padding);
-    margin-top: var(--base-margin);
-    border: 1px solid transparent;
-    border-radius: 4px;
+/* Final Action Buttons */
+.form-actions { /* Add this class to the div wrapping save/cancel */
+    display: flex;
+    justify-content: flex-end;
+    margin-top: calc(var(--base-margin) * 2);
+    padding-top: var(--base-margin);
+    border-top: 1px solid var(--border-color-light, var(--border-color));
 }
-.alert-danger {
-    color: #842029;
-    background-color: #f8d7da;
-    border-color: #f5c2c7;
+.form-actions .btn {
+    margin-left: var(--base-margin);
+    /* Re-affirming button styles for clarity */
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    border: 1px solid transparent;
+}
+.form-actions .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.form-actions .btn:active:not(:disabled) {
+    transform: translateY(0px);
+}
+.form-actions .btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+.form-actions .btn-primary {
+    background-color: var(--button-bg-color);
+    border-color: var(--button-bg-color);
+    color: var(--button-text-color);
+}
+.form-actions .btn-primary:hover:not(:disabled) {
+     background-color: var(--button-hover-bg-color);
+     border-color: var(--button-hover-bg-color);
+}
+.form-actions .btn-secondary {
+    background-color: var(--secondary-button-bg-color, var(--header-bg-color));
+    color: var(--secondary-button-text-color, var(--text-color));
+    border: 1px solid var(--border-color);
+}
+.form-actions .btn-secondary:hover:not(:disabled) {
+    background-color: var(--secondary-button-hover-bg-color, var(--border-color));
+    border-color: var(--border-color);
 }
 </style>

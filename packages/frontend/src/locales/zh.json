@@ -244,7 +244,8 @@
        "alreadyConnected": "已存在活动的 SSH 连接。",
        "unknown": "未知状态",
        "wsClosedWillRetry": "WebSocket 连接已关闭，将在 {seconds} 秒后尝试第 {attempt} 次重连...",
-       "reconnecting": "正在尝试重新连接..."
+       "reconnecting": "正在尝试重新连接...",
+       "reconnectFailed": "重连失败"
      },
      "selectConnectionPrompt": "请选择一个连接",
      "selectConnectionHint": "从左侧列表中选择一个连接，或点击'添加新连接'按钮创建一个新连接。",

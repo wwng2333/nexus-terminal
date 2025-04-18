@@ -47,8 +47,10 @@ a:hover {
 /* 可以添加更多全局样式规则 */
 
 /* 为 xterm 终端添加内边距 */
-.xterm-screen {
-  padding: 10px; /* 你可以根据需要调整这个值 */
+
+.xterm{
+  padding: 10px 10px 10px 10px; 
+
 }
 
 /* 为历史记录和快捷命令列表设置字体 */

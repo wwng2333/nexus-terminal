@@ -246,7 +246,8 @@
        "alreadyConnected": "An active SSH connection already exists.",
        "unknown": "Unknown status",
        "wsClosedWillRetry": "WebSocket connection closed, will attempt reconnect {attempt} in {seconds} seconds...",
-       "reconnecting": "Attempting to reconnect..."
+       "reconnecting": "Attempting to reconnect...",
+       "reconnectFailed": "Reconnect failed"
      },
      "terminal": {
       "infoPrefix": "[INFO]",

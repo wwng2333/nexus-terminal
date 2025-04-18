@@ -15,8 +15,9 @@
       <div v-if="logs.length === 0" class="alert alert-info">
         {{ $t('auditLog.noLogs') }}
       </div>
-      <div v-else>
-        <table class="table table-striped table-hover">
+      <div v-else> <!-- Wrapper for v-else content -->
+        <div class="table-container"> <!-- Add table container -->
+          <table class="table table-striped table-hover">
           <thead>
             <tr>
               <th>{{ $t('auditLog.table.timestamp') }}</th>
@@ -35,7 +36,7 @@
             </tr>
           </tbody>
         </table>
-
+      </div> <!-- End table container -->
         <!-- Pagination Controls -->
         <nav aria-label="Audit Log Pagination" v-if="totalPages > 1">
           <ul class="pagination justify-content-center">
@@ -54,9 +55,9 @@
          <div class="text-center text-muted mt-2">
             {{ $t('auditLog.paginationInfo', { currentPage, totalPages, totalLogs }) }}
         </div>
-      </div>
-    </div>
-  </div>
+      </div> <!-- This closes the v-else block starting implicitly at line 18 -->
+    </div> <!-- This closes the v-if block starting at line 14 -->
+  </div> <!-- This closes the root div -->
 </template>
 
 <script setup lang="ts">
@@ -145,155 +146,171 @@ const paginationRange = computed(() => {
 
 <style scoped>
 .audit-log-view {
-  padding: var(--base-padding, 20px); /* 使用变量 */
+  padding: var(--base-padding, 20px);
   color: var(--text-color);
   background-color: var(--app-bg-color);
-  min-height: calc(100vh - 60px); /* Example: Adjust based on header/footer height */
+  min-height: calc(100vh - 60px); /* Adjust based on actual header/footer */
+  max-width: 1400px; /* Limit max width for better readability on large screens */
+  margin: 0 auto; /* Center the view */
 }
 
 .audit-log-view h1 {
-    margin-bottom: calc(var(--base-margin, 1rem) * 2); /* Add space below title */
-    color: var(--text-color); /* Ensure title color */
+    margin-bottom: calc(var(--base-margin, 1rem) * 1.5); /* Adjust space */
+    padding-bottom: var(--base-margin, 1rem);
+    border-bottom: 1px solid var(--border-color);
+    font-size: 1.8rem;
+    color: var(--text-color);
 }
 
-.loading-indicator, .error-message {
-  margin-top: var(--base-margin, 1rem); /* 使用变量 */
+.loading-indicator, .error-message, .alert {
+  margin-top: var(--base-margin, 1rem);
+  padding: var(--base-padding, 1rem);
+  border-radius: 6px; /* Consistent border radius */
   text-align: center;
-  color: var(--text-color-secondary); /* 使用次要文本颜色 */
+}
+
+.loading-indicator {
+  color: var(--text-color-secondary);
+  font-style: italic;
 }
 
 .error-message {
-  color: var(--bs-danger); /* 保留特定错误颜色 */
+  color: #842029;
+  background-color: #f8d7da;
+  border: 1px solid #f5c2c7;
+  border-left-width: 4px;
 }
 
-/* 表格容器，增加边框和圆角 */
+/* Table container with shadow and border */
 .table-container {
     border: 1px solid var(--border-color, #dee2e6);
-    border-radius: 5px;
-    overflow: hidden; /* Ensures border-radius clips table corners */
+    border-radius: 8px; /* Match SettingsView */
+    overflow: hidden; /* Clip table corners */
     margin-top: var(--base-margin, 1rem);
-    background-color: var(--app-bg-color); /* Ensure background */
+    background-color: var(--content-bg-color, var(--app-bg-color)); /* Match SettingsView */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Match SettingsView */
+    overflow-x: auto; /* Allow horizontal scroll on small screens */
 }
 
-/* 表格样式 */
+/* Table base styles */
 .table {
     width: 100%;
-    /* margin-top: var(--base-margin, 1rem); */ /* Moved margin to container */
-    border-collapse: collapse; /* 移除单元格间距 */
-    /* background-color: var(--app-bg-color); */ /* Background on container */
-    color: var(--text-color); /* 确保文本颜色 */
-    border: none; /* Remove table's own border if container has one */
+    border-collapse: collapse;
+    color: var(--text-color);
+    border: none; /* Container handles border */
+    font-size: 0.95rem; /* Slightly larger font */
 }
 
 .table th,
 .table td {
-    padding: 0.8rem 1rem; /* Slightly increase padding */
-    vertical-align: middle; /* Align vertically in the middle */
-    border-top: 1px solid var(--border-color, #dee2e6); /* 使用变量 */
-    text-align: left; /* 确保左对齐 */
+    padding: 0.9rem 1.1rem; /* Adjust padding */
+    vertical-align: middle;
+    border-top: 1px solid var(--border-color-light, var(--border-color)); /* Use lighter border */
+    text-align: left;
 }
 
-/* Remove top border for the first row */
+/* Remove top border for the first body row */
 .table tbody tr:first-child td {
     border-top: none;
 }
 
-
+/* Table header */
 .table thead th {
-    padding: 0.8rem 1rem; /* Match cell padding */
     vertical-align: bottom;
-    border-bottom: 2px solid var(--border-color, #dee2e6); /* 使用变量，加粗底部边框 */
-    border-top: none; /* No top border for header */
-    background-color: var(--header-bg-color, #f8f9fa); /* 使用变量 */
-    color: var(--text-color); /* 确保表头文本颜色 */
-    font-weight: 600; /* Slightly less bold */
-    white-space: nowrap; /* Prevent header text wrapping */
+    border-bottom: 2px solid var(--border-color, #dee2e6);
+    border-top: none;
+    background-color: var(--table-header-bg-color, var(--header-bg-color)); /* Use variable */
+    color: var(--table-header-text-color, var(--text-color)); /* Use variable */
+    font-weight: 600;
+    white-space: nowrap;
 }
 
-/* 条纹样式 */
+/* Striped rows */
 .table-striped tbody tr:nth-of-type(odd) {
-     background-color: var(--header-bg-color, #f8f9fa); /* Use header bg for subtle stripe */
-     /* Ensure text color remains readable */
+     background-color: var(--table-stripe-bg-color, rgba(0,0,0,0.02)); /* More subtle stripe */
      color: var(--text-color);
 }
 .table-striped tbody tr:nth-of-type(even) {
-     background-color: var(--app-bg-color); /* Ensure even rows match app background */
+     background-color: transparent; /* Use container background */
 }
 
-
-/* 悬停样式 */
+/* Hover effect */
 .table-hover tbody tr:hover {
-    background-color: rgba(0, 0, 0, 0.05); /* Subtle hover effect */
-    /* Or use a variable like --row-hover-bg-color */
-    cursor: default; /* Indicate non-interactive rows */
+    background-color: var(--table-hover-bg-color, rgba(0,0,0,0.04)); /* Subtle hover */
+    cursor: default;
 }
 
-
+/* Details <pre> styling */
 pre {
-  white-space: pre-wrap; /* Allow wrapping */
-  word-break: break-all; /* Break long strings */
-  background-color: var(--app-bg-color); /* Match app background */
-  padding: calc(var(--base-padding, 0.5rem) * 0.8); /* Slightly smaller padding */
-  border: 1px solid var(--border-color, #dee2e6); /* 添加边框 */
-  border-radius: 4px; /* Consistent border radius */
-  font-size: 0.85em; /* Slightly smaller font */
-  color: var(--text-color); /* 确保文本颜色 */
-  max-height: 150px; /* Limit height */
-  overflow-y: auto; /* Add scroll if needed */
-  margin: 0; /* Remove default margin */
+  white-space: pre-wrap;
+  word-break: break-all;
+  background-color: var(--code-bg-color, var(--header-bg-color)); /* Use code background */
+  padding: 0.6rem 0.8rem; /* Adjust padding */
+  border: 1px solid var(--border-color-light, var(--border-color));
+  border-radius: 5px; /* Consistent radius */
+  font-size: 0.88em; /* Adjust font size */
+  color: var(--code-text-color, var(--text-color)); /* Use code text color */
+  max-height: 180px; /* Increase max height slightly */
+  overflow-y: auto;
+  margin: 0;
+  font-family: var(--font-family-monospace); /* Use monospace font */
 }
 
-/* 分页样式 */
+/* Pagination styling */
 .pagination {
-    margin-top: calc(var(--base-margin, 1rem) * 1.5); /* 使用变量 */
+    margin-top: calc(var(--base-margin, 1rem) * 2); /* Increase top margin */
+    justify-content: center; /* Ensure centered */
+    border: none;
 }
 
 .page-item .page-link {
-    color: var(--link-color, #007bff); /* 使用变量 */
-    background-color: var(--app-bg-color);
+    color: var(--link-color, #007bff);
+    background-color: var(--content-bg-color, var(--app-bg-color)); /* Match container bg */
     border: 1px solid var(--border-color, #dee2e6);
-    margin: 0 2px; /* Add small horizontal margin */
-    border-radius: 4px; /* Add border radius */
-    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, border-color 0.15s ease-in-out; /* Smooth transition */
+    margin: 0 3px; /* Adjust margin */
+    border-radius: 5px; /* Match other elements */
+    padding: 0.4rem 0.8rem; /* Adjust padding */
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+    font-size: 0.9rem;
 }
 
 .page-item.active .page-link {
     z-index: 3;
-    color: var(--button-text-color, #fff); /* 使用变量 */
-    background-color: var(--button-bg-color, #007bff); /* 使用变量 */
-    border-color: var(--button-bg-color, #007bff); /* 使用变量 */
+    color: var(--button-text-color, #fff);
+    background-color: var(--button-bg-color, #007bff);
+    border-color: var(--button-bg-color, #007bff);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .page-item.disabled .page-link {
-    color: var(--text-color-secondary, #6c757d); /* 使用变量 */
+    color: var(--text-color-secondary, #6c757d);
     pointer-events: none;
-    background-color: var(--app-bg-color);
+    background-color: var(--content-bg-color, var(--app-bg-color));
     border-color: var(--border-color, #dee2e6);
-    opacity: 0.65; /* Indicate disabled state */
+    opacity: 0.6; /* Adjust opacity */
 }
 
-.page-link:hover:not(.active) { /* Apply hover only if not active */
-    color: var(--link-hover-color, #0056b3); /* 使用变量 */
-    background-color: var(--header-bg-color, #e9ecef); /* 使用变量 */
+.page-link:hover { /* Combined hover for active/inactive */
+    z-index: 2;
+}
+
+.page-item:not(.active) .page-link:hover {
+    color: var(--link-hover-color, #0056b3);
+    background-color: var(--header-bg-color, #e9ecef);
     border-color: var(--border-color, #dee2e6);
 }
 
-/* Remove border from the pagination container itself */
-.pagination {
-    border: none;
-}
-
-/* Alert 样式 */
+/* Alert Info styling */
 .alert-info {
-    color: var(--text-color); /* 调整颜色使其更通用 */
-    background-color: var(--header-bg-color, #e9ecef); /* 使用变量 */
-    border-color: var(--border-color, #dee2e6); /* 使用变量 */
-    padding: var(--base-padding, 1rem);
-    margin-top: var(--base-margin, 1rem);
-    border-radius: 0.25rem;
+    color: var(--info-text-color, #0c5460); /* Specific info color */
+    background-color: var(--info-bg-color, #d1ecf1); /* Specific info background */
+    border: 1px solid var(--info-border-color, #bee5eb); /* Specific info border */
+    border-left-width: 4px; /* Add left accent border */
+    text-align: left; /* Align text left */
 }
 
 .text-muted {
-     color: var(--text-color-secondary) !important; /* 确保覆盖 Bootstrap */
+     color: var(--text-color-secondary) !important;
+     font-size: 0.9rem;
 }
 </style>

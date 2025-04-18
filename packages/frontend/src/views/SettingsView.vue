@@ -6,211 +6,199 @@
     <div v-if="settingsLoading" class="loading-message">{{ $t('common.loading') }}</div>
     <div v-if="settingsError" class="error-message">{{ settingsError }}</div>
 
-    <div class="settings-section">
-      <h2>{{ $t('settings.changePassword.title') }}</h2>
-      <form @submit.prevent="handleChangePassword">
-        <div class="form-group">
-          <label for="currentPassword">{{ $t('settings.changePassword.currentPassword') }}</label>
-          <input type="password" id="currentPassword" v-model="currentPassword" required>
-        </div>
-        <div class="form-group">
-          <label for="newPassword">{{ $t('settings.changePassword.newPassword') }}</label>
-          <input type="password" id="newPassword" v-model="newPassword" required>
-        </div>
-        <div class="form-group">
-          <label for="confirmPassword">{{ $t('settings.changePassword.confirmPassword') }}</label>
-          <input type="password" id="confirmPassword" v-model="confirmPassword" required>
-        </div>
-        <button type="submit" :disabled="changePasswordLoading">{{ changePasswordLoading ? $t('common.loading') : $t('settings.changePassword.submit') }}</button>
-        <p v-if="changePasswordMessage" :class="{ 'success-message': changePasswordSuccess, 'error-message': !changePasswordSuccess }">{{ changePasswordMessage }}</p>
-      </form>
-    </div>
-
-    <!-- 语言设置 -->
-    <div class="settings-section">
-      <h2>{{ $t('settings.language.title') }}</h2>
-      <form @submit.prevent="handleUpdateLanguage">
-        <div class="form-group">
-          <label for="languageSelect">{{ $t('settings.language.selectLabel') }}</label>
-          <select id="languageSelect" v-model="selectedLanguage" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
-            <option value="en">English</option>
-            <option value="zh">中文</option>
-          </select>
-        </div>
-        <button type="submit" :disabled="languageLoading">{{ languageLoading ? $t('common.saving') : $t('settings.language.saveButton') }}</button>
-        <p v-if="languageMessage" :class="{ 'success-message': languageSuccess, 'error-message': !languageSuccess }">{{ languageMessage }}</p>
-      </form>
-    </div>
-
-    <!-- 弹窗编辑器设置 -->
-    <div class="settings-section">
-      <h2>{{ $t('settings.popupEditor.title') }}</h2>
-      <form @submit.prevent="handleUpdatePopupEditorSetting">
-          <div class="form-group form-group-checkbox">
-              <input type="checkbox" id="showPopupEditor" v-model="popupEditorEnabled">
-              <label for="showPopupEditor">{{ $t('settings.popupEditor.enableLabel') }}</label>
-          </div>
-          <button type="submit" :disabled="popupEditorLoading">{{ popupEditorLoading ? $t('common.saving') : $t('settings.popupEditor.saveButton') }}</button>
-          <p v-if="popupEditorMessage" :class="{ 'success-message': popupEditorSuccess, 'error-message': !popupEditorSuccess }">{{ popupEditorMessage }}</p>
-      </form>
-    </div>
-
-    <!-- 共享编辑器标签页设置 -->
-    <div class="settings-section">
-      <h2>{{ $t('settings.shareEditorTabs.title') }}</h2>
-      <form @submit.prevent="handleUpdateShareTabsSetting">
-          <div class="form-group form-group-checkbox">
-              <input type="checkbox" id="shareEditorTabs" v-model="shareTabsEnabled">
-              <label for="shareEditorTabs">{{ $t('settings.shareEditorTabs.enableLabel') }}</label>
-          </div>
-          <p class="setting-description">{{ $t('settings.shareEditorTabs.description') }}</p>
-          <button type="submit" :disabled="shareTabsLoading">{{ shareTabsLoading ? $t('common.saving') : $t('settings.shareEditorTabs.saveButton') }}</button>
-          <p v-if="shareTabsMessage" :class="{ 'success-message': shareTabsSuccess, 'error-message': !shareTabsSuccess }">{{ shareTabsMessage }}</p>
-      </form>
-    </div>
-
-
-    <hr>
-
-     <div class="settings-section">
-      <h2>Passkey 设置</h2>
-      <p>使用 Passkey（无密码认证）提升安全性和便捷性。您可以注册新的 Passkey 用于登录。</p>
-      <div class="form-group">
-        <label for="passkey-name">{{ $t('settings.passkey.nameLabel') }}:</label>
-        <input type="text" id="passkey-name" v-model="passkeyName" :placeholder="$t('settings.passkey.namePlaceholder')" required>
-      </div>
-      <button @click="handleRegisterPasskey" class="btn btn-primary">{{ $t('settings.passkey.registerButton') }}</button>
-      <p v-if="passkeyMessage" class="success-message">{{ passkeyMessage }}</p>
-      <p v-if="passkeyError" class="error-message">{{ passkeyError }}</p>
-    </div>
-
-    <div class="settings-section">
-      <h2>{{ $t('settings.twoFactor.title') }}</h2>
-
-      <!-- 如果 2FA 已启用 -->
-      <div v-if="twoFactorEnabled">
-        <p class="success-message">{{ $t('settings.twoFactor.status.enabled') }}</p>
-        <form @submit.prevent="handleDisable2FA">
-          <div class="form-group">
-            <label for="disablePassword">{{ $t('settings.twoFactor.disable.passwordPrompt') }}</label>
-            <input type="password" id="disablePassword" v-model="disablePassword" required>
-          </div>
-          <button type="submit" :disabled="twoFactorLoading">{{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.disable.button') }}</button>
-        </form>
-      </div>
-
-      <!-- 如果 2FA 未启用 -->
-      <div v-else>
-        <p>{{ $t('settings.twoFactor.status.disabled') }}</p>
-        <!-- 如果不在设置流程中，显示启用按钮 -->
-        <button v-if="!isSettingUp2FA" @click="handleSetup2FA" :disabled="twoFactorLoading">
-          {{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.enable.button') }}
-        </button>
-
-        <!-- 如果正在设置中 -->
-        <div v-if="isSettingUp2FA && setupData">
-          <p>{{ $t('settings.twoFactor.setup.scanQrCode') }}</p>
-          <img :src="setupData.qrCodeUrl" alt="QR Code">
-          <p>{{ $t('settings.twoFactor.setup.orEnterSecret') }} <code>{{ setupData.secret }}</code></p>
-          <form @submit.prevent="handleVerifyAndActivate2FA">
+    <div class="settings-grid">
+      <!-- Column 1: Security Settings -->
+      <div class="settings-column">
+        <div class="settings-section">
+          <h2>{{ $t('settings.changePassword.title') }}</h2>
+          <form @submit.prevent="handleChangePassword">
             <div class="form-group">
-              <label for="verificationCode">{{ $t('settings.twoFactor.setup.enterCode') }}</label>
-              <input type="text" id="verificationCode" v-model="verificationCode" required pattern="\d{6}" title="请输入 6 位数字验证码">
+              <label for="currentPassword">{{ $t('settings.changePassword.currentPassword') }}</label>
+              <input type="password" id="currentPassword" v-model="currentPassword" required>
             </div>
-            <button type="submit" :disabled="twoFactorLoading">{{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.setup.verifyButton') }}</button>
-            <button type="button" @click="cancelSetup" :disabled="twoFactorLoading" style="margin-left: 10px;">{{ $t('common.cancel') }}</button>
+            <div class="form-group">
+              <label for="newPassword">{{ $t('settings.changePassword.newPassword') }}</label>
+              <input type="password" id="newPassword" v-model="newPassword" required>
+            </div>
+            <div class="form-group">
+              <label for="confirmPassword">{{ $t('settings.changePassword.confirmPassword') }}</label>
+              <input type="password" id="confirmPassword" v-model="confirmPassword" required>
+            </div>
+            <button type="submit" :disabled="changePasswordLoading">{{ changePasswordLoading ? $t('common.loading') : $t('settings.changePassword.submit') }}</button>
+            <p v-if="changePasswordMessage" :class="{ 'success-message': changePasswordSuccess, 'error-message': !changePasswordSuccess }">{{ changePasswordMessage }}</p>
+          </form>
+        </div>
+
+        <div class="settings-section">
+          <h2>Passkey 设置</h2>
+          <p>使用 Passkey（无密码认证）提升安全性和便捷性。您可以注册新的 Passkey 用于登录。</p>
+          <div class="form-group">
+            <label for="passkey-name">{{ $t('settings.passkey.nameLabel') }}:</label>
+            <input type="text" id="passkey-name" v-model="passkeyName" :placeholder="$t('settings.passkey.namePlaceholder')" required>
+          </div>
+          <button @click="handleRegisterPasskey" class="btn btn-primary">{{ $t('settings.passkey.registerButton') }}</button>
+          <p v-if="passkeyMessage" class="success-message">{{ passkeyMessage }}</p>
+          <p v-if="passkeyError" class="error-message">{{ passkeyError }}</p>
+        </div>
+
+        <div class="settings-section">
+          <h2>{{ $t('settings.twoFactor.title') }}</h2>
+          <!-- 2FA Content remains the same -->
+          <div v-if="twoFactorEnabled">
+            <p class="success-message">{{ $t('settings.twoFactor.status.enabled') }}</p>
+            <form @submit.prevent="handleDisable2FA">
+              <div class="form-group">
+                <label for="disablePassword">{{ $t('settings.twoFactor.disable.passwordPrompt') }}</label>
+                <input type="password" id="disablePassword" v-model="disablePassword" required>
+              </div>
+              <button type="submit" :disabled="twoFactorLoading">{{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.disable.button') }}</button>
+            </form>
+          </div>
+          <div v-else>
+            <p>{{ $t('settings.twoFactor.status.disabled') }}</p>
+            <button v-if="!isSettingUp2FA" @click="handleSetup2FA" :disabled="twoFactorLoading">
+              {{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.enable.button') }}
+            </button>
+            <div v-if="isSettingUp2FA && setupData">
+              <p>{{ $t('settings.twoFactor.setup.scanQrCode') }}</p>
+              <img :src="setupData.qrCodeUrl" alt="QR Code">
+              <p>{{ $t('settings.twoFactor.setup.orEnterSecret') }} <code>{{ setupData.secret }}</code></p>
+              <form @submit.prevent="handleVerifyAndActivate2FA">
+                <div class="form-group">
+                  <label for="verificationCode">{{ $t('settings.twoFactor.setup.enterCode') }}</label>
+                  <input type="text" id="verificationCode" v-model="verificationCode" required pattern="\d{6}" title="请输入 6 位数字验证码">
+                </div>
+                <button type="submit" :disabled="twoFactorLoading">{{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.setup.verifyButton') }}</button>
+                <button type="button" @click="cancelSetup" :disabled="twoFactorLoading" class="btn-secondary" style="margin-left: 10px;">{{ $t('common.cancel') }}</button>
+              </form>
+            </div>
+          </div>
+          <p v-if="twoFactorMessage" :class="{ 'success-message': twoFactorSuccess, 'error-message': !twoFactorSuccess }">{{ twoFactorMessage }}</p>
+        </div>
+      </div>
+
+      <!-- Column 2: Interface & Network Settings -->
+      <div class="settings-column">
+        <div class="settings-section">
+          <h2>{{ $t('settings.language.title') }}</h2>
+          <form @submit.prevent="handleUpdateLanguage">
+            <div class="form-group">
+              <label for="languageSelect">{{ $t('settings.language.selectLabel') }}</label>
+              <select id="languageSelect" v-model="selectedLanguage">
+                <option value="en">English</option>
+                <option value="zh">中文</option>
+              </select>
+            </div>
+            <button type="submit" :disabled="languageLoading">{{ languageLoading ? $t('common.saving') : $t('settings.language.saveButton') }}</button>
+            <p v-if="languageMessage" :class="{ 'success-message': languageSuccess, 'error-message': !languageSuccess }">{{ languageMessage }}</p>
+          </form>
+        </div>
+
+        <div class="settings-section">
+          <h2>{{ $t('settings.appearance.title') }}</h2>
+          <p>{{ $t('settings.appearance.description') }}</p>
+          <button @click="openStyleCustomizer">{{ t('settings.appearance.customizeButton') }}</button>
+        </div>
+
+        <div class="settings-section">
+          <h2>{{ $t('settings.popupEditor.title') }}</h2>
+          <form @submit.prevent="handleUpdatePopupEditorSetting">
+              <div class="form-group form-group-checkbox">
+                  <input type="checkbox" id="showPopupEditor" v-model="popupEditorEnabled">
+                  <label for="showPopupEditor">{{ $t('settings.popupEditor.enableLabel') }}</label>
+              </div>
+              <button type="submit" :disabled="popupEditorLoading">{{ popupEditorLoading ? $t('common.saving') : $t('settings.popupEditor.saveButton') }}</button>
+              <p v-if="popupEditorMessage" :class="{ 'success-message': popupEditorSuccess, 'error-message': !popupEditorSuccess }">{{ popupEditorMessage }}</p>
+          </form>
+        </div>
+
+        <div class="settings-section">
+          <h2>{{ $t('settings.shareEditorTabs.title') }}</h2>
+          <form @submit.prevent="handleUpdateShareTabsSetting">
+              <div class="form-group form-group-checkbox">
+                  <input type="checkbox" id="shareEditorTabs" v-model="shareTabsEnabled">
+                  <label for="shareEditorTabs">{{ $t('settings.shareEditorTabs.enableLabel') }}</label>
+              </div>
+              <p class="setting-description">{{ $t('settings.shareEditorTabs.description') }}</p>
+              <button type="submit" :disabled="shareTabsLoading">{{ shareTabsLoading ? $t('common.saving') : $t('settings.shareEditorTabs.saveButton') }}</button>
+              <p v-if="shareTabsMessage" :class="{ 'success-message': shareTabsSuccess, 'error-message': !shareTabsSuccess }">{{ shareTabsMessage }}</p>
+          </form>
+        </div>
+
+        <div class="settings-section">
+          <h2>{{ $t('settings.ipWhitelist.title') }}</h2>
+          <p>{{ $t('settings.ipWhitelist.description') }}</p>
+          <form @submit.prevent="handleUpdateIpWhitelist">
+            <div class="form-group">
+              <label for="ipWhitelist">{{ $t('settings.ipWhitelist.label') }}</label>
+              <textarea id="ipWhitelist" v-model="ipWhitelistInput" rows="4"></textarea> <!-- Reduced rows -->
+              <small>{{ $t('settings.ipWhitelist.hint') }}</small>
+            </div>
+            <button type="submit" :disabled="ipWhitelistLoading">{{ ipWhitelistLoading ? $t('common.saving') : $t('settings.ipWhitelist.saveButton') }}</button>
+            <p v-if="ipWhitelistMessage" :class="{ 'success-message': ipWhitelistSuccess, 'error-message': !ipWhitelistSuccess }">{{ ipWhitelistMessage }}</p>
           </form>
         </div>
       </div>
 
-      <!-- 显示 2FA 操作的消息 -->
-      <p v-if="twoFactorMessage" :class="{ 'success-message': twoFactorSuccess, 'error-message': !twoFactorSuccess }">{{ twoFactorMessage }}</p>
-    </div>
+      <!-- Column 3: IP Blacklist (Spans across columns if needed, or stays in its own area) -->
+      <div class="settings-section settings-section-full-width">
+        <h2>IP 黑名单管理</h2>
+        <p>配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。</p>
 
-    <hr>
+        <!-- 黑名单配置表单 -->
+        <form @submit.prevent="handleUpdateBlacklistSettings" class="blacklist-settings-form">
+           <div class="form-group inline-group">
+             <label for="maxLoginAttempts">最大失败次数:</label>
+             <input type="number" id="maxLoginAttempts" v-model="blacklistSettingsForm.maxLoginAttempts" min="1" required>
+           </div>
+           <div class="form-group inline-group">
+             <label for="loginBanDuration">封禁时长 (秒):</label>
+             <input type="number" id="loginBanDuration" v-model="blacklistSettingsForm.loginBanDuration" min="1" required>
+           </div>
+           <button type="submit" :disabled="blacklistSettingsLoading">{{ blacklistSettingsLoading ? $t('common.saving') : '保存配置' }}</button>
+           <p v-if="blacklistSettingsMessage" :class="{ 'success-message': blacklistSettingsSuccess, 'error-message': !blacklistSettingsSuccess }">{{ blacklistSettingsMessage }}</p>
+        </form>
 
-    <div class="settings-section">
-      <h2>{{ $t('settings.ipWhitelist.title') }}</h2>
-      <p>{{ $t('settings.ipWhitelist.description') }}</p>
-      <form @submit.prevent="handleUpdateIpWhitelist">
-        <div class="form-group">
-          <label for="ipWhitelist">{{ $t('settings.ipWhitelist.label') }}</label>
-          <textarea id="ipWhitelist" v-model="ipWhitelistInput" rows="5"></textarea>
-          <small>{{ $t('settings.ipWhitelist.hint') }}</small>
+        <hr class="section-divider">
+
+        <h3>当前已封禁的 IP 地址</h3>
+        <div v-if="ipBlacklist.loading" class="loading-message">正在加载黑名单...</div>
+        <div v-if="ipBlacklist.error" class="error-message">{{ ipBlacklist.error }}</div>
+
+        <div v-if="!ipBlacklist.loading && !ipBlacklist.error" class="table-container">
+          <table v-if="ipBlacklist.entries.length > 0" class="blacklist-table">
+            <thead>
+              <tr>
+                <th>IP 地址</th>
+                <th>失败次数</th>
+                <th>最后尝试时间</th>
+                <th>封禁截止时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="entry in ipBlacklist.entries" :key="entry.ip">
+                <td>{{ entry.ip }}</td>
+                <td>{{ entry.attempts }}</td>
+                <td>{{ new Date(entry.last_attempt_at * 1000).toLocaleString() }}</td>
+                <td>{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : 'N/A' }}</td>
+                <td>
+                  <button
+                    @click="handleDeleteIp(entry.ip)"
+                    :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
+                    class="btn-danger btn-small"
+                  >
+                    {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? '删除中...' : '移除' }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p v-else>当前没有 IP 地址在黑名单中。</p>
+           <p v-if="blacklistDeleteError" class="error-message">{{ blacklistDeleteError }}</p>
         </div>
-        <button type="submit" :disabled="ipWhitelistLoading">{{ ipWhitelistLoading ? $t('common.saving') : $t('settings.ipWhitelist.saveButton') }}</button>
-        <p v-if="ipWhitelistMessage" :class="{ 'success-message': ipWhitelistSuccess, 'error-message': !ipWhitelistSuccess }">{{ ipWhitelistMessage }}</p>
-      </form>
-    </div>
-
-    <!-- 外观设置 -->
-    <div class="settings-section">
-        <h2>{{ $t('settings.appearance.title') }}</h2>
-        <p>{{ $t('settings.appearance.description') }}</p>
-        <button @click="openStyleCustomizer">{{ t('settings.appearance.customizeButton') }}</button>
-    </div>
-
-
-    <hr>
-
-     <div class="settings-section">
-      <h2>IP 黑名单管理</h2>
-      <p>配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。</p>
-
-      <!-- 黑名单配置表单 -->
-      <form @submit.prevent="handleUpdateBlacklistSettings" class="blacklist-settings-form">
-         <div class="form-group inline-group">
-           <label for="maxLoginAttempts">最大失败次数:</label>
-           <input type="number" id="maxLoginAttempts" v-model="blacklistSettingsForm.maxLoginAttempts" min="1" required>
-         </div>
-         <div class="form-group inline-group">
-           <label for="loginBanDuration">封禁时长 (秒):</label>
-           <input type="number" id="loginBanDuration" v-model="blacklistSettingsForm.loginBanDuration" min="1" required>
-         </div>
-         <button type="submit" :disabled="blacklistSettingsLoading">{{ blacklistSettingsLoading ? $t('common.saving') : '保存配置' }}</button>
-         <p v-if="blacklistSettingsMessage" :class="{ 'success-message': blacklistSettingsSuccess, 'error-message': !blacklistSettingsSuccess }">{{ blacklistSettingsMessage }}</p>
-      </form>
-
-      <hr style="margin-top: 20px; margin-bottom: 20px;">
-
-      <h3>当前已封禁的 IP 地址</h3>
-      <div v-if="ipBlacklist.loading" class="loading-message">正在加载黑名单...</div>
-      <div v-if="ipBlacklist.error" class="error-message">{{ ipBlacklist.error }}</div>
-
-      <div v-if="!ipBlacklist.loading && !ipBlacklist.error">
-        <table v-if="ipBlacklist.entries.length > 0" class="blacklist-table">
-          <thead>
-            <tr>
-              <th>IP 地址</th>
-              <th>失败次数</th>
-              <th>最后尝试时间</th>
-              <th>封禁截止时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="entry in ipBlacklist.entries" :key="entry.ip">
-              <td>{{ entry.ip }}</td>
-              <td>{{ entry.attempts }}</td>
-              <td>{{ new Date(entry.last_attempt_at * 1000).toLocaleString() }}</td>
-              <td>{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : 'N/A' }}</td>
-              <td>
-                <button
-                  @click="handleDeleteIp(entry.ip)"
-                  :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
-                  class="btn-danger"
-                >
-                  {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? '删除中...' : '移除' }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else>当前没有 IP 地址在黑名单中。</p>
-         <p v-if="blacklistDeleteError" class="error-message">{{ blacklistDeleteError }}</p>
       </div>
-    </div>
-
+    </div> <!-- End of settings-grid -->
   </div>
 </template>
 
@@ -577,99 +565,125 @@ onMounted(async () => {
   padding: var(--base-padding);
   color: var(--text-color);
   background-color: var(--app-bg-color);
+  max-width: 1200px; /* 限制最大宽度 */
+  margin: 0 auto; /* 居中 */
 }
 
 h1 {
-  margin-bottom: calc(var(--base-margin) * 3);
+  margin-bottom: calc(var(--base-margin) * 2); /* 减小标题下边距 */
   padding-bottom: var(--base-margin);
   border-bottom: 1px solid var(--border-color);
+  font-size: 1.8rem; /* 稍大标题 */
+  color: var(--text-color);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); /* 响应式网格布局 */
+  gap: calc(var(--base-margin) * 2); /* 网格间距 */
+}
+
+.settings-column {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--base-margin) * 2); /* 列内项目间距 */
 }
 
 .settings-section {
-  margin-bottom: calc(var(--base-margin) * 4); /* 增加区域间距 */
-  padding: calc(var(--base-padding) * 1.5); /* 增加区域内边距 */
+  /* margin-bottom: calc(var(--base-margin) * 2); 移除独立下边距，由 grid gap 控制 */
+  padding: calc(var(--base-padding) * 1.2); /* 调整内边距 */
   border: 1px solid var(--border-color);
-  border-radius: 6px; /* 稍圆润的边角 */
-  background-color: var(--app-bg-color);
-  /* box-shadow: 0 1px 3px rgba(0,0,0,0.05); */ /* 可选：添加轻微阴影 */
+  border-radius: 8px; /* 更圆润的边角 */
+  background-color: var(--content-bg-color, var(--app-bg-color)); /* 使用内容背景色，回退到应用背景色 */
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 添加细微阴影 */
+  display: flex; /* 使 section 内部元素可以更好地控制 */
+  flex-direction: column; /* 默认垂直排列 */
+  height: 100%; /* 让 section 填充 grid 单元格高度 */
+}
+
+.settings-section-full-width {
+  grid-column: 1 / -1; /* 让黑名单部分横跨所有列 */
 }
 
 .settings-section h2 {
-  font-size: 1.3rem;
+  font-size: 1.2rem; /* 调整标题大小 */
   color: var(--text-color);
   margin-top: 0;
-  margin-bottom: calc(var(--base-margin) * 2);
-  padding-bottom: var(--base-margin);
-  border-bottom: 1px dashed var(--border-color); /* 虚线分隔 */
+  margin-bottom: var(--base-margin); /* 减小标题下边距 */
+  padding-bottom: calc(var(--base-margin) * 0.75);
+  border-bottom: 1px solid var(--border-color-light, var(--border-color)); /* 使用更浅的边框色 */
 }
 
-.settings-section p:not([class*="-message"]) { /* 普通段落样式 */
+.settings-section p:not([class*="-message"]) {
     color: var(--text-color-secondary);
     line-height: 1.6;
     margin-bottom: var(--base-margin);
+    font-size: 0.95rem; /* 调整段落字体大小 */
 }
-.setting-description { /* 特定描述文本 */
-    font-size: 0.9em;
+.setting-description {
+    font-size: 0.85em; /* 调整描述字体大小 */
     color: var(--text-color-secondary);
     margin-bottom: var(--base-margin);
 }
 
-
 .form-group {
-  margin-bottom: calc(var(--base-margin) * 1.5);
+  margin-bottom: var(--base-margin); /* 减小表单组间距 */
 }
 
 label {
   display: block;
-  margin-bottom: calc(var(--base-margin) / 2);
-  font-weight: bold;
+  margin-bottom: calc(var(--base-margin) / 3); /* 减小标签下边距 */
+  font-weight: 600; /* 稍粗字体 */
   color: var(--text-color);
+  font-size: 0.9rem; /* 调整标签字体大小 */
 }
 
 input[type="password"],
 input[type="text"],
-input[type="number"], /* 添加 number 类型 */
+input[type="number"],
 textarea,
 select {
   width: 100%;
-  padding: 0.6rem 0.8rem; /* 调整内边距 */
+  padding: 0.5rem 0.7rem; /* 调整内边距 */
   box-sizing: border-box;
   border: 1px solid var(--border-color);
-  border-radius: 4px;
+  border-radius: 5px; /* 调整圆角 */
   font-family: var(--font-family-sans-serif);
-  font-size: 1rem;
+  font-size: 0.95rem; /* 调整输入框字体大小 */
   color: var(--text-color);
-  background-color: var(--app-bg-color);
-  transition: border-color 0.2s ease;
+  background-color: var(--input-bg-color, var(--app-bg-color)); /* 输入框背景色 */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 input:focus, textarea:focus, select:focus {
-    border-color: var(--link-active-color); /* 聚焦时高亮边框 */
+    border-color: var(--link-active-color);
     outline: 0;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15); /* 细微的聚焦阴影 */
+    box-shadow: 0 0 0 3px rgba(var(--rgb-link-active-color, 0, 123, 255), 0.2); /* 使用变量颜色 */
 }
 
 textarea {
     resize: vertical;
-    min-height: 100px;
+    min-height: 80px; /* 减小最小高度 */
 }
 
 small {
     display: block;
-    margin-top: calc(var(--base-margin) / 2);
-    font-size: 0.85em;
+    margin-top: calc(var(--base-margin) / 3);
+    font-size: 0.8em; /* 调整提示字体大小 */
     color: var(--text-color-secondary);
 }
 
-button, .btn { /* 统一按钮样式 */
-  padding: 0.6rem 1.2rem; /* 调整按钮内边距 */
+button, .btn {
+  padding: 0.5rem 1rem; /* 调整按钮内边距 */
   cursor: pointer;
   background-color: var(--button-bg-color);
   color: var(--button-text-color);
-  border: 1px solid var(--button-bg-color); /* 添加边框 */
-  border-radius: 4px;
-  font-weight: bold;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-  margin-right: var(--base-margin); /* 按钮间距 */
+  border: 1px solid transparent; /* 默认透明边框 */
+  border-radius: 5px; /* 调整圆角 */
+  font-weight: 600; /* 稍粗字体 */
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+  margin-right: calc(var(--base-margin) / 2); /* 减小按钮间距 */
+  font-size: 0.95rem; /* 调整按钮字体大小 */
+  line-height: 1.5; /* 确保文字垂直居中 */
 }
 button:last-of-type, .btn:last-of-type {
     margin-right: 0;
@@ -678,139 +692,159 @@ button:last-of-type, .btn:last-of-type {
 button:hover:not(:disabled), .btn:hover:not(:disabled) {
   background-color: var(--button-hover-bg-color);
   border-color: var(--button-hover-bg-color);
+  transform: translateY(-1px); /* 轻微上移效果 */
+}
+button:active:not(:disabled), .btn:active:not(:disabled) {
+    transform: translateY(0px); /* 按下时复原 */
 }
 
 button:disabled, .btn:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.65; /* 调整禁用透明度 */
 }
 
-/* 次要按钮样式 (例如取消按钮) */
-button[type="button"], .btn-secondary {
-    background-color: var(--header-bg-color);
-    color: var(--text-color);
-    border-color: var(--border-color);
+/* 次要按钮样式 */
+.btn-secondary {
+    background-color: var(--secondary-button-bg-color, var(--header-bg-color));
+    color: var(--secondary-button-text-color, var(--text-color));
+    border: 1px solid var(--border-color);
 }
-button[type="button"]:hover:not(:disabled), .btn-secondary:hover:not(:disabled) {
-    background-color: var(--border-color);
+.btn-secondary:hover:not(:disabled) {
+    background-color: var(--secondary-button-hover-bg-color, var(--border-color));
     border-color: var(--border-color);
 }
 
-hr {
+/* 危险按钮样式 (用于移除黑名单) */
+.btn-danger {
+  background-color: var(--danger-color, #dc3545);
+  color: white;
+  border-color: transparent;
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--danger-hover-color, #bb2d3b);
+  border-color: transparent;
+}
+.btn-danger:disabled {
+  background-color: var(--danger-color, #dc3545);
+  opacity: 0.65;
+}
+.btn-small { /* 小按钮 */
+    padding: 0.25rem 0.5rem;
+    font-size: 0.85rem;
+}
+
+
+hr.section-divider { /* 区域内分隔线 */
     border: none;
-    border-top: 1px solid var(--border-color);
-    margin: calc(var(--base-margin) * 4) 0; /* 增加分隔线间距 */
+    border-top: 1px dashed var(--border-color-light, var(--border-color));
+    margin: var(--base-margin) 0;
 }
 
 code {
-    background-color: var(--header-bg-color);
-    padding: 0.2em 0.4em;
-    border-radius: 3px;
-    color: var(--text-color);
-    font-family: monospace;
+    background-color: var(--code-bg-color, var(--header-bg-color));
+    padding: 0.2em 0.5em;
+    border-radius: 4px;
+    color: var(--code-text-color, var(--text-color));
+    font-family: var(--font-family-monospace);
     font-size: 0.9em;
+    border: 1px solid var(--border-color-light, var(--border-color));
 }
 
-img {
+img { /* 二维码图片 */
     display: block;
-    margin: var(--base-margin) auto; /* 居中显示 */
-    max-width: 200px;
+    margin: var(--base-margin) auto;
+    max-width: 180px; /* 调整大小 */
     border: 1px solid var(--border-color);
-    padding: 5px;
-    background-color: white; /* 确保二维码背景是白色 */
+    padding: 4px;
+    background-color: white;
+    border-radius: 4px;
 }
 
+/* 消息提示样式优化 */
+.success-message, .error-message {
+  padding: 0.8rem 1rem; /* 调整内边距 */
+  border-radius: 5px;
+  margin-top: var(--base-margin);
+  font-size: 0.9rem;
+  border-left-width: 4px; /* 左侧加粗边框 */
+}
 .success-message {
-  color: #198754; /* Bootstrap success color */
-  background-color: #d1e7dd; /* Light green background */
-  border: 1px solid #a3cfbb;
-  padding: var(--base-padding);
-  border-radius: 4px;
-  margin-top: var(--base-margin);
+  color: #0f5132;
+  background-color: #d1e7dd;
+  border-color: #badbcc;
+  border-left-color: #0f5132;
 }
-
 .error-message {
-  color: #842029; /* Bootstrap danger color */
-  background-color: #f8d7da; /* Light red background */
-  border: 1px solid #f5c2c7;
-  padding: var(--base-padding);
-  border-radius: 4px;
-  margin-top: var(--base-margin);
+  color: #842029;
+  background-color: #f8d7da;
+  border-color: #f5c2c7;
+  border-left-color: #842029;
 }
 .loading-message {
     margin-top: var(--base-margin);
     color: var(--text-color-secondary);
     font-style: italic;
+    font-size: 0.9rem;
 }
 
-/* Blacklist Table Styles */
+/* 黑名单表格样式优化 */
+.table-container {
+    overflow-x: auto; /* 允许水平滚动 */
+    margin-top: var(--base-margin);
+}
 .blacklist-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: var(--base-padding);
-  font-size: 0.95rem;
+  font-size: 0.9rem; /* 调整表格字体 */
+  white-space: nowrap; /* 防止单元格内容换行 */
 }
 
 .blacklist-table th,
 .blacklist-table td {
-  border: 1px solid var(--border-color);
-  padding: 0.75rem; /* 调整单元格内边距 */
+  border: 1px solid var(--border-color-light, var(--border-color));
+  padding: 0.6rem 0.8rem; /* 调整单元格内边距 */
   text-align: left;
   vertical-align: middle;
 }
 
 .blacklist-table th {
-  background-color: var(--header-bg-color);
-  font-weight: bold;
-  color: var(--text-color);
+  background-color: var(--table-header-bg-color, var(--header-bg-color));
+  font-weight: 600;
+  color: var(--table-header-text-color, var(--text-color));
 }
 
 .blacklist-table tr:nth-child(even) {
-    background-color: var(--header-bg-color); /* 斑马纹 */
+    background-color: var(--table-stripe-bg-color, var(--header-bg-color));
+}
+.blacklist-table tr:hover {
+    background-color: var(--table-hover-bg-color, rgba(0,0,0,0.03)); /* 悬停高亮 */
 }
 
-.blacklist-table .btn-danger {
-  background-color: #dc3545;
-  color: var(--button-text-color);
-  border: none;
-  padding: 0.3rem 0.6rem; /* 调整小按钮内边距 */
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9em;
-}
-
-.blacklist-table .btn-danger:disabled {
-  background-color: #f8d7da;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-/* 复选框组样式 */
+/* 复选框组样式优化 */
 .form-group-checkbox {
   display: flex;
   align-items: center;
-  margin-bottom: var(--base-margin); /* 确保与其他组间距一致 */
+  margin-bottom: var(--base-margin);
+  cursor: pointer; /* 让整个区域可点击 */
 }
-
 .form-group-checkbox input[type="checkbox"] {
-  width: auto;
-  margin-right: 0.6rem; /* 调整复选框和标签间距 */
-  flex-shrink: 0; /* 防止复选框被压缩 */
-  appearance: none; /* 自定义样式 */
-  background-color: var(--app-bg-color);
+  width: 1.2em; /* 增大复选框 */
+  height: 1.2em;
+  margin-right: 0.7rem;
+  flex-shrink: 0;
+  appearance: none;
+  background-color: var(--input-bg-color, var(--app-bg-color));
   border: 1px solid var(--border-color);
-  width: 1.1em;
-  height: 1.1em;
-  border-radius: 3px;
+  border-radius: 4px; /* 调整圆角 */
   cursor: pointer;
   position: relative;
-  top: 2px; /* 微调垂直对齐 */
+  top: 0; /* 移除微调 */
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 .form-group-checkbox input[type="checkbox"]:checked {
     background-color: var(--button-bg-color);
     border-color: var(--button-bg-color);
 }
-/* 添加勾选标记 */
 .form-group-checkbox input[type="checkbox"]:checked::after {
     content: '✔';
     position: absolute;
@@ -818,44 +852,68 @@ img {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%);
-    font-size: 0.8em;
+    font-size: 0.85em; /* 调整勾选标记大小 */
+    font-weight: bold;
 }
-
-
+.form-group-checkbox input[type="checkbox"]:focus {
+    box-shadow: 0 0 0 3px rgba(var(--rgb-link-active-color, 0, 123, 255), 0.2);
+}
 .form-group-checkbox label {
   display: inline-block;
   margin-bottom: 0;
   cursor: pointer;
-  font-weight: normal; /* 普通标签字体重量 */
+  font-weight: normal;
+  font-size: 0.95rem; /* 调整标签字体 */
+  user-select: none; /* 防止选中文字 */
 }
 
-
-/* Blacklist Settings Form Styles */
+/* 黑名单配置表单样式优化 */
 .blacklist-settings-form {
-    margin-top: var(--base-padding);
-    padding-top: var(--base-padding);
-    border-top: 1px dashed var(--border-color);
+    margin-top: var(--base-margin);
+    padding-top: var(--base-margin);
+    border-top: 1px dashed var(--border-color-light, var(--border-color));
+    display: flex; /* 使用 Flex 布局 */
+    flex-wrap: wrap; /* 允许换行 */
+    align-items: flex-end; /* 底部对齐 */
+    gap: var(--base-margin); /* 项目间距 */
 }
 .blacklist-settings-form .inline-group {
-    display: inline-flex; /* 使用 flex 布局 */
-    align-items: center; /* 垂直居中 */
-    margin-right: calc(var(--base-margin) * 2);
-    margin-bottom: var(--base-margin);
+    display: flex;
+    flex-direction: column; /* 垂直排列标签和输入框 */
+    margin: 0; /* 移除独立 margin */
 }
 .blacklist-settings-form .inline-group label {
-    margin-right: var(--base-margin);
-    margin-bottom: 0; /* 移除 label 下边距 */
-    white-space: nowrap; /* 防止标签换行 */
+    margin-bottom: calc(var(--base-margin) / 4); /* 减小小间距 */
+    white-space: nowrap;
 }
 .blacklist-settings-form .inline-group input[type="number"] {
-    width: 80px; /* 固定宽度 */
-    padding: 0.5rem; /* 调整内边距 */
+    width: 100px; /* 调整宽度 */
+    padding: 0.4rem 0.6rem; /* 调整内边距 */
 }
 .blacklist-settings-form button {
-    vertical-align: middle; /* 尝试对齐按钮 */
+    margin-left: auto; /* 将按钮推到右侧（如果空间允许） */
+    align-self: flex-end; /* 确保按钮在底部 */
 }
-.blacklist-settings-form p {
-    margin-top: var(--base-margin);
+.blacklist-settings-form p { /* 消息提示 */
+    margin-top: 0; /* 移除顶部间距 */
+    width: 100%; /* 占满整行 */
+    order: 3; /* 确保消息在最后 */
+}
+
+/* 响应式调整 */
+@media (max-width: 900px) {
+  .settings-grid {
+    grid-template-columns: 1fr; /* 在较小屏幕上变为单列 */
+  }
+  .blacklist-settings-form {
+      flex-direction: column; /* 强制垂直排列 */
+      align-items: stretch; /* 拉伸项目 */
+  }
+  .blacklist-settings-form button {
+      margin-left: 0; /* 移除左外边距 */
+      width: 100%; /* 按钮占满宽度 */
+      margin-top: var(--base-margin); /* 添加顶部间距 */
+  }
 }
 
 </style>
