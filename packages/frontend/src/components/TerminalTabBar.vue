@@ -154,7 +154,7 @@ const openLayoutConfigurator = () => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  margin-right: 6px;
+  margin-right: 8px; /* 增加右边距 */
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0; /* 防止被压缩 */
@@ -209,7 +209,8 @@ const openLayoutConfigurator = () => {
   /* margin-right: 1.5rem; */ /* 移除 */
   line-height: normal; /* 默认行高 */
   flex-grow: 1; /* 保持：允许名称伸展 */
-  margin-left: 4px; /* 在状态点和名称之间添加一点间距 */
+  margin-left: 6px; /* 增加左边距 */
+  margin-right: 8px; /* 增加右边距，与关闭按钮拉开距离 */
   text-align: left; /* 保持文本左对齐 */
 }
 
@@ -220,7 +221,7 @@ const openLayoutConfigurator = () => {
   cursor: pointer;
   font-size: 1.1em;
   padding: 0 0.3rem;
-  line-height: 1;
+  /* line-height: 1; */ /* 移除 line-height，让 align-items 控制垂直居中 */
   border-radius: 50%;
   margin-left: auto; /* 保持 auto 将按钮推到最右侧 */
   flex-shrink: 0; /* 防止按钮被压缩 */
