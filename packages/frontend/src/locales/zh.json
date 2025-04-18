@@ -73,7 +73,11 @@
     "uiThemeResetFailed": "重置界面主题失败: {message}",
     "terminalFontSaved": "终端字体已保存。",
     "terminalFontSaveFailed": "保存终端字体失败: {message}",
-    "setActiveThemeFailed": "设置激活终端主题失败: {message}"
+    "setActiveThemeFailed": "设置激活终端主题失败: {message}",
+    "terminalFontSize": "终端字体大小",
+    "errorInvalidFontSize": "无效的字体大小。请输入一个正数。",
+    "terminalFontSizeSaved": "终端字体大小已保存。",
+    "terminalFontSizeSaveFailed": "保存终端字体大小失败: {message}"
   },
   "login": {
     "title": "用户登录",

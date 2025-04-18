@@ -73,7 +73,11 @@
     "uiThemeResetFailed": "Failed to reset UI theme: {message}",
     "terminalFontSaved": "Terminal font saved.",
     "terminalFontSaveFailed": "Failed to save terminal font: {message}",
-    "setActiveThemeFailed": "Failed to set active terminal theme: {message}"
+    "setActiveThemeFailed": "Failed to set active terminal theme: {message}",
+    "terminalFontSize": "Terminal Font Size",
+    "errorInvalidFontSize": "Invalid font size. Please enter a positive number.",
+    "terminalFontSizeSaved": "Terminal font size saved.",
+    "terminalFontSizeSaveFailed": "Failed to save terminal font size: {message}"
   },
   "login": {
     "title": "User Login",

@@ -38,6 +38,16 @@ export const updateSettings = async (settingsDto: UpdateAppearanceDto): Promise<
       // We just need to ensure the key exists in the DTO if it's meant to be cleared.
   }
 
+  // 验证 terminalFontSize (如果提供了)
+  if (settingsDto.terminalFontSize !== undefined && settingsDto.terminalFontSize !== null) {
+      const size = Number(settingsDto.terminalFontSize);
+      if (isNaN(size) || size <= 0) {
+          throw new Error(`无效的终端字体大小: ${settingsDto.terminalFontSize}。必须是一个正数。`);
+      }
+      // 可以选择将验证后的数字类型赋值回 DTO，以确保类型正确传递给仓库层
+      settingsDto.terminalFontSize = size;
+  }
+
   // TODO: 如果实现了背景图片上传，这里需要处理文件路径或 URL 的验证/保存逻辑
 
   return appearanceRepository.updateAppearanceSettings(settingsDto);

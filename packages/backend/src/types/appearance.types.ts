@@ -9,6 +9,7 @@ export interface AppearanceSettings {
   customUiTheme?: string; // UI 主题 (CSS 变量 JSON 字符串)
   activeTerminalThemeId?: string; // 当前激活的终端主题 ID (对应 terminal_themes 表的 _id)
   terminalFontFamily?: string; // 终端字体列表字符串
+  terminalFontSize?: number; // 终端字体大小 (px)
   terminalBackgroundImage?: string; // 终端背景图片 URL 或路径
   pageBackgroundImage?: string; // 页面背景图片 URL 或路径
   updatedAt?: number;

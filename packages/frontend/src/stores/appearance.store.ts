@@ -51,6 +51,13 @@ export const useAppearanceStore = defineStore('appearance', () => {
         return appearanceSettings.value.terminalFontFamily || 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"'; // 提供默认值
     });
 
+    // 当前终端字体大小
+    const currentTerminalFontSize = computed<number>(() => {
+        // 提供默认值 14，如果后端没有设置或设置无效
+        const size = appearanceSettings.value.terminalFontSize;
+        return typeof size === 'number' && size > 0 ? size : 14;
+    });
+
     // 页面背景图片 URL
     const pageBackgroundImage = computed(() => appearanceSettings.value.pageBackgroundImage);
 
@@ -155,6 +162,14 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function setTerminalFontFamily(fontFamily: string) {
         await updateAppearanceSettings({ terminalFontFamily: fontFamily });
+    }
+
+    /**
+     * 设置终端字体大小
+     * @param size 字体大小 (数字)
+     */
+    async function setTerminalFontSize(size: number) {
+        await updateAppearanceSettings({ terminalFontSize: size });
     }
 
     // --- 终端主题列表管理 Actions ---
@@ -406,6 +421,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         activeTerminalThemeId,
         currentTerminalTheme,
         currentTerminalFontFamily,
+        currentTerminalFontSize, // <-- 添加
         pageBackgroundImage,
         // pageBackgroundOpacity, // Removed
         terminalBackgroundImage,
@@ -417,6 +433,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         resetCustomUiTheme,
         setActiveTerminalTheme,
         setTerminalFontFamily,
+        setTerminalFontSize, // <-- 添加
         reloadTerminalThemes,
         createTerminalTheme,
         updateTerminalTheme,

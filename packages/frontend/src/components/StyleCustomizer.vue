@@ -15,6 +15,7 @@ const {
     activeTerminalThemeId,
     availableTerminalThemes,
     currentTerminalFontFamily,
+    currentTerminalFontSize, // <-- 添加
     pageBackgroundImage,
     // pageBackgroundOpacity, // Removed
     terminalBackgroundImage,
@@ -24,6 +25,7 @@ const {
 // --- 本地状态用于编辑 ---
 const editableUiTheme = ref<Record<string, string>>({});
 const editableTerminalFontFamily = ref('');
+const editableTerminalFontSize = ref(14); // <-- 添加，默认值 14
 // const editablePageBackgroundOpacity = ref(1.0); // Removed
 // const editableTerminalBackgroundOpacity = ref(1.0); // Removed
 
@@ -47,8 +49,10 @@ const saveThemeError = ref<string | null>(null); // 用于显示保存主题时�
 // 初始化本地编辑状态
 const initializeEditableState = () => {
   // 深拷贝 UI 主题
+  // 深拷贝 UI 主题
   editableUiTheme.value = JSON.parse(JSON.stringify(currentUiTheme.value || {}));
   editableTerminalFontFamily.value = currentTerminalFontFamily.value;
+  editableTerminalFontSize.value = currentTerminalFontSize.value; // <-- 添加
   selectedTerminalThemeId.value = activeTerminalThemeId.value ?? null; // 初始化下拉框
   // editablePageBackgroundOpacity.value = pageBackgroundOpacity.value; // Removed
   // editableTerminalBackgroundOpacity.value = terminalBackgroundOpacity.value; // Removed
@@ -63,18 +67,20 @@ onMounted(initializeEditableState);
 // 监听 store 变化以更新本地状态 (例如重置或外部更改)
 // 只监听不需要编辑的状态或用于初始化的状态
 watch([
-    currentUiTheme, currentTerminalFontFamily, activeTerminalThemeId
+    currentUiTheme, currentTerminalFontFamily, currentTerminalFontSize, activeTerminalThemeId // <-- 添加 currentTerminalFontSize
     // pageBackgroundOpacity, terminalBackgroundOpacity // Removed dependencies
 ], (newVals, oldVals) => {
     // 仅当非编辑状态时，或活动主题ID变化时，才同步下拉框和非编辑状态
-    if (!isEditingTheme.value || newVals[2] !== oldVals[2]) {
+    // 注意：索引现在需要调整，因为 newVals 数组长度变了
+    if (!isEditingTheme.value || newVals[3] !== oldVals[3]) { // <-- 索引从 2 改为 3
         initializeEditableState();
     } else {
-        // 如果正在编辑，只更新非编辑相关的部分 (例如 UI 主题可以在编辑终端主题时同时更新)
+        // 如果正在编辑，只更新非编辑相关的部分
         editableUiTheme.value = JSON.parse(JSON.stringify(newVals[0] || {}));
         editableTerminalFontFamily.value = newVals[1];
-        // editablePageBackgroundOpacity.value = newVals[3]; // Removed
-        // editableTerminalBackgroundOpacity.value = newVals[4]; // Removed
+        editableTerminalFontSize.value = newVals[2]; // <-- 添加
+        // editablePageBackgroundOpacity.value = newVals[4]; // Removed
+        // editableTerminalBackgroundOpacity.value = newVals[5]; // Removed
     }
 }, { deep: true });
 
@@ -132,6 +138,22 @@ const handleSaveTerminalFont = async () => {
     } catch (error: any) {
         console.error("保存终端字体失败:", error);
         alert(t('styleCustomizer.terminalFontSaveFailed', { message: error.message }));
+    }
+};
+
+// 保存终端字体大小
+const handleSaveTerminalFontSize = async () => {
+    try {
+        const size = Number(editableTerminalFontSize.value);
+        if (isNaN(size) || size <= 0) {
+            alert(t('styleCustomizer.errorInvalidFontSize')); // 需要添加翻译
+            return;
+        }
+        await appearanceStore.setTerminalFontSize(size);
+        alert(t('styleCustomizer.terminalFontSizeSaved')); // 需要添加翻译
+    } catch (error: any) {
+        console.error("保存终端字体大小失败:", error);
+        alert(t('styleCustomizer.terminalFontSizeSaveFailed', { message: error.message })); // 需要添加翻译
     }
 };
 
@@ -400,6 +422,13 @@ const formatXtermLabel = (key: keyof ITheme): string => {
                 <button @click="handleSaveTerminalFont" class="button-inline">{{ t('common.save') }}</button>
             </div>
             <p class="setting-description">{{ t('styleCustomizer.terminalFontDescription') }}</p>
+
+            <!-- 终端字体大小设置 -->
+            <div class="form-group">
+                <label for="terminalFontSize">{{ t('styleCustomizer.terminalFontSize') }}:</label> <!-- 需要添加翻译 -->
+                <input type="number" id="terminalFontSize" v-model.number="editableTerminalFontSize" class="number-input" min="1" />
+                <button @click="handleSaveTerminalFontSize" class="button-inline">{{ t('common.save') }}</button>
+            </div>
 
             <hr>
 

@@ -27,11 +27,11 @@ let terminal: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let debounceTimer: number | null = null; // 用于防抖的计时器 ID
-const fontSize = ref(14); // 字体大小状态, 默认为14 (这个可以保留，或者也移到 appearance store)
+// const fontSize = ref(14); // 移除本地字体大小状态，将由 store 管理
 
 // --- Appearance Store ---
 const appearanceStore = useAppearanceStore();
-const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage } = storeToRefs(appearanceStore); // 获取外观状态 (移除 terminalBackgroundOpacity)
+const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage, currentTerminalFontSize } = storeToRefs(appearanceStore); // <-- 添加 currentTerminalFontSize
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
@@ -75,7 +75,7 @@ onMounted(() => {
   if (terminalRef.value) {
     terminal = new Terminal({
       cursorBlink: true,
-      fontSize: fontSize.value, // 初始字体大小
+      fontSize: currentTerminalFontSize.value, // <-- 使用 store 中的字体大小
       fontFamily: currentTerminalFontFamily.value, // 使用 store 中的字体设置
       theme: currentTerminalTheme.value, // 使用 store 中的当前 xterm 主题
       rows: 24, // 初始行数
@@ -202,6 +202,16 @@ onMounted(() => {
         }
     });
 
+    // 监听字体大小变化
+    watch(currentTerminalFontSize, (newSize) => {
+        if (terminal) {
+            console.log(`[Terminal ${props.sessionId}] 应用新终端字体大小: ${newSize}`);
+            terminal.options.fontSize = newSize;
+            // 字体大小变化需要重新 fit
+            fitAndEmitResizeNow(terminal);
+        }
+    });
+
     // 监听背景图片变化
     watch(terminalBackgroundImage, () => { // 只监听图片
         console.log(`[Terminal Watcher] terminalBackgroundImage changed. New image: ${terminalBackgroundImage.value}`); // 添加日志确认 watcher 触发
@@ -242,17 +252,17 @@ onMounted(() => {
           event.preventDefault(); // 阻止默认的滚动行为
           
           // 根据滚轮方向调整字体大小
-          if (event.deltaY < 0) {
-            // 向上滚动，增大字体
-            fontSize.value = Math.min(fontSize.value + 1, 40); // 设置最大字体大小为40
-          } else {
-            // 向下滚动，减小字体
-            fontSize.value = Math.max(fontSize.value - 1, 8); // 设置最小字体大小为8
-          }
-          
-          // 更新终端字体大小
+          // 直接读取和修改 terminal 实例的字体大小
           if (terminal) {
-            terminal.options.fontSize = fontSize.value;
+            let newSize;
+            if (event.deltaY < 0) {
+              // 向上滚动，增大字体
+              newSize = Math.min((terminal.options.fontSize ?? currentTerminalFontSize.value) + 1, 40); // 使用当前实例值或 store 值作为基础
+            } else {
+              // 向下滚动，减小字体
+              newSize = Math.max((terminal.options.fontSize ?? currentTerminalFontSize.value) - 1, 8); // 使用当前实例值或 store 值作为基础
+            }
+            terminal.options.fontSize = newSize;
             // 调整终端大小以适应新的字体大小
             fitAddon?.fit();
             emit('resize', { cols: terminal.cols, rows: terminal.rows });
