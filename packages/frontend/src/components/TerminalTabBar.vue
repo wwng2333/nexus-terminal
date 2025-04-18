@@ -127,9 +127,7 @@ const openLayoutConfigurator = () => {
 .terminal-tab-bar {
   display: flex;
   background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 */
-  /* border-bottom: 1px solid var(--border-color, #bdbdbd); */ /* 移除底部边框，让主内容区处理 */
-  border: 1px solid var(--border-color, #bdbdbd); /* 添加完整边框 */
-  border-bottom: none; /* 明确移除底部边框 */
+  border-bottom: 1px solid var(--border-color, #bdbdbd); /* 恢复底部边框 */
   white-space: nowrap;
   height: 2.5rem; /* 固定标签栏高度 */
   box-sizing: border-box; /* 确保 padding 不会增加总高度 */

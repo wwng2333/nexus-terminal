@@ -58,6 +58,7 @@ export const getLanguageFromFilename = (filename: string): string => {
         case 'md': return 'markdown';
         case 'xml': return 'xml';
         case 'ini': return 'ini';
+        case 'conf': return 'ini';
         case 'bat': return 'bat';
         case 'dockerfile': return 'dockerfile';
         default: return 'plaintext';
