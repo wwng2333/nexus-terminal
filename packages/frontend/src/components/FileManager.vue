@@ -134,6 +134,8 @@ const searchInputRef = ref<HTMLInputElement | null>(null); // 新增：搜索输
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
 const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for context menu element
+const draggedItem = ref<FileListItem | null>(null); // 新增：存储被拖拽的项
+const dragOverTarget = ref<string | null>(null); // 新增：存储当前拖拽悬停的目标文件夹名称
 
 // --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
@@ -389,34 +391,230 @@ const handleDragEnter = (event: DragEvent) => {
 
 const handleDragOver = (event: DragEvent) => {
     event.preventDefault();
-    if (props.wsDeps.isConnected.value && event.dataTransfer?.types.includes('Files')) { // 恢复使用 props.wsDeps.isConnected
-        event.dataTransfer.dropEffect = 'copy';
-        isDraggingOver.value = true;
-    } else if (event.dataTransfer) {
-        event.dataTransfer.dropEffect = 'none';
+    const isExternalFileDrag = event.dataTransfer?.types.includes('Files') ?? false;
+    const isInternalDrag = !!draggedItem.value;
+
+    // --- Determine Drop Effect ---
+    let effect: 'copy' | 'move' | 'none' = 'none';
+    let currentTargetFilename: string | null = null;
+
+    const targetElement = event.target as HTMLElement;
+    const targetRow = targetElement.closest('tr.file-row'); // Find closest row (folder or file)
+    // Safely access dataset only if targetRow is an HTMLElement
+    const targetFilename = (targetRow instanceof HTMLElement) ? targetRow.dataset.filename : undefined;
+    const targetIsFolder = targetRow?.classList.contains('folder-row');
+
+    if (props.wsDeps.isConnected.value && isExternalFileDrag) {
+        // External Drag (Upload)
+        if (targetIsFolder && targetFilename && targetFilename !== '..') {
+            effect = 'copy'; // Allow dropping into subfolders
+            currentTargetFilename = targetFilename;
+        } else if (!targetRow) {
+             effect = 'copy'; // Allow dropping into the main container area (current path)
+             currentTargetFilename = null; // No specific target row
+        } else {
+             effect = 'none'; // Don't allow dropping external files onto file rows or '..'
+             currentTargetFilename = null;
+        }
+        isDraggingOver.value = (effect === 'copy'); // Set general drag-over state if allowed
+
+    } else if (isInternalDrag && draggedItem.value) {
+        // Internal Drag (Move)
+        if (targetIsFolder && targetFilename && targetFilename !== draggedItem.value.filename) {
+             // Allow dropping onto any folder row (including '..') except itself
+             effect = 'move';
+             currentTargetFilename = targetFilename;
+        } else {
+             effect = 'none';
+             currentTargetFilename = null;
+        }
+         isDraggingOver.value = false; // Don't use general drag-over for internal moves
+
+    } else {
+        // Other drag types or not connected
+        effect = 'none';
+        currentTargetFilename = null;
+        isDraggingOver.value = false;
     }
+
+    // --- Apply Drop Effect and Target Highlighting ---
+    if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = effect;
+    }
+    dragOverTarget.value = currentTargetFilename; // Set specific row target for highlighting
+
+    // console.log(`[FileManager ${props.sessionId}] Drag Over: effect=${effect}, target=${currentTargetFilename}, isDraggingOver=${isDraggingOver.value}`);
 };
 
 const handleDragLeave = (event: DragEvent) => {
     const target = event.relatedTarget as Node | null;
     const container = (event.currentTarget as HTMLElement);
+
+    // Check if the mouse is leaving the container element itself
+    // This prevents flickering when moving between rows inside the container
     if (!target || !container.contains(target)) {
-       isDraggingOver.value = false;
+       isDraggingOver.value = false; // Clear general drag-over state
+       dragOverTarget.value = null; // Also clear specific target highlighting
+       // console.log(`[FileManager ${props.sessionId}] Drag Leave Container`);
     }
+    // Note: Leaving individual rows during drag is handled implicitly by handleDragOver recalculating the target.
+    // handleDragLeaveRow is primarily for internal drags, but clearing dragOverTarget here ensures cleanup if the drag exits the container entirely.
 };
 
 const handleDrop = (event: DragEvent) => {
+    const wasDraggingOver = isDraggingOver.value; // Store state before clearing
+    const currentDragTarget = dragOverTarget.value; // Store state before clearing
+
+    // Clear drag states immediately
     isDraggingOver.value = false;
-    // 恢复使用 props.wsDeps.isConnected
-    if (!event.dataTransfer?.files || !props.wsDeps.isConnected.value) {
+    dragOverTarget.value = null;
+
+    // Check if it was an external file drop and connection is active
+    const files = event.dataTransfer?.files;
+    if (!files || files.length === 0 || !props.wsDeps.isConnected.value) {
+        // If it wasn't a valid file drop, ensure internal drag state is also cleared
+        if (draggedItem.value) {
+            console.log(`[FileManager ${props.sessionId}] Drop detected, but not external files. Clearing internal drag state.`);
+            draggedItem.value = null;
+        }
         return;
     }
-    const files = Array.from(event.dataTransfer.files);
-    if (files.length > 0) {
-        console.log(`[FileManager ${props.sessionId}] Dropped ${files.length} files.`);
-        files.forEach(startFileUpload); // Use startFileUpload from useFileUploader
+
+    // Prevent drop if it wasn't allowed by handleDragOver (e.g., dropping on a file row)
+    // We check wasDraggingOver for drops in the container, and currentDragTarget for drops on rows
+    if (!wasDraggingOver && !currentDragTarget) {
+         console.log(`[FileManager ${props.sessionId}] Drop ignored: Drop target was not valid according to handleDragOver.`);
+         return;
     }
+
+
+    const fileListArray = Array.from(files);
+    let targetFolderPath = currentPath.value; // Default to current path
+
+    // Use the dragOverTarget determined by handleDragOver
+    if (currentDragTarget && currentDragTarget !== '..') {
+        // Dropped onto a specific subfolder row
+        targetFolderPath = joinPath(currentPath.value, currentDragTarget);
+        console.log(`[FileManager ${props.sessionId}] Dropped ${fileListArray.length} external files onto folder '${currentDragTarget}'. Uploading to: ${targetFolderPath}`);
+    } else {
+        // Dropped onto the container background (current path)
+        console.log(`[FileManager ${props.sessionId}] Dropped ${fileListArray.length} external files onto current path '${currentPath.value}'.`);
+    }
+
+    // Start uploads. Assuming startFileUpload uses the currentPath from its composable scope.
+    // If uploading to a specific subfolder via drag-and-drop is required,
+    // useFileUploader might need modification or a different approach.
+    fileListArray.forEach(startFileUpload); // Removed targetFolderPath argument
+
+    // Ensure internal drag state is cleared if a drop occurs (shouldn't happen if external files are present, but good practice)
+    draggedItem.value = null;
 };
+
+// --- 应用内拖拽移动逻辑 ---
+const handleDragStart = (item: FileListItem) => {
+    if (item.filename === '..') return; // 不允许拖拽 '..'
+    console.log(`[FileManager ${props.sessionId}] Drag Start: ${item.filename}`);
+    draggedItem.value = item;
+    // 可选：设置拖拽数据，虽然在此场景下主要依赖 draggedItem ref
+    // event.dataTransfer?.setData('text/plain', item.filename);
+    // event.dataTransfer?.setDragImage(...) // 可选：自定义拖拽图像
+};
+
+const handleDragEnd = () => {
+    // console.log(`[FileManager ${props.sessionId}] Drag End`);
+    draggedItem.value = null;
+    dragOverTarget.value = null; // 清除悬停目标
+    // 移除所有可能的高亮（以防万一）
+    document.querySelectorAll('.file-row.drop-target').forEach(el => el.classList.remove('drop-target'));
+};
+
+const handleDragOverRow = (targetItem: FileListItem, event: DragEvent) => {
+    event.preventDefault(); // 必须阻止默认行为以允许 drop
+    // 允许拖到 '..' 上，但不能拖拽 '..' 自身，也不能拖到非目录项上（除了 '..'）
+    if (!draggedItem.value || draggedItem.value.filename === '..' || (targetItem.filename !== '..' && (!targetItem.attrs.isDirectory || draggedItem.value.filename === targetItem.filename))) {
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+        dragOverTarget.value = null;
+        return; // 仅当拖拽有效项到有效文件夹（或 '..'）时才处理
+    }
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dragOverTarget.value = targetItem.filename; // 记录悬停目标
+    // console.log(`[FileManager ${props.sessionId}] Drag Over Row: ${targetItem.filename}`);
+};
+
+const handleDragLeaveRow = (targetItem: FileListItem) => {
+   // 只有当鼠标离开当前悬停的目标时才清除
+   if (dragOverTarget.value === targetItem.filename) {
+       dragOverTarget.value = null;
+       // console.log(`[FileManager ${props.sessionId}] Drag Leave Row: ${targetItem.filename}`);
+   }
+};
+
+const handleDropOnRow = (targetItem: FileListItem, event: DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation(); // 阻止事件冒泡到父容器的 drop 处理
+    const sourceItem = draggedItem.value;
+    dragOverTarget.value = null; // 清除悬停状态
+
+    // 验证拖放操作的有效性 (与之前相同)
+    if (!sourceItem || sourceItem.filename === '..' || (targetItem.filename !== '..' && !targetItem.attrs.isDirectory) || sourceItem.filename === targetItem.filename) {
+        console.log(`[FileManager ${props.sessionId}] Drop on row ignored: Invalid target or source. Source: ${sourceItem?.filename}, Target: ${targetItem.filename}`);
+        draggedItem.value = null;
+        return;
+    }
+
+    // --- 重新计算路径 ---
+    const sourceFullPath = joinPath(currentPath.value, sourceItem.filename);
+    let targetDirectoryFullPath: string;
+
+    if (targetItem.filename === '..') {
+        // 计算父目录路径
+        const current = currentPath.value;
+        if (current === '/') {
+             console.warn(`[FileManager ${props.sessionId}] Cannot move item from root to its parent.`);
+             draggedItem.value = null;
+             return; // 不能从根目录移动到父目录
+        }
+        // 找到最后一个 '/'
+        const lastSlashIndex = current.lastIndexOf('/');
+        // 如果 lastSlashIndex 是 0 (例如 /file)，父目录是 /
+        // 否则，父目录是最后一个 / 之前的部分
+        targetDirectoryFullPath = lastSlashIndex <= 0 ? '/' : current.substring(0, lastSlashIndex);
+         // 确保父目录路径至少是 '/' (处理类似 '/dir' -> '/' 的情况)
+        if (!targetDirectoryFullPath) targetDirectoryFullPath = '/';
+
+    } else {
+        // 移动到子目录，目标目录就是子目录的完整路径
+        targetDirectoryFullPath = joinPath(currentPath.value, targetItem.filename);
+    }
+
+    // 使用目标目录路径和源文件名构建最终目标路径
+    // 假设 joinPath 能正确处理 targetDirectoryFullPath 为 '/' 的情况
+    const newFullPath = joinPath(targetDirectoryFullPath, sourceItem.filename);
+
+    console.log(`[FileManager ${props.sessionId}] Drop ${sourceItem.filename} onto ${targetItem.filename}`);
+    console.log(`[FileManager ${props.sessionId}] Source Path: ${sourceFullPath}`);
+    console.log(`[FileManager ${props.sessionId}] Target Directory: ${targetDirectoryFullPath}`);
+    console.log(`[FileManager ${props.sessionId}] Calculated Destination Path: ${newFullPath}`); // 使用新变量名
+
+    // 检查源路径和计算出的目标路径是否相同
+    if (sourceFullPath === newFullPath) {
+        console.warn(`[FileManager ${props.sessionId}] Source and destination paths are the same.`);
+        draggedItem.value = null;
+        return;
+    }
+
+    // --- 调用 SFTP 操作 ---
+    // 注意：后端冲突检查通常更可靠，前端检查已注释掉
+    console.log(`[FileManager ${props.sessionId}] Attempting to move '${sourceFullPath}' to '${newFullPath}'`);
+    renameItem(sourceItem, newFullPath); // 传递计算出的新完整路径
+
+    // 不再立即刷新，等待 sftp:rename:success 消息处理
+    // loadDirectory(currentPath.value);
+
+    // 清理拖拽状态
+    draggedItem.value = null;
+};
+
 
 // --- 文件上传逻辑 ---
 const triggerFileUpload = () => { fileInputRef.value?.click(); };
@@ -873,9 +1071,15 @@ const cancelSearch = () => {
           <tbody v-else @contextmenu.prevent="showContextMenu($event)">
             <!-- '..' 条目 -->
             <tr v-if="currentPath !== '/'"
-                class="clickable"
+                class="clickable file-row folder-row" 
                 @click="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
-                @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" >
+                @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
+                @dragover.prevent="handleDragOverRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)"  
+                @dragleave="handleDragLeaveRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
+                @drop.prevent="handleDropOnRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)" 
+                :class="{ 'drop-target': dragOverTarget === '..' }" 
+                :data-filename="'..'"
+                >
               <td><i class="fas fa-level-up-alt file-icon"></i></td>
               <td>..</td>
               <td></td><td></td><td></td>
@@ -884,9 +1088,20 @@ const cancelSearch = () => {
             <!-- 修改 v-for 以使用 filteredFileList -->
             <tr v-for="(item, index) in filteredFileList"
                 :key="item.filename"
+                :draggable="item.filename !== '..'" @dragstart="handleDragStart(item)" @dragend="handleDragEnd"
                 @click="handleItemClick($event, item)"
-                :class="{ clickable: item.attrs.isDirectory || item.attrs.isFile, selected: selectedItems.has(item.filename) }"
-                @contextmenu.prevent.stop="showContextMenu($event, item)">
+                :class="[
+                    'file-row',
+                    { clickable: item.attrs.isDirectory || item.attrs.isFile },
+                    { selected: selectedItems.has(item.filename) },
+                    { 'folder-row': item.attrs.isDirectory }, // 添加文件夹标识类
+                    { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename } // 拖拽悬停高亮
+                ]"
+                :data-filename="item.filename"
+                @contextmenu.prevent.stop="showContextMenu($event, item)"
+                @dragover.prevent="handleDragOverRow(item, $event)"
+                @dragleave="handleDragLeaveRow(item)"
+                @drop.prevent="handleDropOnRow(item, $event)">
               <td>
                 <i :class="['file-icon', item.attrs.isDirectory ? 'fas fa-folder' : (item.attrs.isSymbolicLink ? 'fas fa-link' : 'far fa-file')]"></i>
               </td>
@@ -1227,6 +1442,12 @@ tbody tr:hover {
     filter: brightness(0.98);
 }
 tbody tr.clickable { cursor: pointer; user-select: none; }
+/* 应用内拖拽目标高亮 */
+tbody tr.folder-row.drop-target {
+   background-color: var(--button-hover-bg-color); /* 使用悬停背景色或更明显的颜色 */
+   outline: 2px dashed var(--button-bg-color);
+   outline-offset: -2px;
+}
 tbody tr.selected {
     background-color: var(--button-bg-color);
     color: var(--button-text-color);

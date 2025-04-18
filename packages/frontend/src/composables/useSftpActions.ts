@@ -157,7 +157,10 @@ export function createSftpActionsManager(
         }
         if (!newName || item.filename === newName) return;
         const oldPath = joinPath(currentPathRef.value, item.filename);
-        const newPath = joinPath(currentPathRef.value, newName);
+        // 检查 newName 是否已经是绝对路径 (来自拖拽移动)
+        const newPath = newName.startsWith('/')
+            ? newName // 如果是绝对路径，直接使用
+            : joinPath(currentPathRef.value, newName); // 否则，视为相对路径并拼接
         const requestId = generateRequestId();
         sendMessage({ type: 'sftp:rename', requestId: requestId, payload: { oldPath, newPath } });
     };
@@ -589,3 +592,4 @@ export function createSftpActionsManager(
         cleanup,
     };
 }
+
