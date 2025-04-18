@@ -1032,6 +1032,7 @@ const cancelSearch = () => {
   align-items: center;
   /* gap: 0.1rem; */ /* 可以根据需要添加微小的间距，但之前已将按钮 margin 设为 0 */
   flex-shrink: 0; /* 防止被压缩 */
+  margin-right: auto; /* 将剩余空间推到右侧，实现左对齐 */
 }
 
 
