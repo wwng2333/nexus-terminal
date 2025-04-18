@@ -94,21 +94,17 @@ watch(searchTerm, (newValue) => {
       <!-- 搜索控制按钮 -->
       <div class="search-controls">
         <button @click="toggleSearch" class="icon-button" :title="isSearching ? t('commandInputBar.closeSearch') : t('commandInputBar.openSearch')">
-          <!-- 使用图标代替文字 -->
-          <span v-if="!isSearching">🔍</span> <!-- 临时使用 emoji -->
-          <span v-else>❌</span> <!-- 临时使用 emoji -->
-          <!-- <SearchIcon v-if="!isSearching" /> -->
-          <!-- <CloseIcon v-else /> -->
+          <!-- 使用 Font Awesome 图标 -->
+          <i v-if="!isSearching" class="fas fa-search"></i>
+          <i v-else class="fas fa-times"></i>
         </button>
 
         <template v-if="isSearching">
           <button @click="findPrevious" class="icon-button" :title="t('commandInputBar.findPrevious')">
-            <span>⬆️</span> <!-- 临时使用 emoji -->
-            <!-- <ArrowUpIcon /> -->
+            <i class="fas fa-arrow-up"></i>
           </button>
           <button @click="findNext" class="icon-button" :title="t('commandInputBar.findNext')">
-            <span>⬇️</span> <!-- 临时使用 emoji -->
-            <!-- <ArrowDownIcon /> -->
+            <i class="fas fa-arrow-down"></i>
           </button>
           <!-- 搜索结果显示已移除 -->
         </template>
@@ -166,22 +162,36 @@ watch(searchTerm, (newValue) => {
 .icon-button {
   background: none;
   border: none;
-  padding: 4px;
+  padding: 0.2rem 0.4rem; /* Match FileManager padding */
   cursor: pointer;
-  color: var(--text-color);
+  color: var(--text-color-secondary); /* Match FileManager default color */
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  vertical-align: middle; /* Match FileManager */
+  border-radius: 3px; /* Match FileManager */
+  transition: background-color 0.2s ease, color 0.2s ease; /* Match FileManager transition */
 }
 
-.icon-button:hover {
-  background-color: var(--hover-bg-color, #eee); /* Use theme variable */
+.icon-button:hover:not(:disabled) { /* Match FileManager hover */
+  background-color: rgba(0, 0, 0, 0.08);
+  color: var(--text-color);
 }
 
-.icon-button span { /* 临时 emoji 样式 */
-  font-size: 1.1em;
+.icon-button:disabled { /* Add disabled state */
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Style the icon inside the button like FileManager */
+.icon-button i {
+    font-size: 1.1em; /* Match FileManager icon size */
+    color: var(--button-bg-color); /* Match FileManager icon color */
+    transition: color 0.2s ease;
+}
+
+.icon-button:hover:not(:disabled) i { /* Match FileManager icon hover */
+    color: var(--button-hover-bg-color, var(--button-bg-color));
 }
 
 /* 实际使用图标库时可以这样设置大小 */
