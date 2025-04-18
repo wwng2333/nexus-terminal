@@ -309,7 +309,7 @@ const handleCloseEditorTab = (tabId: string) => {
 </script>
 
 <template>
-  <div class="workspace-view"> <!-- Root element -->
+  <div class="workspace-view">
     <TerminalTabBar
         :sessions="sessionTabsWithStatus"
         :active-session-id="activeSessionId"
@@ -327,7 +327,6 @@ const handleCloseEditorTab = (tabId: string) => {
         class="layout-renderer-wrapper"
         :editor-tabs="editorTabs"
         :active-editor-tab-id="activeEditorTabId"
-        <!-- Removed terminalManager prop -->
         @send-command="handleSendCommand"
         @terminal-input="handleTerminalInput"
         @terminal-resize="handleTerminalResize"

@@ -92,7 +92,6 @@ watch(searchTerm, (newValue) => {
       <!-- 搜索控制按钮 -->
       <div class="search-controls">
         <button @click="toggleSearch" class="icon-button" :title="isSearching ? t('commandInputBar.closeSearch') : t('commandInputBar.openSearch')">
-          <!-- 使用 Font Awesome 图标 -->
           <i v-if="!isSearching" class="fas fa-search"></i>
           <i v-else class="fas fa-times"></i>
         </button>
@@ -104,11 +103,11 @@ watch(searchTerm, (newValue) => {
           <button @click="findNext" class="icon-button" :title="t('commandInputBar.findNext')">
             <i class="fas fa-arrow-down"></i>
           </button>
-          <!-- 搜索结果显示已移除 -->
+
         </template>
       </div>
     </div>
-    <!-- Removed hidden span -->
+
   </div>
 </template>
 

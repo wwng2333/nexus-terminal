@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n';
+import { createI18n, Composer } from 'vue-i18n';
 
 // 导入语言文件
 import enMessages from './locales/en.json';
@@ -41,8 +41,9 @@ const i18n = createI18n<[MessageSchema], 'en' | 'zh'>({
  * @param lang 要设置的语言代码 ('en', 'zh', etc.)
  */
 export const setLocale = (lang: 'en' | 'zh') => {
-  if (i18n.global.availableLocales.includes(lang)) {
-    i18n.global.locale = lang; // 直接赋值
+  const globalComposer = i18n.global as unknown as Composer; // 强制类型断言
+  if (globalComposer.availableLocales.includes(lang)) {
+    globalComposer.locale.value = lang; // 访问 .value 属性
     try {
       localStorage.setItem(localStorageKey, lang); // 持久化到 localStorage
       console.log(`[i18n] Locale set to "${lang}" and saved to localStorage.`); // 添加日志

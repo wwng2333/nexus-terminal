@@ -92,7 +92,8 @@
     "loggingIn": "Logging in...",
     "error": "Login failed. Please check your username and password.",
     "twoFactorPrompt": "Enter your two-factor authentication code:",
-    "verifyButton": "Verify"
+    "verifyButton": "Verify",
+    "rememberMe": "Remember Me (7 days)"
   },
   "connections": {
     "title": "Connection Management",
@@ -243,7 +244,9 @@
       "noPassword": "Connection config is missing password.",
        "shellError": "Failed to open shell: {message}",
        "alreadyConnected": "An active SSH connection already exists.",
-       "unknown": "Unknown status"
+       "unknown": "Unknown status",
+       "wsClosedWillRetry": "WebSocket connection closed, will attempt reconnect {attempt} in {seconds} seconds...",
+       "reconnecting": "Attempting to reconnect..."
      },
      "terminal": {
       "infoPrefix": "[INFO]",
@@ -269,6 +272,7 @@
       "newFolder": "New Folder",
       "rename": "Rename",
       "changePermissions": "Change Permissions",
+      "newFile": "New File",
       "delete": "Delete",
       "deleteMultiple": "Delete {count} items",
       "download": "Download",
@@ -306,7 +310,8 @@
       "readFileFailed": "Failed to read file",
       "fileDecodeError": "File decoding failed (likely not UTF-8)",
       "saveFailed": "Failed to save file",
-      "saveTimeout": "Save timed out"
+      "saveTimeout": "Save timed out",
+      "fileExists": "File \"{name}\" already exists."
     },
     "prompts": {
       "enterFolderName": "Enter the name for the new folder:",
@@ -315,7 +320,8 @@
       "confirmDeleteFolder": "Are you sure you want to delete the directory \"{name}\" and all its contents? This cannot be undone.",
       "confirmDeleteFile": "Are you sure you want to delete the file \"{name}\"? This cannot be undone.",
       "enterNewName": "Enter the new name for \"{oldName}\":",
-      "enterNewPermissions": "Enter new permissions for \"{name}\" (octal, e.g., 755):"
+      "enterNewPermissions": "Enter new permissions for \"{name}\" (octal, e.g., 755):",
+      "enterFileName": "Enter the name for the new file:"
     },
     "editingFile": "Editing",
     "loadingFile": "Loading file...",

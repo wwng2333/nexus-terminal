@@ -217,7 +217,7 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
     <!-- 如果是容器节点 -->
     <template v-if="layoutNode.type === 'container' && layoutNode.children && layoutNode.children.length > 0">
       <splitpanes
-        :horizontal="layoutNode.direction === 'vertical'" 
+        :horizontal="layoutNode.direction === 'vertical'"
         class="default-theme"
         style="height: 100%; width: 100%;"
         @resized="handlePaneResize"

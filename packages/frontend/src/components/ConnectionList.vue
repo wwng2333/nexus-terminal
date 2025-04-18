@@ -178,14 +178,14 @@ const handleDelete = async (conn: ConnectionInfo) => {
                 </tr>
             </thead>
             <tbody>
-                <!-- 遍历分组内的连接 -->
+
                 <tr v-for="conn in groupConnections" :key="conn.id">
                     <td>{{ conn.name }}</td>
                     <td>{{ conn.host }}</td>
           <td>{{ conn.port }}</td>
           <td>{{ conn.username }}</td>
           <td>{{ conn.auth_method }}</td>
-          <td> <!-- 显示标签 -->
+          <td> 
             <span v-if="getConnectionTagNames(conn).length > 0" class="tag-list">
                 <span v-for="tagName in getConnectionTagNames(conn)" :key="tagName" class="tag-item">
                     {{ tagName }}

@@ -153,150 +153,134 @@ CREATE TABLE IF NOT EXISTS quick_commands (
 // --- 结束新增表结构定义 ---
 
 
-export const runMigrations = async (db: Database): Promise<void> => {
-    try {
-        // 创建 settings 表 (如果不存在)
-        await new Promise<void>((resolve, reject) => {
+export const runMigrations = (db: Database): Promise<void> => {
+    // 使用 Promise 包装 serialize，以便在所有操作完成后解析
+    return new Promise<void>((resolveOuter, rejectOuter) => {
+        db.serialize(() => {
+            // 定义一个统一的错误处理函数
+            const handleError = (operation: string, err: Error | null) => {
+                if (err) {
+                    const errorMsg = `${operation} 时出错: ${err.message}`;
+                    console.error(errorMsg);
+                    // 停止序列并拒绝外部 Promise
+                    rejectOuter(new Error(errorMsg));
+                    return true; // 表示有错误发生
+                }
+                return false; // 表示没有错误
+            };
+
+            // 创建 settings 表
             db.run(createSettingsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 settings 表时出错: ${err.message}`));
+                if (handleError('创建 settings 表', err)) return;
                 console.log('Settings 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 插入默认的 IP 白名单设置
-        await new Promise<void>((resolve, reject) => {
+            // 插入默认的 IP 白名单设置 (使用 INSERT OR IGNORE)
             db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('ipWhitelistEnabled', 'false')", (err: Error | null) => {
-                if (err) return reject(new Error(`插入默认 ipWhitelistEnabled 设置时出错: ${err.message}`));
-                console.log('默认 ipWhitelistEnabled 设置已插入。');
-                resolve();
+                // 对于 INSERT OR IGNORE，即使发生 UNIQUE constraint 错误，err 也可能为 null 或特定错误
+                // 但 SQLITE_BUSY 是需要处理的
+                if (err && (err as any).code !== 'SQLITE_CONSTRAINT') { // 忽略约束错误，处理其他错误
+                   if (handleError('插入默认 ipWhitelistEnabled 设置', err)) return;
+                } else if (err && (err as any).code === 'SQLITE_CONSTRAINT') {
+                    console.log('默认 ipWhitelistEnabled 设置已存在，跳过插入。');
+                } else {
+                    console.log('默认 ipWhitelistEnabled 设置已插入或已存在。');
+                }
             });
-        });
 
-        await new Promise<void>((resolve, reject) => {
             db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('ipWhitelist', '')", (err: Error | null) => {
-                if (err) return reject(new Error(`插入默认 ipWhitelist 设置时出错: ${err.message}`));
-                console.log('默认 ipWhitelist 设置已插入。');
-                resolve();
+                 if (err && (err as any).code !== 'SQLITE_CONSTRAINT') {
+                    if (handleError('插入默认 ipWhitelist 设置', err)) return;
+                 } else if (err && (err as any).code === 'SQLITE_CONSTRAINT') {
+                    console.log('默认 ipWhitelist 设置已存在，跳过插入。');
+                 } else {
+                    console.log('默认 ipWhitelist 设置已插入或已存在。');
+                 }
             });
-        });
 
-        // 创建 audit_logs 表 (如果不存在)
-        await new Promise<void>((resolve, reject) => {
+            // 创建 audit_logs 表
             db.run(createAuditLogsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 audit_logs 表时出错: ${err.message}`));
+                if (handleError('创建 audit_logs 表', err)) return;
                 console.log('Audit_Logs 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 api_keys 表 (如果不存在)
-        await new Promise<void>((resolve, reject) => {
+            // 创建 api_keys 表
             db.run(createApiKeysTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 api_keys 表时出错: ${err.message}`));
+                if (handleError('创建 api_keys 表', err)) return;
                 console.log('Api_Keys 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 passkeys 表 (如果不存在)
-        await new Promise<void>((resolve, reject) => {
+            // 创建 passkeys 表
             db.run(createPasskeysTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 passkeys 表时出错: ${err.message}`));
+                if (handleError('创建 passkeys 表', err)) return;
                 console.log('Passkeys 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 notification_settings 表 (如果不存在)
-        await new Promise<void>((resolve, reject) => {
+            // 创建 notification_settings 表
             db.run(createNotificationSettingsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 notification_settings 表时出错: ${err.message}`));
+                if (handleError('创建 notification_settings 表', err)) return;
                 console.log('Notification_Settings 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // --- 新增表创建逻辑 ---
+            // --- 新增表创建逻辑 ---
 
-        // 创建 users 表
-        await new Promise<void>((resolve, reject) => {
+            // 创建 users 表
             db.run(createUsersTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 users 表时出错: ${err.message}`));
+                if (handleError('创建 users 表', err)) return;
                 console.log('Users 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 proxies 表
-        await new Promise<void>((resolve, reject) => {
+            // 创建 proxies 表
             db.run(createProxiesTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 proxies 表时出错: ${err.message}`));
+                if (handleError('创建 proxies 表', err)) return;
                 console.log('Proxies 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 connections 表 (依赖 proxies)
-        await new Promise<void>((resolve, reject) => {
+            // 创建 connections 表
             db.run(createConnectionsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 connections 表时出错: ${err.message}`));
+                if (handleError('创建 connections 表', err)) return;
                 console.log('Connections 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 tags 表
-        await new Promise<void>((resolve, reject) => {
+            // 创建 tags 表
             db.run(createTagsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 tags 表时出错: ${err.message}`));
+                if (handleError('创建 tags 表', err)) return;
                 console.log('Tags 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 connection_tags 表 (依赖 connections, tags)
-        await new Promise<void>((resolve, reject) => {
+            // 创建 connection_tags 表
             db.run(createConnectionTagsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 connection_tags 表时出错: ${err.message}`));
+                if (handleError('创建 connection_tags 表', err)) return;
                 console.log('Connection_Tags 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 ip_blacklist 表
-        await new Promise<void>((resolve, reject) => {
+            // 创建 ip_blacklist 表
             db.run(createIpBlacklistTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 ip_blacklist 表时出错: ${err.message}`));
+                if (handleError('创建 ip_blacklist 表', err)) return;
                 console.log('Ip_Blacklist 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 command_history 表
-        await new Promise<void>((resolve, reject) => {
+            // 创建 command_history 表
             db.run(createCommandHistoryTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 command_history 表时出错: ${err.message}`));
+                if (handleError('创建 command_history 表', err)) return;
                 console.log('Command_History 表已检查/创建。');
-                resolve();
             });
-        });
 
-        // 创建 quick_commands 表
-        await new Promise<void>((resolve, reject) => {
+            // 创建 quick_commands 表 - 这是最后一个操作
             db.run(createQuickCommandsTableSQL, (err: Error | null) => {
-                if (err) return reject(new Error(`创建 quick_commands 表时出错: ${err.message}`));
+                if (handleError('创建 quick_commands 表', err)) {
+                    // 如果最后一个操作失败，serialize 会停止，rejectOuter 已被调用
+                    return;
+                }
                 console.log('Quick_Commands 表已检查/创建。');
-                resolve();
+
+                // 所有操作成功完成
+                console.log('所有数据库迁移已成功完成。');
+                resolveOuter(); // 解析外部 Promise
             });
-        });
 
-        // --- 结束新增表创建逻辑 ---
+            // --- 结束新增表创建逻辑 ---
 
-
-        console.log('所有数据库迁移已完成。');
-    } catch (error) {
-        console.error('数据库迁移过程中出错:', error);
-        throw error;
-    }
+        }); // 结束 db.serialize
+    }); // 结束 new Promise
 };
