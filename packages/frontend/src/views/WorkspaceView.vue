@@ -372,7 +372,6 @@ const handleCloseEditorTab = (tabId: string) => {
   flex-direction: column;
   height: calc(100vh - 60px - 30px - 2rem); /* 保持原始高度计算 */
   overflow: hidden;
-  background-color: var(--app-bg-color); /* Added app background */
 }
 
 .main-content-area {
