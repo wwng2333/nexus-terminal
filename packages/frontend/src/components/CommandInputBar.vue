@@ -68,10 +68,9 @@ watch(searchTerm, (newValue) => {
 
 <template>
   <div class="command-input-bar">
-    <div class="input-wrapper">
-      <!-- 命令输入框 -->
+    <div class="input-wrapper" :class="{ 'searching': isSearching }">
+      <!-- 命令输入框 (始终渲染) -->
       <input
-        v-if="!isSearching"
         type="text"
         v-model="commandInput"
         :placeholder="t('commandInputBar.placeholder')"
@@ -79,9 +78,8 @@ watch(searchTerm, (newValue) => {
         @keydown.enter="sendCommand"
       />
 
-      <!-- 搜索输入框 -->
+      <!-- 搜索输入框 (始终渲染, 通过 CSS 控制显示/隐藏和宽度) -->
       <input
-        v-if="isSearching"
         type="text"
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
@@ -132,19 +130,49 @@ watch(searchTerm, (newValue) => {
   position: relative; /* 为了按钮定位 */
 }
 
-.command-input,
-.search-input {
+.command-input {
   padding: 6px 10px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 0.9em;
-  background-color: var(--input-bg-color, var(--app-bg-color)); /* Use specific or fallback theme variable */
+  background-color: var(--input-bg-color, var(--app-bg-color));
   color: var(--text-color);
-  flex-grow: 1; /* 让输入框占据可用空间 */
   outline: none;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-  margin-right: 5px; /* 与右侧控件保持距离 */
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, flex-basis 0.3s ease-in-out; /* Add flex-basis transition */
+  margin-right: 5px;
+  flex: 1 1 100%; /* Default: command input takes full width */
 }
+
+.search-input {
+  /* Default styles */
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.9em;
+  background-color: var(--input-bg-color, var(--app-bg-color));
+  color: var(--text-color);
+  outline: none;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, flex-basis 0.3s ease-in-out, opacity 0.3s ease-in-out; /* Adjusted transitions */
+  margin-right: 5px;
+  /* Default state: hidden */
+  display: none;
+  flex: 0 1 0%; /* Allow shrinking, basis 0 */
+  opacity: 0; /* Fade out */
+}
+
+/* Styles when searching is active */
+.input-wrapper.searching .command-input {
+  flex: 3 1 75%; /* Command input takes 3 parts */
+}
+
+.input-wrapper.searching .search-input {
+  display: block; /* Make it visible */
+  flex: 1 1 25%; /* Search input takes 1 part */
+  margin-left: 5px; /* Add margin between inputs */
+  opacity: 1; /* Fade in */
+  /* Padding, border, etc. are already defined in the base .search-input rule */
+}
+
 
 .command-input:focus,
 .search-input:focus {
