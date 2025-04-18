@@ -14,6 +14,7 @@ import { useLayoutStore } from '../stores/layout.store';
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
 import type { ConnectionInfo } from '../stores/connections.store';
 import type { Terminal } from 'xterm'; // *** 导入 Terminal 类型 ***
+import type { ISearchOptions } from '@xterm/addon-search'; // *** 导入搜索选项类型 ***
 
 // --- Setup ---
 const { t } = useI18n();
@@ -52,6 +53,9 @@ const activeEditorTabId = computed(() => {
 const showAddEditForm = ref(false);
 const connectionToEdit = ref<ConnectionInfo | null>(null);
 const showLayoutConfigurator = ref(false); // 控制布局配置器可见性
+
+// --- 搜索状态 ---
+const currentSearchTerm = ref(''); // 当前搜索的关键词
 
 // --- 生命周期钩子 ---
 onMounted(() => {
@@ -163,14 +167,76 @@ onBeforeUnmount(() => {
 
  // 处理终端就绪 (用于 Terminal)
  // 注意：LayoutRenderer 内部的 Terminal 组件需要 emit('terminal-ready', payload)
- const handleTerminalReady = (payload: { sessionId: string; terminal: Terminal }) => { // *** 修正：接收包含 sessionId 和 terminal 的 payload ***
-    console.log(`[工作区视图 ${payload.sessionId}] 收到 terminal-ready 事件。`); // 添加日志
-    sessionStore.sessions.get(payload.sessionId)?.terminalManager.handleTerminalReady(payload.terminal); // *** 修正：传递 terminal 实例 ***
- };
+ // *** 修正：更新 payload 类型以包含 searchAddon ***
+ const handleTerminalReady = (payload: { sessionId: string; terminal: Terminal; searchAddon: any | null }) => { // 使用 any 避免导入 SearchAddon 类型
+    console.log(`[工作区视图 ${payload.sessionId}] 收到 terminal-ready 事件。Payload:`, payload); // *** 添加 Payload 日志 ***
+    // *** 检查 payload 中 searchAddon 是否存在 ***
+    if (payload && payload.searchAddon) {
+        console.log(`[工作区视图 ${payload.sessionId}] Payload 包含 searchAddon 实例。`);
+    } else {
+        console.warn(`[工作区视图 ${payload.sessionId}] Payload 未包含 searchAddon 实例！ Payload:`, payload);
+    }
+    // *** 修正：传递包含 terminal 和 searchAddon 的完整 payload ***
+    sessionStore.sessions.get(payload.sessionId)?.terminalManager.handleTerminalReady(payload);
+};
 
+// --- 搜索事件处理 ---
+const handleSearch = (term: string) => {
+  currentSearchTerm.value = term;
+  if (!term) {
+    // 如果搜索词为空，清除搜索
+    handleCloseSearch();
+    return;
+  }
+  console.log(`[WorkspaceView] Received search event: "${term}"`);
+  // 默认向前搜索
+  handleFindNext();
+};
 
- // --- 编辑器操作处理 (用于 FileEditorContainer) ---
- const handleCloseEditorTab = (tabId: string) => {
+const handleFindNext = () => {
+  const manager = activeSession.value?.terminalManager;
+  if (manager && currentSearchTerm.value) {
+    console.log(`[WorkspaceView] Calling findNext for term: "${currentSearchTerm.value}"`);
+    const found = manager.searchNext(currentSearchTerm.value, { incremental: true });
+    console.log(`[WorkspaceView] findNext returned: ${found}`); // 打印返回值
+    if (!found) {
+      console.log(`[WorkspaceView] findNext: No more results for "${currentSearchTerm.value}"`);
+      // 可以添加 UI 提示，例如短暂高亮搜索框
+    }
+  } else {
+     console.warn(`[WorkspaceView] Cannot findNext, no active session manager or search term.`);
+  }
+};
+
+const handleFindPrevious = () => {
+  const manager = activeSession.value?.terminalManager;
+  if (manager && currentSearchTerm.value) {
+     console.log(`[WorkspaceView] Calling findPrevious for term: "${currentSearchTerm.value}"`);
+    const found = manager.searchPrevious(currentSearchTerm.value, { incremental: true });
+    console.log(`[WorkspaceView] findPrevious returned: ${found}`); // 打印返回值
+     if (!found) {
+      console.log(`[WorkspaceView] findPrevious: No previous results for "${currentSearchTerm.value}"`);
+      // 可以添加 UI 提示
+    }
+  } else {
+     console.warn(`[WorkspaceView] Cannot findPrevious, no active session manager or search term.`);
+  }
+};
+
+const handleCloseSearch = () => {
+  console.log(`[WorkspaceView] Received close-search event.`);
+  currentSearchTerm.value = ''; // 清空搜索词
+  const manager = activeSession.value?.terminalManager;
+  if (manager) {
+    manager.clearTerminalSearch();
+  } else {
+     console.warn(`[WorkspaceView] Cannot clear search, no active session manager.`);
+  }
+};
+
+// Removed computed properties for search results, will pass manager directly
+// --- 编辑器操作处理 (用于 FileEditorContainer) ---
+const handleCloseEditorTab = (tabId: string) => {
    const isShared = shareFileEditorTabsBoolean.value;
    console.log(`[WorkspaceView] handleCloseEditorTab: ${tabId}, Shared mode: ${isShared}`);
    if (isShared) {
@@ -261,6 +327,7 @@ onBeforeUnmount(() => {
         class="layout-renderer-wrapper"
         :editor-tabs="editorTabs"
         :active-editor-tab-id="activeEditorTabId"
+        <!-- Removed terminalManager prop -->
         @send-command="handleSendCommand"
         @terminal-input="handleTerminalInput"
         @terminal-resize="handleTerminalResize"
@@ -273,6 +340,10 @@ onBeforeUnmount(() => {
         @open-new-session="handleOpenNewSession"
         @request-add-connection="handleRequestAddConnection"
         @request-edit-connection="handleRequestEditConnection"
+        @search="handleSearch"
+        @find-next="handleFindNext"
+        @find-previous="handleFindPrevious"
+        @close-search="handleCloseSearch"
       ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
       <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
         {{ t('layout.loading', '加载布局中...') }}

@@ -1,6 +1,7 @@
-import { ref, readonly, type Ref, ComputedRef } from 'vue'; // 修正导入，移除大写 Readonly
+import { ref, readonly, type Ref, ComputedRef } from 'vue';
 // import { useWebSocketConnection } from './useWebSocketConnection'; // 移除全局导入
 import type { Terminal } from 'xterm';
+import type { SearchAddon, ISearchOptions } from '@xterm/addon-search'; // *** 移除 ISearchResult 导入 ***
 import type { WebSocketMessage, MessagePayload } from '../types/websocket.types';
 
 // 定义与 WebSocket 相关的依赖接口
@@ -22,6 +23,10 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
     const { sendMessage, onMessage, isConnected } = wsDeps;
 
     const terminalInstance = ref<Terminal | null>(null);
+    const searchAddon = ref<SearchAddon | null>(null); // Keep searchAddon ref
+    // Removed search result state refs
+    // const searchResultCount = ref(0);
+    // const currentSearchResultIndex = ref(-1);
     const terminalOutputBuffer = ref<string[]>([]); // 缓冲 WebSocket 消息直到终端准备好
     const isSshConnected = ref(false); // 新增：跟踪 SSH 连接状态
 
@@ -35,9 +40,38 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
 
     // --- 终端事件处理 ---
 
-    const handleTerminalReady = (term: Terminal) => {
-        console.log(`[会话 ${sessionId}][SSH终端模块] 终端实例已就绪。`);
+    // *** 更新 handleTerminalReady 签名以接收 searchAddon ***
+    const handleTerminalReady = (payload: { terminal: Terminal; searchAddon: SearchAddon | null }) => {
+        const { terminal: term, searchAddon: addon } = payload;
+        console.log(`[会话 ${sessionId}][SSH终端模块] 终端实例已就绪。SearchAddon 实例:`, addon ? '存在' : '不存在');
         terminalInstance.value = term;
+        searchAddon.value = addon; // *** 存储 searchAddon 实例 ***
+
+        // *** 监听搜索结果变化 ***
+        if (searchAddon.value) {
+            // *** 移除错误的类型注解，让 TS 推断 ***
+            searchAddon.value.onDidChangeResults((results) => {
+                // *** 添加更详细的日志 ***
+                console.log(`[会话 ${sessionId}][SearchAddon] onDidChangeResults 事件触发! results:`, JSON.stringify(results)); // 使用 JSON.stringify 查看完整结构
+                if (results && typeof results.resultIndex === 'number' && typeof results.resultCount === 'number') {
+                    // 确认 results 包含预期的数字属性
+                    searchResultCount.value = results.resultCount;
+                    currentSearchResultIndex.value = results.resultIndex; // xterm 的索引是从 0 开始的
+                    console.log(`[会话 ${sessionId}][SearchAddon] 状态已更新: index=${currentSearchResultIndex.value}, count=${searchResultCount.value}`);
+                } else {
+                    // 没有结果、搜索被清除或 results 结构不符合预期
+                    console.log(`[会话 ${sessionId}][SearchAddon] 清除搜索状态或结果无效。 results:`, JSON.stringify(results)); // 使用 JSON.stringify 查看完整结构
+                    searchResultCount.value = 0;
+                    currentSearchResultIndex.value = -1;
+                     // console.log(`[会话 ${sessionId}][SearchAddon] 搜索结果清除或无匹配。`); // 这行日志有点重复，可以注释掉
+                }
+            });
+            // *** 添加确认日志 ***
+            console.log(`[会话 ${sessionId}][SearchAddon] onDidChangeResults 监听器已附加。`);
+        } else {
+             console.warn(`[会话 ${sessionId}][SearchAddon] 无法附加 onDidChangeResults 监听器，searchAddon 实例为空。`);
+        }
+
         // --- 添加日志：检查缓冲区处理 ---
         console.log(`[会话 ${sessionId}][SSH前端] handleTerminalReady: 准备处理缓冲区，缓冲区长度: ${terminalOutputBuffer.value.length}`);
         if (terminalOutputBuffer.value.length > 0) {
@@ -313,6 +347,44 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         sendMessage({ type: 'ssh:input', sessionId, payload: { data } });
     };
 
+    // --- 搜索相关方法 (移除计数逻辑) ---
+
+    // Removed countOccurrences helper function
+
+    const searchNext = (term: string, options?: ISearchOptions): boolean => {
+        if (searchAddon.value) {
+            console.log(`[会话 ${sessionId}][SSH终端模块] 执行 searchNext: "${term}"`);
+            const found = searchAddon.value.findNext(term, options);
+            // Removed manual count and state update
+            return found;
+        }
+        console.warn(`[会话 ${sessionId}][SSH终端模块] searchNext 调用失败，searchAddon 不可用。`);
+        // Removed state reset on failure
+        return false;
+    };
+
+    const searchPrevious = (term: string, options?: ISearchOptions): boolean => {
+        if (searchAddon.value) {
+             console.log(`[会话 ${sessionId}][SSH终端模块] 执行 searchPrevious: "${term}"`);
+            const found = searchAddon.value.findPrevious(term, options);
+            // Removed manual count and state update
+            return found;
+        }
+         console.warn(`[会话 ${sessionId}][SSH终端模块] searchPrevious 调用失败，searchAddon 不可用。`);
+         // Removed state reset on failure
+        return false;
+    };
+
+    const clearTerminalSearch = () => {
+        if (searchAddon.value) {
+            console.log(`[会话 ${sessionId}][SSH终端模块] 清除搜索高亮。`);
+            searchAddon.value.clearDecorations();
+        }
+        // Removed state reset
+        console.log(`[会话 ${sessionId}][SSH终端模块] 搜索高亮已清除 (状态不再管理)。`);
+    };
+
+
     // 返回工厂实例
     return {
         // 公共接口
@@ -321,9 +393,16 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         handleTerminalResize,
         sendData, // 新增：允许外部直接发送数据
         cleanup,
-        // --- 新增暴露 ---
+        // --- 搜索方法 ---
+        searchNext,
+        searchPrevious,
+        clearTerminalSearch,
+        // --- 暴露状态 ---
         isSshConnected: readonly(isSshConnected), // 暴露 SSH 连接状态 (只读)
-        terminalInstance // 暴露 terminal 实例，以便 WorkspaceView 可以写入提示信息
+        terminalInstance, // 暴露 terminal 实例，以便 WorkspaceView 可以写入提示信息
+        // Removed search result state exposure
+        // searchResultCount: readonly(searchResultCount),
+        // currentSearchResultIndex: readonly(currentSearchResultIndex),
     };
 }
 

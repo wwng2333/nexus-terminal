@@ -29,6 +29,7 @@ const props = defineProps({
     type: String as PropType<string | null>,
     default: null,
   },
+  // Removed terminalManager prop definition
 });
 
 // --- Emits ---
@@ -47,7 +48,12 @@ const emit = defineEmits({
   'request-edit-connection': null, // (conn: any)
   // *** 修正：更新 terminal-ready 事件的 payload 类型 ***
   'terminal-ready': (payload: { sessionId: string; terminal: any }) => // 使用 any 简化类型检查，或导入 Terminal
-    typeof payload === 'object' && typeof payload.sessionId === 'string' && typeof payload.terminal === 'object'
+    typeof payload === 'object' && typeof payload.sessionId === 'string' && typeof payload.terminal === 'object',
+  // *** 新增：声明搜索相关事件 ***
+  'search': null, // (searchTerm: string)
+  'find-next': null, // ()
+  'find-previous': null, // ()
+  'close-search': null, // ()
 });
 
 // --- Setup ---
@@ -146,9 +152,15 @@ const componentProps = computed(() => {
       };
     case 'commandBar':
        // CommandInputBar 需要转发 send-command 事件
+       // searchResultCount 和 currentSearchResultIndex 将在模板中直接从 terminalManager 绑定
        return {
          class: 'pane-content',
          onSendCommand: (command: string) => emit('sendCommand', command),
+         // 转发搜索事件
+         onSearch: (term: string) => emit('search', term),
+         onFindNext: () => emit('find-next'),
+         onFindPrevious: () => emit('find-previous'),
+         onCloseSearch: () => emit('close-search'),
        };
     case 'connections':
        // WorkspaceConnectionList 需要转发 connect-request 等事件
@@ -238,6 +250,10 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
                 emit('request-add-connection');
             }"
             @request-edit-connection="emit('request-edit-connection', $event)"
+            @search="emit('search', $event)"
+            @find-next="emit('find-next')"
+            @find-previous="emit('find-previous')"
+            @close-search="emit('close-search')"
           />
         </pane>
       </splitpanes>
@@ -308,6 +324,12 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
                   console.log(`[LayoutRenderer ${props.layoutNode.id}] Template received 'request-add-connection', emitting upwards.`);
                   emit('request-add-connection');
               }"
+            />
+            <!-- 渲染 CommandInputBar -->
+            <component
+              v-else-if="layoutNode.component === 'commandBar'"
+              :is="currentComponent"
+              v-bind="componentProps"
             />
             <!-- 渲染其他组件 -->
             <component

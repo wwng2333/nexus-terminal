@@ -6,7 +6,9 @@ import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
+import { SearchAddon, type ISearchOptions } from '@xterm/addon-search'; // *** 更新导入路径 ***
 import 'xterm/css/xterm.css'; // 引入 xterm 样式
+// *** 移除无效的 CSS 导入 ***
 
 // 定义 props 和 emits
 const props = defineProps<{
@@ -19,12 +21,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'data', data: string): void; // 用户输入事件
   (e: 'resize', dimensions: { cols: number; rows: number }): void; // 终端大小调整事件
-  (e: 'ready', payload: { sessionId: string; terminal: Terminal }): void; // *** 修正：ready 事件传递包含 sessionId 和 terminal 实例的对象 ***
+  // *** 更新 ready 事件 payload，包含 searchAddon ***
+  (e: 'ready', payload: { sessionId: string; terminal: Terminal; searchAddon: SearchAddon | null }): void;
 }>();
 
 const terminalRef = ref<HTMLElement | null>(null); // 终端容器的引用
 let terminal: Terminal | null = null;
 let fitAddon: FitAddon | null = null;
+let searchAddon: SearchAddon | null = null; // *** 添加 searchAddon 变量 ***
 let resizeObserver: ResizeObserver | null = null;
 let debounceTimer: number | null = null; // 用于防抖的计时器 ID
 // const fontSize = ref(14); // 移除本地字体大小状态，将由 store 管理
@@ -111,8 +115,10 @@ onMounted(() => {
 
     // 加载插件
     fitAddon = new FitAddon();
+    searchAddon = new SearchAddon(); // *** 创建 SearchAddon 实例 ***
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(new WebLinksAddon());
+    terminal.loadAddon(searchAddon); // *** 加载 SearchAddon ***
 
     // 将终端附加到 DOM
     terminal.open(terminalRef.value);
@@ -199,11 +205,11 @@ onMounted(() => {
       }
     }, { immediate: true }); // 立即执行一次 watch
 
-    // 触发 ready 事件，传递 sessionId 和 terminal 实例
+    // 触发 ready 事件，传递 sessionId, terminal 和 searchAddon 实例
     if (terminal) {
-        emit('ready', { sessionId: props.sessionId, terminal: terminal });
+        emit('ready', { sessionId: props.sessionId, terminal: terminal, searchAddon: searchAddon });
     }
-
+  
     // --- 监听外观变化 ---
     watch(currentTerminalTheme, (newTheme) => {
       if (terminal) {
@@ -311,7 +317,28 @@ onBeforeUnmount(() => {
 const write = (data: string | Uint8Array) => {
     terminal?.write(data);
 };
-defineExpose({ write });
+
+// *** 暴露搜索方法 ***
+const findNext = (term: string, options?: ISearchOptions): boolean => {
+  if (searchAddon) {
+    return searchAddon.findNext(term, options);
+  }
+  return false;
+};
+
+const findPrevious = (term: string, options?: ISearchOptions): boolean => {
+  if (searchAddon) {
+    return searchAddon.findPrevious(term, options);
+  }
+  return false;
+};
+
+const clearSearch = () => {
+  searchAddon?.clearDecorations();
+};
+
+defineExpose({ write, findNext, findPrevious, clearSearch });
+
 
 // --- 应用终端背景 ---
 const applyTerminalBackground = () => {
