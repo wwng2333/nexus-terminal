@@ -46,12 +46,20 @@ const debounce = (func: Function, delay: number) => {
     }, delay);
   };
 };
+
 // 防抖处理由 ResizeObserver 触发的 resize 事件
 const debouncedEmitResize = debounce((term: Terminal) => {
     if (term && props.isActive) { // 仅当标签仍处于活动状态时才发送防抖后的 resize
         const dimensions = { cols: term.cols, rows: term.rows };
         console.log(`[Terminal ${props.sessionId}] Debounced resize emit (from ResizeObserver):`, dimensions);
         emit('resize', dimensions);
+        // *** 新增：尝试在发送 resize 后强制刷新终端显示 ***
+        try {
+            term.refresh(0, term.rows - 1); // Refresh entire viewport
+            console.log(`[Terminal ${props.sessionId}] Terminal refreshed after debounced resize.`);
+        } catch (e) {
+            console.warn(`[Terminal ${props.sessionId}] Terminal refresh failed:`, e);
+        }
     } else {
         console.log(`[Terminal ${props.sessionId}] Debounced resize skipped (inactive).`);
     }
@@ -126,11 +134,11 @@ onMounted(() => {
             const { height, width } = entry.contentRect; // 获取宽度和高度
             // console.log(`[Terminal ${props.sessionId}] ResizeObserver triggered. Size: ${width}x${height}, isActive: ${props.isActive}`);
             if (height > 0 && width > 0 && terminal) { // 确保宽度和高度都有效，并且终端实例存在
-                 try {
-                    // *** 新增：立即调用 fit() 来适应前端容器 ***
-                    fitAddon?.fit();
-                    // 触发防抖的 resize 发送，通知后端潜在的尺寸变化
-                    debouncedEmitResize(terminal);
+                try {
+                  // *** 恢复：立即调用 fit() 来适应前端容器 ***
+                  fitAddon?.fit();
+                  // 触发防抖的 resize 发送，通知后端潜在的尺寸变化
+                  debouncedEmitResize(terminal);
                  } catch (e) {
                     console.warn("Fit addon resize failed (observer):", e);
                  }
