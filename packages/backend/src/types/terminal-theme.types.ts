@@ -5,7 +5,7 @@ import type { ITheme } from 'xterm';
  */
 export interface TerminalTheme {
   _id?: string; // NeDB 自动生成的 ID
-  name: string; // 主题名称，例如 "默认暗色", "Solarized Light"
+  name: string; // 主题名称，例如 "默认", "Solarized Light"
   themeData: ITheme; // xterm.js 的 ITheme 对象
   isPreset: boolean; // 是否为系统预设主题
   isSystemDefault?: boolean; // (可选) 是否为系统默认主题

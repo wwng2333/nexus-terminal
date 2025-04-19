@@ -106,7 +106,7 @@ export class StatusMonitorService {
       * @returns Promise<ServerStatus> 服务器状态信息
       */
      private async fetchServerStatus(sshClient: Client, sessionId: string): Promise<ServerStatus> {
-         console.debug(`[StatusMonitor ${sessionId}] Fetching server status...`);
+        //  console.debug(`[StatusMonitor ${sessionId}] Fetching server status...`);
          const timestamp = Date.now();
          let status: Partial<ServerStatus> = { timestamp };
 

@@ -4,7 +4,8 @@ import { ref, computed, watch, nextTick } from 'vue'; // 导入 nextTick
 import type { ITheme } from 'xterm';
 import type { TerminalTheme } from '../../../backend/src/types/terminal-theme.types'; // 引用后端类型
 import type { AppearanceSettings, UpdateAppearanceDto } from '../../../backend/src/types/appearance.types'; // 引用后端类型
-import { defaultXtermTheme, defaultUiTheme } from './default-themes.js'; // 尝试添加 .js (编译后) 或保持 .ts
+import { defaultXtermTheme, defaultUiTheme } from './default-themes'; // 保持 .ts
+import { presetTerminalThemes } from './iterm-themes'; // <-- 导入预设主题
 
 // Helper function to safely parse JSON
 export const safeJsonParse = <T>(jsonString: string | undefined | null, defaultValue: T): T => { // Add export
@@ -25,10 +26,15 @@ export const useAppearanceStore = defineStore('appearance', () => {
 
     // Appearance Settings State
     const appearanceSettings = ref<Partial<AppearanceSettings>>({}); // 从 API 获取的原始设置
-    const availableTerminalThemes = ref<TerminalTheme[]>([]); // 终端主题列表
+    const userTerminalThemes = ref<TerminalTheme[]>([]); // <-- 新增：只存储用户自定义主题
 
     // --- Computed Properties (Getters) ---
 
+    // 合并后的可用终端主题列表 (包括预设和用户自定义)
+    const availableTerminalThemes = computed<TerminalTheme[]>(() => {
+        // 确保预设主题在前，用户主题在后
+        return [...presetTerminalThemes, ...userTerminalThemes.value];
+    });
     // 当前应用的 UI 主题 (CSS 变量对象)
     const currentUiTheme = computed<Record<string, string>>(() => {
         return safeJsonParse(appearanceSettings.value.customUiTheme, defaultUiTheme);
@@ -86,9 +92,9 @@ export const useAppearanceStore = defineStore('appearance', () => {
                 axios.get<TerminalTheme[]>('/api/v1/terminal-themes')
             ]);
             appearanceSettings.value = settingsResponse.data;
-            availableTerminalThemes.value = themesResponse.data;
+            userTerminalThemes.value = themesResponse.data; // <-- 更新 userTerminalThemes
             console.log('[AppearanceStore] 外观设置已加载:', appearanceSettings.value);
-            console.log('[AppearanceStore] 终端主题列表已加载:', availableTerminalThemes.value);
+            console.log('[AppearanceStore] 用户终端主题列表已加载:', userTerminalThemes.value); // <-- 修改日志
 
             // 应用加载的 UI 主题
             applyUiTheme(currentUiTheme.value);
@@ -101,7 +107,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
             error.value = err.response?.data?.message || err.message || '加载外观数据失败';
             // 出错时应用默认值
             appearanceSettings.value = {}; // 清空可能不完整的设置
-            availableTerminalThemes.value = [];
+            userTerminalThemes.value = []; // <-- 清空 userTerminalThemes
             applyUiTheme(defaultUiTheme);
             applyPageBackground(); // 应用默认背景（可能为空）
         } finally {
@@ -125,10 +131,26 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function updateAppearanceSettings(updates: UpdateAppearanceDto) {
         try {
+            // --- 修复预设主题闪烁问题 ---
+            // 检查本次更新是否是为了清除后端 activeTerminalThemeId (因为选择了预设)
+            const isClearingThemeForPreset = updates.activeTerminalThemeId === undefined &&
+                                             appearanceSettings.value.activeTerminalThemeId?.startsWith('preset-');
+            const presetThemeIdToRestore = isClearingThemeForPreset ? appearanceSettings.value.activeTerminalThemeId : null;
+            // --- 修复结束 ---
+
             const response = await axios.put<AppearanceSettings>('/api/v1/appearance', updates);
             // 使用后端返回的最新设置更新本地状态
             appearanceSettings.value = response.data;
             console.log('[AppearanceStore] 外观设置已更新:', appearanceSettings.value);
+
+            // --- 修复预设主题闪烁问题 ---
+            // 如果之前是为了清除预设主题而更新的，现在恢复前端的预设 ID
+            if (presetThemeIdToRestore) {
+                appearanceSettings.value.activeTerminalThemeId = presetThemeIdToRestore;
+                console.log(`[AppearanceStore] Restored preset theme ID after backend update: ${presetThemeIdToRestore}`);
+            }
+            // --- 修复结束 ---
+
             // 如果 UI 主题或背景更新，重新应用
             if (updates.customUiTheme !== undefined) applyUiTheme(currentUiTheme.value);
             if (updates.pageBackgroundImage !== undefined) applyPageBackground(); // 移除 pageBackgroundOpacity 检查
@@ -160,7 +182,26 @@ export const useAppearanceStore = defineStore('appearance', () => {
      * @param themeId 主题 ID
      */
     async function setActiveTerminalTheme(themeId: string | null) {
-        await updateAppearanceSettings({ activeTerminalThemeId: themeId ?? undefined });
+        // 检查是否为预设主题 ID
+        if (themeId && themeId.startsWith('preset-')) {
+            // 1. 直接更新本地状态以立即反映前端选择
+            appearanceSettings.value.activeTerminalThemeId = themeId;
+            console.log(`[AppearanceStore] Applied preset theme locally: ${themeId}`);
+            // 2. 通知后端没有激活的用户主题 (发送 undefined)
+            try {
+                await updateAppearanceSettings({ activeTerminalThemeId: undefined }); // <-- 使用 undefined 替代 null
+                console.log('[AppearanceStore] Notified backend: No user theme active (preset selected).');
+            } catch (error) {
+                // 即使通知后端失败，前端也已应用，记录错误但可能不需要回滚前端状态
+                console.error('[AppearanceStore] Failed to notify backend about preset theme selection:', error);
+                // 可选：如果希望严格同步，可以在这里抛出错误或回滚本地状态
+                // appearanceSettings.value.activeTerminalThemeId = // previous value? 需要额外逻辑记录
+                // throw error; // 重新抛出错误，让调用者处理
+            }
+        } else {
+            // 对于用户主题或 null，按原逻辑更新后端
+            await updateAppearanceSettings({ activeTerminalThemeId: themeId ?? undefined });
+        }
     }
 
     /**
@@ -195,7 +236,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
     async function reloadTerminalThemes() {
          try {
             const response = await axios.get<TerminalTheme[]>('/api/v1/terminal-themes');
-            availableTerminalThemes.value = response.data;
+            userTerminalThemes.value = response.data; // <-- 更新 userTerminalThemes
+            console.log('[AppearanceStore] 用户终端主题列表已重新加载:', userTerminalThemes.value); // <-- 添加日志
          } catch (err: any) {
              console.error('重新加载终端主题列表失败:', err);
              // 可以选择抛出错误或显示通知

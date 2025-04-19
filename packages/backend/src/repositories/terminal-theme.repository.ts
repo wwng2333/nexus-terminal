@@ -171,7 +171,7 @@ export const deleteTheme = async (id: number): Promise<boolean> => {
  * 初始化预设主题 (如果不存在)
  */
 export const initializePresetThemes = async () => {
-  const defaultPresetName = '默认暗色'; // Default Dark
+  const defaultPresetName = '默认'; // Default Light
   const themeDataJson = JSON.stringify(defaultXtermTheme);
   const now = Date.now();
 
