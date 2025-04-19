@@ -262,10 +262,6 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
       @close="focusSwitcherStore.toggleConfigurator(false)"
     />
 
-    <footer v-if="!isWorkspaceRoute || isLayoutVisible"> <!-- *** 添加 v-if *** -->
-      <!-- 使用 t 函数获取应用名称 -->
-      <p>&copy; 2025 {{ t('appName') }}</p>
-    </footer>
   </div>
 </template>
 
@@ -369,17 +365,4 @@ main {
   /* padding: var(--base-padding); */ /* Keep padding removed from main */
 }
 
-footer {
-  padding: var(--base-padding); /* 使用基础内边距变量 */
-}
-
-footer {
-  background-color: var(--footer-bg-color); /* 使用底部背景色变量 */
-  padding: calc(var(--base-padding) / 20) var(--base-padding); /* 调整内边距 */
-  text-align: center;
-  font-size: 0.8rem;
-  color: var(--text-color-secondary); /* 使用次要文字颜色变量 */
-  border-top: 1px solid var(--border-color); /* 使用边框颜色变量 */
-  margin-top: auto; /* Pushes footer to the bottom */
-}
 </style>
