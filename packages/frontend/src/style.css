@@ -17,9 +17,10 @@
   --button-hover-bg-color: #0056b3;/* 按钮悬停背景色 */
   --icon-color: var(--text-color-secondary); /* 图标颜色 */
   --icon-hover-color: var(--link-hover-color); /* 图标悬停颜色 */
-  --divider-color: var(--border-color); /* 分割线颜色 */
+  --split-line-color: var(--border-color); /* 分割线颜色 */
+  --split-line-hover-color: var(--border-color); /* 分割线悬停颜色 */
   --input-focus-border-color: var(--link-active-color); /* 输入框聚焦边框颜色 */
-  --input-focus-glow-rgb: 0, 123, 255; /* 输入框聚焦光晕 RGB 值 (对应 --link-active-color) */
+  --input-focus-glow: var(--link-active-color); /* 输入框聚焦光晕值 */
 
   /* 字体 */
   --font-family-sans-serif: sans-serif; /* 默认字体 */

@@ -41,11 +41,12 @@ export const defaultUiTheme: Record<string, string> = {
   '--button-text-color': '#ffffff',
   '--button-hover-bg-color': '#0056b3',
   // Added new variables
-  '--icon-color': '#666666', // Default to secondary text color
-  '--icon-hover-color': '#0056b3', // Default to link hover color
-  '--divider-color': '#cccccc', // Default to border color
-  '--input-focus-border-color': '#007bff', // Default to link active color
-  '--input-focus-glow-rgb': '0, 123, 255', // Default to link active color RGB
+  '--icon-color': 'var(--text-color-secondary)', // 图标颜色
+  '--icon-hover-color': 'var(--link-hover-color)', // 图标悬停颜色
+  '--split-line-color': 'var(--border-color)', /* 分割线颜色 */
+  '--split-line-hover-color': 'var(--border-color)', /* 分割线悬停颜色 */
+  '--input-focus-border-color': 'var(--link-active-color)', /* 输入框聚焦边框颜色 */
+  '--input-focus-glow': 'var(--link-active-color)', /* 输入框聚焦光晕值 */
   // End added variables
   '--font-family-sans-serif': 'sans-serif',
   '--base-padding': '1rem',
