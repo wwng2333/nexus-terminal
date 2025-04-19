@@ -369,12 +369,22 @@ const handleAddNewTheme = () => {
 };
 
 
-// 开始编辑现有主题
+// 开始编辑主题 (用户主题或基于预设创建副本)
 const handleEditTheme = (theme: TerminalTheme) => {
-    if (theme.isPreset) return; // 不允许编辑预设
     saveThemeError.value = null; // 清除旧错误
-    // 深拷贝以避免直接修改列表中的对象
-    editingTheme.value = JSON.parse(JSON.stringify(theme));
+    if (theme.isPreset) {
+        // 基于预设创建副本
+        const themeCopy = JSON.parse(JSON.stringify(theme));
+        themeCopy._id = undefined; // 清除 ID，表示是新建
+        themeCopy.name = `${theme.name} (${t('styleCustomizer.copySuffix', '副本')})`; // 添加后缀，需要添加翻译 '副本'
+        themeCopy.isPreset = false; // 副本不再是预设
+        editingTheme.value = themeCopy;
+        console.log('创建预设主题副本进行编辑:', editingTheme.value);
+    } else {
+        // 编辑用户自己的主题
+        editingTheme.value = JSON.parse(JSON.stringify(theme));
+        console.log('编辑用户主题:', editingTheme.value);
+    }
     isEditingTheme.value = true;
 };
 
@@ -662,7 +672,7 @@ const formatXtermLabel = (key: keyof ITheme): string => {
                 <li v-for="theme in availableTerminalThemes" :key="theme._id" :class="{ 'preset-theme': theme.isPreset }">
                     <span>{{ theme.name }} {{ theme.isPreset ? `(${t('styleCustomizer.preset')})` : '' }}</span>
                     <div class="theme-actions">
-                        <button @click="handleEditTheme(theme)" :disabled="theme.isPreset">{{ t('common.edit') }}</button>
+                        <button @click="handleEditTheme(theme)">{{ theme.isPreset ? t('styleCustomizer.editAsCopy', '编辑副本') : t('common.edit') }}</button> <!-- 移除 disabled，修改文本，需要添加翻译 '编辑副本' -->
                         <button @click="handleDeleteTheme(theme)" :disabled="theme.isPreset" class="button-danger">{{ t('common.delete') }}</button>
                     </div>
                 </li>

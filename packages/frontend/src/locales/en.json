@@ -86,7 +86,9 @@
     "uiThemeJsonEditorTitle": "UI Theme JSON Editor",
     "uiThemeJsonEditorDesc": "Directly edit the UI theme configuration using JSON. Changes here will reflect in the color pickers above after blurring the textarea.",
     "errorInvalidJsonObject": "Invalid input. Please provide a valid JSON object.",
-    "errorInvalidJsonConfig": "Invalid JSON configuration"
+    "errorInvalidJsonConfig": "Invalid JSON configuration",
+    "editAsCopy": "Edit as Copy",
+    "copySuffix": "Copy"
   },
   "login": {
     "title": "User Login",

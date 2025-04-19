@@ -86,7 +86,9 @@
     "uiThemeJsonEditorTitle": "界面主题 JSON 编辑器",
     "uiThemeJsonEditorDesc": "直接使用 JSON 编辑界面主题配置。在此处更改并在文本区域失焦后，上面的颜色选择器将同步更新。",
     "errorInvalidJsonObject": "输入无效。请输入一个有效的 JSON 对象。",
-    "errorInvalidJsonConfig": "无效的 JSON 配置"
+    "errorInvalidJsonConfig": "无效的 JSON 配置",
+    "editAsCopy": "编辑副本",
+    "copySuffix": "副本"
   },
   "login": {
     "title": "用户登录",
