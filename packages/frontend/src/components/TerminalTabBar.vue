@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, PropType } from 'vue'; // 导入 ref 和 computed
 import { useI18n } from 'vue-i18n'; // 导入 i18n
-import { useRoute } from 'vue-router'; // *** 导入 useRoute ***
 import { storeToRefs } from 'pinia'; // *** 重新导入 storeToRefs ***
 import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue'; // 导入连接列表组件
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
@@ -12,8 +11,8 @@ import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导�
 // --- Setup ---
 const { t } = useI18n(); // 初始化 i18n
 const layoutStore = useLayoutStore(); // 初始化布局 store
-const { isLayoutVisible } = storeToRefs(layoutStore); // *** 获取 isLayoutVisible ***
-const route = useRoute(); // *** 获取路由信息 ***
+// const { isLayoutVisible } = storeToRefs(layoutStore); // *** 移除 isLayoutVisible ***
+// const route = useRoute(); // *** 移除 route ***
 
 // 定义 Props
 const props = defineProps({
@@ -77,15 +76,7 @@ const openLayoutConfigurator = () => {
 };
 
 // --- Layout Visibility Logic ---
-// Show the toggle button only on the workspace route
-const showLayoutToggleButton = computed(() => route.path === '/workspace');
-
-const toggleLayout = () => {
-  layoutStore.toggleLayoutVisibility();
-};
-
-const layoutToggleIcon = computed(() => isLayoutVisible.value ? 'fa-eye' : 'fa-eye-slash');
-const layoutToggleTitle = computed(() => isLayoutVisible.value ? t('nav.hideLayout', '隐藏布局元素') : t('nav.showLayout', '显示布局元素')); // 添加默认值
+// 移除布局可见性切换逻辑
 // --- End Layout Visibility Logic ---
 
 </script>
@@ -115,15 +106,7 @@ const layoutToggleTitle = computed(() => isLayoutVisible.value ? t('nav.hideLayo
       </button>
     </div>
     <div class="action-buttons-container">
-        <!-- Layout Visibility Toggle Button -->
-        <button
-          v-if="showLayoutToggleButton"
-          @click="toggleLayout"
-          class="action-button layout-toggle-button"
-          :title="layoutToggleTitle"
-        >
-          <i :class="['fas', layoutToggleIcon]"></i>
-        </button>
+        <!-- 移除布局可见性切换按钮 -->
         <!-- Layout Configurator Button -->
         <button class="action-button layout-config-button" @click="openLayoutConfigurator" :title="t('layout.configure', '配置布局')"> <!-- 使用 t 函数 -->
           <i class="fas fa-th-large"></i> <!-- 恢复为田字格图标 -->
