@@ -896,23 +896,6 @@ watch(() => editingTheme.value?.themeData, (newThemeData) => {
                     <input type="text" id="editingThemeName" v-model="editingTheme.name" required class="text-input"/>
                 </div>
 
-                <!-- Terminal Theme Textarea -->
-                <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
-                <h4>{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</h4> <!-- TODO: Add translation -->
-                <p>{{ t('styleCustomizer.terminalThemeJsonEditorDesc') }}</p> <!-- TODO: Add translation -->
-                <div class="form-group full-width-group">
-                   <label for="terminalThemeTextarea" class="sr-only">{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</label>
-                   <textarea
-                     id="terminalThemeTextarea"
-                     v-model="editableTerminalThemeString"
-                     @blur="handleTerminalThemeStringChange"
-                     rows="15"
-                     :placeholder="terminalThemePlaceholder"
-                     spellcheck="false"
-                     class="json-textarea"
-                   ></textarea>
-                </div>
-                 <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p>
                  <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
                  <h4>{{ t('styleCustomizer.terminalThemeColorEditorTitle') }}</h4> <!-- TODO: Add translation -->
 
@@ -936,7 +919,25 @@ watch(() => editingTheme.value?.themeData, (newThemeData) => {
                 />
              </div>
               <!-- 显示解析错误（如果颜色选择器下方也需要的话） -->
-              <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p>
+              <!-- <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p> --> <!-- 错误消息统一显示在 Textarea 下方 -->
+
+                <!-- Terminal Theme Textarea -->
+                <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
+                <h4>{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</h4> <!-- TODO: Add translation -->
+                <p>{{ t('styleCustomizer.terminalThemeJsonEditorDesc') }}</p> <!-- TODO: Add translation -->
+                <div class="form-group full-width-group">
+                   <label for="terminalThemeTextarea" class="sr-only">{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</label>
+                   <textarea
+                     id="terminalThemeTextarea"
+                     v-model="editableTerminalThemeString"
+                     @blur="handleTerminalThemeStringChange"
+                     rows="15"
+                     :placeholder="terminalThemePlaceholder"
+                     spellcheck="false"
+                     class="json-textarea"
+                   ></textarea>
+                </div>
+                 <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p>
              <div class="editor-footer">
                  <button @click="handleCancelEditingTheme" class="button-secondary">{{ t('common.cancel') }}</button>
                  <button @click="handleSaveEditingTheme" class="button-primary">{{ t('common.save') }}</button>
