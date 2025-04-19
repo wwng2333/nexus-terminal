@@ -2,29 +2,34 @@ import { getDb } from '../database';
 import { TerminalTheme, CreateTerminalThemeDto, UpdateTerminalThemeDto } from '../types/terminal-theme.types';
 import { defaultXtermTheme } from '../config/default-themes'; // 假设默认主题配置在此
 
-const db = getDb();
+// const db = getDb(); // Removed top-level call to avoid circular dependency issues
 
 /**
- * 创建 terminal_themes 表 (如果不存在)
+ * SQL语句：创建 terminal_themes 表
+ */
+export const SQL_CREATE_TABLE = `
+  CREATE TABLE IF NOT EXISTS terminal_themes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    theme_data TEXT NOT NULL, -- Store ITheme as JSON string
+    is_preset BOOLEAN NOT NULL DEFAULT 0,
+    preset_key TEXT NULL UNIQUE, -- 可选，用于识别预设主题
+    is_system_default BOOLEAN NOT NULL DEFAULT 0, -- 新增：标记是否为系统默认主题
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+`;
+
+/**
+ * 创建 terminal_themes 表 (如果不存在) - 不再自动调用
  */
 const createTableIfNotExists = () => {
-  const sql = `
-    CREATE TABLE IF NOT EXISTS terminal_themes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
-      theme_data TEXT NOT NULL, -- Store ITheme as JSON string
-      is_preset BOOLEAN NOT NULL DEFAULT 0,
-      is_system_default BOOLEAN DEFAULT 0,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-  `;
-  db.run(sql, (err) => {
+  // This function is no longer called automatically, initialization is handled in database.ts
+  getDb().run(SQL_CREATE_TABLE, (err) => {
     if (err) {
       console.error('创建 terminal_themes 表失败:', err.message);
     } else {
-      // 表创建成功后，初始化预设主题
-      initializePresetThemes();
+      console.log('terminal_themes 表已存在或已创建。');
     }
   });
 };
@@ -36,7 +41,7 @@ const mapRowToTerminalTheme = (row: any): TerminalTheme => {
     name: row.name,
     themeData: JSON.parse(row.theme_data), // 解析 JSON 字符串
     isPreset: !!row.is_preset, // 转换为布尔值
-    isSystemDefault: !!row.is_system_default,
+    isSystemDefault: !!row.is_system_default, // 映射新增的列
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -48,7 +53,7 @@ const mapRowToTerminalTheme = (row: any): TerminalTheme => {
  */
 export const findAllThemes = async (): Promise<TerminalTheme[]> => {
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM terminal_themes ORDER BY is_preset DESC, name ASC', [], (err, rows) => {
+    getDb().all('SELECT * FROM terminal_themes ORDER BY is_preset DESC, name ASC', [], (err, rows) => {
       if (err) {
         console.error('查询所有终端主题失败:', err.message);
         reject(new Error('查询终端主题失败'));
@@ -66,7 +71,7 @@ export const findAllThemes = async (): Promise<TerminalTheme[]> => {
  */
 export const findThemeById = async (id: number): Promise<TerminalTheme | null> => {
   return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM terminal_themes WHERE id = ?', [id], (err, row) => {
+    getDb().get('SELECT * FROM terminal_themes WHERE id = ?', [id], (err, row) => {
       if (err) {
         console.error(`查询 ID 为 ${id} 的终端主题失败:`, err.message);
         reject(new Error('查询终端主题失败'));
@@ -90,7 +95,7 @@ export const createTheme = async (themeDto: CreateTerminalThemeDto): Promise<Ter
     VALUES (?, ?, 0, ?, ?)
   `;
   return new Promise((resolve, reject) => {
-    db.run(sql, [themeDto.name, themeDataJson, now, now], function (err) {
+    getDb().run(sql, [themeDto.name, themeDataJson, now, now], function (err) {
       if (err) {
         console.error('创建新终端主题失败:', err.message);
         // 特别处理唯一约束错误
@@ -132,7 +137,7 @@ export const updateTheme = async (id: number, themeDto: UpdateTerminalThemeDto):
     WHERE id = ? AND is_preset = 0
   `;
   return new Promise((resolve, reject) => {
-    db.run(sql, [themeDto.name, themeDataJson, now, id], function (err) {
+    getDb().run(sql, [themeDto.name, themeDataJson, now, id], function (err) {
       if (err) {
         console.error(`更新 ID 为 ${id} 的终端主题失败:`, err.message);
         if (err.message.includes('UNIQUE constraint failed')) {
@@ -156,7 +161,7 @@ export const deleteTheme = async (id: number): Promise<boolean> => {
   // 只允许删除非预设主题
   const sql = 'DELETE FROM terminal_themes WHERE id = ? AND is_preset = 0';
   return new Promise((resolve, reject) => {
-    db.run(sql, [id], function (err) {
+    getDb().run(sql, [id], function (err) {
       if (err) {
         console.error(`删除 ID 为 ${id} 的终端主题失败:`, err.message);
         reject(new Error('删除终端主题失败'));
@@ -168,36 +173,62 @@ export const deleteTheme = async (id: number): Promise<boolean> => {
 };
 
 /**
- * 初始化预设主题 (如果不存在)
+ * 初始化预设主题到数据库 (如果不存在)
+ * 这个函数应该在数据库连接成功后，由应用初始化逻辑调用。
+ * @param presets 预设主题定义数组 (包含 name, themeData, isPreset=true, 可选 preset_key)
  */
-export const initializePresetThemes = async () => {
-  const defaultPresetName = '默认'; // Default Light
-  const themeDataJson = JSON.stringify(defaultXtermTheme);
-  const now = Date.now();
+export const initializePresetThemes = async (presets: Array<Omit<TerminalTheme, '_id' | 'createdAt' | 'updatedAt'> & { preset_key?: string }>) => {
+    console.log('[DB Init] 开始检查并初始化预设主题...');
+    const now = Date.now();
 
-  // 检查默认预设是否存在
-  db.get('SELECT id FROM terminal_themes WHERE name = ? AND is_preset = 1', [defaultPresetName], (err, row) => {
-    if (err) {
-      console.error('检查预设主题时出错:', err.message);
-      return;
+    // 使用 for...of 循环确保顺序执行检查和插入（避免并发 UNIQUE 约束问题）
+    for (const preset of presets) {
+        await new Promise<void>((resolve, reject) => {
+            // 优先使用 preset_key 检查，如果提供了的话
+            const checkColumn = preset.preset_key ? 'preset_key' : 'name';
+            const checkValue = preset.preset_key ?? preset.name;
+
+            getDb().get(`SELECT id FROM terminal_themes WHERE ${checkColumn} = ? AND is_preset = 1`, [checkValue], (err, row) => {
+                if (err) {
+                    console.error(`[DB Init] 检查预设主题 "${preset.name}" (Key: ${checkValue}) 时出错:`, err.message);
+                    return reject(err);
+                }
+                if (!row) {
+                    const themeDataJson = JSON.stringify(preset.themeData);
+                    const isDefault = preset.preset_key === 'default' ? 1 : 0;
+                    // 始终包含 preset_key 列，如果不存在则插入 NULL
+                    const columns = ['name', 'theme_data', 'is_preset', 'is_system_default', 'preset_key', 'created_at', 'updated_at']; // 7 columns
+                    const values = [preset.name, themeDataJson, 1, isDefault, preset.preset_key ?? null, now, now]; // 7 values
+                    const placeholders = ['?', '?', '?', '?', '?', '?', '?']; // 7 placeholders
+
+                    // 移除动态添加 preset_key 的逻辑
+                    // if (preset.preset_key) {
+                    //     values.push(preset.preset_key);
+                    //     placeholders.push('?');
+                    // }
+
+                    const insertSql = `
+                        INSERT INTO terminal_themes (${columns.join(', ')})
+                        VALUES (${placeholders.join(', ')})
+                    `;
+
+                    getDb().run(insertSql, values, (insertErr) => {
+                        if (insertErr) {
+                            console.error(`[DB Init] 初始化预设主题 "${preset.name}" (Key: ${preset.preset_key ?? 'N/A'}) 失败:`, insertErr.message); // 调整日志输出
+                            return reject(insertErr);
+                        } else {
+                            console.log(`[DB Init] 预设主题 "${preset.name}" (Key: ${checkValue}) 已初始化到数据库。`);
+                            resolve();
+                        }
+                    });
+                } else {
+                    // console.log(`[DB Init] 预设主题 "${preset.name}" (Key: ${checkValue}) 已存在，跳过初始化。`);
+                    resolve();
+                }
+            });
+        });
     }
-    if (!row) {
-      // 如果不存在，则插入
-      const insertSql = `
-        INSERT INTO terminal_themes (name, theme_data, is_preset, is_system_default, created_at, updated_at)
-        VALUES (?, ?, 1, 1, ?, ?)
-      `;
-      db.run(insertSql, [defaultPresetName, themeDataJson, now, now], (insertErr) => {
-        if (insertErr) {
-          console.error(`初始化预设主题 "${defaultPresetName}" 失败:`, insertErr.message);
-        } else {
-          console.log(`预设主题 "${defaultPresetName}" 已初始化。`);
-        }
-      });
-    }
-    // 在这里可以添加更多预设主题的初始化逻辑
-  });
+    console.log('[DB Init] 预设主题检查和初始化完成。');
 };
 
-// 初始化时创建表
-createTableIfNotExists();
+// 移除所有在此文件中的初始化调用和相关导入，它们应该在 database.ts 或 app.ts 中进行

@@ -214,7 +214,16 @@ onMounted(() => {
     watch(currentTerminalTheme, (newTheme) => {
       if (terminal) {
         console.log(`[Terminal ${props.sessionId}] 应用新终端主题。`);
+        // 直接修改 options 对象
         terminal.options.theme = newTheme;
+        // 修改选项后需要刷新终端才能生效
+        try {
+            // 刷新整个视口
+            terminal.refresh(0, terminal.rows - 1);
+            console.log(`[Terminal ${props.sessionId}] 终端已刷新以应用新主题。`);
+        } catch (e) {
+            console.warn(`[Terminal ${props.sessionId}] 刷新终端以应用主题时出错:`, e);
+        }
       }
     }, { deep: true });
 

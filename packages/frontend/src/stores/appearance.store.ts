@@ -26,15 +26,11 @@ export const useAppearanceStore = defineStore('appearance', () => {
 
     // Appearance Settings State
     const appearanceSettings = ref<Partial<AppearanceSettings>>({}); // 从 API 获取的原始设置
-    const userTerminalThemes = ref<TerminalTheme[]>([]); // <-- 新增：只存储用户自定义主题
+    const allTerminalThemes = ref<TerminalTheme[]>([]); // 重命名: 存储从后端获取的所有主题
 
     // --- Computed Properties (Getters) ---
 
-    // 合并后的可用终端主题列表 (包括预设和用户自定义)
-    const availableTerminalThemes = computed<TerminalTheme[]>(() => {
-        // 确保预设主题在前，用户主题在后
-        return [...presetTerminalThemes, ...userTerminalThemes.value];
-    });
+    // 移除 availableTerminalThemes 计算属性，直接使用 allTerminalThemes
     // 当前应用的 UI 主题 (CSS 变量对象)
     const currentUiTheme = computed<Record<string, string>>(() => {
         return safeJsonParse(appearanceSettings.value.customUiTheme, defaultUiTheme);
@@ -45,11 +41,16 @@ export const useAppearanceStore = defineStore('appearance', () => {
 
     // 当前应用的终端主题对象 (ITheme)
     const currentTerminalTheme = computed<ITheme>(() => {
-        if (!activeTerminalThemeId.value || availableTerminalThemes.value.length === 0) {
-            return defaultXtermTheme; // 回退到默认
+        const activeId = activeTerminalThemeId.value; // number | null | undefined
+        if (activeId === null || activeId === undefined || allTerminalThemes.value.length === 0) {
+             // 如果没有激活 ID 或列表为空，查找默认主题
+             // TODO: 需要确认默认主题的识别方式 (preset_key='default' 或 name='默认')
+             const defaultTheme = allTerminalThemes.value.find(t => t.name === '默认'); // 假设按名称查找
+             return defaultTheme ? defaultTheme.themeData : defaultXtermTheme;
         }
-        const activeTheme = availableTerminalThemes.value.find(t => t._id === activeTerminalThemeId.value);
-        return activeTheme ? activeTheme.themeData : defaultXtermTheme; // 找不到也回退
+        // 根据数字 ID 查找 (需要将 theme._id 转回数字比较)
+        const activeTheme = allTerminalThemes.value.find(t => parseInt(t._id ?? '-1', 10) === activeId);
+        return activeTheme ? activeTheme.themeData : defaultXtermTheme; // 找不到也回退到 xterm 默认
     });
 
     // 当前终端字体设置
@@ -89,25 +90,29 @@ export const useAppearanceStore = defineStore('appearance', () => {
             // 并行加载外观设置和主题列表
             const [settingsResponse, themesResponse] = await Promise.all([
                 axios.get<AppearanceSettings>('/api/v1/appearance'),
-                axios.get<TerminalTheme[]>('/api/v1/terminal-themes')
+                axios.get<TerminalTheme[]>('/api/v1/terminal-themes') // 获取所有主题
             ]);
             appearanceSettings.value = settingsResponse.data;
-            userTerminalThemes.value = themesResponse.data; // <-- 更新 userTerminalThemes
+            allTerminalThemes.value = themesResponse.data; // 更新 allTerminalThemes
             console.log('[AppearanceStore] 外观设置已加载:', appearanceSettings.value);
-            console.log('[AppearanceStore] 用户终端主题列表已加载:', userTerminalThemes.value); // <-- 修改日志
+            console.log('[AppearanceStore] 所有终端主题列表已加载:', allTerminalThemes.value);
+
+            // --- 后端返回的 activeTerminalThemeId 已经是 number | null ---
+            // 前端不再需要设置默认主题 ID 的逻辑，后端初始化时会保证它不为 NULL
+            // 如果后端返回 null (理论上不应发生，除非初始化失败)，则 currentTerminalTheme 计算属性会回退到 defaultXtermTheme
 
             // 应用加载的 UI 主题
             applyUiTheme(currentUiTheme.value);
             // 应用背景
             applyPageBackground();
-            // 终端背景和主题将在 Terminal 组件中应用
+            // 终端主题将由 Terminal 组件根据 activeTerminalThemeId 自动应用
 
         } catch (err: any) {
             console.error('加载外观数据失败:', err);
             error.value = err.response?.data?.message || err.message || '加载外观数据失败';
             // 出错时应用默认值
             appearanceSettings.value = {}; // 清空可能不完整的设置
-            userTerminalThemes.value = []; // <-- 清空 userTerminalThemes
+            allTerminalThemes.value = []; // 清空 allTerminalThemes
             applyUiTheme(defaultUiTheme);
             applyPageBackground(); // 应用默认背景（可能为空）
         } finally {
@@ -127,29 +132,15 @@ export const useAppearanceStore = defineStore('appearance', () => {
 
     /**
      * 更新外观设置 (不包括主题列表管理)
-     * @param updates 要更新的设置项
+     * @param updates 要更新的设置项 (activeTerminalThemeId 应为 number | null)
      */
     async function updateAppearanceSettings(updates: UpdateAppearanceDto) {
         try {
-            // --- 修复预设主题闪烁问题 ---
-            // 检查本次更新是否是为了清除后端 activeTerminalThemeId (因为选择了预设)
-            const isClearingThemeForPreset = updates.activeTerminalThemeId === undefined &&
-                                             appearanceSettings.value.activeTerminalThemeId?.startsWith('preset-');
-            const presetThemeIdToRestore = isClearingThemeForPreset ? appearanceSettings.value.activeTerminalThemeId : null;
-            // --- 修复结束 ---
-
+            // 移除预设主题闪烁修复逻辑，不再需要
             const response = await axios.put<AppearanceSettings>('/api/v1/appearance', updates);
             // 使用后端返回的最新设置更新本地状态
             appearanceSettings.value = response.data;
             console.log('[AppearanceStore] 外观设置已更新:', appearanceSettings.value);
-
-            // --- 修复预设主题闪烁问题 ---
-            // 如果之前是为了清除预设主题而更新的，现在恢复前端的预设 ID
-            if (presetThemeIdToRestore) {
-                appearanceSettings.value.activeTerminalThemeId = presetThemeIdToRestore;
-                console.log(`[AppearanceStore] Restored preset theme ID after backend update: ${presetThemeIdToRestore}`);
-            }
-            // --- 修复结束 ---
 
             // 如果 UI 主题或背景更新，重新应用
             if (updates.customUiTheme !== undefined) applyUiTheme(currentUiTheme.value);
@@ -179,28 +170,31 @@ export const useAppearanceStore = defineStore('appearance', () => {
 
      /**
      * 设置激活的终端主题
-     * @param themeId 主题 ID
+     * @param themeId 主题的字符串 ID (来自 UI) 或 null (用于重置，但新逻辑下不直接使用 null)
      */
-    async function setActiveTerminalTheme(themeId: string | null) {
-        // 检查是否为预设主题 ID
-        if (themeId && themeId.startsWith('preset-')) {
-            // 1. 直接更新本地状态以立即反映前端选择
-            appearanceSettings.value.activeTerminalThemeId = themeId;
-            console.log(`[AppearanceStore] Applied preset theme locally: ${themeId}`);
-            // 2. 通知后端没有激活的用户主题 (发送 undefined)
-            try {
-                await updateAppearanceSettings({ activeTerminalThemeId: undefined }); // <-- 使用 undefined 替代 null
-                console.log('[AppearanceStore] Notified backend: No user theme active (preset selected).');
-            } catch (error) {
-                // 即使通知后端失败，前端也已应用，记录错误但可能不需要回滚前端状态
-                console.error('[AppearanceStore] Failed to notify backend about preset theme selection:', error);
-                // 可选：如果希望严格同步，可以在这里抛出错误或回滚本地状态
-                // appearanceSettings.value.activeTerminalThemeId = // previous value? 需要额外逻辑记录
-                // throw error; // 重新抛出错误，让调用者处理
-            }
-        } else {
-            // 对于用户主题或 null，按原逻辑更新后端
-            await updateAppearanceSettings({ activeTerminalThemeId: themeId ?? undefined });
+    async function setActiveTerminalTheme(themeId: string) { // 参数改为 string，不允许 null
+        const previousActiveId = appearanceSettings.value.activeTerminalThemeId; // 记录之前的数字 ID 或 null
+
+        // 1. 将传入的字符串 ID 转换为数字
+        const idNum = parseInt(themeId, 10);
+        if (isNaN(idNum)) {
+            console.error(`[AppearanceStore] setActiveTerminalTheme 接收到无效的数字 ID 字符串: ${themeId}`);
+            throw new Error(`无效的主题 ID: ${themeId}`);
+        }
+
+        // 2. 立即更新前端本地状态 (使用数字 ID)
+        appearanceSettings.value.activeTerminalThemeId = idNum;
+        console.log(`[AppearanceStore] Applied theme locally (ID): ${idNum}`);
+
+        // 3. 更新后端 (发送数字 ID)
+        try {
+            await updateAppearanceSettings({ activeTerminalThemeId: idNum });
+            console.log(`[AppearanceStore] Notified backend. Sent activeTerminalThemeId: ${idNum}`);
+        } catch (error) {
+            // 如果更新后端失败，回滚前端状态
+            console.error('[AppearanceStore] Failed to update backend activeTerminalThemeId:', error);
+            appearanceSettings.value.activeTerminalThemeId = previousActiveId; // 回滚到之前的数字 ID 或 null
+            throw new Error(`应用主题失败: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
@@ -231,18 +225,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
     // --- 终端主题列表管理 Actions ---
 
     /**
-     * 重新加载终端主题列表
-     */
-    async function reloadTerminalThemes() {
-         try {
-            const response = await axios.get<TerminalTheme[]>('/api/v1/terminal-themes');
-            userTerminalThemes.value = response.data; // <-- 更新 userTerminalThemes
-            console.log('[AppearanceStore] 用户终端主题列表已重新加载:', userTerminalThemes.value); // <-- 添加日志
-         } catch (err: any) {
-             console.error('重新加载终端主题列表失败:', err);
-             // 可以选择抛出错误或显示通知
-         }
-    }
+    // 移除 reloadTerminalThemes，统一由 loadInitialAppearanceData 处理加载
 
     /**
      * 创建新的终端主题
@@ -252,7 +235,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
     async function createTerminalTheme(name: string, themeData: ITheme) {
         try {
             await axios.post('/api/v1/terminal-themes', { name, themeData });
-            await reloadTerminalThemes(); // 重新加载列表
+            await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
         } catch (err: any) {
              console.error('创建终端主题失败:', err);
              throw new Error(err.response?.data?.message || err.message || '创建终端主题失败');
@@ -267,11 +250,11 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function updateTerminalTheme(id: string, name: string, themeData: ITheme) {
          try {
-            await axios.put(`/api/v1/terminal-themes/${id}`, { name, themeData });
-            await reloadTerminalThemes(); // 重新加载列表
-        } catch (err: any) {
-             console.error('更新终端主题失败:', err);
-             throw new Error(err.response?.data?.message || err.message || '更新终端主题失败');
+           await axios.put(`/api/v1/terminal-themes/${id}`, { name, themeData });
+           await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
+       } catch (err: any) {
+            console.error('更新终端主题失败:', err);
+            throw new Error(err.response?.data?.message || err.message || '更新终端主题失败');
         }
     }
 
@@ -282,11 +265,17 @@ export const useAppearanceStore = defineStore('appearance', () => {
     async function deleteTerminalTheme(id: string) {
          try {
             await axios.delete(`/api/v1/terminal-themes/${id}`);
-            // 如果删除的是当前激活的主题，则切换回默认
-            if (activeTerminalThemeId.value === id) {
-                await setActiveTerminalTheme(null); // 或者设置为默认主题的 ID
+            // 如果删除的是当前激活的主题，则切换回默认主题 ID
+            // 需要将字符串 id 转换为数字进行比较
+            const idNum = parseInt(id, 10);
+            if (!isNaN(idNum) && activeTerminalThemeId.value === idNum) {
+                 // 查找默认主题的数字 ID (这里假设默认主题 ID 为 1，实际应从配置或查询获取)
+                 // TODO: 需要一种可靠的方式获取默认主题的数字 ID
+                 const defaultThemeIdNum = 1; // 临时硬编码，需要改进
+                 console.log(`[AppearanceStore] 删除的主题是当前激活主题，尝试切换到默认主题 ID: ${defaultThemeIdNum}`);
+                 await setActiveTerminalTheme(defaultThemeIdNum.toString()); // setActiveTerminalTheme 需要字符串 ID
             }
-            await reloadTerminalThemes(); // 重新加载列表
+            await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
         } catch (err: any) {
              console.error('删除终端主题失败:', err);
              throw new Error(err.response?.data?.message || err.message || '删除终端主题失败');
@@ -308,7 +297,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
             await axios.post('/api/v1/terminal-themes/import', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
-            await reloadTerminalThemes();
+            await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
         } catch (err: any) {
             console.error('导入终端主题失败:', err);
             throw new Error(err.response?.data?.message || err.message || '导入终端主题失败');
@@ -494,7 +483,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         error,
         // State refs (原始数据)
         appearanceSettings,
-        availableTerminalThemes,
+        allTerminalThemes, // 导出重命名后的 ref
         // Computed Getters
         currentUiTheme,
         activeTerminalThemeId,
@@ -515,11 +504,10 @@ export const useAppearanceStore = defineStore('appearance', () => {
         setTerminalFontFamily,
         setTerminalFontSize,
         setEditorFontSize, // <-- 新增
-        reloadTerminalThemes,
-        createTerminalTheme,
-        updateTerminalTheme,
-        deleteTerminalTheme,
-        importTerminalTheme,
+        createTerminalTheme, // 保留
+        updateTerminalTheme, // 保留
+        deleteTerminalTheme, // 保留
+        importTerminalTheme, // 保留
         exportTerminalTheme,
         uploadPageBackground,
         uploadTerminalBackground,

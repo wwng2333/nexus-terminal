@@ -13,8 +13,8 @@ const {
   appearanceSettings, // <-- 添加这个 ref
   currentUiTheme,
   // currentTerminalTheme, // 这个是计算属性，只读，在编辑时不需要直接用
-  activeTerminalThemeId,
-  availableTerminalThemes,
+  activeTerminalThemeId, // 现在是 number | null | undefined
+  allTerminalThemes, // 使用重命名后的变量
   currentTerminalFontFamily,
   currentTerminalFontSize,
   currentEditorFontSize, // <-- 新增
@@ -359,16 +359,23 @@ const handleSaveEditorFontSize = async () => {
 
 // 应用选定的终端主题
 const handleApplyTheme = async (theme: TerminalTheme) => {
-    // 确保 theme._id 存在且不等于当前激活的 ID
-    // setActiveTerminalTheme 期望 string | null，而 theme._id 是 string | undefined
-    // 如果 theme._id 是 undefined (理论上不应发生在列表项上)，传递 null
-    const themeIdToApply = theme._id ?? null;
-    if (themeIdToApply === null || themeIdToApply === activeTerminalThemeId.value) return;
+    // theme._id 是字符串 ID
+    if (!theme._id) return; // 防御性检查
+
+    // 将字符串 ID 转换为数字进行比较
+    const themeIdNum = parseInt(theme._id, 10);
+    if (isNaN(themeIdNum)) {
+        console.error(`无效的主题 ID 格式: ${theme._id}`);
+        return;
+    }
+
+    // activeTerminalThemeId.value 是 number | null
+    if (themeIdNum === activeTerminalThemeId.value) return; // 如果已经是激活的，则不操作
 
     try {
-        await appearanceStore.setActiveTerminalTheme(themeIdToApply);
+        // setActiveTerminalTheme action 现在需要字符串 ID
+        await appearanceStore.setActiveTerminalTheme(theme._id);
         // 成功后 activeTerminalThemeId 会自动更新
-        // alert(`Theme '${theme.name}' applied successfully`); // 移除成功提示
     } catch (error: any) {
         console.error("应用终端主题失败:", error);
         alert(t('styleCustomizer.setActiveThemeFailed', { message: error.message }));
@@ -601,16 +608,19 @@ const handleImportThemeFile = async (event: Event) => {
 
 // 处理主题导出 (导出当前激活的主题)
 const handleExportActiveTheme = async () => {
-    const currentId = activeTerminalThemeId.value; // activeTerminalThemeId 是 Ref<string | undefined>
-    if (currentId) { // 检查 currentId 是否为真值 (不是 undefined 或空字符串)
+    const currentIdNum = activeTerminalThemeId.value; // 现在是 number | null | undefined
+    // 必须同时检查 null 和 undefined
+    if (currentIdNum !== null && currentIdNum !== undefined) {
         try {
-            await appearanceStore.exportTerminalTheme(currentId);
+            // exportTerminalTheme action 需要字符串 ID
+            await appearanceStore.exportTerminalTheme(currentIdNum.toString());
         } catch (error: any) {
             console.error("导出主题失败:", error);
              alert(t('styleCustomizer.exportFailed', { message: error.message }));
         }
     } else {
-        alert(t('styleCustomizer.noActiveThemeToExport')); // 需要添加翻译
+        console.warn("尝试导出主题，但 activeTerminalThemeId 为 null 或 undefined");
+        alert(t('styleCustomizer.noActiveThemeToExport'));
     }
 };
 
@@ -698,24 +708,31 @@ const formatXtermLabel = (key: keyof ITheme): string => {
 
 // 获取当前激活主题的名称
 const activeThemeName = computed(() => {
-  const theme = availableTerminalThemes.value.find(t => t._id === activeTerminalThemeId.value);
-  // 如果找不到主题 (例如 ID 无效或列表为空)，则显示提示
-  return theme ? theme.name : 'No active theme selected';
+  const currentIdNum = activeTerminalThemeId.value; // number | null | undefined
+  // 同时检查 null 和 undefined
+  if (currentIdNum === null || currentIdNum === undefined) {
+      return '未选择主题'; // 或者返回默认主题名称？
+  }
+  // 在 allTerminalThemes 中查找
+  // 将数字 ID 转为字符串进行比较
+  const theme = allTerminalThemes.value.find((t: TerminalTheme) => t._id === currentIdNum.toString());
+  return theme ? theme.name : '未知主题';
 });
 
-// 过滤和排序主题列表
+// 过滤和排序主题列表 (使用 allTerminalThemes)
 const filteredAndSortedThemes = computed(() => {
-  const searchTerm = themeSearchTerm.value.toLowerCase().trim(); // 转小写并去除首尾空格
-  let themes = [...availableTerminalThemes.value]; // 创建副本以进行排序
+  const searchTerm = themeSearchTerm.value.toLowerCase().trim();
+  // 使用 allTerminalThemes
+  let themes = [...allTerminalThemes.value];
 
   // 过滤
   if (searchTerm) {
-    themes = themes.filter(theme => theme.name.toLowerCase().includes(searchTerm));
+    // 显式指定 theme 类型
+    themes = themes.filter((theme: TerminalTheme) => theme.name.toLowerCase().includes(searchTerm));
   }
 
-  // 排序逻辑已移除
-  // 默认按名称升序排序
-  themes.sort((a, b) => a.name.localeCompare(b.name));
+  // 按名称升序排序
+  themes.sort((a: TerminalTheme, b: TerminalTheme) => a.name.localeCompare(b.name));
 
   return themes;
 });
