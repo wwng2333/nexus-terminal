@@ -92,6 +92,8 @@ export const useLayoutStore = defineStore('layout', () => {
     'connections', 'terminal', 'commandBar', 'fileManager',
     'editor', 'statusMonitor', 'commandHistory', 'quickCommands'
   ]);
+  // 新增：控制布局（Header/Footer）可见性的状态
+  const isLayoutVisible: Ref<boolean> = ref(true);
 
   // --- 计算属性 ---
   // 计算当前布局中正在使用的面板
@@ -169,8 +171,12 @@ export const useLayoutStore = defineStore('layout', () => {
        console.error(`[Layout Store] 更新节点 ${nodeId} 大小后得到无效的树结构。`);
     }
   }
-
-
+ 
+  // 新增 Action: 切换布局（Header/Footer）的可见性
+  function toggleLayoutVisibility() {
+    isLayoutVisible.value = !isLayoutVisible.value;
+    console.log(`[Layout Store] 布局可见性切换为: ${isLayoutVisible.value}`);
+  }
   // --- 持久化 ---
   // 监听 layoutTree 的变化，并自动保存到 localStorage
   watch(
@@ -208,5 +214,8 @@ export const useLayoutStore = defineStore('layout', () => {
     generateId,
     // 暴露 allPossiblePanes 供配置器显示所有选项
     allPossiblePanes,
+    // 新增：暴露布局可见性状态和切换方法
+    isLayoutVisible,
+    toggleLayoutVisibility,
   };
 });

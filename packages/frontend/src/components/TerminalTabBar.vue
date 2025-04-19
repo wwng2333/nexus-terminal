@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, PropType } from 'vue'; // 导入 ref 和 computed
 import { useI18n } from 'vue-i18n'; // 导入 i18n
-// import { storeToRefs } from 'pinia'; // 移除 storeToRefs 导入，因为 paneVisibility 不再使用
+import { useRoute } from 'vue-router'; // *** 导入 useRoute ***
+import { storeToRefs } from 'pinia'; // *** 重新导入 storeToRefs ***
 import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue'; // 导入连接列表组件
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
 import { useLayoutStore, type PaneName } from '../stores/layout.store'; // 导入布局 store 和类型
@@ -11,7 +12,8 @@ import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导�
 // --- Setup ---
 const { t } = useI18n(); // 初始化 i18n
 const layoutStore = useLayoutStore(); // 初始化布局 store
-// const { paneVisibility } = storeToRefs(layoutStore); // 移除：paneVisibility 不再存在
+const { isLayoutVisible } = storeToRefs(layoutStore); // *** 获取 isLayoutVisible ***
+const route = useRoute(); // *** 获取路由信息 ***
 
 // 定义 Props
 const props = defineProps({
@@ -74,6 +76,18 @@ const openLayoutConfigurator = () => {
   emit('open-layout-configurator'); // 发出事件
 };
 
+// --- Layout Visibility Logic ---
+// Show the toggle button only on the workspace route
+const showLayoutToggleButton = computed(() => route.path === '/workspace');
+
+const toggleLayout = () => {
+  layoutStore.toggleLayoutVisibility();
+};
+
+const layoutToggleIcon = computed(() => isLayoutVisible.value ? 'fa-eye' : 'fa-eye-slash');
+const layoutToggleTitle = computed(() => isLayoutVisible.value ? t('nav.hideLayout', '隐藏布局元素') : t('nav.showLayout', '显示布局元素')); // 添加默认值
+// --- End Layout Visibility Logic ---
+
 </script>
 
 <template>
@@ -100,13 +114,21 @@ const openLayoutConfigurator = () => {
         <i class="fas fa-plus"></i>
       </button>
     </div>
-    <!-- 按钮容器（推到最右侧） -->
     <div class="action-buttons-container">
-      <!-- 新增：布局配置器按钮 -->
-      <button class="layout-config-button" @click="openLayoutConfigurator" title="配置工作区布局">
-        <i class="fas fa-th-large"></i> <!-- 网格布局图标 -->
-      </button>
-      </div>
+        <!-- Layout Visibility Toggle Button -->
+        <button
+          v-if="showLayoutToggleButton"
+          @click="toggleLayout"
+          class="action-button layout-toggle-button"
+          :title="layoutToggleTitle"
+        >
+          <i :class="['fas', layoutToggleIcon]"></i>
+        </button>
+        <!-- Layout Configurator Button -->
+        <button class="action-button layout-config-button" @click="openLayoutConfigurator" :title="t('layout.configure', '配置布局')"> <!-- 使用 t 函数 -->
+          <i class="fas fa-palette"></i> <!-- 更新图标为调色板 -->
+        </button>
+    </div>
     <!-- 连接列表弹出窗口 (保持不变) -->
     <div v-if="showConnectionListPopup" class="connection-list-popup" @click.self="togglePopup">
       <div class="popup-content">
@@ -275,15 +297,38 @@ const openLayoutConfigurator = () => {
   flex-shrink: 0; /* 防止被压缩 */
 }
 
-/* 新增：布局配置器按钮样式 */
+/* 通用操作按钮样式 */
+.action-button {
+    background: none;
+    border: none;
+    border-left: 1px solid var(--border-color, #bdbdbd); /* 左侧边框作为分隔 */
+    padding: 0 0.8rem;
+    cursor: pointer;
+    font-size: 1.1em;
+    color: var(--text-color-secondary, #616161);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex-shrink: 0;
+    transition: background-color 0.2s, color 0.2s;
+}
+.action-button:hover {
+    background-color: var(--header-bg-color, #d0d0d0);
+    color: var(--text-color, #333);
+}
+.action-button i {
+    line-height: 1;
+}
+
+
+
+
 .layout-config-button {
-  background: none;
-  border: none;
-  border-left: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
   padding: 0 0.8rem;
   cursor: pointer;
   font-size: 1.1em; /* 与其他按钮一致 */
-  color: var(--text-color-secondary, #616161); /* 使用变量 */
+  color: var(--text-color-secondary, #616161);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -297,8 +342,6 @@ const openLayoutConfigurator = () => {
   line-height: 1;
 }
 
-
-/* 弹出窗口样式 */
 .connection-list-popup {
   position: fixed; /* 固定定位，覆盖整个屏幕 */
   top: 0;
@@ -354,10 +397,7 @@ const openLayoutConfigurator = () => {
   border: 1px solid var(--border-color); /* Use theme variable */
   border-radius: 4px;
 }
-/* 覆盖 WorkspaceConnectionList 内部样式（如果需要） */
-/* :deep(.popup-connection-list .search-add-bar) { */
-  /* display: none; */ /* 不再隐藏搜索栏 */
-/* } */
+
 :deep(.popup-connection-list .connection-list-area) {
   padding: 0; /* 保持移除内边距 */
   background-color: var(--app-bg-color); /* 确保列表背景 */

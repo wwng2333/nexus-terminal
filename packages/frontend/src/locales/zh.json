@@ -11,6 +11,8 @@
     "notifications": "通知管理",
     "auditLogs": "审计日志",
     "settings": "设置",
+    "hideLayout": "隐藏布局元素",
+    "showLayout": "显示布局元素",
     "customizeStyle": "自定义外观"
   },
   "styleCustomizer": {

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router';
-import { ref, onMounted, watch, nextTick } from 'vue';
+import { ref, onMounted, watch, nextTick, computed } from 'vue'; // *** 导入 computed ***
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from './stores/auth.store';
 import { useSettingsStore } from './stores/settings.store';
-import { useAppearanceStore } from './stores/appearance.store'; // 导入外观 Store
+import { useAppearanceStore } from './stores/appearance.store';
+import { useLayoutStore } from './stores/layout.store'; // *** 导入布局 Store ***
 import { storeToRefs } from 'pinia';
 // 导入通知显示组件
 import UINotificationDisplay from './components/UINotificationDisplay.vue';
@@ -16,10 +17,12 @@ import StyleCustomizer from './components/StyleCustomizer.vue';
 const { t } = useI18n();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
-const appearanceStore = useAppearanceStore(); // 实例化外观 Store
+const appearanceStore = useAppearanceStore();
+const layoutStore = useLayoutStore(); // *** 实例化布局 Store ***
 const { isAuthenticated } = storeToRefs(authStore);
 const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
-const { isStyleCustomizerVisible } = storeToRefs(appearanceStore); // 从外观 store 获取可见性状态
+const { isStyleCustomizerVisible } = storeToRefs(appearanceStore);
+const { isLayoutVisible } = storeToRefs(layoutStore); // *** 获取布局可见性状态 ***
 
 const route = useRoute();
 const navRef = ref<HTMLElement | null>(null);
@@ -45,9 +48,12 @@ onMounted(() => {
   setTimeout(updateUnderline, 100);
 });
 
+// *** 新增：计算属性，判断是否在 workspace 路由 ***
+const isWorkspaceRoute = computed(() => route.path === '/workspace');
+
 watch(route, () => {
   updateUnderline();
-});
+}, { immediate: true }); // *** 确保 immediate: true 存在 ***
 
 
 const handleLogout = () => {
@@ -67,7 +73,7 @@ const closeStyleCustomizer = () => {
 
 <template>
   <div id="app-container">
-    <header>
+    <header v-if="!isWorkspaceRoute || isLayoutVisible"> <!-- *** 添加 v-if *** -->
       <nav ref="navRef">
         <div class="nav-left"> <!-- Group left-aligned links -->
             <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink>
@@ -101,7 +107,7 @@ const closeStyleCustomizer = () => {
     <!-- 条件渲染样式自定义器，使用 store 的状态和方法 -->
     <StyleCustomizer v-if="isStyleCustomizerVisible" @close="closeStyleCustomizer" />
 
-    <footer>
+    <footer v-if="!isWorkspaceRoute || isLayoutVisible"> <!-- *** 添加 v-if *** -->
       <!-- 使用 t 函数获取应用名称 -->
       <p>&copy; 2025 {{ t('appName') }}</p>
     </footer>

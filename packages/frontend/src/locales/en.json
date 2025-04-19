@@ -11,6 +11,8 @@
     "notifications": "Notifications",
     "auditLogs": "Audit Logs",
     "settings": "Settings",
+    "hideLayout": "Hide Layout Elements",
+    "showLayout": "Show Layout Elements",
     "customizeStyle": "Customize Style"
   },
   "styleCustomizer": {
