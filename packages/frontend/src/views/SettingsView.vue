@@ -259,13 +259,9 @@ watch(settings, (newSettings, oldSettings) => {
   blacklistSettingsForm.maxLoginAttempts = newSettings.maxLoginAttempts || '5';
   blacklistSettingsForm.loginBanDuration = newSettings.loginBanDuration || '300';
 
-  // Initialize local state only on initial load or if store changes externally
-  if (isInitialLoad || newSettings.showPopupFileEditor !== oldSettings?.showPopupFileEditor) {
-      popupEditorEnabled.value = showPopupFileEditorBoolean.value;
-  }
-  if (isInitialLoad || newSettings.shareFileEditorTabs !== oldSettings?.shareFileEditorTabs) {
-      shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
-  }
+  // 始终将本地布尔状态与 store 的布尔 getter 同步
+  popupEditorEnabled.value = showPopupFileEditorBoolean.value;
+  shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
