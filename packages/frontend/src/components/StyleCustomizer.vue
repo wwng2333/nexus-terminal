@@ -71,7 +71,8 @@ const initializeEditableState = () => {
   try {
       const themeObject = editableUiTheme.value;
       if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
-          const lines = Object.entries(themeObject).map(([key, value]) => `  ${key}: ${value}`);
+          // Format without leading spaces
+          const lines = Object.entries(themeObject).map(([key, value]) => `${key}: ${value}`);
           editableUiThemeString.value = lines.join('\n');
       } else {
           editableUiThemeString.value = ''; // Empty if no theme
@@ -164,8 +165,8 @@ const formattedEditableUiThemeJson = computed(() => {
         // Generate key-value pairs, indented, one per line
         // Generate key-value pairs, indented, one per line, without quotes for easier editing
         const lines = Object.entries(themeObject).map(([key, value]) => {
-            // Output key and value directly
-            return `  ${key}: ${value}`; // Add indentation
+            // Output key and value directly without leading spaces
+            return `${key}: ${value}`;
         });
         // Join with newline
         return lines.join('\n');
@@ -884,16 +885,13 @@ const formatXtermLabel = (key: keyof ITheme): string => {
 /* Special class for full-width elements like textarea */
 .form-group.full-width-group, .error-message.full-width-group {
     grid-column: 1 / -1; /* Span all columns */
-    grid-template-columns: 1fr; /* Single column layout */
     gap: calc(var(--base-margin) / 2); /* Smaller gap for label/textarea */
 }
 .form-group.full-width-group label:not(.sr-only) { /* Adjust label if not screen-reader only */
     grid-column: 1 / 2; /* Ensure label stays in its place if visible */
     margin-bottom: calc(var(--base-margin) / 3);
 }
-.form-group.full-width-group textarea {
-    grid-column: 1 / 2; /* Ensure textarea stays in its place */
-}
+
 /* Adjust grid for rows without a third element (like inline buttons) */
 .form-group > *:nth-child(2):last-child {
     grid-column: 2 / 4; /* Let the second element span if it's the last */
@@ -1003,6 +1001,8 @@ section[v-if*="isEditingTheme"] .form-group {
     resize: vertical;
     min-height: 200px; /* Ensure decent minimum height */
     box-sizing: border-box;
+    white-space: pre-wrap; /* 确保换行符和空格被保留，并允许文本换行 */
+    overflow-wrap: break-word; /* 确保长单词在需要时能断开 */
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .json-textarea:focus {
