@@ -110,22 +110,51 @@ export const useLayoutStore = defineStore('layout', () => {
   });
 
   // --- Actions ---
-  // 初始化布局：尝试从 localStorage 加载，否则使用默认布局
-  function initializeLayout() {
+  // 初始化布局：优先尝试从后端加载，然后 localStorage，最后默认布局
+  async function initializeLayout() {
+    let loadedFromBackend = false;
+    // 1. 尝试从后端加载
     try {
-      const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
-      if (savedLayout) {
-        const parsedLayout = JSON.parse(savedLayout) as LayoutNode;
-        // 可选：添加验证逻辑确保加载的布局结构有效
-        layoutTree.value = parsedLayout;
-        console.log('[Layout Store] 从 localStorage 加载布局成功。');
+      console.log('[Layout Store] Attempting to load layout from backend...');
+      const response = await axios.get<LayoutNode | null>('/api/v1/settings/layout');
+      if (response.data) {
+        // TODO: 在这里添加对 response.data 的结构验证，确保它符合 LayoutNode 接口
+        layoutTree.value = response.data;
+        loadedFromBackend = true;
+        console.log('[Layout Store] 从后端加载布局成功。');
+        // 可选：如果后端加载成功，可以更新 localStorage
+        try {
+          localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(response.data));
+        } catch (lsError) {
+          console.error('[Layout Store] 保存后端布局到 localStorage 失败:', lsError);
+        }
       } else {
-        layoutTree.value = getDefaultLayout();
-        console.log('[Layout Store] 未找到保存的布局，使用默认布局。');
+        console.log('[Layout Store] 后端未返回布局数据。');
       }
     } catch (error) {
-      console.error('[Layout Store] 加载或解析布局失败:', error);
-      layoutTree.value = getDefaultLayout(); // 出错时回退到默认布局
+      console.error('[Layout Store] 从后端加载布局失败:', error);
+      // 加载失败，继续尝试 localStorage
+    }
+
+    // 2. 如果后端未加载成功，尝试从 localStorage 加载
+    if (!loadedFromBackend) {
+      console.log('[Layout Store] Attempting to load layout from localStorage...');
+      try {
+        const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
+        if (savedLayout) {
+          const parsedLayout = JSON.parse(savedLayout) as LayoutNode;
+          // TODO: 添加验证逻辑确保加载的布局结构有效
+          layoutTree.value = parsedLayout;
+          console.log('[Layout Store] 从 localStorage 加载布局成功。');
+        } else {
+          // 3. 如果 localStorage 也没有，使用默认布局
+          layoutTree.value = getDefaultLayout();
+          console.log('[Layout Store] 未找到保存的布局，使用默认布局。');
+        }
+      } catch (error) {
+        console.error('[Layout Store] 从 localStorage 加载或解析布局失败:', error);
+        layoutTree.value = getDefaultLayout(); // 出错时回退到默认布局
+      }
     }
   }
 
@@ -220,25 +249,59 @@ export const useLayoutStore = defineStore('layout', () => {
       // alert('Failed to save preference.'); // 或者通知用户
     }
   }
+
+ // 新增 Action: 将当前布局树持久化到后端和 localStorage
+ async function persistLayoutTree() {
+   if (!layoutTree.value) {
+     console.warn('[Layout Store] persistLayoutTree: layoutTree is null, cannot persist.');
+     // 可选：如果布局为空，是否也通知后端？或者删除后端的设置？
+     // await axios.delete('/api/v1/settings/layout'); // 示例：删除后端设置
+     localStorage.removeItem(LAYOUT_STORAGE_KEY); // 保持移除本地存储
+     return;
+   }
+
+   const layoutToSave = JSON.stringify(layoutTree.value);
+
+   // 1. 保存到后端
+   try {
+     console.log('[Layout Store] Attempting to save layout to backend...');
+     await axios.put('/api/v1/settings/layout', layoutTree.value); // 发送对象，后端会 stringify
+     console.log('[Layout Store] 布局已成功保存到后端。');
+   } catch (error) {
+     console.error('[Layout Store] 保存布局到后端失败:', error);
+     // 可以考虑添加用户提示
+   }
+
+   // 2. 保存到 localStorage (作为备份或离线支持)
+   try {
+     localStorage.setItem(LAYOUT_STORAGE_KEY, layoutToSave);
+     console.log('[Layout Store] 布局已自动保存到 localStorage。');
+   } catch (error) {
+     console.error('[Layout Store] 保存布局到 localStorage 失败:', error);
+   }
+ }
+
   // --- 持久化 ---
-  // 监听 layoutTree 的变化，并自动保存到 localStorage
+  // 监听 layoutTree 的变化，并调用持久化方法
+  // 添加防抖以避免过于频繁的 API 调用
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   watch(
     layoutTree,
-    (newTree) => {
-      if (newTree) {
-        try {
-          localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(newTree));
-          console.log('[Layout Store] 布局已自动保存到 localStorage。');
-        } catch (error) {
-          console.error('[Layout Store] 保存布局到 localStorage 失败:', error);
+    (newTree, oldTree) => {
+      // 避免初始化时触发 (虽然 initializeLayout 已经是 async，但以防万一)
+      if (oldTree === undefined) return;
+      // 只有在实际发生变化时才触发持久化
+      if (JSON.stringify(newTree) !== JSON.stringify(oldTree)) {
+        console.log('[Layout Store] Layout tree changed, scheduling persistence...');
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
         }
-      } else {
-        // 如果布局被清空，也移除本地存储
-        localStorage.removeItem(LAYOUT_STORAGE_KEY);
-        console.log('[Layout Store] 布局为空，已从 localStorage 移除。');
+        debounceTimer = setTimeout(() => {
+          persistLayoutTree();
+        }, 1000); // 1秒防抖
       }
     },
-    { deep: true } // 需要深度监听来捕获嵌套结构的变化
+    { deep: true }
   );
 
   // --- 初始化 ---

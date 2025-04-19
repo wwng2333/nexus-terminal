@@ -23,6 +23,12 @@ router.get('/nav-bar-visibility', settingsController.getNavBarVisibility);
 // PUT /api/v1/settings/nav-bar-visibility - 更新导航栏可见性
 router.put('/nav-bar-visibility', settingsController.setNavBarVisibility);
 
+// +++ 新增：布局树路由 +++
+// GET /api/v1/settings/layout - 获取布局树
+router.get('/layout', settingsController.getLayoutTree);
+// PUT /api/v1/settings/layout - 更新布局树
+router.put('/layout', settingsController.setLayoutTree);
+
 // --- IP 黑名单管理路由 ---
 // GET /api/v1/settings/ip-blacklist - 获取 IP 黑名单列表 (需要认证)
 router.get('/ip-blacklist', settingsController.getIpBlacklist);

@@ -6,8 +6,6 @@ import { ipBlacklistService } from '../services/ip-blacklist.service'; // 引入
 const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
 export const settingsController = {
-  // ... (getAllSettings, updateSettings, getFocusSwitcherSequence 保持不变) ...
-
   /**
    * 获取所有设置项
    */
@@ -26,18 +24,15 @@ export const settingsController = {
    */
   async updateSettings(req: Request, res: Response): Promise<void> {
     try {
-      // TODO: 添加输入验证，确保 req.body 是 Record<string, string>
       const settingsToUpdate: Record<string, string> = req.body;
       if (typeof settingsToUpdate !== 'object' || settingsToUpdate === null) {
         res.status(400).json({ message: '无效的请求体，应为 JSON 对象' });
         return;
       }
 
-      // --- 过滤掉外观设置和焦点切换顺序相关的键 ---
       const allowedSettingsKeys = [
           'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
           'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled'
-          // 不在此处处理 'focusSwitcherSequence'
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {
@@ -45,14 +40,11 @@ export const settingsController = {
               filteredSettings[key] = settingsToUpdate[key];
           }
       }
-      // --- 结束过滤 ---
 
-      // 只传递过滤后的设置给 service
       if (Object.keys(filteredSettings).length > 0) {
           await settingsService.setMultipleSettings(filteredSettings);
       }
 
-      // 记录审计日志
       const updatedKeys = Object.keys(filteredSettings);
       if (updatedKeys.length > 0) {
           if (updatedKeys.includes('ipWhitelist') || updatedKeys.includes('ipWhitelistEnabled')) {
@@ -68,52 +60,47 @@ export const settingsController = {
     }
   },
 
-  // +++ 新增：获取焦点切换顺序 +++
   /**
    * 获取焦点切换顺序
    */
   async getFocusSwitcherSequence(req: Request, res: Response): Promise<void> {
     try {
-      console.log('[Controller] Received request to get focus switcher sequence.'); // +++ 添加日志 +++
+      console.log('[Controller] Received request to get focus switcher sequence.');
       const sequence = await settingsService.getFocusSwitcherSequence();
-      console.log('[Controller] Sending focus switcher sequence to client:', JSON.stringify(sequence)); // +++ 添加日志 +++
+      console.log('[Controller] Sending focus switcher sequence to client:', JSON.stringify(sequence));
       res.json(sequence);
     } catch (error: any) {
-      console.error('[Controller] 获取焦点切换顺序时出错:', error); // +++ 更新日志前缀 +++
+      console.error('[Controller] 获取焦点切换顺序时出错:', error);
       res.status(500).json({ message: '获取焦点切换顺序失败', error: error.message });
     }
   },
 
-  // +++ 新增：设置焦点切换顺序 +++
   /**
    * 设置焦点切换顺序
    */
   async setFocusSwitcherSequence(req: Request, res: Response): Promise<void> {
-    console.log('[Controller] Received request to set focus switcher sequence.'); // +++ 添加日志 +++
+    console.log('[Controller] Received request to set focus switcher sequence.');
     try {
       const { sequence } = req.body;
-      console.log('[Controller] Request body sequence:', JSON.stringify(sequence)); // +++ 添加日志 +++
+      console.log('[Controller] Request body sequence:', JSON.stringify(sequence));
 
-      // 输入验证
       if (!Array.isArray(sequence) || !sequence.every(item => typeof item === 'string')) {
-        console.warn('[Controller] Invalid sequence format received:', sequence); // +++ 添加日志 +++
+        console.warn('[Controller] Invalid sequence format received:', sequence);
         res.status(400).json({ message: '无效的请求体，"sequence" 必须是一个字符串数组' });
         return;
       }
 
-      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence...'); // +++ 添加日志 +++
+      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence...');
       await settingsService.setFocusSwitcherSequence(sequence);
-      console.log('[Controller] settingsService.setFocusSwitcherSequence completed successfully.'); // +++ 添加日志 +++
+      console.log('[Controller] settingsService.setFocusSwitcherSequence completed successfully.');
 
-      // 记录审计日志 (可选)
-      console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED'); // +++ 添加日志 +++
+      console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED');
       auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { sequence });
 
-      console.log('[Controller] Sending success response.'); // +++ 添加日志 +++
+      console.log('[Controller] Sending success response.');
       res.status(200).json({ message: '焦点切换顺序已成功更新' });
     } catch (error: any) {
-      console.error('[Controller] 设置焦点切换顺序时出错:', error); // +++ 更新日志前缀 +++
-      // 区分是服务层抛出的验证错误还是其他错误
+      console.error('[Controller] 设置焦点切换顺序时出错:', error);
       if (error.message === 'Invalid sequence format provided.') {
           res.status(400).json({ message: '设置焦点切换顺序失败: 无效的格式', error: error.message });
       } else {
@@ -122,7 +109,6 @@ export const settingsController = {
     }
   },
 
- // +++ 新增：获取导航栏可见性 +++
  /**
   * 获取导航栏可见性设置
   */
@@ -131,14 +117,13 @@ export const settingsController = {
      console.log('[Controller] Received request to get nav bar visibility.');
      const isVisible = await settingsService.getNavBarVisibility();
      console.log(`[Controller] Sending nav bar visibility to client: ${isVisible}`);
-     res.json({ visible: isVisible }); // 返回包含 visible 键的对象
+     res.json({ visible: isVisible });
    } catch (error: any) {
      console.error('[Controller] 获取导航栏可见性时出错:', error);
      res.status(500).json({ message: '获取导航栏可见性失败', error: error.message });
    }
  },
 
- // +++ 新增：设置导航栏可见性 +++
  /**
   * 设置导航栏可见性
   */
@@ -148,7 +133,6 @@ export const settingsController = {
      const { visible } = req.body;
      console.log('[Controller] Request body visible:', visible);
 
-     // 输入验证
      if (typeof visible !== 'boolean') {
        console.warn('[Controller] Invalid visible format received:', visible);
        res.status(400).json({ message: '无效的请求体，"visible" 必须是一个布尔值' });
@@ -159,8 +143,6 @@ export const settingsController = {
      await settingsService.setNavBarVisibility(visible);
      console.log('[Controller] settingsService.setNavBarVisibility completed successfully.');
 
-     // 记录审计日志 (可选)
-     // console.log('[Controller] Logging audit action: NAV_BAR_VISIBILITY_UPDATED');
      // auditLogService.logAction('NAV_BAR_VISIBILITY_UPDATED', { visible });
 
      console.log('[Controller] Sending success response.');
@@ -170,6 +152,66 @@ export const settingsController = {
      res.status(500).json({ message: '设置导航栏可见性失败', error: error.message });
    }
  },
+
+  /**
+   * 获取布局树设置
+   */
+  async getLayoutTree(req: Request, res: Response): Promise<void> {
+    try {
+      console.log('[Controller] Received request to get layout tree.');
+      const layoutJson = await settingsService.getLayoutTree();
+      if (layoutJson) {
+        try {
+          const layout = JSON.parse(layoutJson);
+          console.log('[Controller] Sending layout tree to client.');
+          res.json(layout);
+        } catch (parseError) {
+          console.error('[Controller] Failed to parse layout tree JSON from DB:', parseError);
+          res.status(500).json({ message: '获取布局树失败：存储的数据格式无效' });
+        }
+      } else {
+        console.log('[Controller] No layout tree found in settings, sending null.');
+        res.json(null);
+      }
+    } catch (error: any) {
+      console.error('[Controller] 获取布局树时出错:', error);
+      res.status(500).json({ message: '获取布局树失败', error: error.message });
+    }
+  },
+
+  /**
+   * 设置布局树
+   */
+  async setLayoutTree(req: Request, res: Response): Promise<void> {
+    console.log('[Controller] Received request to set layout tree.');
+    try {
+      const layoutTree = req.body;
+
+      if (typeof layoutTree !== 'object' || layoutTree === null) {
+         console.warn('[Controller] Invalid layout tree format received (not an object):', layoutTree);
+         res.status(400).json({ message: '无效的请求体，应为 JSON 对象格式的布局树' });
+         return;
+      }
+
+      const layoutJson = JSON.stringify(layoutTree);
+
+      console.log('[Controller] Calling settingsService.setLayoutTree...');
+      await settingsService.setLayoutTree(layoutJson);
+      console.log('[Controller] settingsService.setLayoutTree completed successfully.');
+
+      // auditLogService.logAction('LAYOUT_TREE_UPDATED');
+
+      console.log('[Controller] Sending success response.');
+      res.status(200).json({ message: '布局树已成功更新' });
+    } catch (error: any) {
+      console.error('[Controller] 设置布局树时出错:', error);
+       if (error.message === 'Invalid layout tree JSON format.') {
+           res.status(400).json({ message: '设置布局树失败: 无效的 JSON 格式', error: error.message });
+       } else {
+           res.status(500).json({ message: '设置布局树失败', error: error.message });
+       }
+    }
+  },
 
  /**
   * 获取 IP 黑名单列表 (分页)
@@ -196,9 +238,7 @@ export const settingsController = {
         res.status(400).json({ message: '缺少要删除的 IP 地址' });
         return;
       }
-      // TODO: 可以添加对 IP 格式的验证
       await ipBlacklistService.removeFromBlacklist(ipToDelete);
-      // 记录审计日志 (可选)
       // auditLogService.logAction('IP_BLACKLIST_REMOVED', { ip: ipToDelete });
       res.status(200).json({ message: `IP 地址 ${ipToDelete} 已从黑名单中移除` });
     } catch (error: any) {

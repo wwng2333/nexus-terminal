@@ -4,6 +4,7 @@ import { settingsRepository, Setting } from '../repositories/settings.repository
 const DEFAULT_FOCUS_SEQUENCE = ["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"];
 const FOCUS_SEQUENCE_KEY = 'focusSwitcherSequence'; // 焦点切换顺序设置键
 const NAV_BAR_VISIBLE_KEY = 'navBarVisible'; // 导航栏可见性设置键
+const LAYOUT_TREE_KEY = 'layoutTree'; // 布局树设置键
 
 export const settingsService = {
   /**
@@ -163,5 +164,45 @@ export const settingsService = {
       console.error(`[Service] Error calling settingsRepository.setSetting for key ${NAV_BAR_VISIBLE_KEY}:`, error);
       throw new Error('Failed to save nav bar visibility setting.');
     }
-  } // *** 最后的方法后面不需要逗号 ***
+  }, // *** 确保这里有逗号 ***
+
+ /**
+  * 获取布局树设置
+  * @returns 返回存储的布局树 JSON 字符串，如果未设置则返回 null
+  */
+ async getLayoutTree(): Promise<string | null> {
+   console.log(`[Service] Attempting to get setting for key: ${LAYOUT_TREE_KEY}`);
+   try {
+     const layoutJson = await settingsRepository.getSetting(LAYOUT_TREE_KEY);
+     console.log(`[Service] Raw value from repository for ${LAYOUT_TREE_KEY}:`, layoutJson ? layoutJson.substring(0, 100) + '...' : null); // 只打印部分内容
+     return layoutJson; // 直接返回 JSON 字符串或 null
+   } catch (error) {
+     console.error(`[Service] Error getting layout tree setting (key: ${LAYOUT_TREE_KEY}):`, error);
+     return null; // 出错时返回 null
+   }
+ }, // *** 确保这里有逗号 ***
+
+ /**
+  * 设置布局树
+  * @param layoutJson 布局树的 JSON 字符串
+  */
+ async setLayoutTree(layoutJson: string): Promise<void> {
+   console.log(`[Service] setLayoutTree called with JSON (first 100 chars): ${layoutJson.substring(0, 100)}...`);
+   // 可选：在这里添加 JSON 格式验证
+   try {
+      JSON.parse(layoutJson); // 尝试解析以验证格式
+   } catch (e) {
+      console.error('[Service] Invalid JSON format provided for layout tree:', e);
+      throw new Error('Invalid layout tree JSON format.');
+   }
+
+   try {
+     console.log(`[Service] Attempting to save setting. Key: ${LAYOUT_TREE_KEY}`);
+     await settingsRepository.setSetting(LAYOUT_TREE_KEY, layoutJson);
+     console.log(`[Service] Successfully saved setting for key: ${LAYOUT_TREE_KEY}`);
+   } catch (error) {
+     console.error(`[Service] Error calling settingsRepository.setSetting for key ${LAYOUT_TREE_KEY}:`, error);
+     throw new Error('Failed to save layout tree setting.');
+   }
+ } // *** 最后的方法后面不需要逗号 ***
 };

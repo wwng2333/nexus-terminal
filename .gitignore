@@ -41,7 +41,7 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
-
+scripts/
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -137,3 +137,4 @@ dist
 *.db
 *.jpg
 /packages/backend/uploads/backgrounds
+/temp_iterm_schemes
