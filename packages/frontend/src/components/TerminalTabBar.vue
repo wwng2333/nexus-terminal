@@ -126,7 +126,7 @@ const layoutToggleTitle = computed(() => isLayoutVisible.value ? t('nav.hideLayo
         </button>
         <!-- Layout Configurator Button -->
         <button class="action-button layout-config-button" @click="openLayoutConfigurator" :title="t('layout.configure', '配置布局')"> <!-- 使用 t 函数 -->
-          <i class="fas fa-palette"></i> <!-- 更新图标为调色板 -->
+          <i class="fas fa-th-large"></i> <!-- 恢复为田字格图标 -->
         </button>
     </div>
     <!-- 连接列表弹出窗口 (保持不变) -->
