@@ -39,23 +39,29 @@ app.use(i18n); // 使用 i18n
       await router.push('/setup');
       app.mount('#app');
     } else {
-      // 2b. 如果不需要设置，加载其他初始数据
-      console.log("不需要初始设置，加载通用设置和外观数据...");
-      const settingsStore = useSettingsStore(pinia);
-      const appearanceStore = useAppearanceStore(pinia);
-
-      await Promise.all([
-        settingsStore.loadInitialSettings(),
-        appearanceStore.loadInitialAppearanceData()
-      ]).then(() => {
-        console.log("初始设置和外观数据加载完成。");
-      }).catch((error: unknown) => {
-        console.error("加载初始数据失败 (settings/appearance):", error);
-        // 即使加载失败，也继续挂载应用
-      });
-
-      // 3. 检查认证状态 (可以在加载设置后进行)
+      // 2b. 如果不需要设置，先检查认证状态
+      console.log("不需要初始设置，检查认证状态...");
       await authStore.checkAuthStatus();
+
+      if (authStore.isAuthenticated) {
+        // 3a. 如果已认证，加载用户设置和外观数据
+        console.log("用户已认证，加载设置和外观数据...");
+        const settingsStore = useSettingsStore(pinia);
+        const appearanceStore = useAppearanceStore(pinia);
+        try {
+          await Promise.all([
+            settingsStore.loadInitialSettings(),
+            appearanceStore.loadInitialAppearanceData()
+          ]);
+          console.log("用户设置和外观数据加载完成。");
+        } catch (error) {
+           console.error("加载用户设置或外观数据失败:", error);
+           // 加载失败也继续，可能使用默认值或显示错误
+        }
+      } else {
+        // 3b. 如果未认证，不需要加载用户特定数据
+        console.log("用户未认证。");
+      }
 
       // 4. 挂载应用
       app.mount('#app');

@@ -635,7 +635,8 @@
         "SSH_SHELL_FAILURE": "SSH Shell Open Failed",
         "SERVER_STARTED": "Server Started",
         "SERVER_ERROR": "Server Error",
-        "DATABASE_MIGRATION": "Database Migration"
+        "DATABASE_MIGRATION": "Database Migration",
+        "ADMIN_SETUP_COMPLETE": "Initial Admin Setup Completed"
     }
   },
   "workspaceConnectionList": {

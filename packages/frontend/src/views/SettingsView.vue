@@ -30,8 +30,8 @@
         </div>
 
         <div class="settings-section">
-          <h2>Passkey 设置</h2>
-          <p>使用 Passkey（无密码认证）提升安全性和便捷性。您可以注册新的 Passkey 用于登录。</p>
+          <h2>{{ $t('settings.passkey.title') }}</h2>
+          <p>{{ $t('settings.passkey.description') }}</p>
           <div class="form-group">
             <label for="passkey-name">{{ $t('settings.passkey.nameLabel') }}:</label>
             <input type="text" id="passkey-name" v-model="passkeyName" :placeholder="$t('settings.passkey.namePlaceholder')" required>

@@ -635,7 +635,8 @@
         "SSH_SHELL_FAILURE": "SSH Shell 打开失败",
         "SERVER_STARTED": "服务器已启动",
         "SERVER_ERROR": "服务器错误",
-        "DATABASE_MIGRATION": "数据库迁移"
+        "DATABASE_MIGRATION": "数据库迁移",
+        "ADMIN_SETUP_COMPLETE": "初始管理员设置完成"
     }
   },
   "workspaceConnectionList": {
