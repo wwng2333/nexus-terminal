@@ -49,7 +49,9 @@ const themeImportInput = ref<HTMLInputElement | null>(null);
 const uploadError = ref<string | null>(null);
 const importError = ref<string | null>(null);
 const saveThemeError = ref<string | null>(null); // 用于显示保存主题时的错误
-
+const editableTerminalThemeString = ref(''); // 用于终端主题 textarea 绑定
+const terminalThemeParseError = ref<string | null>(null); // 用于显示终端主题 JSON 解析错误
+const terminalThemePlaceholder = '{\n  "background": "#000000",\n  "foreground": "#ffffff",\n  "cursor": "#ffffff",\n  "selectionBackground": "#555555",\n  "black": "#000000",\n  "red": "#ff0000",\n  "green": "#00ff00",\n  "yellow": "#ffff00",\n  "blue": "#0000ff",\n  "magenta": "#ff00ff",\n  "cyan": "#00ffff",\n  "white": "#ffffff",\n  "brightBlack": "#555555",\n  "brightRed": "#ff5555",\n  "brightGreen": "#55ff55",\n  "brightYellow": "#ffff55",\n  "brightBlue": "#5555ff",\n  "brightMagenta": "#ff55ff",\n  "brightCyan": "#55ffff",\n  "brightWhite": "#ffffff"\n}'; // 终端主题编辑器的 placeholder
 
 // 初始化本地编辑状态
 import { defaultUiTheme } from '../stores/default-themes'; // 确保导入默认主题
@@ -358,6 +360,7 @@ const handleApplyTheme = async (theme: TerminalTheme) => {
 // 开始新建主题
 const handleAddNewTheme = () => {
     saveThemeError.value = null; // 清除旧错误
+    terminalThemeParseError.value = null; // 清除旧错误
     // 创建一个全新的默认主题结构用于编辑
     editingTheme.value = {
         _id: undefined, // 清除 ID 表示是新建
@@ -365,6 +368,13 @@ const handleAddNewTheme = () => {
         themeData: JSON.parse(JSON.stringify(defaultXtermTheme)), // 使用默认 xterm 主题作为基础
         isPreset: false, // 明确不是预设
     };
+    // 初始化 textarea
+    try {
+        editableTerminalThemeString.value = JSON.stringify(editingTheme.value.themeData, null, 2);
+    } catch (e) {
+        console.error("格式化新终端主题 JSON 失败:", e);
+        editableTerminalThemeString.value = '{}'; // Fallback
+    }
     isEditingTheme.value = true;
 };
 
@@ -372,18 +382,28 @@ const handleAddNewTheme = () => {
 // 开始编辑主题 (用户主题或基于预设创建副本)
 const handleEditTheme = (theme: TerminalTheme) => {
     saveThemeError.value = null; // 清除旧错误
+    terminalThemeParseError.value = null; // 清除旧错误
+    let themeToEdit: TerminalTheme;
     if (theme.isPreset) {
         // 基于预设创建副本
         const themeCopy = JSON.parse(JSON.stringify(theme));
         themeCopy._id = undefined; // 清除 ID，表示是新建
         themeCopy.name = `${theme.name} (Copy)`;
         themeCopy.isPreset = false; // 副本不再是预设
-        editingTheme.value = themeCopy;
-        console.log('创建预设主题副本进行编辑:', editingTheme.value);
+        themeToEdit = themeCopy;
+        console.log('创建预设主题副本进行编辑:', themeToEdit);
     } else {
         // 编辑用户自己的主题
-        editingTheme.value = JSON.parse(JSON.stringify(theme));
-        console.log('编辑用户主题:', editingTheme.value);
+        themeToEdit = JSON.parse(JSON.stringify(theme));
+        console.log('编辑用户主题:', themeToEdit);
+    }
+    editingTheme.value = themeToEdit;
+    // 初始化 textarea
+    try {
+        editableTerminalThemeString.value = JSON.stringify(editingTheme.value.themeData, null, 2);
+    } catch (e) {
+        console.error("格式化编辑终端主题 JSON 失败:", e);
+        editableTerminalThemeString.value = '{}'; // Fallback
     }
     isEditingTheme.value = true;
 };
@@ -394,11 +414,22 @@ const handleSaveEditingTheme = async () => {
         saveThemeError.value = t('styleCustomizer.errorThemeNameRequired');
         return;
     }
+    // 在保存前，确保 themeData 是最新的（以防 textarea 未失去焦点）
+    handleTerminalThemeStringChange(); // 先尝试解析 textarea
+    if (terminalThemeParseError.value) {
+        saveThemeError.value = t('styleCustomizer.errorFixJsonBeforeSave'); // 需要添加翻译: "请先修复 JSON 格式错误再保存"
+        return;
+    }
+
     saveThemeError.value = null; // 清除错误
     try {
+        // 确保 themeData 是最新的（以防万一解析没触发 watch 更新）
+        if (!editingTheme.value) return; // 防御
+        const currentThemeData = JSON.parse(editableTerminalThemeString.value); // 再次解析以防万一
+
         if (editingTheme.value._id) { // 更新
             // 确保传递的是 UpdateTerminalThemeDto 兼容的格式
-            const updateDto = { name: editingTheme.value.name, themeData: editingTheme.value.themeData };
+            const updateDto = { name: editingTheme.value.name, themeData: currentThemeData }; // 使用解析后的数据
             await appearanceStore.updateTerminalTheme(
                 editingTheme.value._id,
                 updateDto.name,
@@ -407,7 +438,7 @@ const handleSaveEditingTheme = async () => {
              alert(t('styleCustomizer.themeUpdatedSuccess'));
         } else { // 新建
              // 确保传递的是 CreateTerminalThemeDto 兼容的格式
-            const createDto = { name: editingTheme.value.name, themeData: editingTheme.value.themeData };
+            const createDto = { name: editingTheme.value.name, themeData: currentThemeData }; // 使用解析后的数据
             await appearanceStore.createTerminalTheme(
                 createDto.name,
                 createDto.themeData
@@ -416,6 +447,8 @@ const handleSaveEditingTheme = async () => {
         }
         isEditingTheme.value = false; // 关闭编辑
         editingTheme.value = null;
+        editableTerminalThemeString.value = ''; // 清理
+        terminalThemeParseError.value = null; // 清理
     } catch (error: any) {
         console.error("保存终端主题失败:", error);
         saveThemeError.value = error.message || t('styleCustomizer.themeSaveFailed');
@@ -427,6 +460,31 @@ const handleCancelEditingTheme = () => {
     isEditingTheme.value = false;
     editingTheme.value = null;
     saveThemeError.value = null;
+    terminalThemeParseError.value = null; // 清理
+    editableTerminalThemeString.value = ''; // 清理
+};
+
+// --- 处理终端主题 Textarea ---
+const handleTerminalThemeStringChange = () => {
+    terminalThemeParseError.value = null; // 清除之前的错误
+    if (!editingTheme.value) return; // 防御性检查
+
+    try {
+        const parsedThemeData = JSON.parse(editableTerminalThemeString.value);
+        // 基础验证：确保是对象且不是数组
+        if (typeof parsedThemeData !== 'object' || parsedThemeData === null || Array.isArray(parsedThemeData)) {
+            throw new Error(t('styleCustomizer.errorInvalidJsonObject')); // 复用 UI 主题的错误消息
+        }
+        // 更新 editingTheme.value.themeData，这将触发下面的 watch 来更新颜色选择器等
+        editingTheme.value.themeData = parsedThemeData;
+    } catch (error: any) {
+        console.error('解析终端主题 JSON 配置失败:', error);
+        let errorMessage = error.message || t('styleCustomizer.errorInvalidJsonConfig'); // 复用
+        if (error instanceof SyntaxError) {
+            errorMessage = `${t('styleCustomizer.errorJsonSyntax')}: ${error.message}`; // 复用
+        }
+        terminalThemeParseError.value = errorMessage;
+    }
 };
 
 // 删除主题
@@ -588,8 +646,30 @@ const filteredAndSortedThemes = computed(() => {
 });
 
 // 排序切换函数已移除
+// --- 监听 themeData 变化以更新 textarea ---
+watch(() => editingTheme.value?.themeData, (newThemeData) => {
+    // 只有在 textarea 没有聚焦时才更新，避免覆盖用户输入
+    // 或者，如果解析错误存在，也允许更新以显示正确格式
+    if (newThemeData && (document.activeElement?.id !== 'terminalThemeTextarea' || terminalThemeParseError.value)) {
+        try {
+            const newJsonString = JSON.stringify(newThemeData, null, 2);
+            // 只有当字符串实际不同时才更新，避免不必要的重渲染和光标跳动
+            if (newJsonString !== editableTerminalThemeString.value) {
+                 editableTerminalThemeString.value = newJsonString;
+            }
+            // 如果外部更改（如颜色选择器）修复了错误，清除错误提示
+            if (terminalThemeParseError.value && document.activeElement?.id !== 'terminalThemeTextarea') {
+                 terminalThemeParseError.value = null;
+            }
+        } catch (e) {
+            console.error("序列化终端主题 JSON 失败:", e);
+            // 理论上不应失败，除非 themeData 结构异常
+        }
+    }
+}, { deep: true }); // 需要 deep watch 来监听 themeData 内部的变化
 
 </script>
+
 
 <template>
   <div class="style-customizer-overlay" @click.self="closeCustomizer">
@@ -735,6 +815,27 @@ const filteredAndSortedThemes = computed(() => {
                     <label for="editingThemeName">{{ t('styleCustomizer.themeName') }}:</label>
                     <input type="text" id="editingThemeName" v-model="editingTheme.name" required class="text-input"/>
                 </div>
+
+                <!-- Terminal Theme Textarea -->
+                <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
+                <h4>{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</h4> <!-- TODO: Add translation -->
+                <p>{{ t('styleCustomizer.terminalThemeJsonEditorDesc') }}</p> <!-- TODO: Add translation -->
+                <div class="form-group full-width-group">
+                   <label for="terminalThemeTextarea" class="sr-only">{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</label>
+                   <textarea
+                     id="terminalThemeTextarea"
+                     v-model="editableTerminalThemeString"
+                     @blur="handleTerminalThemeStringChange"
+                     rows="15"
+                     :placeholder="terminalThemePlaceholder"
+                     spellcheck="false"
+                     class="json-textarea"
+                   ></textarea>
+                </div>
+                 <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p>
+                 <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
+                 <h4>{{ t('styleCustomizer.terminalThemeColorEditorTitle') }}</h4> <!-- TODO: Add translation -->
+
                  <!-- 动态生成终端样式编辑控件 -->
               <div v-for="(value, key) in editingTheme.themeData" :key="key" class="form-group">
                 <label :for="`xterm-${key}`">{{ formatXtermLabel(key as keyof ITheme) }}:</label>
@@ -754,6 +855,8 @@ const filteredAndSortedThemes = computed(() => {
                   class="text-input"
                 />
              </div>
+              <!-- 显示解析错误（如果颜色选择器下方也需要的话） -->
+              <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p>
              <div class="editor-footer">
                  <button @click="handleCancelEditingTheme" class="button-secondary">{{ t('common.cancel') }}</button>
                  <button @click="handleSaveEditingTheme" class="button-primary">{{ t('common.save') }}</button>
