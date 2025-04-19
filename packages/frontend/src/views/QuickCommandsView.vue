@@ -9,6 +9,7 @@
           :placeholder="$t('quickCommands.searchPlaceholder', '搜索名称或指令...')"
           :value="searchTerm"
           @input="updateSearchTerm($event)"
+          @keydown="handleKeydown"
           class="search-input"
         />
         <button @click="toggleSortBy" class="sort-toggle-button" :title="sortButtonTitle">
@@ -20,11 +21,12 @@
       </div>
       <ul v-if="filteredAndSortedCommands.length > 0" class="commands-list">
         <li
-          v-for="cmd in filteredAndSortedCommands"
+          v-for="(cmd, index) in filteredAndSortedCommands"
           :key="cmd.id"
           class="command-item"
-          @mouseover="hoveredItemId = cmd.id"
-          @mouseleave="hoveredItemId = null"
+          :class="{ selected: index === selectedIndex }"
+          @mouseover="hoveredItemId = cmd.id; selectedIndex = index"
+          @mouseleave="hoveredItemId = null; selectedIndex = -1"
           @click="executeCommand(cmd)"
         >
           <div class="command-info">
@@ -60,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useQuickCommandsStore, type QuickCommandFE, type QuickCommandSortByType } from '../stores/quickCommands.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
@@ -73,6 +75,8 @@ const { t } = useI18n();
 const hoveredItemId = ref<number | null>(null);
 const isFormVisible = ref(false);
 const commandToEdit = ref<QuickCommandFE | null>(null);
+const selectedIndex = ref<number>(-1); // -1 表示没有选中
+const commandListRef = ref<HTMLUListElement | null>(null); // Ref for the command list UL
 
 // --- 从 Store 获取状态和 Getter ---
 const searchTerm = computed(() => quickCommandsStore.searchTerm);
@@ -95,7 +99,59 @@ onMounted(() => {
 const updateSearchTerm = (event: Event) => {
   const target = event.target as HTMLInputElement;
   quickCommandsStore.setSearchTerm(target.value);
+  selectedIndex.value = -1; // Reset selection when search term changes
 };
+
+// 滚动到选中的项目
+const scrollToSelected = async () => {
+  await nextTick(); // 等待 DOM 更新
+  if (selectedIndex.value < 0 || !commandListRef.value) return;
+
+  const listElement = commandListRef.value;
+  const selectedItem = listElement.children[selectedIndex.value] as HTMLLIElement;
+
+  if (selectedItem) {
+    const listRect = listElement.getBoundingClientRect();
+    const itemRect = selectedItem.getBoundingClientRect();
+
+    if (itemRect.top < listRect.top) {
+      // Item is above the visible area
+      listElement.scrollTop -= listRect.top - itemRect.top;
+    } else if (itemRect.bottom > listRect.bottom) {
+      // Item is below the visible area
+      listElement.scrollTop += itemRect.bottom - listRect.bottom;
+    }
+    // For smooth scrolling (optional):
+    // selectedItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+};
+
+
+// 处理键盘事件
+const handleKeydown = (event: KeyboardEvent) => {
+  const commands = filteredAndSortedCommands.value;
+  if (!commands.length) return;
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault();
+      selectedIndex.value = (selectedIndex.value + 1) % commands.length;
+      scrollToSelected();
+      break;
+    case 'ArrowUp':
+      event.preventDefault();
+      selectedIndex.value = (selectedIndex.value - 1 + commands.length) % commands.length;
+      scrollToSelected();
+      break;
+    case 'Enter':
+      event.preventDefault();
+      if (selectedIndex.value >= 0 && selectedIndex.value < commands.length) {
+        executeCommand(commands[selectedIndex.value]);
+      }
+      break;
+  }
+};
+
 
 // 切换排序方式
 const toggleSortBy = () => {
@@ -143,6 +199,8 @@ const executeCommand = (command: QuickCommandFE) => {
   quickCommandsStore.incrementUsage(command.id);
   // 2. 发出执行事件给父组件
   emit('execute-command', command.command);
+  // Optionally reset selection after execution
+  // selectedIndex.value = -1;
 };
 
 </script>
@@ -254,6 +312,8 @@ const executeCommand = (command: QuickCommandFE) => {
   list-style: none;
   padding: 0;
   margin: 0;
+  /* Ensure the list itself can scroll if needed, although container handles it */
+  /* overflow-y: auto; */ /* Let container handle scroll */
 }
 
 .command-item {
@@ -273,6 +333,18 @@ const executeCommand = (command: QuickCommandFE) => {
 .command-item:hover {
   background-color: var(--header-bg-color); /* Use header background for hover */
 }
+/* Style for the keyboard-selected item */
+.command-item.selected {
+  background-color: var(--button-bg-color, #007bff); /* Use button background or fallback */
+  color: var(--button-text-color, white); /* Use button text color or fallback */
+}
+.command-item.selected .command-name,
+.command-item.selected .command-text,
+.command-item.selected .usage-count,
+.command-item.selected .action-button {
+    color: var(--button-text-color, white); /* Ensure text inside selected item is readable */
+}
+
 
 .command-info {
     display: flex;

@@ -10,19 +10,21 @@
           :placeholder="$t('commandHistory.searchPlaceholder', '搜索历史记录...')"
           :value="searchTerm"
           @input="updateSearchTerm($event)"
+          @keydown="handleKeydown"
           class="search-input"
         />
         <button @click="confirmClearAll" class="clear-button" :title="$t('commandHistory.clear', '清空')">
           <i class="fas fa-trash-alt"></i>
         </button>
       </div>
-      <ul v-if="filteredHistory.length > 0" class="history-list">
+      <ul ref="historyListRef" v-if="filteredHistory.length > 0" class="history-list">
         <li
-          v-for="entry in filteredHistory"
+          v-for="(entry, index) in filteredHistory"
           :key="entry.id"
           class="history-item"
-          @mouseover="hoveredItemId = entry.id"
-          @mouseleave="hoveredItemId = null"
+          :class="{ selected: index === selectedIndex }"
+          @mouseover="hoveredItemId = entry.id; selectedIndex = index"
+          @mouseleave="hoveredItemId = null; selectedIndex = -1"
           @click="executeCommand(entry.command)"
         >
           <span class="command-text">{{ entry.command }}</span>
@@ -47,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useCommandHistoryStore, CommandHistoryEntryFE } from '../stores/commandHistory.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
@@ -57,6 +59,8 @@ const commandHistoryStore = useCommandHistoryStore();
 const uiNotificationsStore = useUiNotificationsStore();
 const { t } = useI18n();
 const hoveredItemId = ref<number | null>(null);
+const selectedIndex = ref<number>(-1); // -1 表示没有选中
+const historyListRef = ref<HTMLUListElement | null>(null); // Ref for the history list UL
 
 // --- 从 Store 获取状态和 Getter ---
 const searchTerm = computed(() => commandHistoryStore.searchTerm);
@@ -84,7 +88,56 @@ onMounted(() => {
 const updateSearchTerm = (event: Event) => {
   const target = event.target as HTMLInputElement;
   commandHistoryStore.setSearchTerm(target.value);
+  selectedIndex.value = -1; // Reset selection when search term changes
 };
+
+// 滚动到选中的项目
+const scrollToSelected = async () => {
+  await nextTick(); // 等待 DOM 更新
+  if (selectedIndex.value < 0 || !historyListRef.value) return;
+
+  const listElement = historyListRef.value;
+  const selectedItem = listElement.children[selectedIndex.value] as HTMLLIElement;
+
+  if (selectedItem) {
+    const listRect = listElement.getBoundingClientRect();
+    const itemRect = selectedItem.getBoundingClientRect();
+
+    if (itemRect.top < listRect.top) {
+      // Item is above the visible area
+      listElement.scrollTop -= listRect.top - itemRect.top;
+    } else if (itemRect.bottom > listRect.bottom) {
+      // Item is below the visible area
+      listElement.scrollTop += itemRect.bottom - listRect.bottom;
+    }
+  }
+};
+
+// 处理键盘事件
+const handleKeydown = (event: KeyboardEvent) => {
+  const history = filteredHistory.value;
+  if (!history.length) return;
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault();
+      selectedIndex.value = (selectedIndex.value + 1) % history.length;
+      scrollToSelected();
+      break;
+    case 'ArrowUp':
+      event.preventDefault();
+      selectedIndex.value = (selectedIndex.value - 1 + history.length) % history.length;
+      scrollToSelected();
+      break;
+    case 'Enter':
+      event.preventDefault();
+      if (selectedIndex.value >= 0 && selectedIndex.value < history.length) {
+        executeCommand(history[selectedIndex.value].command);
+      }
+      break;
+  }
+};
+
 
 // 确认清空所有历史记录
 const confirmClearAll = () => {
@@ -112,6 +165,8 @@ const deleteSingleCommand = (id: number) => {
 // 新增：执行命令 (发出事件)
 const executeCommand = (command: string) => {
   emit('execute-command', command);
+  // Optionally reset selection after execution
+  // selectedIndex.value = -1;
 };
 
 </script>
@@ -212,6 +267,16 @@ const executeCommand = (command: string) => {
 .history-item:hover {
   background-color: var(--header-bg-color); /* Use header background for hover */
 }
+/* Style for the keyboard-selected item */
+.history-item.selected {
+  background-color: var(--button-bg-color, #007bff); /* Use button background or fallback */
+  color: var(--button-text-color, white); /* Use button text color or fallback */
+}
+.history-item.selected .command-text,
+.history-item.selected .action-button {
+    color: var(--button-text-color, white); /* Ensure text inside selected item is readable */
+}
+
 
 .command-text {
   white-space: nowrap;
