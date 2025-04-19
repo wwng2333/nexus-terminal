@@ -88,7 +88,16 @@
     "errorInvalidJsonObject": "输入无效。请输入一个有效的 JSON 对象。",
     "errorInvalidJsonConfig": "无效的 JSON 配置",
     "editAsCopy": "编辑副本",
-    "copySuffix": "副本"
+    "copySuffix": "副本",
+    "cannotDeletePreset": "无法删除预设主题",
+    "applyThemeTooltip": "应用此主题",
+    "applyButton": "应用",
+    "searchThemePlaceholder": "搜索主题名称...",
+    "sortBy": "排序:",
+    "sortAsc": "名称升序",
+    "sortDesc": "名称降序",
+    "exportActiveThemeTooltip": "将当前激活的主题导出为 JSON 文件",
+    "exportActiveTheme": "导出当前主题"
   },
   "login": {
     "title": "用户登录",

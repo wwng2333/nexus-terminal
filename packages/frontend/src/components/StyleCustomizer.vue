@@ -37,7 +37,6 @@ const themeParseError = ref<string | null>(null); // 用于显示 JSON 解析错
 // 终端主题管理相关状态
 const isEditingTheme = ref(false); // 是否正在编辑某个主题
 const themeSearchTerm = ref(''); // 主题搜索词
-const themeSortOrder = ref<'nameAsc' | 'nameDesc'>('nameAsc'); // 主题排序方式
 // 使用 reactive 确保嵌套对象 themeData 的响应性
 // 修正：editingTheme 应该是一个 ref 包含 TerminalTheme 或 null
 const editingTheme = ref<TerminalTheme | null>(null); // 正在编辑的主题数据副本 (完整结构)
@@ -131,16 +130,13 @@ watch([
 const emit = defineEmits(['close']);
 
 const closeCustomizer = () => {
-  // 如果正在编辑主题，提示用户是否放弃更改
+  // 如果正在编辑主题，直接关闭并重置状态
   if (isEditingTheme.value) {
-      if (confirm(t('styleCustomizer.confirmCloseEditing'))) {
-          isEditingTheme.value = false; // 退出编辑状态
-          editingTheme.value = null;
-          emit('close');
-      }
-  } else {
-      emit('close');
+      isEditingTheme.value = false; // 退出编辑状态
+      editingTheme.value = null;
+      saveThemeError.value = null; // 同时清除可能存在的保存错误
   }
+  emit('close'); // 总是触发关闭事件
 };
 
 // 当前活动的标签页
@@ -161,15 +157,13 @@ const handleSaveUiTheme = async () => {
 
 // 重置 UI 主题
 const handleResetUiTheme = async () => {
-    if (confirm(t('styleCustomizer.confirmResetUi'))) {
-        try {
-            await appearanceStore.resetCustomUiTheme();
-            // watch 会自动更新 editableUiTheme.value
-            alert(t('styleCustomizer.uiThemeReset'));
-        } catch (error: any) {
-            console.error("重置 UI 主题失败:", error);
-             alert(t('styleCustomizer.uiThemeResetFailed', { message: error.message }));
-        }
+    try {
+        await appearanceStore.resetCustomUiTheme();
+        // watch 会自动更新 editableUiTheme.value
+        alert(t('styleCustomizer.uiThemeReset'));
+    } catch (error: any) {
+        console.error("重置 UI 主题失败:", error);
+         alert(t('styleCustomizer.uiThemeResetFailed', { message: error.message }));
     }
 };
 
@@ -353,7 +347,7 @@ const handleApplyTheme = async (theme: TerminalTheme) => {
     try {
         await appearanceStore.setActiveTerminalTheme(themeIdToApply);
         // 成功后 activeTerminalThemeId 会自动更新
-        alert(t('styleCustomizer.themeAppliedSuccess', { name: theme.name })); // 需要添加翻译
+        // alert(`Theme '${theme.name}' applied successfully`); // 移除成功提示
     } catch (error: any) {
         console.error("应用终端主题失败:", error);
         alert(t('styleCustomizer.setActiveThemeFailed', { message: error.message }));
@@ -382,7 +376,7 @@ const handleEditTheme = (theme: TerminalTheme) => {
         // 基于预设创建副本
         const themeCopy = JSON.parse(JSON.stringify(theme));
         themeCopy._id = undefined; // 清除 ID，表示是新建
-        themeCopy.name = `${theme.name} (${t('styleCustomizer.copySuffix', '副本')})`; // 添加后缀，需要添加翻译 '副本'
+        themeCopy.name = `${theme.name} (Copy)`;
         themeCopy.isPreset = false; // 副本不再是预设
         editingTheme.value = themeCopy;
         console.log('创建预设主题副本进行编辑:', editingTheme.value);
@@ -438,14 +432,12 @@ const handleCancelEditingTheme = () => {
 // 删除主题
 const handleDeleteTheme = async (theme: TerminalTheme) => {
     if (theme.isPreset) return;
-    if (confirm(t('styleCustomizer.confirmDeleteTheme', { name: theme.name }))) {
-        try {
-            await appearanceStore.deleteTerminalTheme(theme._id!);
-             alert(t('styleCustomizer.themeDeletedSuccess'));
-        } catch (error: any) {
-            console.error("删除终端主题失败:", error);
-             alert(t('styleCustomizer.themeDeleteFailed', { message: error.message }));
-        }
+    try {
+        await appearanceStore.deleteTerminalTheme(theme._id!);
+         alert(t('styleCustomizer.themeDeletedSuccess'));
+    } catch (error: any) {
+        console.error("删除终端主题失败:", error);
+         alert(t('styleCustomizer.themeDeleteFailed', { message: error.message }));
     }
 };
 
@@ -531,26 +523,22 @@ const handleTerminalBgUpload = async (event: Event) => {
 };
 
 const handleRemovePageBg = async () => {
-    if (confirm(t('styleCustomizer.confirmRemovePageBg'))) {
-        try {
-            await appearanceStore.removePageBackground();
-             alert(t('styleCustomizer.pageBgRemoved'));
-        } catch (error: any) {
-             console.error("移除页面背景失败:", error);
-             alert(t('styleCustomizer.removeBgFailed', { message: error.message }));
-        }
+    try {
+        await appearanceStore.removePageBackground();
+         alert(t('styleCustomizer.pageBgRemoved'));
+    } catch (error: any) {
+         console.error("移除页面背景失败:", error);
+         alert(t('styleCustomizer.removeBgFailed', { message: error.message }));
     }
 };
 
 const handleRemoveTerminalBg = async () => {
-     if (confirm(t('styleCustomizer.confirmRemoveTerminalBg'))) {
-        try {
-            await appearanceStore.removeTerminalBackground();
-             alert(t('styleCustomizer.terminalBgRemoved'));
-        } catch (error: any) {
-             console.error("移除终端背景失败:", error);
-             alert(t('styleCustomizer.removeBgFailed', { message: error.message }));
-        }
+    try {
+        await appearanceStore.removeTerminalBackground();
+         alert(t('styleCustomizer.terminalBgRemoved'));
+    } catch (error: any) {
+         console.error("移除终端背景失败:", error);
+         alert(t('styleCustomizer.removeBgFailed', { message: error.message }));
     }
 };
 
@@ -579,7 +567,7 @@ const formatXtermLabel = (key: keyof ITheme): string => {
 const activeThemeName = computed(() => {
   const theme = availableTerminalThemes.value.find(t => t._id === activeTerminalThemeId.value);
   // 如果找不到主题 (例如 ID 无效或列表为空)，则显示提示
-  return theme ? theme.name : t('styleCustomizer.noActiveThemeSelected', '无激活主题'); // 需要添加翻译
+  return theme ? theme.name : 'No active theme selected';
 });
 
 // 过滤和排序主题列表
@@ -592,25 +580,14 @@ const filteredAndSortedThemes = computed(() => {
     themes = themes.filter(theme => theme.name.toLowerCase().includes(searchTerm));
   }
 
-  // 排序
-  themes.sort((a, b) => {
-    const nameA = a.name.toLowerCase();
-    const nameB = b.name.toLowerCase();
-    if (themeSortOrder.value === 'nameAsc') {
-      return nameA.localeCompare(nameB);
-    } else { // nameDesc
-      return nameB.localeCompare(nameA);
-    }
-    // 未来可扩展日期排序，需要后端提供 createdAt/updatedAt
-  });
+  // 排序逻辑已移除
+  // 默认按名称升序排序
+  themes.sort((a, b) => a.name.localeCompare(b.name));
 
   return themes;
 });
 
-// 切换排序顺序
-const handleSortThemes = () => {
-    themeSortOrder.value = themeSortOrder.value === 'nameAsc' ? 'nameDesc' : 'nameAsc';
-};
+// 排序切换函数已移除
 
 </script>
 
@@ -699,60 +676,59 @@ const handleSortThemes = () => {
             <!-- 终端主题选择与管理 -->
             <h4>{{ t('styleCustomizer.terminalThemeSelection') }}</h4>
              <!-- 显示当前激活主题 -->
-            <div class="active-theme-display">
-                <span>{{ t('styleCustomizer.activeTheme') }}:</span>
-                <strong>{{ activeThemeName }}</strong>
-                <button @click="handleExportActiveTheme" :disabled="!activeTerminalThemeId" class="button-inline button-small" :title="t('styleCustomizer.exportActiveThemeTooltip', '导出当前激活的主题为 JSON 文件')">{{ t('styleCustomizer.exportActiveTheme', '导出当前主题') }}</button> <!-- 添加 tooltip -->
-            </div>
+             <div class="active-theme-display">
+                 <span>{{ t('styleCustomizer.activeTheme') }}:</span>
+                 <strong>{{ activeThemeName }}</strong>
+                 <!-- 导出按钮移到管理按钮区域 -->
+             </div>
 
-            <!-- 主题管理按钮 -->
-            <div class="theme-management-buttons">
-                <button @click="handleAddNewTheme">{{ t('styleCustomizer.addNewTheme') }}</button>
-                <button @click="handleTriggerImport">{{ t('styleCustomizer.importTheme') }}</button>
-                <input type="file" ref="themeImportInput" @change="handleImportThemeFile" accept=".json" style="display: none;" />
+             <!-- 主题管理按钮 -->
+             <div class="theme-management-buttons">
+                 <button @click="handleAddNewTheme">{{ t('styleCustomizer.addNewTheme') }}</button>
+                 <button @click="handleTriggerImport">{{ t('styleCustomizer.importTheme') }}</button>
+                 <button @click="handleExportActiveTheme" :disabled="!activeTerminalThemeId" class="button-inline button-small" :title="t('styleCustomizer.exportActiveThemeTooltip', 'Export the currently active theme as a JSON file')">{{ t('styleCustomizer.exportActiveTheme', 'Export Active Theme') }}</button>
+                 <input type="file" ref="themeImportInput" @change="handleImportThemeFile" accept=".json" style="display: none;" />
                  <p v-if="importError" class="error-message">{{ importError }}</p>
-            </div>
+             </div>
 
-            <!-- 搜索和排序 -->
-            <div class="theme-filter-sort">
-                <input
-                    type="text"
-                    v-model="themeSearchTerm"
-                    :placeholder="t('styleCustomizer.searchThemePlaceholder', '搜索主题名称...')"
-                    class="text-input"
-                />
-                <button @click="handleSortThemes" class="button-inline button-small">
-                    {{ t('styleCustomizer.sortBy', '排序:') }} {{ themeSortOrder === 'nameAsc' ? t('styleCustomizer.sortAsc', '名称升序') : t('styleCustomizer.sortDesc', '名称降序') }} <!-- 需要添加翻译 -->
-                </button>
-            </div>
 
-            <!-- 主题列表 -->
-            <ul class="theme-list">
-                <!-- 添加空状态提示 -->
-                <li v-if="filteredAndSortedThemes.length === 0" class="empty-list-item">
-                    {{ t('styleCustomizer.noThemesFound', '未找到匹配的主题') }} <!-- 需要添加翻译 -->
-                </li>
-                <li v-else v-for="theme in filteredAndSortedThemes" :key="theme._id" :class="{ 'preset-theme': theme.isPreset, 'active': theme._id === activeTerminalThemeId }">
-                    <button
-                        @click="handleApplyTheme(theme)"
-                        class="button-apply"
-                        :disabled="theme._id === activeTerminalThemeId"
-                        :title="t('styleCustomizer.applyThemeTooltip', '应用此主题')"
-                    >
-                        {{ t('styleCustomizer.applyButton', '应用') }} <!-- 需要添加翻译 -->
-                    </button>
-                    <span class="theme-name" :title="theme.name">{{ theme.name }}</span> <!-- 添加 title 属性显示完整名称 -->
-                    <div class="theme-actions">
-                        <button @click="handleEditTheme(theme)" :title="theme.isPreset ? t('styleCustomizer.editAsCopyTooltip', '编辑此预设主题的副本') : t('common.edit')">{{ t('common.edit') }}</button> <!-- 添加 tooltip -->
-                        <button @click="handleDeleteTheme(theme)" :disabled="theme.isPreset" class="button-danger" :title="theme.isPreset ? t('styleCustomizer.cannotDeletePresetTooltip', '无法删除预设主题') : t('common.delete')">{{ t('common.delete') }}</button> <!-- 添加 tooltip -->
-                    </div>
-                </li>
-            </ul>
+             <!-- 搜索框移到列表上方 -->
+             <div class="theme-search-bar">
+                  <input
+                      type="text"
+                      v-model="themeSearchTerm"
+                      :placeholder="t('styleCustomizer.searchThemePlaceholder', '搜索主题名称...')"
+                      class="text-input"
+                  />
+             </div>
 
-          </section>
+             <!-- 主题列表 -->
+             <ul class="theme-list">
+                 <!-- 添加空状态提示 -->
+                 <li v-if="filteredAndSortedThemes.length === 0" class="empty-list-item">
+                     {{ t('styleCustomizer.noThemesFound', 'No matching themes found') }}
+                 </li>
+                 <li v-else v-for="theme in filteredAndSortedThemes" :key="theme._id" :class="{ 'preset-theme': theme.isPreset, 'active': theme._id === activeTerminalThemeId }">
+                     <!-- 应用按钮移到 theme-actions -->
+                     <span class="theme-name" :title="theme.name">{{ theme.name }}</span>
+                     <div class="theme-actions">
+                          <button
+                              @click="handleApplyTheme(theme)"
+                              :disabled="theme._id === activeTerminalThemeId"
+                              :title="t('styleCustomizer.applyThemeTooltip', 'Apply this theme')"
+                          >
+                              {{ t('styleCustomizer.applyButton', 'Apply') }}
+                          </button>
+                         <button @click="handleEditTheme(theme)" :title="theme.isPreset ? t('styleCustomizer.editAsCopy', 'Edit as Copy') : t('common.edit')">{{ t('common.edit') }}</button>
+                         <button @click="handleDeleteTheme(theme)" :disabled="theme.isPreset" class="button-danger" :title="theme.isPreset ? t('styleCustomizer.cannotDeletePreset', 'Cannot delete preset theme') : t('common.delete')">{{ t('common.delete') }}</button>
+                     </div>
+                 </li>
+             </ul>
+ 
+           </section>
 
-           <!-- 主题编辑器 -->
-           <section v-if="isEditingTheme && editingTheme">
+            <!-- 主题编辑器 -->
+            <section v-if="isEditingTheme && editingTheme">
                 <h3>{{ editingTheme._id ? t('styleCustomizer.editThemeTitle') : t('styleCustomizer.newThemeTitle') }}</h3>
                  <p v-if="saveThemeError" class="error-message">{{ saveThemeError }}</p>
                 <div class="form-group">
@@ -1165,6 +1141,7 @@ hr {
     display: flex;
     gap: var(--base-margin);
     flex-wrap: wrap;
+    align-items: center; /* 垂直居中按钮和错误消息 */
     padding-bottom: var(--base-padding);
     border-bottom: 1px dashed var(--border-color);
 }
@@ -1188,14 +1165,19 @@ hr {
     opacity: 0.6;
     cursor: not-allowed;
 }
+.theme-management-buttons .error-message {
+    margin: 0; /* 移除错误消息的默认外边距 */
+    flex-grow: 1; /* 让错误消息填充剩余空间 */
+    text-align: left; /* 错误消息左对齐 */
+}
 
 
 .theme-list {
     list-style: none;
     padding: 0;
-    margin-top: 0;
-    max-height: 280px;
-    overflow-y: auto;
+    margin-top: var(--base-padding); /* 列表与上方元素间距 */
+    max-height: 280px; /* 限制高度 */
+    overflow-y: auto; /* 允许滚动 */
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background-color: var(--app-bg-color);
@@ -1203,8 +1185,8 @@ hr {
 
 .theme-list li {
     display: grid; /* 使用 Grid 布局列表项 */
-    /* 新增列: 应用按钮 | 名称 | 操作按钮 */
-    grid-template-columns: auto 1fr auto;
+    /* 列: 名称 | 操作按钮组 */
+    grid-template-columns: 1fr auto; /* 名称占据剩余空间，按钮组自适应 */
     align-items: center;
     padding: 0.6rem 0.8rem; /* 调整内边距 */
     border-bottom: 1px solid var(--border-color);
@@ -1223,14 +1205,26 @@ hr {
     font-weight: bold;
     color: var(--button-text-color); /* 确保激活项文本颜色正确 */
 }
-.theme-list li.active .button-apply {
-    /* 可以选择隐藏或禁用已激活项的应用按钮 */
-    opacity: 0.5;
-    cursor: default;
-    background-color: transparent; /* 激活项的应用按钮背景透明 */
-    border-color: transparent;
+/* 激活项内按钮样式调整 */
+.theme-list li.active .theme-actions button {
     color: var(--button-text-color); /* 继承激活项文本颜色 */
+    border-color: rgba(255, 255, 255, 0.3); /* 边框稍微可见 */
+    background-color: rgba(255, 255, 255, 0.1); /* 轻微背景 */
 }
+.theme-list li.active .theme-actions button:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+/* 激活项的应用按钮禁用样式 - 注意: :disabled 选择器优先级可能需要调整 */
+.theme-list li.active .theme-actions button:disabled {
+    opacity: 0.5 !important; /* 增加优先级确保生效 */
+    cursor: default !important;
+    background-color: transparent !important;
+    border-color: transparent !important;
+    color: var(--button-text-color) !important; /* 确保禁用时颜色也正确 */
+}
+
+
 .theme-list li:last-child {
     border-bottom: none;
 }
@@ -1243,44 +1237,24 @@ hr {
     font-style: italic;
 }
 
-.button-apply { /* 应用按钮样式 */
-    grid-column: 1 / 2;
-    padding: 0.3rem 0.6rem;
-    font-size: 0.85rem;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--header-bg-color);
-    color: var(--text-color);
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-    white-space: nowrap;
-    margin-right: var(--base-margin); /* 与名称间距 */
-}
+/* 移除独立的 .button-apply 样式 */
 
-.button-apply:hover:not(:disabled) {
-    background-color: var(--border-color);
-    border-color: var(--text-color-secondary);
-}
-.button-apply:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
 .theme-name { /* 主题名称样式 */
-    grid-column: 2 / 3;
+    grid-column: 1 / 2; /* 名称在第一列 */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     color: var(--text-color); /* 确保非激活项文本颜色 */
 }
 .theme-list li.preset-theme .theme-name {
-    /* font-style: italic; */ /* 移除斜体，通过按钮区分 */
-    /* color: var(--text-color-secondary); */
+    /* 可以添加特定样式 */
 }
 .theme-actions {
-    grid-column: 3 / 4; /* 按钮组在第三列 */
+    grid-column: 2 / 3; /* 按钮组在第二列 */
     flex-shrink: 0;
     display: flex;
-    gap: 0.5rem;
+    gap: 0.5rem; /* 按钮间距 */
+    justify-content: flex-end; /* 按钮靠右对齐 */
 }
 /* 统一操作按钮样式 */
 .theme-actions button {
@@ -1401,30 +1375,42 @@ hr {
     cursor: not-allowed;
 }
 
-/* 搜索和排序区域 */
-.theme-filter-sort {
-    display: flex;
-    gap: var(--base-margin);
-    margin-bottom: var(--base-padding);
-    align-items: center;
+/* 搜索框样式 */
+.theme-search-bar {
+    margin-bottom: var(--base-padding); /* 与下方列表的间距 */
 }
-.theme-filter-sort input.text-input {
-    flex-grow: 1; /* 让搜索框占据更多空间 */
-    grid-column: auto; /* 重置 grid 影响 */
+.theme-search-bar input.text-input {
+    /* flex-grow: 1; /* 不再需要 flex */
+    /* 移除 grid-column 相关的样式，因为它不再是 grid item */
+    /* grid-column: auto; */
+    /* 确保输入框样式正确 */
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background-color: var(--app-bg-color);
+    color: var(--text-color);
+    /* width: auto; /* 覆盖 form-group 的 width: 100% */
+    width: 100%; /* 让搜索框占满宽度 */
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.theme-filter-sort button {
-    flex-shrink: 0; /* 防止按钮被压缩 */
+.theme-search-bar input.text-input:focus {
+    border-color: var(--link-active-color);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
 }
+/* 排序按钮样式已移除 */
 
 /* 当前激活主题显示 */
 .active-theme-display {
-    margin-bottom: var(--base-padding);
+    margin-bottom: var(--base-padding); /* 与下方搜索框的间距 */
     padding: 0.6rem 0;
     font-size: 0.95rem;
     display: flex;
     align-items: center;
     gap: 0.8rem;
-    border-bottom: 1px solid var(--border-color);
+    /* border-bottom: 1px solid var(--border-color); */ /* 移除底部边框 */
 }
 .active-theme-display span {
     color: var(--text-color-secondary);

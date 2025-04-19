@@ -88,7 +88,16 @@
     "errorInvalidJsonObject": "Invalid input. Please provide a valid JSON object.",
     "errorInvalidJsonConfig": "Invalid JSON configuration",
     "editAsCopy": "Edit as Copy",
-    "copySuffix": "Copy"
+    "copySuffix": "Copy",
+    "cannotDeletePreset": "Cannot delete preset theme",
+    "applyThemeTooltip": "Apply this theme",
+    "applyButton": "Apply",
+    "searchThemePlaceholder": "Search theme name...",
+    "sortBy": "Sort by:",
+    "sortAsc": "Name Asc",
+    "sortDesc": "Name Desc",
+    "exportActiveThemeTooltip": "Export the currently active theme as a JSON file",
+    "exportActiveTheme": "Export Active Theme"
   },
   "login": {
     "title": "User Login",
