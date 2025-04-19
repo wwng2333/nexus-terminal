@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
+import { useLayoutStore } from '../stores/layout.store'; // *** 重新导入 layoutStore ***
 // 移除不再直接使用的组件导入
 import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
@@ -10,7 +11,7 @@ import LayoutConfigurator from '../components/LayoutConfigurator.vue'; // *** �
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useFileEditorStore } from '../stores/fileEditor.store';
-import { useLayoutStore } from '../stores/layout.store';
+// import { useLayoutStore } from '../stores/layout.store'; // 重复导入，移除
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
 import type { ConnectionInfo } from '../stores/connections.store';
 import type { Terminal } from 'xterm'; // *** 导入 Terminal 类型 ***
@@ -21,8 +22,9 @@ const { t } = useI18n();
 const sessionStore = useSessionStore();
 const settingsStore = useSettingsStore();
 const fileEditorStore = useFileEditorStore();
-const layoutStore = useLayoutStore();
+const layoutStore = useLayoutStore(); // *** 确保 layoutStore 实例存在 ***
 const commandHistoryStore = useCommandHistoryStore();
+const { isHeaderVisible } = storeToRefs(layoutStore); // *** 获取 isHeaderVisible 状态 ***
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession } = storeToRefs(sessionStore);
@@ -310,7 +312,8 @@ const handleCloseEditorTab = (tabId: string) => {
 </script>
 
 <template>
-  <div class="workspace-view">
+  <!-- *** 确保动态 class 绑定存在 *** -->
+  <div :class="['workspace-view', { 'with-header': isHeaderVisible }]">
     <!-- TerminalTabBar 始终渲染 -->
     <TerminalTabBar
         :sessions="sessionTabsWithStatus"
@@ -373,8 +376,15 @@ const handleCloseEditorTab = (tabId: string) => {
   display: flex;
   background-color: transparent;
   flex-direction: column;
-  height: calc(100vh); /* 恢复原始高度计算 (假设 header 固定高度为 3.5rem) */
+  height: 100vh; /* 默认占据整个视口高度 */
   overflow: hidden;
+  transition: height 0.3s ease; /* 可选：添加过渡效果 */
+}
+
+/* 当 Header 可见时，调整高度 */
+.workspace-view.with-header {
+  /* 假设 Header 高度为 55px (根据 App.vue CSS) */
+  height: calc(100vh - 55px);
 }
 
 .main-content-area {
