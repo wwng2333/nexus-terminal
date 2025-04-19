@@ -83,7 +83,10 @@ export const useSettingsStore = defineStore('settings', () => {
     } catch (err: any) {
       console.error('加载通用设置失败:', err);
       error.value = err.response?.data?.message || err.message || '加载设置失败';
-      setLocale(defaultLng); // 出错时使用默认语言
+      // 出错时（例如未登录），根据浏览器语言设置回退语言
+      const navigatorLang = navigator.language?.split('-')[0];
+      const fallbackLang = navigatorLang === 'zh' ? 'zh' : defaultLng;
+      setLocale(fallbackLang);
     } finally {
       isLoading.value = false;
     }

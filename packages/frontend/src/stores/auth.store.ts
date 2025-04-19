@@ -31,6 +31,7 @@ interface AuthState {
         entries: any[]; // TODO: Define a proper type for blacklist entries
         total: number;
     };
+    needsSetup: boolean; // 新增：是否需要初始设置
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -41,6 +42,7 @@ export const useAuthStore = defineStore('auth', {
         error: null,
         loginRequires2FA: false, // 初始为不需要
         ipBlacklist: { entries: [], total: 0 }, // 初始化黑名单状态
+        needsSetup: false, // 初始假设不需要设置
     }),
     getters: {
         // 可以添加一些 getter，例如获取用户名
@@ -127,8 +129,8 @@ export const useAuthStore = defineStore('auth', {
             this.error = null;
             this.loginRequires2FA = false; // 重置 2FA 状态
             try {
-                // TODO: 调用后端的登出 API
-                // await axios.post('/api/v1/auth/logout');
+                // 调用后端的登出 API
+                await axios.post('/api/v1/auth/logout');
 
                 // 清除本地状态
                 this.isAuthenticated = false;
@@ -275,6 +277,22 @@ export const useAuthStore = defineStore('auth', {
                 throw new Error(this.error ?? '删除 IP 时发生未知错误。');
             } finally {
                 this.isLoading = false;
+            }
+        },
+
+        // 新增：检查是否需要初始设置
+        async checkSetupStatus() {
+            // 不需要设置 isLoading，这个检查应该在后台快速完成
+            try {
+                const response = await axios.get<{ needsSetup: boolean }>('/api/v1/auth/needs-setup');
+                this.needsSetup = response.data.needsSetup;
+                console.log(`[AuthStore] Needs setup status: ${this.needsSetup}`);
+                return this.needsSetup; // 返回状态给调用者
+            } catch (error: any) {
+                console.error('检查设置状态失败:', error.response?.data?.message || error.message);
+                // 如果检查失败，保守起见假设不需要设置，以避免卡在设置页面
+                this.needsSetup = false;
+                return false;
             }
         },
     },

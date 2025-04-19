@@ -59,6 +59,12 @@ const routes: Array<RouteRecordRaw> = [
     name: 'AuditLogs',
     component: () => import('../views/AuditLogView.vue')
   },
+  // 新增：初始设置页面
+  {
+    path: '/setup',
+    name: 'Setup',
+    component: () => import('../views/SetupView.vue')
+  },
   // 其他路由...
 ];
 
@@ -73,19 +79,32 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
 
   // 定义不需要认证的路由名称列表
-  const publicRoutes = ['Login'];
+  // 定义不需要认证的路由名称列表 (现在包括 Setup)
+  const publicRoutes = ['Login', 'Setup'];
   const requiresAuth = !publicRoutes.includes(to.name as string);
 
-  if (requiresAuth && !authStore.isAuthenticated) {
-    // 如果需要认证但用户未登录，重定向到登录页
+  // 假设有一个状态表示是否需要初始设置，这里暂时用一个变量模拟
+  // 实际应用中，这个状态应该在应用启动时通过 API 获取
+  const needsSetup = authStore.needsSetup; // 从 authStore 获取状态
+
+  if (needsSetup && to.name !== 'Setup') {
+    // 如果需要设置，但目标不是设置页面，则强制重定向到设置页面
+    console.log('路由守卫：需要初始设置，重定向到 /setup');
+    next({ name: 'Setup' });
+  } else if (!needsSetup && to.name === 'Setup') {
+     // 如果不需要设置，但尝试访问设置页面，重定向到登录页或首页
+     console.log('路由守卫：不需要设置，从 /setup 重定向');
+     next(authStore.isAuthenticated ? { name: 'Dashboard' } : { name: 'Login' });
+  } else if (requiresAuth && !authStore.isAuthenticated && !needsSetup) {
+    // 如果需要认证、用户未登录且不需要设置，重定向到登录页
     console.log('路由守卫：未登录，重定向到 /login');
     next({ name: 'Login' });
-  } else if (to.name === 'Login' && authStore.isAuthenticated) {
-    // 如果用户已登录但尝试访问登录页，重定向到仪表盘
+  } else if (to.name === 'Login' && authStore.isAuthenticated && !needsSetup) {
+    // 如果用户已登录、不需要设置且尝试访问登录页，重定向到仪表盘
     console.log('路由守卫：已登录，从 /login 重定向到 /');
     next({ name: 'Dashboard' });
   } else {
-    // 其他情况允许导航
+    // 其他情况（例如访问公共页面，或已登录访问需认证页面）允许导航
     next();
   }
 });

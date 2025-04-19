@@ -622,3 +622,140 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
         res.status(500).json({ message: '禁用两步验证时发生错误。', error: error.message });
     }
 };
+
+/**
+ * 检查是否需要进行初始设置 (GET /api/v1/auth/needs-setup)
+ * 如果数据库中没有用户，则需要设置。
+ */
+export const needsSetup = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userCount = await new Promise<number>((resolve, reject) => {
+            db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => {
+                if (err) {
+                    console.error('检查 users 表时出错:', err.message);
+                    return reject(new Error('数据库查询失败'));
+                }
+                resolve(row ? row.count : 0); // 如果表为空，row 可能为 undefined
+            });
+        });
+
+        res.status(200).json({ needsSetup: userCount === 0 });
+
+    } catch (error) {
+        console.error('检查设置状态时发生内部错误:', error);
+        // 如果检查失败，保守起见返回 false，避免用户卡在设置页面
+        res.status(500).json({ message: '检查设置状态时发生错误。', needsSetup: false });
+    }
+};
+
+/**
+ * 处理初始管理员账号设置请求 (POST /api/v1/auth/setup)
+ */
+export const setupAdmin = async (req: Request, res: Response): Promise<void> => {
+    const { username, password, confirmPassword } = req.body;
+
+    // 1. 基本输入验证
+    if (!username || !password || !confirmPassword) {
+        res.status(400).json({ message: '用户名、密码和确认密码不能为空。' });
+        return;
+    }
+    if (password !== confirmPassword) {
+        res.status(400).json({ message: '两次输入的密码不匹配。' });
+        return;
+    }
+     if (password.length < 8) {
+        res.status(400).json({ message: '密码长度至少需要 8 位。' });
+        return;
+    }
+
+
+    try {
+        // 2. 检查数据库中是否已存在用户 (关键安全检查)
+        const userCount = await new Promise<number>((resolve, reject) => {
+            db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => {
+                if (err) {
+                    console.error('检查 users 表时出错 (setupAdmin):', err.message);
+                    return reject(new Error('数据库查询失败'));
+                }
+                resolve(row ? row.count : 0);
+            });
+        });
+
+        if (userCount > 0) {
+            console.warn('尝试在已有用户的情况下执行初始设置。');
+            res.status(403).json({ message: '设置已完成，无法重复执行。' });
+            return;
+        }
+
+        // 3. 哈希密码
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        const now = Math.floor(Date.now() / 1000);
+
+        // 4. 插入新用户
+        const newUser = await new Promise<{ id: number }>((resolveInsert, rejectInsert) => {
+            const stmt = db.prepare(
+                `INSERT INTO users (username, hashed_password, created_at, updated_at)
+                 VALUES (?, ?, ?, ?)`
+            );
+            // 使用 function(this: RunResult) 来获取 lastID
+            stmt.run(username, hashedPassword, now, now, function (this: RunResult, err: Error | null) {
+                if (err) {
+                    console.error('创建初始管理员时出错:', err.message);
+                    // 检查是否是唯一约束错误
+                    if (err.message.includes('UNIQUE constraint failed: users.username')) {
+                         return rejectInsert(new Error('用户名已存在。')); // 虽然理论上不应发生，但以防万一
+                    }
+                    return rejectInsert(new Error('创建初始管理员失败'));
+                }
+                 // 获取新插入用户的 ID
+                resolveInsert({ id: this.lastID });
+            });
+            stmt.finalize((finalizeErr) => {
+                 if (finalizeErr) {
+                     console.error('Finalizing statement failed:', finalizeErr.message);
+                     // 如果 finalize 失败，可能插入已完成，但最好还是通知错误
+                     rejectInsert(new Error('创建初始管理员时发生错误 (finalize)'));
+                 }
+             });
+        });
+
+
+        console.log(`初始管理员账号 '${username}' (ID: ${newUser.id}) 已成功创建。`);
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+        // 记录审计日志 (添加 IP)
+        auditLogService.logAction('ADMIN_SETUP_COMPLETE', { userId: newUser.id, username, ip: clientIp });
+
+        res.status(201).json({ message: '初始管理员账号创建成功！' });
+
+    } catch (error: any) {
+        console.error('初始设置过程中发生内部错误:', error);
+        res.status(500).json({ message: error.message || '初始设置过程中发生内部服务器错误。' });
+    }
+};
+
+/**
+ * 处理用户登出请求 (POST /api/v1/auth/logout)
+ */
+export const logout = (req: Request, res: Response): void => {
+    const userId = req.session.userId; // 获取用户 ID 用于日志记录
+    const username = req.session.username;
+
+    req.session.destroy((err) => {
+        if (err) {
+            console.error(`销毁用户 ${userId} (${username}) 的会话时出错:`, err);
+            // 即使销毁失败，也尝试让前端认为已登出
+            res.status(500).json({ message: '登出时发生服务器内部错误。' });
+        } else {
+            console.log(`用户 ${userId} (${username}) 已成功登出。`);
+            // 清除客户端的 session cookie (通常 connect-sqlite3 会处理，但显式设置更保险)
+            res.clearCookie('connect.sid'); // 'connect.sid' 是 express-session 的默认 cookie 名称
+            // 记录审计日志
+            if (userId) { // 仅在能获取到 userId 时记录
+                 const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+                 auditLogService.logAction('LOGOUT', { userId, username, ip: clientIp });
+            }
+            res.status(200).json({ message: '已成功登出。' });
+        }
+    });
+};

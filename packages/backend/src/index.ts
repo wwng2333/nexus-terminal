@@ -141,36 +141,7 @@ const initializeDatabase = async () => {
       });
     });
 
-    if (userCount === 0) {
-      console.warn('------------------------------------------------------');
-      console.warn('警告: 数据库中未找到任何用户。正在创建默认管理员...');
-      // 创建默认管理员
-      const defaultAdminUsername = 'admin';
-      const defaultAdminPassword = 'adminpassword'; // 仅用于首次创建
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(defaultAdminPassword, saltRounds);
-      const now = Math.floor(Date.now() / 1000);
-
-      await new Promise<void>((resolveInsert, rejectInsert) => {
-          const stmt = db.prepare(
-              `INSERT INTO users (username, hashed_password, created_at, updated_at)
-               VALUES (?, ?, ?, ?)`
-          );
-          stmt.run(defaultAdminUsername, hashedPassword, now, now, function (err: Error | null) {
-              if (err) {
-                  console.error('创建默认管理员时出错:', err.message);
-                  return rejectInsert(new Error('创建默认管理员失败'));
-              }
-              console.log(`默认管理员 '${defaultAdminUsername}' (密码: '${defaultAdminPassword}') 已创建。请尽快修改密码！`);
-              resolveInsert();
-          });
-          stmt.finalize();
-      });
-      console.warn('------------------------------------------------------');
-
-    } else {
-      console.log(`数据库中找到 ${userCount} 个用户。`);
-    }
+    // 检查用户数量后不再执行任何操作 (移除了自动创建和日志记录)
 
     console.log('数据库初始化检查完成。');
   } catch (error) {

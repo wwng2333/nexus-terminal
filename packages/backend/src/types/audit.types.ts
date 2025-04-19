@@ -52,7 +52,8 @@ export type AuditLogActionType =
   // System/Error
   | 'SERVER_STARTED'
   | 'SERVER_ERROR' // Log significant backend errors
-  | 'DATABASE_MIGRATION';
+  | 'DATABASE_MIGRATION'
+  | 'ADMIN_SETUP_COMPLETE'; // *** 新增：初始管理员设置完成 ***
 
 // 审计日志条目的结构 (从数据库读取时)
 export interface AuditLogEntry {
