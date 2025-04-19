@@ -31,6 +31,7 @@ export type AuditLogActionType =
   // Settings
   | 'SETTINGS_UPDATED' // General settings update
   | 'IP_WHITELIST_UPDATED' // Specific setting update
+  | 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // +++ 新增：焦点切换顺序更新 +++
 
   // Notifications
   | 'NOTIFICATION_SETTING_CREATED'

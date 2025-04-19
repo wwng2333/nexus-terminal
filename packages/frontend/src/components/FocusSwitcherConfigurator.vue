@@ -102,9 +102,8 @@ const saveConfiguration = () => {
   // 从本地副本提取 ID 序列
   const newSequenceIds = localSequence.value.map(item => item.id);
   console.log('[FocusSwitcherConfigurator] Saving configuration. Sequence IDs to save:', newSequenceIds); // +++ Log: Saving IDs +++
-  focusSwitcherStore.updateSequence(newSequenceIds); // 更新 Store 中的序列
-  focusSwitcherStore.saveConfiguration(); // 持久化保存
-  console.log('[FocusSwitcherConfigurator] Configuration save process completed.'); // +++ Log: Save completed +++
+  focusSwitcherStore.updateSequence(newSequenceIds); // 更新 Store 中的序列 (这会触发保存到后端)
+  console.log('[FocusSwitcherConfigurator] Configuration save process triggered via updateSequence.'); // +++ Log: Save triggered +++
   hasChanges.value = false;
   emit('close'); // 保存后关闭
 };

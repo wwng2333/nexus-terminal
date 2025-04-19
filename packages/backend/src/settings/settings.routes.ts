@@ -11,6 +11,13 @@ router.use(isAuthenticated);
 router.get('/', settingsController.getAllSettings); // GET /api/v1/settings
 router.put('/', settingsController.updateSettings); // PUT /api/v1/settings
 
+// +++ 新增：焦点切换顺序路由 +++
+// GET /api/v1/settings/focus-switcher-sequence - 获取焦点切换顺序
+router.get('/focus-switcher-sequence', settingsController.getFocusSwitcherSequence);
+// PUT /api/v1/settings/focus-switcher-sequence - 更新焦点切换顺序
+router.put('/focus-switcher-sequence', settingsController.setFocusSwitcherSequence);
+
+
 // --- IP 黑名单管理路由 ---
 // GET /api/v1/settings/ip-blacklist - 获取 IP 黑名单列表 (需要认证)
 router.get('/ip-blacklist', settingsController.getIpBlacklist);
