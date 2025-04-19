@@ -606,7 +606,8 @@
     "settings": "设置",
     "errorOccurred": "发生错误。",
     "dismiss": "关闭",
-    "close": "关闭"
+    "close": "关闭",
+    "remove": "移除"
   },
   "layoutConfigurator": {
     "title": "布局配置器",
@@ -675,9 +676,11 @@
     "closeSearch": "关闭终端搜索",
     "findPrevious": "查找上一个",
     "findNext": "查找下一个",
-    "noResults": "无结果"
+    "noResults": "无结果",
+    "configureFocusSwitch": "配置焦点切换器"
   },
   "layout": {
+    "configure": "配置布局",
     "pane": {
       "connections": "连接列表",
       "terminal": "终端",
@@ -738,6 +741,20 @@
       "passwordsDoNotMatch": "两次输入的密码不一致。",
       "fieldsRequired": "用户名和密码不能为空。",
       "generic": "设置过程中发生错误，请检查服务器日志。"
+    }
+  },
+  "focusSwitcher": {
+    "configTitle": "配置焦点切换器",
+    "availableInputs": "可用输入源",
+    "configuredSequence": "已配置序列",
+    "dragHere": "拖拽到此处添加",
+    "allInputsConfigured": "所有可用输入源都已配置",
+    "input": {
+      "commandHistorySearch": "搜索命令历史...",
+      "quickCommandsSearch": "搜索快捷指令...",
+      "fileManagerSearch": "搜索文件...",
+      "commandInput": "输入命令...",
+      "terminalSearch": "搜索终端..."
     }
   }
 }

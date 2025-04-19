@@ -606,7 +606,8 @@
     "settings": "Settings",
     "errorOccurred": "An error occurred.",
     "dismiss": "Dismiss",
-    "close": "Close"
+    "close": "Close",
+    "remove": "Remove"
   },
   "layoutConfigurator": {
     "title": "Layout Configurator",
@@ -675,9 +676,11 @@
     "closeSearch": "Close terminal search",
     "findPrevious": "Find previous",
     "findNext": "Find next",
-    "noResults": "No results"
+    "noResults": "No results",
+    "configureFocusSwitch": "Configure Focus Switcher"
   },
   "layout": {
+    "configure": "Configure Layout",
     "pane": {
       "connections": "Connections",
       "terminal": "Terminal",
@@ -738,6 +741,20 @@
       "passwordsDoNotMatch": "Passwords do not match.",
       "fieldsRequired": "Username and password are required.",
       "generic": "An error occurred during setup. Please check the server logs."
+    }
+  },
+  "focusSwitcher": {
+    "configTitle": "Configure Focus Switcher",
+    "availableInputs": "Available Inputs",
+    "configuredSequence": "Configured Sequence",
+    "dragHere": "Drag here to add",
+    "allInputsConfigured": "All available inputs are configured",
+    "input": {
+      "commandHistorySearch": "Search command history...",
+      "quickCommandsSearch": "Search quick commands...",
+      "fileManagerSearch": "Search files...",
+      "commandInput": "Enter command...",
+      "terminalSearch": "Search terminal..."
     }
   }
 }

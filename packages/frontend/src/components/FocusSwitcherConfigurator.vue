@@ -124,7 +124,7 @@ const localAvailableInputs = computed(() => {
         <section class="available-inputs-section">
           <h3>{{ t('focusSwitcher.availableInputs', '可用输入框') }}</h3>
           <draggable
-            :list="localAvailableInputs" <!-- 改为使用本地计算属性 -->
+            :list="localAvailableInputs"
             tag="ul"
             class="draggable-list available-list"
             item-key="id"
