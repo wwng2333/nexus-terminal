@@ -1133,7 +1133,7 @@ const handleWheel = (event: WheelEvent) => {
         <!-- 按钮移到 path-bar 外面 -->
         <div class="path-actions"> <!-- 新增包裹容器 -->
           <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
-          <button class="toolbar-button" @click.stop="loadDirectory(currentPath)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button>
+          <button class="toolbar-button" @click.stop="loadDirectory(currentPath, true)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button> <!-- 添加 true 参数以强制刷新 -->
           <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
           <button class="toolbar-button" @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
          <!-- 修改后的搜索区域 -->

@@ -189,20 +189,28 @@ export function createSftpActionsManager(
         return currentNode; // Return the final node found or created
     };
 
-    const loadDirectory = (path: string) => {
+    const loadDirectory = (path: string, forceRefresh: boolean = false) => { // 添加 forceRefresh 参数
         // *** 修改：检查文件树 ***
         const targetNode = findNodeByPath(fileTree, path);
 
-        if (targetNode && targetNode.childrenLoaded) {
+        if (targetNode && targetNode.childrenLoaded && !forceRefresh) { // 检查 forceRefresh
             console.log(`[SFTP ${instanceSessionId}] 使用文件树缓存加载目录: ${path}`);
             // fileList 将通过 computed 属性更新，这里只需更新 currentPathRef
             isLoading.value = false;
             currentPathRef.value = path;
-            return; // 子节点已加载，无需请求
+            return; // 子节点已加载且非强制刷新，无需请求
         }
 
-        // If node doesn't exist or children not loaded, proceed to fetch from backend.
+        // If node doesn't exist, children not loaded, or forceRefresh is true, proceed to fetch from backend.
         // The onSftpReaddirSuccess handler will manage adding/updating the node in the tree.
+
+        // 如果是强制刷新且节点存在，重置其加载状态
+        if (forceRefresh && targetNode) {
+            console.log(`[SFTP ${instanceSessionId}] 强制刷新，重置节点 ${path} 的 childrenLoaded 状态`);
+            targetNode.childrenLoaded = false;
+            // 可选：如果需要立即清除旧数据，可以设置 targetNode.children = null;
+            // targetNode.children = null;
+        }
 
         if (!isSftpReady.value) {
             // 使用通知 store 显示错误
@@ -219,7 +227,7 @@ export function createSftpActionsManager(
             return;
         }
 
-        console.log(`[SFTP ${instanceSessionId}] 正在加载目录: ${path}`); // 日志改为中文
+        console.log(`[SFTP ${instanceSessionId}] ${forceRefresh ? '强制' : ''}加载目录: ${path}`); // 日志改为中文，并标明是否强制
         isLoading.value = true;
         // error.value = null; // 不再需要
         currentPathRef.value = path; // 更新外部 ref
