@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
+// 导入 axios 用于 API 调用
+import axios from 'axios';
 
 // 定义所有可用面板的名称
 export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory' | 'quickCommands';
@@ -93,7 +95,9 @@ export const useLayoutStore = defineStore('layout', () => {
     'editor', 'statusMonitor', 'commandHistory', 'quickCommands'
   ]);
   // 新增：控制布局（Header/Footer）可见性的状态
-  const isLayoutVisible: Ref<boolean> = ref(true);
+  const isLayoutVisible: Ref<boolean> = ref(true); // 控制整体布局（Header/Footer）可见性
+  // 新增：控制主导航栏（Header）可见性的状态
+  const isHeaderVisible: Ref<boolean> = ref(true); // 默认可见
 
   // --- 计算属性 ---
   // 计算当前布局中正在使用的面板
@@ -176,6 +180,45 @@ export const useLayoutStore = defineStore('layout', () => {
   function toggleLayoutVisibility() {
     isLayoutVisible.value = !isLayoutVisible.value;
     console.log(`[Layout Store] 布局可见性切换为: ${isLayoutVisible.value}`);
+    // 注意：这个状态目前不与后端同步
+  }
+
+  // 新增 Action: 从后端加载主导航栏可见性设置
+  async function loadHeaderVisibility() {
+    console.log('[Layout Store] Attempting to load header visibility from backend...');
+    try {
+      // --- 调用后端 API (复用 nav-bar-visibility 接口) ---
+      const response = await axios.get<{ visible: boolean }>('/api/v1/settings/nav-bar-visibility');
+      if (response && typeof response.data.visible === 'boolean') {
+        isHeaderVisible.value = response.data.visible;
+        console.log(`[Layout Store] Header visibility loaded from backend: ${isHeaderVisible.value}`);
+      } else {
+        console.warn('[Layout Store] Invalid response from backend for header visibility, using default.');
+        isHeaderVisible.value = true; // 默认值
+      }
+    } catch (error) {
+      console.error('[Layout Store] Failed to load header visibility from backend:', error);
+      // 出错时使用默认值
+      isHeaderVisible.value = true;
+    }
+  }
+
+  // 新增 Action: 切换主导航栏可见性并同步到后端
+  async function toggleHeaderVisibility() {
+    const newValue = !isHeaderVisible.value;
+    console.log(`[Layout Store] Toggling header visibility to: ${newValue}`);
+    isHeaderVisible.value = newValue; // 立即更新 UI
+
+    try {
+      // --- 调用后端 API (复用 nav-bar-visibility 接口) ---
+      await axios.put('/api/v1/settings/nav-bar-visibility', { visible: newValue });
+      console.log('[Layout Store] Header visibility saved to backend.');
+    } catch (error) {
+      console.error('[Layout Store] Failed to save header visibility to backend:', error);
+      // 可选：如果保存失败，回滚状态？
+      // isHeaderVisible.value = !newValue;
+      // alert('Failed to save preference.'); // 或者通知用户
+    }
   }
   // --- 持久化 ---
   // 监听 layoutTree 的变化，并自动保存到 localStorage
@@ -217,5 +260,9 @@ export const useLayoutStore = defineStore('layout', () => {
     // 新增：暴露布局可见性状态和切换方法
     isLayoutVisible,
     toggleLayoutVisibility,
+    // 新增：暴露主导航栏可见性状态和操作
+    isHeaderVisible,
+    loadHeaderVisibility,
+    toggleHeaderVisibility,
   };
 });

@@ -17,6 +17,11 @@ router.get('/focus-switcher-sequence', settingsController.getFocusSwitcherSequen
 // PUT /api/v1/settings/focus-switcher-sequence - 更新焦点切换顺序
 router.put('/focus-switcher-sequence', settingsController.setFocusSwitcherSequence);
 
+// +++ 新增：导航栏可见性路由 +++
+// GET /api/v1/settings/nav-bar-visibility - 获取导航栏可见性
+router.get('/nav-bar-visibility', settingsController.getNavBarVisibility);
+// PUT /api/v1/settings/nav-bar-visibility - 更新导航栏可见性
+router.put('/nav-bar-visibility', settingsController.setNavBarVisibility);
 
 // --- IP 黑名单管理路由 ---
 // GET /api/v1/settings/ip-blacklist - 获取 IP 黑名单列表 (需要认证)

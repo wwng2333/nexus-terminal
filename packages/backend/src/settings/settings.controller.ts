@@ -122,9 +122,57 @@ export const settingsController = {
     }
   },
 
+ // +++ 新增：获取导航栏可见性 +++
+ /**
+  * 获取导航栏可见性设置
+  */
+ async getNavBarVisibility(req: Request, res: Response): Promise<void> {
+   try {
+     console.log('[Controller] Received request to get nav bar visibility.');
+     const isVisible = await settingsService.getNavBarVisibility();
+     console.log(`[Controller] Sending nav bar visibility to client: ${isVisible}`);
+     res.json({ visible: isVisible }); // 返回包含 visible 键的对象
+   } catch (error: any) {
+     console.error('[Controller] 获取导航栏可见性时出错:', error);
+     res.status(500).json({ message: '获取导航栏可见性失败', error: error.message });
+   }
+ },
 
-  /**
-   * 获取 IP 黑名单列表 (分页)
+ // +++ 新增：设置导航栏可见性 +++
+ /**
+  * 设置导航栏可见性
+  */
+ async setNavBarVisibility(req: Request, res: Response): Promise<void> {
+   console.log('[Controller] Received request to set nav bar visibility.');
+   try {
+     const { visible } = req.body;
+     console.log('[Controller] Request body visible:', visible);
+
+     // 输入验证
+     if (typeof visible !== 'boolean') {
+       console.warn('[Controller] Invalid visible format received:', visible);
+       res.status(400).json({ message: '无效的请求体，"visible" 必须是一个布尔值' });
+       return;
+     }
+
+     console.log('[Controller] Calling settingsService.setNavBarVisibility...');
+     await settingsService.setNavBarVisibility(visible);
+     console.log('[Controller] settingsService.setNavBarVisibility completed successfully.');
+
+     // 记录审计日志 (可选)
+     // console.log('[Controller] Logging audit action: NAV_BAR_VISIBILITY_UPDATED');
+     // auditLogService.logAction('NAV_BAR_VISIBILITY_UPDATED', { visible });
+
+     console.log('[Controller] Sending success response.');
+     res.status(200).json({ message: '导航栏可见性已成功更新' });
+   } catch (error: any) {
+     console.error('[Controller] 设置导航栏可见性时出错:', error);
+     res.status(500).json({ message: '设置导航栏可见性失败', error: error.message });
+   }
+ },
+
+ /**
+  * 获取 IP 黑名单列表 (分页)
    */
   async getIpBlacklist(req: Request, res: Response): Promise<void> {
     try {

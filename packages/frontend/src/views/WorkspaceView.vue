@@ -28,7 +28,7 @@ const commandHistoryStore = useCommandHistoryStore();
 const { sessionTabsWithStatus, activeSessionId, activeSession } = storeToRefs(sessionStore);
 const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore);
 const { orderedTabs: globalEditorTabs, activeTabId: globalActiveEditorTabId } = storeToRefs(fileEditorStore);
-const { layoutTree } = storeToRefs(layoutStore); // 获取布局树
+const { layoutTree } = storeToRefs(layoutStore); // 只获取布局树
 
 // --- 计算属性 (用于动态绑定编辑器 Props) ---
 // 这些计算属性现在需要传递给 LayoutRenderer
@@ -60,6 +60,7 @@ const currentSearchTerm = ref(''); // 当前搜索的关键词
 // --- 生命周期钩子 ---
 onMounted(() => {
   console.log('[工作区视图] 组件已挂载。');
+  // 确保布局已初始化 (layoutStore 内部会处理)
   // 确保布局已初始化 (layoutStore 内部会处理)
 });
 
@@ -310,6 +311,7 @@ const handleCloseEditorTab = (tabId: string) => {
 
 <template>
   <div class="workspace-view">
+    <!-- TerminalTabBar 始终渲染 -->
     <TerminalTabBar
         :sessions="sessionTabsWithStatus"
         :active-session-id="activeSessionId"
@@ -319,6 +321,7 @@ const handleCloseEditorTab = (tabId: string) => {
         @request-add-connection-from-popup="handleRequestAddConnection"
     />
 
+    <!-- 移除 :class 绑定 -->
     <div class="main-content-area">
       <LayoutRenderer
         v-if="layoutTree"
@@ -370,7 +373,7 @@ const handleCloseEditorTab = (tabId: string) => {
   display: flex;
   background-color: transparent;
   flex-direction: column;
-  height: calc(100vh - 3.5rem); /* 保持原始高度计算 */
+  height: calc(100vh); /* 恢复原始高度计算 (假设 header 固定高度为 3.5rem) */
   overflow: hidden;
 }
 

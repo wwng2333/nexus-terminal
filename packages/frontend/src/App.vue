@@ -26,7 +26,7 @@ const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换
 const { isAuthenticated } = storeToRefs(authStore);
 const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
 const { isStyleCustomizerVisible } = storeToRefs(appearanceStore);
-const { isLayoutVisible } = storeToRefs(layoutStore);
+const { isLayoutVisible, isHeaderVisible } = storeToRefs(layoutStore); // 添加 isHeaderVisible
 const { isConfiguratorVisible: isFocusSwitcherVisible } = storeToRefs(focusSwitcherStore);
 
 const route = useRoute();
@@ -54,6 +54,9 @@ onMounted(() => {
 
   // +++ 添加全局 Alt 键监听器 +++
   window.addEventListener('keydown', handleGlobalKeyDown);
+
+  // +++ 加载 Header 可见性状态 +++
+  layoutStore.loadHeaderVisibility();
 });
 
 // +++ 添加卸载钩子以移除监听器 +++
@@ -221,7 +224,8 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
 
 <template>
   <div id="app-container">
-    <header v-if="!isWorkspaceRoute || isLayoutVisible"> <!-- *** 添加 v-if *** -->
+    <!-- *** 修改 v-if 条件以使用 isHeaderVisible *** -->
+    <header v-if="!isWorkspaceRoute || isHeaderVisible">
       <nav ref="navRef">
         <div class="nav-left"> <!-- Group left-aligned links -->
             <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink>
