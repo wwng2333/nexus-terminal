@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue'; // +++ 将 nextTick 导入移到这里 +++
 import { useI18n } from 'vue-i18n';
 
 // 定义输入框的接口
@@ -15,7 +15,9 @@ export interface FocusableInput {
 interface FocusSwitcherState {
   availableInputs: FocusableInput[];
   configuredSequence: string[]; // 只存储 ID 序列
-  isConfiguratorVisible: boolean; // 新增：控制配置器可见性
+  isConfiguratorVisible: boolean;
+  activateFileManagerSearchTrigger: number;
+  activateTerminalSearchTrigger: number; // +++ 新增：终端搜索触发器 +++
 }
 
 const LOCAL_STORAGE_KEY = 'focusSwitcherSequence';
@@ -39,9 +41,25 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   const configuredSequence = ref<string[]>([]);
 
   // 控制配置弹窗可见性
+  // 控制配置弹窗可见性
   const isConfiguratorVisible = ref(false);
+  // +++ 触发器状态 +++
+  const activateFileManagerSearchTrigger = ref(0);
+  const activateTerminalSearchTrigger = ref(0); // +++ 终端搜索触发器状态 +++
 
   // --- Actions ---
+  // +++ 新增：触发终端搜索激活的 Action +++
+  function triggerTerminalSearchActivation() {
+    activateTerminalSearchTrigger.value++;
+    console.log('[FocusSwitcherStore] Triggering Terminal search activation.');
+  }
+
+  // +++ 新增：触发文件管理器搜索激活的 Action +++
+  function triggerFileManagerSearchActivation() {
+    activateFileManagerSearchTrigger.value++; // 简单地增加计数器来触发监听
+    console.log('[FocusSwitcherStore] Triggering FileManager search activation.');
+  }
+
   // 控制配置器显示/隐藏
   function toggleConfigurator(visible?: boolean) {
     isConfiguratorVisible.value = visible === undefined ? !isConfiguratorVisible.value : visible;
@@ -50,15 +68,24 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
   // 从 localStorage 加载配置
   function loadConfiguration() {
+    console.log('[FocusSwitcherStore] Attempting to load configuration...'); // +++ Log: Start loading +++
     const savedSequence = localStorage.getItem(LOCAL_STORAGE_KEY);
+    console.log(`[FocusSwitcherStore] Raw data from localStorage ('${LOCAL_STORAGE_KEY}'):`, savedSequence); // +++ Log: Raw data +++
     if (savedSequence) {
       try {
         const parsedSequence = JSON.parse(savedSequence);
+        console.log('[FocusSwitcherStore] Parsed sequence from localStorage:', parsedSequence); // +++ Log: Parsed data +++
         // 验证加载的 ID 是否仍然存在于 availableInputs 中
-        configuredSequence.value = parsedSequence.filter((id: string) =>
-          availableInputs.value.some(input => input.id === id)
-        );
-        console.log('[FocusSwitcherStore] Configuration loaded:', configuredSequence.value);
+        const availableIds = new Set(availableInputs.value.map(input => input.id)); // +++ Get available IDs +++
+        const filteredSequence = parsedSequence.filter((id: string) => { // +++ Filter and log +++
+            const isValid = availableIds.has(id);
+            if (!isValid) {
+                console.warn(`[FocusSwitcherStore] Filtered out invalid ID during load: ${id}`);
+            }
+            return isValid;
+        });
+        configuredSequence.value = filteredSequence;
+        console.log('[FocusSwitcherStore] Final loaded & filtered configuration:', configuredSequence.value); // +++ Log: Final loaded value +++
       } catch (error) {
         console.error('[FocusSwitcherStore] Failed to parse saved configuration:', error);
         configuredSequence.value = []; // 解析失败则重置
@@ -75,8 +102,12 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   // 保存配置到 localStorage
   function saveConfiguration() {
     try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(configuredSequence.value));
-      console.log('[FocusSwitcherStore] Configuration saved:', configuredSequence.value);
+      const sequenceToSave = configuredSequence.value; // +++ Get value to save +++
+      const jsonStringToSave = JSON.stringify(sequenceToSave); // +++ Stringify +++
+      console.log(`[FocusSwitcherStore] Attempting to save sequence to localStorage ('${LOCAL_STORAGE_KEY}'):`, sequenceToSave); // +++ Log: Value being saved +++
+      console.log(`[FocusSwitcherStore] JSON string being saved:`, jsonStringToSave); // +++ Log: String being saved +++
+      localStorage.setItem(LOCAL_STORAGE_KEY, jsonStringToSave);
+      console.log('[FocusSwitcherStore] Configuration successfully saved.'); // +++ Log: Success +++
     } catch (error) {
       console.error('[FocusSwitcherStore] Failed to save configuration:', error);
     }
@@ -84,10 +115,12 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
   // 更新切换顺序
   function updateSequence(newSequence: string[]) {
+    console.log('[FocusSwitcherStore] updateSequence called with:', newSequence); // +++ Log: Action called +++
     // 确保新序列中的 ID 都是有效的
-    configuredSequence.value = newSequence.filter(id =>
-      availableInputs.value.some(input => input.id === id)
-    );
+    const availableIds = new Set(availableInputs.value.map(input => input.id)); // +++ Get available IDs +++
+    const filteredSequence = newSequence.filter(id => availableIds.has(id)); // +++ Filter +++
+    configuredSequence.value = filteredSequence;
+    console.log('[FocusSwitcherStore] configuredSequence updated to:', configuredSequence.value); // +++ Log: State updated +++
     // 可以在这里直接保存，或者让用户点击保存按钮再调用 saveConfiguration
     // saveConfiguration(); // 取决于设计
   }
@@ -129,16 +162,23 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
 
   // --- Initialization ---
-  // Store 创建时自动加载配置
-  loadConfiguration();
+  // Store 创建时自动加载配置 (使用 nextTick 确保响应式系统就绪)
+  // --- import { nextTick } from 'vue'; // --- 移除这里的导入 ---
+  nextTick(() => {
+    loadConfiguration();
+  });
 
   return {
     // State
     availableInputs,
     configuredSequence,
-    isConfiguratorVisible, // 导出状态
+    isConfiguratorVisible,
+    activateFileManagerSearchTrigger,
+    activateTerminalSearchTrigger, // +++ 导出终端搜索触发器状态 +++
     // Actions
-    toggleConfigurator, // 导出 action
+    toggleConfigurator,
+    triggerFileManagerSearchActivation,
+    triggerTerminalSearchActivation, // +++ 确保导出终端搜索触发器 Action +++
     loadConfiguration,
     saveConfiguration,
     updateSequence,

@@ -8,8 +8,9 @@ import { createSftpActionsManager, type WebSocketDependencies } from '../composa
 import { useFileUploader } from '../composables/useFileUploader';
 // import { useFileEditor } from '../composables/useFileEditor'; // 移除旧的 composable 导入
 import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; // 导入新的 Store 和 FileInfo 类型
-import { useSessionStore } from '../stores/session.store'; // 导入 Session Store
-import { useSettingsStore } from '../stores/settings.store'; // 导入 Settings Store
+import { useSessionStore } from '../stores/session.store';
+import { useSettingsStore } from '../stores/settings.store';
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 // WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
 // import FileEditorOverlay from './FileEditorOverlay.vue'; // 不再在此处渲染
@@ -88,8 +89,9 @@ const {
 
 // 实例化 Stores
 const fileEditorStore = useFileEditorStore(); // 用于共享模式
-const sessionStore = useSessionStore();     // 用于独立模式
-const settingsStore = useSettingsStore();   // 用于获取设置
+const sessionStore = useSessionStore();
+const settingsStore = useSettingsStore();
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 
 // 从 Settings Store 获取共享设置
 const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 使用 storeToRefs 保持响应性
@@ -977,6 +979,15 @@ watchEffect((onCleanup) => {
         initialLoadDone.value = false; // 重置初始加载状态
         isFetchingInitialPath.value = false; // 重置获取状态
         cleanupListeners();
+    }
+});
+
+// +++ 监听 Store 中的触发器以激活搜索 +++
+watch(() => focusSwitcherStore.activateFileManagerSearchTrigger, () => {
+    // 确保只在触发器值大于 0 时执行（避免初始加载时触发）
+    if (focusSwitcherStore.activateFileManagerSearchTrigger > 0) {
+        console.log('[FileManager] Received search activation trigger from store.');
+        activateSearch(); // 调用组件内部的激活搜索方法
     }
 });
 

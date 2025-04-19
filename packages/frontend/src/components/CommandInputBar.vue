@@ -76,6 +76,14 @@ const handleCommandInputKeydown = (event: KeyboardEvent) => {
   }
 };
 
+// +++ 监听 Store 中的触发器以激活终端搜索 +++
+watch(() => focusSwitcherStore.activateTerminalSearchTrigger, () => {
+    if (focusSwitcherStore.activateTerminalSearchTrigger > 0 && !isSearching.value) {
+        console.log('[CommandInputBar] Received terminal search activation trigger from store.');
+        toggleSearch(); // 调用组件内部的切换搜索方法来激活
+    }
+});
+
 </script>
 
 <template>

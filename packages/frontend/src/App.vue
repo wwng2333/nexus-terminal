@@ -90,6 +90,9 @@ const handleGlobalKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Alt' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
     event.preventDefault(); // 阻止 Alt 键的默认行为 (例如激活菜单栏)
 
+    // +++ Log: 打印当前的配置序列 +++
+    console.log('[App] Current configured sequence in store:', JSON.stringify(focusSwitcherStore.configuredSequence));
+
     const activeElement = document.activeElement as HTMLElement;
     let currentFocusId: string | null = null;
 
@@ -100,29 +103,98 @@ const handleGlobalKeyDown = (event: KeyboardEvent) => {
 
     console.log(`[App] Alt pressed. Current focus ID: ${currentFocusId}`);
 
-    // 从 Store 获取下一个目标 ID
-    const nextFocusId = focusSwitcherStore.getNextFocusTargetId(currentFocusId);
-    console.log(`[App] Next focus target ID from store: ${nextFocusId}`);
+    // --- 新的查找逻辑 ---
+    const sequence = focusSwitcherStore.configuredSequence; // 获取完整的配置顺序
+    if (sequence.length === 0) {
+      console.log('[App] No focus sequence configured.');
+      return; // 没有配置，直接返回
+    }
 
-    if (nextFocusId) {
-      // 尝试查找下一个目标元素
-      // 使用 requestAnimationFrame 确保在 DOM 更新后查找
-      requestAnimationFrame(() => {
-        const nextElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null;
+    let startIndex = 0;
+    if (currentFocusId) {
+      const currentIndex = sequence.indexOf(currentFocusId);
+      if (currentIndex !== -1) {
+        startIndex = (currentIndex + 1) % sequence.length; // 从当前焦点的下一个开始查找
+      } else {
+         console.log(`[App] Current focus ID ${currentFocusId} not found in sequence, starting search from beginning.`);
+      }
+    } else {
+        console.log('[App] No current focus ID found, starting search from beginning.');
+    }
 
-        if (nextElement && isElementVisibleAndFocusable(nextElement)) {
-          console.log(`[App] Focusing next element:`, nextElement);
-          nextElement.focus();
-          // 如果是输入框，可能需要选中内容
-          if (nextElement instanceof HTMLInputElement || nextElement instanceof HTMLTextAreaElement) {
-             nextElement.select();
-          }
-        } else {
-          console.log(`[App] Next element with ID ${nextFocusId} not found or not focusable.`);
-          // 可选：如果找不到或不可聚焦，可以尝试查找配置列表中的再下一个，或者直接忽略
-          // 这里暂时忽略，避免无限循环
+
+    // 循环查找下一个可聚焦的目标 (最多循环一次完整的序列)
+    let foundFocusable = false;
+    for (let i = 0; i < sequence.length; i++) {
+      const nextIndex = (startIndex + i) % sequence.length;
+      const nextFocusId = sequence[nextIndex];
+      console.log(`[App] Trying to find element with ID: ${nextFocusId}`);
+
+      const nextElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null;
+
+      if (nextElement && isElementVisibleAndFocusable(nextElement)) {
+        // --- 目标元素找到且可聚焦 ---
+        console.log(`[App] Found focusable element:`, nextElement);
+        nextElement.focus();
+        if (nextElement instanceof HTMLInputElement || nextElement instanceof HTMLTextAreaElement) {
+           nextElement.select();
         }
-      });
+        foundFocusable = true;
+        break; // 找到并聚焦，跳出循环
+
+      } else if (nextFocusId === 'fileManagerSearch' || nextFocusId === 'terminalSearch') {
+        // --- 特殊处理：目标是文件管理器或终端搜索框 ---
+        const targetElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null; // 先尝试查找
+
+        if (!targetElement || !isElementVisibleAndFocusable(targetElement)) {
+             // --- 如果元素不存在或不可聚焦，尝试激活 ---
+             console.log(`[App] Target ${nextFocusId} not found or not focusable. Triggering activation via store...`);
+             if (nextFocusId === 'fileManagerSearch') {
+                 focusSwitcherStore.triggerFileManagerSearchActivation();
+             } else { // terminalSearch
+                 focusSwitcherStore.triggerTerminalSearchActivation();
+             }
+             // --- 关键：触发激活后，不设置 foundFocusable，也不 break，让循环继续查找下一个 ---
+             console.log(`[App] Activation triggered for ${nextFocusId}. Continuing search...`);
+        } else {
+             // --- 如果元素存在且可聚焦 (理论上不应该进入这里，因为前面的 if 会处理，但作为防御性代码保留) ---
+             console.log(`[App] Found focusable element after all:`, targetElement);
+             targetElement.focus();
+             if (targetElement instanceof HTMLInputElement || targetElement instanceof HTMLTextAreaElement) {
+                targetElement.select();
+             }
+             foundFocusable = true;
+             break;
+        }
+
+
+        // --- 旧的逻辑移除 ---
+        /*
+        // 使用 setTimeout 等待 DOM 更新后再尝试聚焦
+        setTimeout(() => {
+          const targetElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null;
+          if (targetElement && isElementVisibleAndFocusable(targetElement)) {
+            console.log(`[App] Focusing ${nextFocusId} after activation attempt.`);
+            targetElement.focus();
+            if (targetElement instanceof HTMLInputElement || targetElement instanceof HTMLTextAreaElement) {
+               targetElement.select();
+            }
+          } else {
+            console.warn(`[App] Failed to focus ${nextFocusId} even after activation attempt.`);
+          }
+        }, 150); // 稍微增加延迟，确保组件有足够时间响应和渲染
+
+        foundFocusable = true; // 无论是否成功聚焦，都认为这个目标已被尝试处理
+        break; // 处理完文件管理器，跳出循环
+        */
+      } else {
+        // --- 其他元素未找到或不可聚焦 ---
+        console.log(`[App] Element with ID ${nextFocusId} not found or not focusable. Skipping.`);
+      }
+    }
+
+    if (!foundFocusable) {
+        console.log('[App] Cycled through sequence, no focusable element found.');
     }
   }
 };
@@ -183,9 +255,9 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
     <!-- 条件渲染样式自定义器，使用 store 的状态和方法 -->
     <StyleCustomizer v-if="isStyleCustomizerVisible" @close="closeStyleCustomizer" />
 
-    <!-- +++ 条件渲染焦点切换配置器 +++ -->
+    <!-- +++ 条件渲染焦点切换配置器 (使用 v-show 保持实例) +++ -->
     <FocusSwitcherConfigurator
-      v-if="isFocusSwitcherVisible"
+      v-show="isFocusSwitcherVisible"
       :isVisible="isFocusSwitcherVisible"
       @close="focusSwitcherStore.toggleConfigurator(false)"
     />

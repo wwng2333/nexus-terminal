@@ -34,15 +34,22 @@ const dialogStyle = reactive({
 const hasChanges = ref(false);
 // 本地副本，用于在弹窗内编辑而不直接修改 store
 const localSequence: Ref<FocusableInput[]> = ref([]);
+// +++ 存储原始序列 ID，用于比较 +++
+const originalSequenceIds: Ref<string[]> = ref([]);
 
 // --- Watchers ---
 watch(() => props.isVisible, (newValue) => {
   if (newValue) {
     // 从 Store 加载当前配置到本地副本
     // 使用深拷贝确保 localSequence 是独立的
-    localSequence.value = JSON.parse(JSON.stringify(focusSwitcherStore.getConfiguredInputs));
+    const loadedSequence = focusSwitcherStore.getConfiguredInputs; // 直接获取 getter 的值
+    console.log('[FocusSwitcherConfigurator] Loading sequence from store getter...'); // +++ Log: Start loading +++
+    localSequence.value = JSON.parse(JSON.stringify(loadedSequence));
+    // +++ 存储原始 ID 序列 +++
+    originalSequenceIds.value = loadedSequence.map(item => item.id);
     hasChanges.value = false;
-    console.log('[FocusSwitcherConfigurator] 弹窗打开, 已加载配置到本地副本:', localSequence.value);
+    console.log('[FocusSwitcherConfigurator] Dialog opened. Loaded sequence to local copy:', localSequence.value); // +++ Log: Loaded local +++
+    console.log('[FocusSwitcherConfigurator] Original sequence IDs stored:', originalSequenceIds.value); // +++ Log: Stored original +++
     // 重置/计算初始位置和大小
     requestAnimationFrame(() => {
       if (dialogRef.value) {
@@ -62,16 +69,20 @@ watch(() => props.isVisible, (newValue) => {
 });
 
 // 监听本地序列变化，标记未保存更改
-watch(localSequence, (newValue, oldValue) => {
-  // 确保不是初始化加载触发的 watch
-  if (oldValue.length > 0 || (oldValue.length === 0 && newValue.length > 0)) {
-     // 比较 ID 序列是否真的改变了
-     const oldIds = oldValue.map(item => item.id);
-     const newIds = newValue.map(item => item.id);
-     if (JSON.stringify(oldIds) !== JSON.stringify(newIds)) {
-        hasChanges.value = true;
-        console.log('[FocusSwitcherConfigurator] 本地序列已更改。');
-     }
+watch(localSequence, (currentLocalSequence) => {
+  // 直接比较当前本地序列的 ID 和原始 ID 序列
+  const currentIds = currentLocalSequence.map(item => item.id);
+  const originalIds = originalSequenceIds.value;
+
+  // 比较 JSON 字符串看是否有变化
+  const hasChanged = JSON.stringify(currentIds) !== JSON.stringify(originalIds); // +++ Calculate change status +++
+  if (hasChanged) {
+    // console.log('[FocusSwitcherConfigurator] Local sequence changed.'); // +++ Log: Changed +++
+    hasChanges.value = true;
+  } else {
+    // console.log('[FocusSwitcherConfigurator] Local sequence reverted to original.'); // +++ Log: Reverted +++
+    // 如果序列变回和原来一样，则标记为无更改
+    hasChanges.value = false;
   }
 }, { deep: true });
 
@@ -90,9 +101,10 @@ const closeDialog = () => {
 const saveConfiguration = () => {
   // 从本地副本提取 ID 序列
   const newSequenceIds = localSequence.value.map(item => item.id);
+  console.log('[FocusSwitcherConfigurator] Saving configuration. Sequence IDs to save:', newSequenceIds); // +++ Log: Saving IDs +++
   focusSwitcherStore.updateSequence(newSequenceIds); // 更新 Store 中的序列
   focusSwitcherStore.saveConfiguration(); // 持久化保存
-  console.log('[FocusSwitcherConfigurator] 配置已保存:', newSequenceIds);
+  console.log('[FocusSwitcherConfigurator] Configuration save process completed.'); // +++ Log: Save completed +++
   hasChanges.value = false;
   emit('close'); // 保存后关闭
 };
