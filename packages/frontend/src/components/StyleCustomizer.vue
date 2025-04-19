@@ -51,7 +51,26 @@ const importError = ref<string | null>(null);
 const saveThemeError = ref<string | null>(null); // 用于显示保存主题时的错误
 const editableTerminalThemeString = ref(''); // 用于终端主题 textarea 绑定
 const terminalThemeParseError = ref<string | null>(null); // 用于显示终端主题 JSON 解析错误
-const terminalThemePlaceholder = '{\n  "background": "#000000",\n  "foreground": "#ffffff",\n  "cursor": "#ffffff",\n  "selectionBackground": "#555555",\n  "black": "#000000",\n  "red": "#ff0000",\n  "green": "#00ff00",\n  "yellow": "#ffff00",\n  "blue": "#0000ff",\n  "magenta": "#ff00ff",\n  "cyan": "#00ffff",\n  "white": "#ffffff",\n  "brightBlack": "#555555",\n  "brightRed": "#ff5555",\n  "brightGreen": "#55ff55",\n  "brightYellow": "#ffff55",\n  "brightBlue": "#5555ff",\n  "brightMagenta": "#ff55ff",\n  "brightCyan": "#55ffff",\n  "brightWhite": "#ffffff"\n}'; // 终端主题编辑器的 placeholder
+const terminalThemePlaceholder = `background: #000000
+foreground: #ffffff
+cursor: #ffffff
+selectionBackground: #555555
+black: #000000
+red: #ff0000
+green: #00ff00
+yellow: #ffff00
+blue: #0000ff
+magenta: #ff00ff
+cyan: #00ffff
+white: #ffffff
+brightBlack: #555555
+brightRed: #ff5555
+brightGreen: #55ff55
+brightYellow: #ffff55
+brightBlue: #5555ff
+brightMagenta: #ff55ff
+brightCyan: #55ffff
+brightWhite: #ffffff`; // 终端主题编辑器的 placeholder (key: value 格式)
 
 // 初始化本地编辑状态
 import { defaultUiTheme } from '../stores/default-themes'; // 确保导入默认主题
@@ -368,12 +387,18 @@ const handleAddNewTheme = () => {
         themeData: JSON.parse(JSON.stringify(defaultXtermTheme)), // 使用默认 xterm 主题作为基础
         isPreset: false, // 明确不是预设
     };
-    // 初始化 textarea
+    // 初始化 textarea (key: value 格式)
     try {
-        editableTerminalThemeString.value = JSON.stringify(editingTheme.value.themeData, null, 2);
+        const themeObject = editingTheme.value.themeData;
+        if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
+            const lines = Object.entries(themeObject).map(([key, value]) => `${key}: ${value}`);
+            editableTerminalThemeString.value = lines.join('\n');
+        } else {
+            editableTerminalThemeString.value = '';
+        }
     } catch (e) {
-        console.error("格式化新终端主题 JSON 失败:", e);
-        editableTerminalThemeString.value = '{}'; // Fallback
+        console.error("格式化新终端主题字符串失败:", e);
+        editableTerminalThemeString.value = ''; // Fallback
     }
     isEditingTheme.value = true;
 };
@@ -398,12 +423,18 @@ const handleEditTheme = (theme: TerminalTheme) => {
         console.log('编辑用户主题:', themeToEdit);
     }
     editingTheme.value = themeToEdit;
-    // 初始化 textarea
+    // 初始化 textarea (key: value 格式)
     try {
-        editableTerminalThemeString.value = JSON.stringify(editingTheme.value.themeData, null, 2);
+        const themeObject = editingTheme.value.themeData;
+         if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
+            const lines = Object.entries(themeObject).map(([key, value]) => `${key}: ${value}`);
+            editableTerminalThemeString.value = lines.join('\n');
+        } else {
+            editableTerminalThemeString.value = '';
+        }
     } catch (e) {
-        console.error("格式化编辑终端主题 JSON 失败:", e);
-        editableTerminalThemeString.value = '{}'; // Fallback
+        console.error("格式化编辑终端主题字符串失败:", e);
+        editableTerminalThemeString.value = ''; // Fallback
     }
     isEditingTheme.value = true;
 };
@@ -464,24 +495,68 @@ const handleCancelEditingTheme = () => {
     editableTerminalThemeString.value = ''; // 清理
 };
 
-// --- 处理终端主题 Textarea ---
+// --- 处理终端主题 Textarea (解析 key: value 格式) ---
 const handleTerminalThemeStringChange = () => {
     terminalThemeParseError.value = null; // 清除之前的错误
     if (!editingTheme.value) return; // 防御性检查
 
+    let inputText = editableTerminalThemeString.value.trim();
+
+    // 如果内容为空，则视为空对象
+    if (!inputText) {
+        editingTheme.value.themeData = {};
+        return;
+    }
+
+    // 准备构建 JSON 字符串 (参考 handleUiThemeStringChange)
+    let jsonStringToParse = inputText
+        .split('\n') // 按行分割
+        .map(line => line.trim()) // 去除每行首尾空格
+        .filter(line => line && line.includes(':')) // 过滤空行和不包含冒号的行
+        .map(line => {
+            const parts = line.split(/:(.*)/s); // 按第一个冒号分割
+            if (parts.length < 2) return null;
+
+            let key = parts[0].trim();
+            let value = parts[1].trim();
+
+            // 为 key 添加引号
+            if (key.startsWith('"') && key.endsWith('"')) key = key.slice(1, -1);
+            if (key.startsWith("'") && key.endsWith("'")) key = key.slice(1, -1);
+            key = JSON.stringify(key);
+
+            // 为 value 添加引号（如果需要）
+            if (value.endsWith(',')) value = value.slice(0, -1).trim();
+            let originalValue = value;
+            if (value.startsWith('"') && value.endsWith('"')) originalValue = value.slice(1, -1);
+            else if (value.startsWith("'") && value.endsWith("'")) originalValue = value.slice(1, -1);
+
+            if (isNaN(Number(originalValue)) && originalValue !== 'true' && originalValue !== 'false' && originalValue !== 'null') {
+                 value = JSON.stringify(originalValue);
+            } else {
+                value = originalValue; // 数字、布尔值、null 不需要引号
+            }
+
+            return `  ${key}: ${value}`;
+        })
+        .filter(line => line !== null)
+        .join(',\n');
+
+    const fullJsonString = `{\n${jsonStringToParse}\n}`;
+
     try {
-        const parsedThemeData = JSON.parse(editableTerminalThemeString.value);
+        const parsedThemeData = JSON.parse(fullJsonString);
         // 基础验证：确保是对象且不是数组
         if (typeof parsedThemeData !== 'object' || parsedThemeData === null || Array.isArray(parsedThemeData)) {
-            throw new Error(t('styleCustomizer.errorInvalidJsonObject')); // 复用 UI 主题的错误消息
+            throw new Error(t('styleCustomizer.errorInvalidJsonObject'));
         }
-        // 更新 editingTheme.value.themeData，这将触发下面的 watch 来更新颜色选择器等
+        // 更新 editingTheme.value.themeData
         editingTheme.value.themeData = parsedThemeData;
     } catch (error: any) {
-        console.error('解析终端主题 JSON 配置失败:', error);
-        let errorMessage = error.message || t('styleCustomizer.errorInvalidJsonConfig'); // 复用
+        console.error('解析终端主题配置失败:', error);
+        let errorMessage = error.message || t('styleCustomizer.errorInvalidJsonConfig');
         if (error instanceof SyntaxError) {
-            errorMessage = `${t('styleCustomizer.errorJsonSyntax')}: ${error.message}`; // 复用
+            errorMessage = `${t('styleCustomizer.errorJsonSyntax')}: ${error.message}`;
         }
         terminalThemeParseError.value = errorMessage;
     }
@@ -646,24 +721,29 @@ const filteredAndSortedThemes = computed(() => {
 });
 
 // 排序切换函数已移除
-// --- 监听 themeData 变化以更新 textarea ---
+// --- 监听 themeData 变化以更新 textarea (格式化为 key: value) ---
 watch(() => editingTheme.value?.themeData, (newThemeData) => {
     // 只有在 textarea 没有聚焦时才更新，避免覆盖用户输入
     // 或者，如果解析错误存在，也允许更新以显示正确格式
     if (newThemeData && (document.activeElement?.id !== 'terminalThemeTextarea' || terminalThemeParseError.value)) {
         try {
-            const newJsonString = JSON.stringify(newThemeData, null, 2);
-            // 只有当字符串实际不同时才更新，避免不必要的重渲染和光标跳动
-            if (newJsonString !== editableTerminalThemeString.value) {
-                 editableTerminalThemeString.value = newJsonString;
+            // 格式化为 key: value 字符串
+            let newStringValue = '';
+            if (typeof newThemeData === 'object' && Object.keys(newThemeData).length > 0) {
+                const lines = Object.entries(newThemeData).map(([key, value]) => `${key}: ${value}`);
+                newStringValue = lines.join('\n');
+            }
+
+            // 只有当字符串实际不同时才更新
+            if (newStringValue !== editableTerminalThemeString.value) {
+                 editableTerminalThemeString.value = newStringValue;
             }
             // 如果外部更改（如颜色选择器）修复了错误，清除错误提示
             if (terminalThemeParseError.value && document.activeElement?.id !== 'terminalThemeTextarea') {
                  terminalThemeParseError.value = null;
             }
         } catch (e) {
-            console.error("序列化终端主题 JSON 失败:", e);
-            // 理论上不应失败，除非 themeData 结构异常
+            console.error("格式化终端主题字符串失败:", e);
         }
     }
 }, { deep: true }); // 需要 deep watch 来监听 themeData 内部的变化
