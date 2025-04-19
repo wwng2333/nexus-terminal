@@ -16,12 +16,6 @@ const routes: Array<RouteRecordRaw> = [
     name: 'Login',
     component: () => import('../views/LoginView.vue') // 指向实际的登录组件
   },
-  // 连接管理页面
-  {
-    path: '/connections',
-    name: 'Connections',
-    component: () => import('../views/ConnectionsView.vue')
-  },
   // 新增：代理管理页面
   {
     path: '/proxies',

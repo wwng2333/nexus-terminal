@@ -225,7 +225,6 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
       <nav ref="navRef">
         <div class="nav-left"> <!-- Group left-aligned links -->
             <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink>
-            <RouterLink to="/connections">{{ t('nav.connections') }}</RouterLink>
             <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink>
             <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink>
             <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink>
