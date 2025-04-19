@@ -40,6 +40,13 @@ export const defaultUiTheme: Record<string, string> = {
   '--button-bg-color': '#007bff',
   '--button-text-color': '#ffffff',
   '--button-hover-bg-color': '#0056b3',
+  // Added new variables
+  '--icon-color': '#666666', // Default to secondary text color
+  '--icon-hover-color': '#0056b3', // Default to link hover color
+  '--divider-color': '#cccccc', // Default to border color
+  '--input-focus-border-color': '#007bff', // Default to link active color
+  '--input-focus-glow-rgb': '0, 123, 255', // Default to link active color RGB
+  // End added variables
   '--font-family-sans-serif': 'sans-serif',
   '--base-padding': '1rem',
   '--base-margin': '0.5rem',

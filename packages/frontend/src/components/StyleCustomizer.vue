@@ -30,6 +30,8 @@ const editableTerminalFontSize = ref(14);
 const editableEditorFontSize = ref(14); // <-- 新增，编辑器字体大小
 // const editablePageBackgroundOpacity = ref(1.0); // Removed
 // const editableTerminalBackgroundOpacity = ref(1.0); // Removed
+const editableUiThemeString = ref(''); // 用于 textarea 绑定
+const themeParseError = ref<string | null>(null); // 用于显示 JSON 解析错误
 
 // 终端主题管理相关状态
 const selectedTerminalThemeId = ref<string | null>(null); // 下拉框选择的 ID
@@ -63,6 +65,21 @@ const initializeEditableState = () => {
   uploadError.value = null;
   importError.value = null;
   saveThemeError.value = null;
+  themeParseError.value = null; // 初始化解析错误
+  // 初始化 textarea 内容
+  // Initialize textarea content with user-friendly format
+  try {
+      const themeObject = editableUiTheme.value;
+      if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
+          const lines = Object.entries(themeObject).map(([key, value]) => `  ${key}: ${value}`);
+          editableUiThemeString.value = lines.join('\n');
+      } else {
+          editableUiThemeString.value = ''; // Empty if no theme
+      }
+  } catch (e) {
+      console.error("初始化 UI 主题字符串失败:", e);
+      editableUiThemeString.value = ''; // Fallback to empty
+  }
 };
 
 onMounted(initializeEditableState);
@@ -134,6 +151,132 @@ const handleResetUiTheme = async () => {
         }
     }
 };
+
+// --- Textarea 和 Color Picker 同步 ---
+
+// 计算属性：将本地编辑的 UI 主题对象格式化为内部键值对字符串（无大括号，无行尾逗号）
+const formattedEditableUiThemeJson = computed(() => {
+    try {
+        const themeObject = editableUiTheme.value;
+        if (!themeObject || typeof themeObject !== 'object' || Object.keys(themeObject).length === 0) {
+            return ''; // Return empty string if no theme or empty
+        }
+        // Generate key-value pairs, indented, one per line
+        // Generate key-value pairs, indented, one per line, without quotes for easier editing
+        const lines = Object.entries(themeObject).map(([key, value]) => {
+            // Output key and value directly
+            return `  ${key}: ${value}`; // Add indentation
+        });
+        // Join with newline
+        return lines.join('\n');
+    } catch (e) {
+        console.error("序列化可编辑 UI 主题键值对失败:", e);
+        return ''; // 回退为空字符串
+    }
+});
+
+// 监听计算属性的变化（通常由颜色选择器引起），更新 textarea 的内容
+watch(formattedEditableUiThemeJson, (newJson) => {
+    // 只有在 textarea 没有聚焦时才更新，避免覆盖用户输入
+    // 或者，如果解析错误存在，也允许更新以显示正确格式
+    if (document.activeElement?.id !== 'uiThemeTextarea' || themeParseError.value) {
+        editableUiThemeString.value = newJson;
+        if (themeParseError.value && document.activeElement?.id !== 'uiThemeTextarea') {
+             themeParseError.value = null; // 如果外部更改修复了错误，清除错误提示
+        }
+    }
+});
+
+// 处理 textarea 内容变化（失去焦点时）
+// 处理 textarea 内容变化（失去焦点时）
+// 处理 textarea 内容变化（失去焦点时）
+// 处理 textarea 内容变化（失去焦点时）
+// 处理 textarea 内容变化（失去焦点时）
+// 处理 textarea 内容变化（失去焦点时）
+// 处理 textarea 内容变化（失去焦点时）
+const handleUiThemeStringChange = () => {
+    themeParseError.value = null; // 清除之前的错误
+    let inputText = editableUiThemeString.value.trim();
+
+    // 如果内容为空，则视为空对象
+    if (!inputText) {
+        editableUiTheme.value = {};
+        return;
+    }
+
+    // 准备构建 JSON 字符串
+    let jsonStringToParse = inputText
+        .split('\n') // 按行分割
+        .map(line => line.trim()) // 去除每行首尾空格
+        .filter(line => line && line.includes(':')) // 过滤空行和不包含冒号的行
+        .map(line => {
+            // 尝试为 key 和 value 添加引号（如果缺少）
+            const parts = line.split(/:(.*)/s); // 按第一个冒号分割，保留后面的所有内容
+            if (parts.length < 2) return null; // 无效行
+
+            let key = parts[0].trim();
+            let value = parts[1].trim();
+
+            // 为 key 添加引号（如果需要）
+            // 移除 key 可能存在的引号再用 stringify 包裹
+            if (key.startsWith('"') && key.endsWith('"')) {
+                key = key.slice(1, -1);
+            }
+             if (key.startsWith("'") && key.endsWith("'")) {
+                key = key.slice(1, -1);
+            }
+            key = JSON.stringify(key); // 使用 JSON.stringify 保证正确转义
+
+            // 为 value 添加引号（如果需要，且不是数字/布尔值/null）
+            // 移除可能的尾随逗号
+            if (value.endsWith(',')) {
+                value = value.slice(0, -1).trim();
+            }
+            // 移除 value 可能存在的引号再判断
+            let originalValue = value;
+             if (value.startsWith('"') && value.endsWith('"')) {
+                originalValue = value.slice(1, -1);
+            } else if (value.startsWith("'") && value.endsWith("'")) {
+                 originalValue = value.slice(1, -1);
+            }
+
+            // 判断是否需要加引号
+            if (isNaN(Number(originalValue)) && originalValue !== 'true' && originalValue !== 'false' && originalValue !== 'null') {
+                 value = JSON.stringify(originalValue); // 使用原始未加引号的值进行 stringify
+            } else {
+                // 对于数字、布尔值、null，不需要加引号
+                value = originalValue;
+            }
+
+
+            return `  ${key}: ${value}`; // 返回带缩进的键值对
+        })
+        .filter(line => line !== null) // 过滤掉处理失败的行
+        .join(',\n'); // 用逗号和换行符连接
+
+    // 添加外层大括号
+    const fullJsonString = `{\n${jsonStringToParse}\n}`;
+
+    try {
+        const parsedTheme = JSON.parse(fullJsonString);
+        // 基础验证：确保是对象
+        if (typeof parsedTheme !== 'object' || parsedTheme === null || Array.isArray(parsedTheme)) {
+            throw new Error(t('styleCustomizer.errorInvalidJsonObject'));
+        }
+        // 更新本地的 editableUiTheme ref，这将触发颜色选择器的更新
+        editableUiTheme.value = parsedTheme;
+        // 注意：此时尚未保存到后端，用户需要点击“保存 UI 主题”按钮
+    } catch (error: any) {
+        console.error('解析 UI 主题配置失败:', error);
+        // 尝试提供更具体的错误信息
+        let errorMessage = error.message || t('styleCustomizer.errorInvalidJsonConfig');
+        if (error instanceof SyntaxError) {
+            errorMessage = `${t('styleCustomizer.errorJsonSyntax')}: ${error.message}`; // 需要添加翻译
+        }
+        themeParseError.value = errorMessage;
+    }
+};
+
 
 // 保存终端字体
 const handleSaveTerminalFont = async () => {
@@ -436,6 +579,23 @@ const formatXtermLabel = (key: keyof ITheme): string => {
                 class="text-input"
               />
             </div>
+            <!-- UI Theme Textarea -->
+            <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
+            <h4>{{ t('styleCustomizer.uiThemeJsonEditorTitle') }}</h4> <!-- TODO: Add translation -->
+            <p>{{ t('styleCustomizer.uiThemeJsonEditorDesc') }}</p> <!-- TODO: Add translation -->
+            <div class="form-group full-width-group"> <!-- Use a class for full width -->
+               <label for="uiThemeTextarea" class="sr-only">{{ t('styleCustomizer.uiThemeJsonEditorTitle') }}</label> <!-- Screen reader only label -->
+               <textarea
+                 id="uiThemeTextarea"
+                 v-model="editableUiThemeString"
+                 @blur="handleUiThemeStringChange"
+                 rows="15"
+                 :placeholder="'--app-bg-color: #ffffff\n--text-color: #333333\n...'"
+                 spellcheck="false"
+                 class="json-textarea"
+               ></textarea>
+            </div>
+             <p v-if="themeParseError" class="error-message full-width-group">{{ themeParseError }}</p>
           </section>
           <section v-if="currentTab === 'terminal' && !isEditingTheme">
             <h3>{{ t('styleCustomizer.terminalStyles') }}</h3>
@@ -721,6 +881,19 @@ const formatXtermLabel = (key: keyof ITheme): string => {
     align-items: center; /* Vertically center items in the row */
     gap: calc(var(--base-margin) * 1.5); /* Increase gap slightly for better spacing */
 }
+/* Special class for full-width elements like textarea */
+.form-group.full-width-group, .error-message.full-width-group {
+    grid-column: 1 / -1; /* Span all columns */
+    grid-template-columns: 1fr; /* Single column layout */
+    gap: calc(var(--base-margin) / 2); /* Smaller gap for label/textarea */
+}
+.form-group.full-width-group label:not(.sr-only) { /* Adjust label if not screen-reader only */
+    grid-column: 1 / 2; /* Ensure label stays in its place if visible */
+    margin-bottom: calc(var(--base-margin) / 3);
+}
+.form-group.full-width-group textarea {
+    grid-column: 1 / 2; /* Ensure textarea stays in its place */
+}
 /* Adjust grid for rows without a third element (like inline buttons) */
 .form-group > *:nth-child(2):last-child {
     grid-column: 2 / 4; /* Let the second element span if it's the last */
@@ -815,6 +988,27 @@ section[v-if*="isEditingTheme"] .form-group {
     border-color: var(--link-active-color);
     outline: 0;
     box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); /* 调整聚焦阴影 */
+}
+/* Style for JSON Textarea */
+.json-textarea {
+    width: 100%;
+    font-family: var(--font-family-monospace); /* Use monospace font */
+    font-size: 0.9em;
+    line-height: 1.4;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.8rem;
+    background-color: var(--input-bg-color, var(--app-bg-color));
+    color: var(--text-color);
+    resize: vertical;
+    min-height: 200px; /* Ensure decent minimum height */
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.json-textarea:focus {
+    border-color: var(--link-active-color);
+    outline: 0;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
 }
 
 
@@ -1070,7 +1264,10 @@ hr {
   font-size: 0.9rem;
   width: 100%;
   box-sizing: border-box;
-  grid-column: 1 / -1; /* 错误消息横跨所有列 */
+  /* grid-column: 1 / -1; /* Let error messages flow naturally */
+}
+.error-message.full-width-group { /* Ensure full-width error messages span */
+    grid-column: 1 / -1;
 }
 
 .panel-footer {

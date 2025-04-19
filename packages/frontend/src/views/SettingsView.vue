@@ -203,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, reactive, watch } from 'vue'; // 移除 toRefs
+import { ref, onMounted, computed, reactive, watch } from 'vue';
 import { useAuthStore } from '../stores/auth.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观 store
