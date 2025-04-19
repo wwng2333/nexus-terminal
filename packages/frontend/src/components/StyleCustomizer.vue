@@ -10,17 +10,18 @@ import { defaultXtermTheme } from '../stores/default-themes'; // 引入默认主
 const { t } = useI18n();
 const appearanceStore = useAppearanceStore();
 const {
-    currentUiTheme,
-    // currentTerminalTheme, // 这个是计算属性，只读，在编辑时不需要直接用
-    activeTerminalThemeId,
-    availableTerminalThemes,
-    currentTerminalFontFamily,
-    currentTerminalFontSize,
-    currentEditorFontSize, // <-- 新增
-    pageBackgroundImage,
-    // pageBackgroundOpacity, // Removed
-    terminalBackgroundImage,
-    // terminalBackgroundOpacity, // Removed
+  appearanceSettings, // <-- 添加这个 ref
+  currentUiTheme,
+  // currentTerminalTheme, // 这个是计算属性，只读，在编辑时不需要直接用
+  activeTerminalThemeId,
+  availableTerminalThemes,
+  currentTerminalFontFamily,
+  currentTerminalFontSize,
+  currentEditorFontSize, // <-- 新增
+  pageBackgroundImage,
+  // pageBackgroundOpacity, // Removed
+  terminalBackgroundImage,
+  // terminalBackgroundOpacity, // Removed
 } = storeToRefs(appearanceStore);
 
 // --- 本地状态用于编辑 ---
@@ -51,31 +52,39 @@ const saveThemeError = ref<string | null>(null); // 用于显示保存主题时�
 
 
 // 初始化本地编辑状态
+import { defaultUiTheme } from '../stores/default-themes'; // 确保导入默认主题
+import { safeJsonParse } from '../stores/appearance.store'; // 导入辅助函数
+
 const initializeEditableState = () => {
-  // 深拷贝 UI 主题
-  // 深拷贝 UI 主题
-  editableUiTheme.value = JSON.parse(JSON.stringify(currentUiTheme.value || {}));
+  // 获取用户保存的主题或空对象
+  // 注意：直接从 store 的 appearanceSettings 获取原始字符串，避免依赖 currentUiTheme 计算属性可能带来的延迟或缓存问题
+  const userThemeJson = appearanceSettings.value.customUiTheme;
+  const userTheme = safeJsonParse(userThemeJson, {});
+
+  // 合并默认主题和用户主题，确保所有默认键存在，并优先使用用户值
+  const mergedTheme = { ...defaultUiTheme, ...userTheme }; // 用户值覆盖默认值
+
+  // 深拷贝合并后的主题到 editableUiTheme
+  editableUiTheme.value = JSON.parse(JSON.stringify(mergedTheme));
+
+  // --- 其他初始化保持不变 ---
   editableTerminalFontFamily.value = currentTerminalFontFamily.value;
   editableTerminalFontSize.value = currentTerminalFontSize.value;
   editableEditorFontSize.value = currentEditorFontSize.value; // <-- 新增
   selectedTerminalThemeId.value = activeTerminalThemeId.value ?? null; // 初始化下拉框
-  // editablePageBackgroundOpacity.value = pageBackgroundOpacity.value; // Removed
-  // editableTerminalBackgroundOpacity.value = terminalBackgroundOpacity.value; // Removed
-  // 不在 store 变化时重置编辑状态，除非是显式取消或保存
   uploadError.value = null;
   importError.value = null;
   saveThemeError.value = null;
   themeParseError.value = null; // 初始化解析错误
-  // 初始化 textarea 内容
-  // Initialize textarea content with user-friendly format
+
+  // 初始化 textarea 内容 (基于合并后的主题)
   try {
-      const themeObject = editableUiTheme.value;
+      const themeObject = editableUiTheme.value; // 使用合并后的主题
       if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
-          // Format without leading spaces
           const lines = Object.entries(themeObject).map(([key, value]) => `${key}: ${value}`);
           editableUiThemeString.value = lines.join('\n');
       } else {
-          editableUiThemeString.value = ''; // Empty if no theme
+          editableUiThemeString.value = '';
       }
   } catch (e) {
       console.error("初始化 UI 主题字符串失败:", e);
@@ -87,23 +96,34 @@ onMounted(initializeEditableState);
 
 // 监听 store 变化以更新本地状态 (例如重置或外部更改)
 // 只监听不需要编辑的状态或用于初始化的状态
+// 监听 store 中可能影响初始化状态的值
+// 主要监听 appearanceSettings (包含 customUiTheme) 和 activeTerminalThemeId
+// 不再直接监听 currentUiTheme 计算属性，因为 initializeEditableState 现在直接处理合并逻辑
 watch([
-    currentUiTheme, currentTerminalFontFamily, currentTerminalFontSize, currentEditorFontSize, activeTerminalThemeId // <-- 添加 currentEditorFontSize
-    // pageBackgroundOpacity, terminalBackgroundOpacity // Removed dependencies
+    () => appearanceStore.appearanceSettings, // 监听整个设置对象的变化
+    activeTerminalThemeId
 ], (newVals, oldVals) => {
-    // 仅当非编辑状态时，或活动主题ID变化时，才同步下拉框和非编辑状态
-    // 注意：索引现在需要调整
-    const activeThemeIdIndex = 4; // activeTerminalThemeId 的新索引
-    if (!isEditingTheme.value || newVals[activeThemeIdIndex] !== oldVals[activeThemeIdIndex]) {
-        initializeEditableState();
+    // newVals[0] 是新的 appearanceSettings 对象
+    // newVals[1] 是新的 activeTerminalThemeId
+    const newSettings = newVals[0];
+    const oldSettings = oldVals ? oldVals[0] : {}; // 可能没有旧值
+    const newActiveThemeId = newVals[1];
+    const oldActiveThemeId = oldVals ? oldVals[1] : null;
+
+    // 仅当非编辑状态时，或活动终端主题ID变化时，或 UI 主题设置本身发生变化时 (例如重置)，才重新初始化
+    if (!isEditingTheme.value || newActiveThemeId !== oldActiveThemeId || newSettings?.customUiTheme !== oldSettings?.customUiTheme) {
+        console.log('[StyleCustomizer] Watch triggered re-initialization.');
+        initializeEditableState(); // 调用修改后的初始化函数
     } else {
-        // 如果正在编辑，只更新非编辑相关的部分
-        editableUiTheme.value = JSON.parse(JSON.stringify(newVals[0] || {}));
-        editableTerminalFontFamily.value = newVals[1];
-        editableTerminalFontSize.value = newVals[2];
-        editableEditorFontSize.value = newVals[3]; // <-- 新增同步
-        // editablePageBackgroundOpacity.value = newVals[5]; // Removed
-        // editableTerminalBackgroundOpacity.value = newVals[6]; // Removed
+        // 如果正在编辑，只更新非编辑相关的部分 (不包括 UI 主题，因为它由 initializeEditableState 处理)
+        console.log('[StyleCustomizer] Watch triggered partial update (editing).');
+        // editableUiTheme.value = JSON.parse(JSON.stringify(newVals[0] || {})); // 移除或注释掉，避免覆盖编辑状态
+        // 确保从正确的 newVals 索引获取值，现在 watch 的依赖项变了
+        // 假设 appearanceSettings 是第一个依赖，activeTerminalThemeId 是第二个
+        // 字体等信息需要从 newSettings 中获取
+        editableTerminalFontFamily.value = newSettings?.terminalFontFamily || '';
+        editableTerminalFontSize.value = newSettings?.terminalFontSize || 14;
+        editableEditorFontSize.value = newSettings?.editorFontSize || 14; // <-- 新增同步
     }
 }, { deep: true });
 

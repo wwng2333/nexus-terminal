@@ -7,7 +7,7 @@ import type { AppearanceSettings, UpdateAppearanceDto } from '../../../backend/s
 import { defaultXtermTheme, defaultUiTheme } from './default-themes.js'; // 尝试添加 .js (编译后) 或保持 .ts
 
 // Helper function to safely parse JSON
-const safeJsonParse = <T>(jsonString: string | undefined | null, defaultValue: T): T => {
+export const safeJsonParse = <T>(jsonString: string | undefined | null, defaultValue: T): T => { // Add export
     if (!jsonString) return defaultValue;
     try {
         return JSON.parse(jsonString);
