@@ -112,8 +112,10 @@ const toggleGroup = (groupName: string) => {
 
 // 处理单击连接 (左键) - 使用 session store 处理连接请求
 const handleConnect = (connectionId: number) => {
-  console.log(`[WkspConnList] handleConnect (左键) called for ID: ${connectionId}. Delegating to sessionStore.`);
-  sessionStore.handleConnectRequest(connectionId); // 调用 session store 的 action
+  console.log(`[WkspConnList] handleConnect (左键) called for ID: ${connectionId}. Emitting event.`);
+  // 移除对 sessionStore 的直接调用，由父组件处理
+  // sessionStore.handleConnectRequest(connectionId);
+  emit('connect-request', connectionId); // 发出事件通知父组件
   closeContextMenu(); // 点击连接后关闭菜单
 };
 
