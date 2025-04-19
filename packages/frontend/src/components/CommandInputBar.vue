@@ -84,8 +84,10 @@ watch(searchTerm, (newValue) => {
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
         class="search-input"
-        @keydown.enter="findNext"
-        @keydown.shift.enter="findPrevious"
+        @keydown.enter.prevent="findNext"
+        @keydown.shift.enter.prevent="findPrevious"
+        @keydown.up.prevent="findPrevious"
+        @keydown.down.prevent="findNext"
         ref="searchInputRef"
       />
 
