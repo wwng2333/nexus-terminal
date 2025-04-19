@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watchEffect, type PropType, readonly } from 'vue'; // 恢复导入
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly } from 'vue'; // 恢复导入, 添加 watch
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
@@ -140,6 +140,7 @@ const fileListContainerRef = ref<HTMLDivElement | null>(null); // 新增：文�
 const scrollIntervalId = ref<number | null>(null); // 新增：自动滚动计时器 ID
 
 const rowSizeMultiplier = ref(1); // 新增：行大小（字体）乘数
+const selectedIndex = ref<number>(-1); // 新增：键盘选中索引
 
 // --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
@@ -837,6 +838,75 @@ const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
     }
 };
 
+// --- 键盘导航和执行 ---
+const handleKeydown = (event: KeyboardEvent) => {
+    const list = filteredFileList.value;
+    const hasParentLink = currentPath.value !== '/';
+    const totalItems = list.length + (hasParentLink ? 1 : 0); // 包含 '..' 的总项目数
+
+    if (totalItems === 0) return;
+
+    let currentEffectiveIndex = selectedIndex.value; // 0 代表 '..', 1+ 代表 filteredList 的 index + 1
+
+    switch (event.key) {
+        case 'ArrowDown':
+            event.preventDefault();
+            currentEffectiveIndex = (currentEffectiveIndex + 1) % totalItems;
+            selectedIndex.value = currentEffectiveIndex;
+            scrollToSelected();
+            break;
+        case 'ArrowUp':
+            event.preventDefault();
+            currentEffectiveIndex = (currentEffectiveIndex - 1 + totalItems) % totalItems;
+            selectedIndex.value = currentEffectiveIndex;
+            scrollToSelected();
+            break;
+        case 'Enter':
+            event.preventDefault();
+            if (selectedIndex.value === 0 && hasParentLink) {
+                // 选中 '..'
+                handleItemClick(new MouseEvent('click'), { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } });
+            } else if (selectedIndex.value > 0) {
+                // 选中列表中的项
+                const itemIndexInFilteredList = selectedIndex.value - (hasParentLink ? 1 : 0);
+                if (itemIndexInFilteredList >= 0 && itemIndexInFilteredList < list.length) {
+                    handleItemClick(new MouseEvent('click'), list[itemIndexInFilteredList]);
+                }
+            }
+            break;
+    }
+};
+
+const scrollToSelected = async () => {
+    await nextTick();
+    if (selectedIndex.value < 0 || !fileListContainerRef.value) return;
+
+    const container = fileListContainerRef.value;
+    // 使用 querySelectorAll 获取所有行，包括 '..'
+    const rows = container.querySelectorAll('tr.file-row');
+    if (selectedIndex.value >= rows.length) return; // 索引超出范围
+
+    const selectedRow = rows[selectedIndex.value] as HTMLElement;
+
+    if (selectedRow) {
+        const containerRect = container.getBoundingClientRect();
+        const rowRect = selectedRow.getBoundingClientRect();
+
+        if (rowRect.top < containerRect.top) {
+            container.scrollTop -= containerRect.top - rowRect.top;
+        } else if (rowRect.bottom > containerRect.bottom) {
+            container.scrollTop += rowRect.bottom - containerRect.bottom;
+        }
+    }
+};
+
+// --- 重置选中索引的 Watchers ---
+watch(currentPath, () => { selectedIndex.value = -1; });
+watch(searchQuery, () => { selectedIndex.value = -1; });
+watch(sortKey, () => { selectedIndex.value = -1; });
+watch(sortDirection, () => { selectedIndex.value = -1; });
+
+
 // --- 生命周期钩子 ---
 onMounted(() => {
     console.log(`[FileManager ${props.sessionId}] Component mounted.`);
@@ -1087,6 +1157,9 @@ const handleWheel = (event: WheelEvent) => {
                      class="search-input"
                      @blur="deactivateSearch"
                      @keyup.esc="cancelSearch"
+                     @keydown.up.prevent="handleKeydown"
+                     @keydown.down.prevent="handleKeydown"
+                     @keydown.enter.prevent="handleKeydown"
                  />
                  <!-- 可选：添加清除按钮 -->
                  <!-- <button @click="searchQuery = ''; searchInputRef?.focus()" v-if="searchQuery" class="clear-search-button">&times;</button> -->
@@ -1114,6 +1187,9 @@ const handleWheel = (event: WheelEvent) => {
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
       @wheel="handleWheel"
+      @click="fileListContainerRef?.focus()" 
+      @keydown="handleKeydown"
+      tabindex="0"
       :style="{ '--row-size-multiplier': rowSizeMultiplier }"
     >
         <!-- Error display is handled globally by UINotificationDisplay -->
@@ -1174,13 +1250,16 @@ const handleWheel = (event: WheelEvent) => {
           <tbody v-else @contextmenu.prevent="showContextMenu($event)">
             <!-- '..' 条目 -->
             <tr v-if="currentPath !== '/'"
-                class="clickable file-row folder-row" 
+                class="clickable file-row folder-row"
+                :class="{
+                    selected: selectedIndex === 0,
+                    'drop-target': dragOverTarget === '..'
+                }"
                 @click="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
                 @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
-                @dragover.prevent="handleDragOverRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)"  
+                @dragover.prevent="handleDragOverRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)"
                 @dragleave="handleDragLeaveRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
-                @drop.prevent="handleDropOnRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)" 
-                :class="{ 'drop-target': dragOverTarget === '..' }" 
+                @drop.prevent="handleDropOnRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)"
                 :data-filename="'..'"
                 >
               <td><i class="fas fa-level-up-alt file-icon"></i></td>
@@ -1196,7 +1275,8 @@ const handleWheel = (event: WheelEvent) => {
                 :class="[
                     'file-row',
                     { clickable: item.attrs.isDirectory || item.attrs.isFile },
-                    { selected: selectedItems.has(item.filename) },
+                    /* { selected: selectedItems.has(item.filename) }, */ /* 移除鼠标选择的 selected 类，统一用键盘的 */
+                    { selected: index + (currentPath !== '/' ? 1 : 0) === selectedIndex }, /* 键盘选中高亮 */
                     { 'folder-row': item.attrs.isDirectory }, // 添加文件夹标识类
                     { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename } // 拖拽悬停高亮
                 ]"
