@@ -9,6 +9,7 @@
           type="text"
           :placeholder="$t('commandHistory.searchPlaceholder', '搜索历史记录...')"
           :value="searchTerm"
+          data-focus-id="commandHistorySearch"
           @input="updateSearchTerm($event)"
           @keydown="handleKeydown"
           class="search-input"

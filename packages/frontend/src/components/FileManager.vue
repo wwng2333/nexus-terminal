@@ -1155,6 +1155,7 @@ const handleWheel = (event: WheelEvent) => {
                      v-model="searchQuery"
                      :placeholder="t('fileManager.searchPlaceholder')"
                      class="search-input"
+                     data-focus-id="fileManagerSearch"
                      @blur="deactivateSearch"
                      @keyup.esc="cancelSearch"
                      @keydown.up.prevent="handleKeydown"

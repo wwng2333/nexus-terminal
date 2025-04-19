@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router';
-import { ref, onMounted, watch, nextTick, computed } from 'vue'; // *** 导入 computed ***
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'; // +++ 添加 onUnmounted +++
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from './stores/auth.store';
 import { useSettingsStore } from './stores/settings.store';
 import { useAppearanceStore } from './stores/appearance.store';
-import { useLayoutStore } from './stores/layout.store'; // *** 导入布局 Store ***
+import { useLayoutStore } from './stores/layout.store';
+import { useFocusSwitcherStore } from './stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 import { storeToRefs } from 'pinia';
 // 导入通知显示组件
 import UINotificationDisplay from './components/UINotificationDisplay.vue';
@@ -13,16 +14,20 @@ import UINotificationDisplay from './components/UINotificationDisplay.vue';
 import FileEditorOverlay from './components/FileEditorOverlay.vue';
 // 导入样式自定义器组件
 import StyleCustomizer from './components/StyleCustomizer.vue';
+// +++ 导入焦点切换配置器组件 +++
+import FocusSwitcherConfigurator from './components/FocusSwitcherConfigurator.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
 const settingsStore = useSettingsStore();
 const appearanceStore = useAppearanceStore();
-const layoutStore = useLayoutStore(); // *** 实例化布局 Store ***
+const layoutStore = useLayoutStore();
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 const { isAuthenticated } = storeToRefs(authStore);
 const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
 const { isStyleCustomizerVisible } = storeToRefs(appearanceStore);
-const { isLayoutVisible } = storeToRefs(layoutStore); // *** 获取布局可见性状态 ***
+const { isLayoutVisible } = storeToRefs(layoutStore);
+const { isConfiguratorVisible: isFocusSwitcherVisible } = storeToRefs(focusSwitcherStore);
 
 const route = useRoute();
 const navRef = ref<HTMLElement | null>(null);
@@ -46,7 +51,16 @@ onMounted(() => {
   // Initial position update
   // Use setTimeout to ensure styles are applied and elements have dimensions
   setTimeout(updateUnderline, 100);
+
+  // +++ 添加全局 Alt 键监听器 +++
+  window.addEventListener('keydown', handleGlobalKeyDown);
 });
+
+// +++ 添加卸载钩子以移除监听器 +++
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeyDown);
+});
+
 
 // *** 新增：计算属性，判断是否在 workspace 路由 ***
 const isWorkspaceRoute = computed(() => route.path === '/workspace');
@@ -69,6 +83,68 @@ const openStyleCustomizer = () => {
 const closeStyleCustomizer = () => {
   appearanceStore.toggleStyleCustomizer(false);
 };
+
+// +++ 全局键盘事件处理函数 +++
+const handleGlobalKeyDown = (event: KeyboardEvent) => {
+  // 仅当 Alt 键被按下且没有其他修饰键 (如 Ctrl, Shift, Meta) 时触发
+  if (event.key === 'Alt' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+    event.preventDefault(); // 阻止 Alt 键的默认行为 (例如激活菜单栏)
+
+    const activeElement = document.activeElement as HTMLElement;
+    let currentFocusId: string | null = null;
+
+    // 检查当前焦点元素是否有我们设置的 data-focus-id
+    if (activeElement && activeElement.hasAttribute('data-focus-id')) {
+      currentFocusId = activeElement.getAttribute('data-focus-id');
+    }
+
+    console.log(`[App] Alt pressed. Current focus ID: ${currentFocusId}`);
+
+    // 从 Store 获取下一个目标 ID
+    const nextFocusId = focusSwitcherStore.getNextFocusTargetId(currentFocusId);
+    console.log(`[App] Next focus target ID from store: ${nextFocusId}`);
+
+    if (nextFocusId) {
+      // 尝试查找下一个目标元素
+      // 使用 requestAnimationFrame 确保在 DOM 更新后查找
+      requestAnimationFrame(() => {
+        const nextElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null;
+
+        if (nextElement && isElementVisibleAndFocusable(nextElement)) {
+          console.log(`[App] Focusing next element:`, nextElement);
+          nextElement.focus();
+          // 如果是输入框，可能需要选中内容
+          if (nextElement instanceof HTMLInputElement || nextElement instanceof HTMLTextAreaElement) {
+             nextElement.select();
+          }
+        } else {
+          console.log(`[App] Next element with ID ${nextFocusId} not found or not focusable.`);
+          // 可选：如果找不到或不可聚焦，可以尝试查找配置列表中的再下一个，或者直接忽略
+          // 这里暂时忽略，避免无限循环
+        }
+      });
+    }
+  }
+};
+
+// +++ 辅助函数：检查元素是否可见且可聚焦 +++
+const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
+  if (!element) return false;
+  // 检查元素是否在 DOM 中，并且没有 display: none
+  const style = window.getComputedStyle(element);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  // 检查元素或其父元素是否被禁用
+  if ((element as HTMLInputElement).disabled) return false;
+  let parent = element.parentElement;
+  while (parent) {
+    if ((parent as HTMLFieldSetElement).disabled) return false;
+    parent = parent.parentElement;
+  }
+  // 检查元素是否足够在视口内（粗略检查）
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+};
+
 </script>
 
 <template>
@@ -106,6 +182,13 @@ const closeStyleCustomizer = () => {
 
     <!-- 条件渲染样式自定义器，使用 store 的状态和方法 -->
     <StyleCustomizer v-if="isStyleCustomizerVisible" @close="closeStyleCustomizer" />
+
+    <!-- +++ 条件渲染焦点切换配置器 +++ -->
+    <FocusSwitcherConfigurator
+      v-if="isFocusSwitcherVisible"
+      :isVisible="isFocusSwitcherVisible"
+      @close="focusSwitcherStore.toggleConfigurator(false)"
+    />
 
     <footer v-if="!isWorkspaceRoute || isLayoutVisible"> <!-- *** 添加 v-if *** -->
       <!-- 使用 t 函数获取应用名称 -->

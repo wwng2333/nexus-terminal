@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'; // Remove computed
+import { ref, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // 导入 Store
 // 假设你有一个图标库，例如 unplugin-icons 或类似库
 // import SearchIcon from '~icons/mdi/magnify';
 // import ArrowUpIcon from '~icons/mdi/arrow-up';
 // import ArrowDownIcon from '~icons/mdi/arrow-down';
 // import CloseIcon from '~icons/mdi/close';
 
-const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search']);
+const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search']); // 移除 open-focus-switcher-config 事件
 const { t } = useI18n();
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化 Store +++
 
 // Props definition is now empty as search results are no longer handled here
 const props = defineProps<{
@@ -60,22 +62,38 @@ watch(searchTerm, (newValue) => {
 });
 
 // 可以在这里添加一个 ref 用于聚焦搜索框
-// const searchInputRef = ref<HTMLInputElement | null>(null);
+const searchInputRef = ref<HTMLInputElement | null>(null);
 
 // Removed debug computed property
+
+const handleCommandInputKeydown = (event: KeyboardEvent) => {
+  if (event.ctrlKey && event.key === 'f') {
+    event.preventDefault(); // 阻止浏览器默认的查找行为
+    isSearching.value = true;
+    nextTick(() => {
+      searchInputRef.value?.focus();
+    });
+  }
+};
 
 </script>
 
 <template>
   <div class="command-input-bar">
     <div class="input-wrapper" :class="{ 'searching': isSearching }">
+      <!-- 新增：焦点切换配置按钮 -->
+      <button @click="focusSwitcherStore.toggleConfigurator(true)" class="icon-button focus-switcher-button" :title="t('commandInputBar.configureFocusSwitch', '配置焦点切换')">
+        <i class="fas fa-keyboard"></i> <!-- 或者其他合适的图标 -->
+      </button>
       <!-- 命令输入框 (始终渲染) -->
       <input
         type="text"
         v-model="commandInput"
         :placeholder="t('commandInputBar.placeholder')"
         class="command-input"
+        data-focus-id="commandInput"
         @keydown.enter="sendCommand"
+        @keydown="handleCommandInputKeydown"
       />
 
       <!-- 搜索输入框 (始终渲染, 通过 CSS 控制显示/隐藏和宽度) -->
@@ -84,6 +102,7 @@ watch(searchTerm, (newValue) => {
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
         class="search-input"
+        data-focus-id="terminalSearch"
         @keydown.enter.prevent="findNext"
         @keydown.shift.enter.prevent="findPrevious"
         @keydown.up.prevent="findPrevious"
@@ -120,7 +139,7 @@ watch(searchTerm, (newValue) => {
   padding: 5px 10px; /* 增加左右 padding */
   background-color: var(--app-bg-color);
   min-height: 30px;
-  gap: 10px; /* 在输入框和控件之间添加间隙 */
+  gap: 5px; /* 减小整体间隙 */
 }
 
 .input-wrapper {
@@ -129,7 +148,15 @@ watch(searchTerm, (newValue) => {
   align-items: center; /* 垂直居中对齐 */
   background-color: transparent;
   position: relative; /* 为了按钮定位 */
+  gap: 5px; /* 在按钮和输入框之间添加间隙 */
 }
+
+/* 焦点切换按钮样式 (复用 icon-button) */
+.focus-switcher-button {
+  /* 可以添加特定样式，如果需要的话 */
+  flex-shrink: 0; /* 防止按钮被压缩 */
+}
+
 
 .command-input {
   padding: 6px 10px;

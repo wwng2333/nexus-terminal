@@ -8,6 +8,7 @@
           type="text"
           :placeholder="$t('quickCommands.searchPlaceholder', '搜索名称或指令...')"
           :value="searchTerm"
+          data-focus-id="quickCommandsSearch"
           @input="updateSearchTerm($event)"
           @keydown="handleKeydown"
           class="search-input"
