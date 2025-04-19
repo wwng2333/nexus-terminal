@@ -148,7 +148,10 @@
       "keyUpdateNote": "将私钥和密码短语留空以保留现有密钥。",
       "proxy": "代理:",
       "noProxy": "无代理",
-      "tags": "标签:"
+      "tags": "标签:",
+      "sectionBasic": "基本信息",
+      "sectionAuth": "认证信息",
+      "sectionAdvanced": "高级选项"
     },
     "prompts": {
         "confirmDelete": "确定要删除连接 \"{name}\" 吗？此操作不可撤销。"

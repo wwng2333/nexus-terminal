@@ -148,7 +148,10 @@
       "keyUpdateNote": "Leave private key and passphrase blank to keep the existing key.",
       "proxy": "Proxy:",
       "noProxy": "No Proxy",
-      "tags": "Tags:"
+      "tags": "Tags:",
+      "sectionBasic": "Basic Information",
+      "sectionAuth": "Authentication",
+      "sectionAdvanced": "Advanced Options"
     },
     "prompts": {
         "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
