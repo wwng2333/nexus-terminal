@@ -26,22 +26,22 @@ const localLayoutTree: Ref<LayoutNode | null> = ref(null);
 // 标记是否有更改未保存
 const hasChanges = ref(false);
 
-// --- Resizing State ---
+// --- Dialog State ---
 const dialogRef = ref<HTMLElement | null>(null); // 对话框元素的引用
-const initialDialogState = { width: 800, height: 600 }; // 初始/默认尺寸 (px)
-const dialogStyle = reactive({
-  width: `${initialDialogState.width}px`,
-  height: `${initialDialogState.height}px`,
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)', // 初始居中
-  position: 'absolute' as 'absolute', // 显式设置定位
-});
-const isResizing = ref(false);
-const resizeHandle = ref<string | null>(null); // 记录当前拖拽的手柄 ('t', 'b', 'l', 'r', 'tl', 'tr', 'bl', 'br')
-const startDragPos = { x: 0, y: 0 };
-const startDialogRect = { width: 0, height: 0, top: 0, left: 0 };
-const minDialogSize = { width: 400, height: 300 }; // 最小尺寸限制
+// 移除 initialDialogState, width, height 从 dialogStyle
+// dialogStyle 现在不再需要，因为定位由 overlay flex 处理，尺寸由 CSS 处理
+// const dialogStyle = reactive({
+//   top: '50%',
+//   left: '50%',
+//   transform: 'translate(-50%, -50%)', // 初始居中
+//   position: 'absolute' as 'absolute', // 显式设置定位
+// });
+// 移除 Resizing 相关的状态
+// const isResizing = ref(false);
+// const resizeHandle = ref<string | null>(null);
+// const startDragPos = { x: 0, y: 0 };
+// const startDialogRect = { width: 0, height: 0, top: 0, left: 0 };
+// const minDialogSize = { width: 400, height: 300 }; // 移至 CSS
 
 // --- Watchers ---
 // 当弹窗可见时，从 store 加载当前布局并计算初始位置
@@ -54,37 +54,16 @@ watch(() => props.isVisible, (newValue) => {
     hasChanges.value = false;
     console.log('[LayoutConfigurator] 弹窗打开，已加载当前布局到本地副本。');
 
-    // 重置/计算初始位置和大小 (确保在 DOM 更新后执行，或给个延迟)
-    requestAnimationFrame(() => {
-      if (dialogRef.value) {
-        // 尝试读取当前计算出的尺寸，如果失败则使用默认值
-        const currentRect = dialogRef.value.getBoundingClientRect();
-        const initialWidth = currentRect.width > minDialogSize.width ? currentRect.width : initialDialogState.width;
-        const initialHeight = currentRect.height > minDialogSize.height ? currentRect.height : initialDialogState.height;
-
-        dialogStyle.width = `${initialWidth}px`;
-        dialogStyle.height = `${initialHeight}px`;
-        dialogStyle.left = `${(window.innerWidth - initialWidth) / 2}px`;
-        dialogStyle.top = `${(window.innerHeight - initialHeight) / 2}px`;
-        dialogStyle.transform = 'none'; // 移除 transform 居中
-        dialogStyle.position = 'absolute';
-        console.log('[LayoutConfigurator] Dialog initial position calculated:', dialogStyle);
-      } else {
-         // Fallback if ref not ready (less accurate centering)
-         dialogStyle.width = `${initialDialogState.width}px`;
-         dialogStyle.height = `${initialDialogState.height}px`;
-         dialogStyle.left = '50%';
-         dialogStyle.top = '50%';
-         dialogStyle.transform = 'translate(-50%, -50%)';
-         dialogStyle.position = 'absolute';
-      }
-    });
+    // 弹窗打开时的逻辑 (不再需要设置样式)
+    console.log('[LayoutConfigurator] Dialog opened.');
+    // 移除 requestAnimationFrame 和尺寸/位置计算逻辑
 
   } else {
     localLayoutTree.value = null; // 关闭时清空本地副本
-    isResizing.value = false; // 确保关闭时重置拖拽状态
-    window.removeEventListener('mousemove', handleMouseMove);
-    window.removeEventListener('mouseup', handleMouseUp);
+    // 移除 isResizing 和事件监听器移除 (因为 resizing 功能已移除)
+    // isResizing.value = false;
+    // window.removeEventListener('mousemove', handleMouseMove);
+    // window.removeEventListener('mouseup', handleMouseUp);
   }
 }, /*{ immediate: true }*/); // 移除 immediate: true 解决初始化顺序问题
 
@@ -175,103 +154,8 @@ const resetToDefault = () => {
   }
 };
 
-// --- Resizing Methods ---
-// 将 handleMouseMove 和 handleMouseUp 定义移到 watch 之前
-
-const handleMouseMove = (event: MouseEvent) => {
-  if (!isResizing.value || !resizeHandle.value) return;
-
-  const deltaX = event.clientX - startDragPos.x;
-  const deltaY = event.clientY - startDragPos.y;
-
-  let newWidth = startDialogRect.width;
-  let newHeight = startDialogRect.height;
-  let newTop = startDialogRect.top;
-  let newLeft = startDialogRect.left;
-
-  // 根据拖拽的手柄计算新的尺寸和位置 (中心缩放)
-  if (resizeHandle.value.includes('r')) {
-    newWidth = startDialogRect.width + deltaX * 2;
-    newLeft = startDialogRect.left - deltaX;
-  }
-  if (resizeHandle.value.includes('l')) {
-    newWidth = startDialogRect.width - deltaX * 2;
-    newLeft = startDialogRect.left + deltaX;
-  }
-  if (resizeHandle.value.includes('b')) {
-    newHeight = startDialogRect.height + deltaY * 2;
-    newTop = startDialogRect.top - deltaY;
-  }
-  if (resizeHandle.value.includes('t')) {
-    newHeight = startDialogRect.height - deltaY * 2;
-    newTop = startDialogRect.top + deltaY;
-  }
-
-  // 应用最小尺寸限制
-  if (newWidth < minDialogSize.width) {
-      const diff = minDialogSize.width - newWidth;
-      newWidth = minDialogSize.width;
-      // 根据拖拽方向调整 left 以保持中心
-      if (resizeHandle.value.includes('r')) newLeft += diff / 2;
-      if (resizeHandle.value.includes('l')) newLeft -= diff / 2;
-  }
-   if (newHeight < minDialogSize.height) {
-       const diff = minDialogSize.height - newHeight;
-       newHeight = minDialogSize.height;
-       // 根据拖拽方向调整 top 以保持中心
-       if (resizeHandle.value.includes('b')) newTop += diff / 2;
-       if (resizeHandle.value.includes('t')) newTop -= diff / 2;
-   }
-
-
-  // 更新样式
-  dialogStyle.width = `${newWidth}px`;
-  dialogStyle.height = `${newHeight}px`;
-  dialogStyle.top = `${newTop}px`;
-  dialogStyle.left = `${newLeft}px`;
-};
-
-const handleMouseUp = () => {
-  if (isResizing.value) {
-    console.log(`[LayoutConfigurator] MouseUp. Final rect:`, { width: dialogStyle.width, height: dialogStyle.height, top: dialogStyle.top, left: dialogStyle.left });
-    isResizing.value = false;
-    resizeHandle.value = null;
-    // 确保移除监听器
-    window.removeEventListener('mousemove', handleMouseMove);
-    window.removeEventListener('mouseup', handleMouseUp);
-  }
-};
-
-
-const handleMouseDown = (event: MouseEvent, handle: string) => {
-  if (!dialogRef.value) return;
-  event.preventDefault(); // 阻止默认行为，如文本选择
-  event.stopPropagation();
-
-  isResizing.value = true;
-  resizeHandle.value = handle;
-  startDragPos.x = event.clientX;
-  startDragPos.y = event.clientY;
-
-  // 解析当前的 px 值
-  const currentWidth = parseFloat(dialogStyle.width);
-  const currentHeight = parseFloat(dialogStyle.height);
-  const currentTop = parseFloat(dialogStyle.top);
-  const currentLeft = parseFloat(dialogStyle.left);
-
-  startDialogRect.width = isNaN(currentWidth) ? initialDialogState.width : currentWidth;
-  startDialogRect.height = isNaN(currentHeight) ? initialDialogState.height : currentHeight;
-  startDialogRect.top = isNaN(currentTop) ? (window.innerHeight - startDialogRect.height) / 2 : currentTop;
-  startDialogRect.left = isNaN(currentLeft) ? (window.innerWidth - startDialogRect.width) / 2 : currentLeft;
-
-  console.log(`[LayoutConfigurator] MouseDown on handle ${handle}. Start rect:`, { ...startDialogRect });
-
-
-  // 添加监听器
-  window.addEventListener('mousemove', handleMouseMove);
-  window.addEventListener('mouseup', handleMouseUp);
-};
-
+// --- Resizing Methods (Removed) ---
+// Resizing functionality is removed to allow content-based sizing.
 
 // --- Drag & Drop Methods (for panes, unchanged) ---
 // 克隆函数：当从可用列表拖拽时，创建新的 LayoutNode 对象
@@ -352,17 +236,9 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
 
 <template>
   <div v-if="isVisible" class="layout-configurator-overlay" @click.self="closeDialog">
-    <!-- 应用动态样式，并添加 ref -->
-    <div ref="dialogRef" class="layout-configurator-dialog" :style="dialogStyle">
-      <!-- Resize Handles -->
-      <div class="resize-handle top" @mousedown.prevent="handleMouseDown($event, 't')"></div>
-      <div class="resize-handle bottom" @mousedown.prevent="handleMouseDown($event, 'b')"></div>
-      <div class="resize-handle left" @mousedown.prevent="handleMouseDown($event, 'l')"></div>
-      <div class="resize-handle right" @mousedown.prevent="handleMouseDown($event, 'r')"></div>
-      <div class="resize-handle top-left" @mousedown.prevent="handleMouseDown($event, 'tl')"></div>
-      <div class="resize-handle top-right" @mousedown.prevent="handleMouseDown($event, 'tr')"></div>
-      <div class="resize-handle bottom-left" @mousedown.prevent="handleMouseDown($event, 'bl')"></div>
-      <div class="resize-handle bottom-right" @mousedown.prevent="handleMouseDown($event, 'br')"></div>
+    <!-- 移除 :style 绑定，尺寸和定位由 CSS 控制 -->
+    <div ref="dialogRef" class="layout-configurator-dialog">
+      <!-- Resize Handles Removed -->
 
       <header class="dialog-header">
         <h2>{{ t('layoutConfigurator.title', '配置工作区布局') }}</h2>
@@ -446,36 +322,38 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
   height: 100%;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
+  /* 使用 Flexbox 居中 */
+  display: flex;
   justify-content: center;
-  align-items: flex-start; /* 改为 flex-start 以配合 absolute 定位 */
-  /* 移除 justify-content: center; */
+  align-items: center;
   z-index: 1000;
-  /* 添加 pointer-events none 以允许点击穿透覆盖层，除非点在 dialog 上 */
-  pointer-events: none;
+  /* 移除 pointer-events: none; */
 }
 
 .layout-configurator-dialog {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-  min-width: 1072px;
-  min-height:748px;
-  /* width, height, top, left 由 dialogStyle 控制 */
-  /* 移除 max-width, max-height，由拖拽逻辑和 minSize 控制 */
+  /* 让宽度和高度自适应内容 */
+  width: auto; /* 或移除 */
+  height: auto; /* 或移除 */
+  /* 添加最大/最小尺寸限制 */
+  min-width: 500px; /* 根据需要调整 */
+  min-height: 400px; /* 根据需要调整 */
+  max-width: 90vw; /* 视口宽度的90% */
+  max-height: 90vh; /* 视口高度的90% */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* 防止内容溢出 */
-  position: absolute; /* 确保是 absolute */
+  /* overflow: hidden; */ /* 改为 auto 或 visible 以允许内容撑开 */
+  overflow: auto; /* 如果内容可能超出 max-height/max-width */
+  position: relative; /* 改为 relative，因为 overlay flex 负责居中 */
+  /* 移除 top, left, transform, position: absolute */
   /* 允许 dialog 接收点击事件 */
   pointer-events: auto;
-  /* 添加 resize 光标，当悬停在 dialog 上但不在 handle 上时 */
-  cursor: default;
+  cursor: default; /* 保持默认光标 */
 }
 
-/* 当正在调整大小时，给 body 添加样式以覆盖其他元素的鼠标指针 */
-body.resizing * {
-  cursor: grabbing !important; /* 或者根据 handle 方向设置不同的 cursor */
-}
+/* 移除 body.resizing 样式 */
 
 .dialog-header {
   display: flex;
@@ -637,43 +515,6 @@ h3 {
 }
 
 
-/* --- Resize Handle Styles --- */
-.resize-handle {
-  position: absolute;
-  background: transparent; /* 使手柄不可见，但可交互 */
-  z-index: 10; /* 确保在内容之上 */
-}
-.resize-handle.top, .resize-handle.bottom {
-  left: 10px; /* 调整手柄区域 */
-  right: 10px;
-  height: 10px; /* 手柄厚度 */
-  cursor: ns-resize;
-}
-.resize-handle.left, .resize-handle.right {
-  top: 10px;
-  bottom: 10px;
-  width: 10px;
-  cursor: ew-resize;
-}
-.resize-handle.top { top: -5px; }
-.resize-handle.bottom { bottom: -5px; }
-.resize-handle.left { left: -5px; }
-.resize-handle.right { right: -5px; }
-
-.resize-handle.top-left, .resize-handle.top-right, .resize-handle.bottom-left, .resize-handle.bottom-right {
-  width: 16px; /* 角落手柄稍大 */
-  height: 16px;
-}
-.resize-handle.top-left { top: -8px; left: -8px; cursor: nwse-resize; }
-.resize-handle.top-right { top: -8px; right: -8px; cursor: nesw-resize; }
-.resize-handle.bottom-left { bottom: -8px; left: -8px; cursor: nesw-resize; }
-.resize-handle.bottom-right { bottom: -8px; right: -8px; cursor: nwse-resize; }
-
-/* 可选：添加一个细微的边框或背景色以便调试 */
-/*
-.resize-handle {
-  border: 1px dotted rgba(255, 0, 0, 0.5);
-}
-*/
+/* --- Resize Handle Styles (Removed) --- */
 
 </style>
