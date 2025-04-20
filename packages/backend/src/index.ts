@@ -39,7 +39,7 @@ app.set('trust proxy', true);
 // const SQLiteStore = connectSqlite3(session); // 移除旧的 Store 初始化
 // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
 // console.log('[Index CWD 1]', process.cwd()); // 移除调试日志
-const dbPath = path.join(process.cwd(), 'data'); // Correct path relative to CWD (packages/backend)
+// const dbPath = path.join(process.cwd(), 'data'); // 移除未使用的变量
 
 // --- 中间件 ---
 // !! 重要：IP 白名单应尽可能早地应用，通常在其他中间件之前 !!
@@ -132,7 +132,7 @@ const startServer = () => {
     const sessionMiddleware = session({
         store: new FileStore({
             path: sessionsPath, // 指定会话文件存储目录
-            ttl: 60 * 60 * 24 * 7, // 会话有效期 (秒)，7天，匹配 cookie maxAge (需要秒)
+            ttl: 31536000, // 会话有效期 (秒)，设置为 1 年，确保服务器端会话数据长期存在
             // logFn: (message) => { console.log('[SessionFileStore]', message); } // 移除调试日志
             // reapInterval: 3600 // 清理过期会话间隔 (秒)，默认1小时
         }),
@@ -140,7 +140,7 @@ const startServer = () => {
         resave: false,
         saveUninitialized: false,
         cookie: {
-            maxAge: 1000 * 60 * 60 * 24 * 7,
+            // maxAge: 1000 * 60 * 60 * 24 * 7, // 移除固定的 cookie maxAge，默认为会话期
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production'
         }

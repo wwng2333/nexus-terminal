@@ -118,12 +118,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
             // 根据 rememberMe 设置 cookie maxAge
             if (rememberMe) {
-                // 如果记住我，使用默认的 maxAge (在 index.ts 中设置，通常是 7 天)
-                // 如果需要强制覆盖为 7 天，取消下一行注释
-                // req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7;
+                // 如果勾选了“记住我”，设置 cookie 有效期为 1 年 (毫秒)
+                req.session.cookie.maxAge = 31536000000; // 1 year = 365 * 24 * 60 * 60 * 1000
             } else {
-                // 如果不记住我，设置为会话 cookie (浏览器关闭时过期)
-                req.session.cookie.maxAge = undefined; // 使用 undefined 表示会话 cookie
+                // 如果未勾选，则不设置 maxAge，使其成为会话 cookie
+                req.session.cookie.maxAge = undefined; // 或者 null
             }
 
             res.status(200).json({
@@ -250,11 +249,11 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
 
             // 根据之前存储在 session 中的 rememberMe 设置 cookie maxAge
             if (req.session.rememberMe) {
-                // 如果记住我，使用默认的 maxAge
-                // req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 7;
+                // 如果勾选了“记住我”，设置 cookie 有效期为 1 年 (毫秒)
+                req.session.cookie.maxAge = 31536000000; // 1 year
             } else {
-                // 如果不记住我，设置为会话 cookie
-                req.session.cookie.maxAge = undefined;
+                // 如果未勾选，则不设置 maxAge，使其成为会话 cookie
+                req.session.cookie.maxAge = undefined; // 或者 null
             }
             // 清除临时的 rememberMe 状态
             delete req.session.rememberMe;

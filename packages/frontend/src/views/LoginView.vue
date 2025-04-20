@@ -49,7 +49,7 @@ const handleSubmit = async () => {
           <!-- 新增：记住我复选框 -->
           <div class="form-group form-group-checkbox">
             <input type="checkbox" id="rememberMe" v-model="rememberMe" :disabled="isLoading" />
-            <label for="rememberMe">{{ t('login.rememberMe') }}</label>
+            <label for="rememberMe">记住我</label>
           </div>
         </div>
 
