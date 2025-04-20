@@ -7,8 +7,8 @@
     <div v-if="settingsError" class="error-message">{{ settingsError }}</div>
 
     <div class="settings-grid">
-      <!-- Column 1: Security Settings -->
-      <div class="settings-column">
+      <!-- Removed Column 1 Wrapper -->
+      <!-- <div class="settings-column"> -->
         <div class="settings-section">
           <h2>{{ $t('settings.changePassword.title') }}</h2>
           <form @submit.prevent="handleChangePassword">
@@ -75,10 +75,10 @@
           </div>
           <p v-if="twoFactorMessage" :class="{ 'success-message': twoFactorSuccess, 'error-message': !twoFactorSuccess }">{{ twoFactorMessage }}</p>
         </div>
-      </div>
+      <!-- </div> --> <!-- End of Removed Column 1 Wrapper -->
 
-      <!-- Column 2: Interface & Network Settings -->
-      <div class="settings-column">
+      <!-- Removed Column 2 Wrapper -->
+      <!-- <div class="settings-column"> -->
         <div class="settings-section">
           <h2>{{ $t('settings.language.title') }}</h2>
           <form @submit.prevent="handleUpdateLanguage">
@@ -169,9 +169,9 @@
             <p v-if="ipWhitelistMessage" :class="{ 'success-message': ipWhitelistSuccess, 'error-message': !ipWhitelistSuccess }">{{ ipWhitelistMessage }}</p>
           </form>
         </div>
-      </div>
+      <!-- </div> --> <!-- End of Removed Column 2 Wrapper -->
 
-      <!-- Column 3: IP Blacklist (Spans across columns if needed, or stays in its own area) -->
+      <!-- IP Blacklist Section (remains the same, spans full width) -->
       <div class="settings-section settings-section-full-width">
         <h2>IP 黑名单管理</h2>
         <p>配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。</p>
@@ -654,6 +654,8 @@ onMounted(async () => {
   background-color: var(--app-bg-color);
   max-width: 1200px; /* 限制最大宽度 */
   margin: 0 auto; /* 居中 */
+  min-height: calc(100vh - 60px); /* 尝试设置最小高度，60px 是假设的页眉高度，可能需要调整 */
+  box-sizing: border-box; /* 确保 padding 包含在计算内 */
 }
 
 h1 {
@@ -685,7 +687,7 @@ h1 {
   box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* 添加细微阴影 */
   display: flex; /* 使 section 内部元素可以更好地控制 */
   flex-direction: column; /* 默认垂直排列 */
-  height: 100%; /* 让 section 填充 grid 单元格高度 */
+  /* height: 100%; */ /* <-- 移除此行，让高度自适应内容 */
 }
 
 .settings-section-full-width {
