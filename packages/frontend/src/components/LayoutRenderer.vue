@@ -283,6 +283,7 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
             <div v-if="!activeSession" class="pane-placeholder empty-session">
               <div class="empty-session-content">
                 <i class="fas fa-terminal-slash"></i>
+                <i class="fas fa-plug"></i>
                 <span>无活动会话</span>
                 <div class="empty-session-tip">请先连接一个会话</div>
               </div>
@@ -300,7 +301,7 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
             </keep-alive>
             <div v-if="!activeSession" class="pane-placeholder empty-session">
               <div class="empty-session-content">
-                <i class="fas fa-terminal-slash"></i>
+                <i class="fas fa-plug"></i>
                 <span>无活动会话</span>
                 <div class="empty-session-tip">请先连接一个会话</div>
               </div>
@@ -316,7 +317,7 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
              />
              <div v-else class="pane-placeholder empty-session">
               <div class="empty-session-content">
-                <i class="fas fa-terminal-slash"></i>
+                <i class="fas fa-plug"></i>
                 <span>无活动会话</span>
                 <div class="empty-session-tip">请先连接一个会话</div>
               </div>

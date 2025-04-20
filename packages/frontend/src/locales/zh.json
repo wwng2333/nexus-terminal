@@ -372,7 +372,24 @@
     "searchPlaceholder": "搜索文件..."
   },
   "statusMonitor": {
-      "noActiveSession": "无活动会话"
+    "title": "服务器状态",
+    "errorPrefix": "错误:",
+    "loading": "等待数据...",
+    "cpuModelLabel": "CPU 型号:",
+    "osLabel": "系统:",
+    "cpuLabel": "CPU:",
+    "memoryLabel": "内存:",
+    "swapLabel": "Swap:",
+    "diskLabel": "磁盘:",
+    "networkLabel": "网络",
+    "notAvailable": "N/A",
+    "bytesPerSecond": "B/s",
+    "kiloBytesPerSecond": "KB/s",
+    "megaBytesPerSecond": "MB/s",
+    "gigaBytesPerSecond": "GB/s",
+    "megaBytes": "MB",
+    "gigaBytes": "GB",
+    "noActiveSession": "无活动会话"
   },
   "tags": {
     "title": "标签管理",
@@ -806,8 +823,8 @@
       "fetchFailed": "获取远程容器状态失败",
       "commandFailed": "执行远程命令 '{command}' 失败",
       "invalidResponse": "收到无效的服务器响应",
-      "noActiveSession": "无活动的 SSH 会话。",
-      "connectFirst": "请先连接到一个 SSH 会话。",
+      "noActiveSession": "无活动的会话。",
+      "connectFirst": "请先连接到一个会话。",
       "sshDisconnected": "SSH 会话已断开。",
       "sshError": "SSH 连接错误",
       "sshNotConnected": "SSH 会话未连接。"

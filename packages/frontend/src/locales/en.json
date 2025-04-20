@@ -372,7 +372,24 @@
     "searchPlaceholder": "Search files..."
   },
   "statusMonitor": {
-      "noActiveSession": "No active session"
+    "title": "Server Status",
+    "errorPrefix": "Error:",
+    "loading": "Waiting for data...",
+    "cpuModelLabel": "CPU Model:",
+    "osLabel": "OS:",
+    "cpuLabel": "CPU:",
+    "memoryLabel": "Memory:",
+    "swapLabel": "Swap:",
+    "diskLabel": "Disk:",
+    "networkLabel": "Network",
+    "notAvailable": "N/A",
+    "bytesPerSecond": "B/s",
+    "kiloBytesPerSecond": "KB/s",
+    "megaBytesPerSecond": "MB/s",
+    "gigaBytesPerSecond": "GB/s",
+    "megaBytes": "MB",
+    "gigaBytes": "GB",
+    "noActiveSession": "No active session"
   },
   "tags": {
     "title": "Tag Management",
@@ -806,8 +823,8 @@
       "fetchFailed": "Failed to fetch remote container status",
       "commandFailed": "Failed to execute remote command '{command}'",
       "invalidResponse": "Received invalid response from server",
-      "noActiveSession": "No active SSH session.",
-      "connectFirst": "Please connect to an SSH session first.",
+      "noActiveSession": "No active session.",
+      "connectFirst": "Please connect to an session first.",
       "sshDisconnected": "SSH session disconnected.",
       "sshError": "SSH Connection Error",
       "sshNotConnected": "SSH session is not connected."

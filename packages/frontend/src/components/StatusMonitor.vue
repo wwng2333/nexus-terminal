@@ -6,6 +6,7 @@
       错误: {{ statusError }}
     </div>
     <div v-else-if="!serverStatus" class="loading-status">
+      <i class="fas fa-spinner fa-spin"></i>
       等待数据...
     </div>
     <div v-else class="status-grid">
@@ -75,6 +76,10 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'; // 引入 watch
+import { useI18n } from 'vue-i18n'; // 引入 useI18n
+
+// 获取 t 函数
+const { t } = useI18n();
 
 // 接口定义，与后端 ServerStatusDetails 匹配
 interface ServerStatus {
@@ -123,48 +128,48 @@ watch(() => props.serverStatus, (newData) => {
 // --- 显示计算属性 (包含缓存逻辑) - 更新引用 ---
 const displayCpuModel = computed(() => {
   // 优先使用当前有效数据，否则回退到缓存，最后是 'N/A'
-  return (props.serverStatus?.cpuModel ?? cachedCpuModel.value) || 'N/A';
+  return (props.serverStatus?.cpuModel ?? cachedCpuModel.value) || t('statusMonitor.notAvailable');
 });
 
 const displayOsName = computed(() => {
   // 优先使用当前有效数据，否则回退到缓存，最后是 'N/A'
-  return (props.serverStatus?.osName ?? cachedOsName.value) || 'N/A';
+  return (props.serverStatus?.osName ?? cachedOsName.value) || t('statusMonitor.notAvailable');
 });
 
 
 // 辅助函数：格式化字节/秒为合适的单位 (B, KB, MB, GB)
 const formatBytesPerSecond = (bytes?: number): string => {
-    if (bytes === undefined || bytes === null || isNaN(bytes)) return 'N/A';
-    if (bytes < 1024) return `${bytes} B/s`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB/s`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB/s`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB/s`;
+    if (bytes === undefined || bytes === null || isNaN(bytes)) return t('statusMonitor.notAvailable');
+    if (bytes < 1024) return `${bytes} ${t('statusMonitor.bytesPerSecond')}`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} ${t('statusMonitor.kiloBytesPerSecond')}`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} ${t('statusMonitor.megaBytesPerSecond')}`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} ${t('statusMonitor.gigaBytesPerSecond')}`;
 };
 
 
 // 辅助函数：格式化 KB 为 GB
 const formatKbToGb = (kb?: number): string => {
-    if (kb === undefined || kb === null) return 'N/A'; // 处理无效输入
-    if (kb === 0) return '0.0 GB'; // 处理 0 的情况
+    if (kb === undefined || kb === null) return t('statusMonitor.notAvailable'); // 处理无效输入
+    if (kb === 0) return `0.0 ${t('statusMonitor.gigaBytes')}`; // 处理 0 的情况
     const gb = kb / 1024 / 1024;
-    return `${gb.toFixed(1)} GB`;
+    return `${gb.toFixed(1)} ${t('statusMonitor.gigaBytes')}`;
 };
 
 // 计算属性用于显示内存信息 (更新引用)
 const memDisplay = computed(() => {
     const data = props.serverStatus;
-    if (!data || data.memUsed === undefined || data.memTotal === undefined) return 'N/A'; // 检查数据有效性
+    if (!data || data.memUsed === undefined || data.memTotal === undefined) return t('statusMonitor.notAvailable'); // 检查数据有效性
     const percent = data.memPercent !== undefined ? `(${data.memPercent.toFixed(1)}%)` : '';
     // 确保 MB 值在是整数时不显示小数
     const usedMb = Number.isInteger(data.memUsed) ? data.memUsed : data.memUsed.toFixed(1);
     const totalMb = Number.isInteger(data.memTotal) ? data.memTotal : data.memTotal.toFixed(1);
-    return `${usedMb} MB / ${totalMb} MB ${percent}`;
+    return `${usedMb} ${t('statusMonitor.megaBytes')} / ${totalMb} ${t('statusMonitor.megaBytes')} ${percent}`;
 });
 
 // 计算属性用于显示磁盘信息 (更新引用)
 const diskDisplay = computed(() => {
     const data = props.serverStatus;
-    if (!data || data.diskUsed === undefined || data.diskTotal === undefined) return 'N/A'; // 检查数据有效性
+    if (!data || data.diskUsed === undefined || data.diskTotal === undefined) return t('statusMonitor.notAvailable'); // 检查数据有效性
     // 百分比代表已用空间
     const percent = data.diskPercent !== undefined ? `(${data.diskPercent.toFixed(1)}%)` : '';
     // 显示 已用 / 总量
@@ -182,7 +187,7 @@ const swapDisplay = computed(() => {
     const percent = `(${percentVal.toFixed(1)}%)`;
     const usedMb = Number.isInteger(used) ? used : used.toFixed(1);
     const totalMb = Number.isInteger(total) ? total : total.toFixed(1);
-    return `${usedMb} MB / ${totalMb} MB ${percent}`;
+    return `${usedMb} ${t('statusMonitor.megaBytes')} / ${totalMb} ${t('statusMonitor.megaBytes')} ${percent}`;
 });
 
 
