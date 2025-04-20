@@ -283,7 +283,8 @@ onUnmounted(() => {
       <div v-if="containers.length === 0 && !isLoading" class="empty-placeholder">
         {{ t('dockerManager.noContainers') }}
       </div>
-      <table v-else>
+      <!-- Add class="responsive-table" -->
+      <table v-else class="responsive-table">
         <thead>
           <tr>
             <th>{{ t('dockerManager.header.name') }}</th>
@@ -294,19 +295,17 @@ onUnmounted(() => {
           </tr>
         </thead>
         <tbody>
-          <!-- Key change: Use container.id -->
           <tr v-for="container in containers" :key="container.id">
-            <td>{{ container.Names?.join(', ') || 'N/A' }}</td>
-            <td>{{ container.Image }}</td>
-            <td>
+            <!-- Add data-label attributes -->
+            <td :data-label="t('dockerManager.header.name')">{{ container.Names?.join(', ') || 'N/A' }}</td>
+            <td :data-label="t('dockerManager.header.image')">{{ container.Image }}</td>
+            <td :data-label="t('dockerManager.header.status')">
                 <span :class="['status-badge', `status-${container.State?.toLowerCase()}`]">
                     {{ container.Status }}
                 </span>
             </td>
-            <!-- Corrected Port mapping display logic -->
-            <td>{{ container.Ports?.map(p => `${p.IP ? p.IP + ':' : ''}${p.PublicPort ? p.PublicPort + '->' : ''}${p.PrivatePort}/${p.Type}`).join(', ') || 'N/A' }}</td>
-            <td class="action-buttons">
-              <!-- Pass container.id instead of container.Id -->
+            <td :data-label="t('dockerManager.header.ports')">{{ container.Ports?.map(p => `${p.IP ? p.IP + ':' : ''}${p.PublicPort ? p.PublicPort + '->' : ''}${p.PrivatePort}/${p.Type}`).join(', ') || 'N/A' }}</td>
+            <td :data-label="t('dockerManager.header.actions')" class="action-buttons">
               <button @click="sendDockerCommand(container.id, 'start')" :title="t('dockerManager.action.start')" class="action-btn start" :disabled="container.State === 'running'">
                 <i class="fas fa-play"></i>
               </button>
@@ -319,6 +318,7 @@ onUnmounted(() => {
                <button @click="sendDockerCommand(container.id, 'remove')" :title="t('dockerManager.action.remove')" class="action-btn remove" :disabled="container.State === 'running'">
                  <i class="fas fa-trash-alt"></i>
               </button>
+              <!-- Log button removed as per user request -->
             </td>
           </tr>
         </tbody>
@@ -329,16 +329,22 @@ onUnmounted(() => {
 
 <style scoped>
 /* Styles remain largely the same */
+/* --- Define the component root as a size container --- */
+/* Remove padding from the main container */
 .docker-manager {
-  padding: var(--base-padding, 1rem);
+  /* padding: var(--base-padding, 1rem); */ /* Removed */
   display: flex;
   flex-direction: column;
   height: 100%;
-  overflow-y: auto;
+  /* overflow-y: auto; */ /* Let children handle scroll */
   background-color: var(--app-bg-color);
   color: var(--text-color);
+  container-type: inline-size; /* Define as a size container */
+  container-name: docker-manager-pane; /* Optional: give it a name */
+  overflow: hidden; /* Prevent double scrollbars */
 }
 
+/* Add padding to placeholders */
 .loading-placeholder,
 .error-placeholder,
 .unavailable-placeholder,
@@ -351,6 +357,7 @@ onUnmounted(() => {
   flex-grow: 1;
   color: var(--text-color-secondary);
   height: 100%;
+  padding: var(--base-padding, 1rem); /* Added padding */
 }
 .unavailable-placeholder i:first-child, .loading-placeholder i:first-child { /* Target the icon */
     font-size: 2.5rem;
@@ -388,9 +395,11 @@ onUnmounted(() => {
 }
 
 
+/* Add padding to the scrollable container and handle overflow */
 .container-list {
   flex-grow: 1;
-  overflow-x: auto;
+  overflow: auto; /* Use auto for both x and y scroll */
+  padding: var(--base-padding, 1rem); /* Added padding */
 }
 
 table {
@@ -463,5 +472,92 @@ tbody tr:hover {
 .action-btn.stop:not([disabled]):hover { color: var(--color-warning, #ffc107); }
 .action-btn.restart:not([disabled]):hover { color: var(--color-info, #17a2b8); }
 .action-btn.remove:not([disabled]):hover { color: var(--color-danger, #dc3545); }
+
+/* --- Responsive Table Styles using Container Query --- */
+/* Target the container directly */
+@container (max-width: 768px) {
+  .responsive-table {
+    border: none; /* Remove table border */
+  }
+
+  .responsive-table thead {
+    display: none; /* Hide table header */
+  }
+
+  .responsive-table tr {
+    display: block; /* Make rows behave like blocks/cards */
+    margin-bottom: 1rem; /* Space between cards */
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium, 4px);
+    padding: 0.8rem;
+    background-color: var(--item-bg-color, var(--app-bg-color)); /* Card background */
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+  }
+
+  .responsive-table td {
+    display: block; /* Stack cells vertically */
+    text-align: right; /* Align cell content to the right */
+    padding-left: 50%; /* Make space for the label */
+    position: relative; /* Needed for pseudo-element positioning */
+    border-bottom: none; /* Remove default bottom border */
+    padding-top: 0.4rem;
+    padding-bottom: 0.4rem;
+    white-space: normal; /* Keep allowing wrapping */
+    word-break: break-all; /* Add this to force breaks in long strings */
+  }
+   .responsive-table td:not(:last-child) {
+       /* Optional: add a subtle separator between fields in a card */
+       border-bottom: 1px dashed var(--border-color-light);
+   }
+
+
+  .responsive-table td::before {
+    content: attr(data-label); /* Display the label */
+    position: absolute;
+    left: 0.8rem; /* Position label on the left */
+    width: calc(50% - 1.6rem); /* Calculate label width */
+    padding-right: 10px;
+    white-space: nowrap;
+    text-align: left; /* Align label text to the left */
+    font-weight: bold;
+    color: var(--text-color-secondary);
+  }
+
+  /* Adjust specific cells if needed */
+   .responsive-table td:first-child { /* e.g., Name */
+       font-weight: 500; /* Make name slightly bolder */
+   }
+
+  .responsive-table .action-buttons {
+    text-align: right; /* Keep buttons aligned right */
+    padding-left: 0; /* Remove padding override for actions */
+    padding-top: 0.8rem; /* Add some space above buttons */
+    border-bottom: none; /* Ensure no border below buttons */
+    display: flex; /* Use flex for better button alignment */
+    justify-content: flex-end; /* Align buttons to the right */
+    flex-wrap: wrap; /* Allow buttons to wrap */
+    gap: 0.5rem; /* Keep gap between buttons */
+  }
+   .responsive-table .action-buttons::before {
+       display: none; /* Hide label for action buttons cell */
+   }
+   .responsive-table .action-buttons button {
+       /* Ensure buttons don't get too small */
+       min-width: 30px;
+   }
+
+   /* Adjust status badge alignment and prevent wrapping */
+   .responsive-table td[data-label*="Status"] {
+       display: flex; /* Use flexbox for alignment */
+       justify-content: flex-end; /* Align badge to the right */
+       align-items: center; /* Vertically align if needed */
+   }
+   .responsive-table td[data-label*="Status"] span.status-badge {
+       /* float: right; */ /* Removed float */
+       white-space: nowrap; /* Prevent text inside badge from wrapping */
+       flex-shrink: 0; /* Prevent badge from shrinking */
+   }
+}
+/* --- End Responsive Table Styles --- */
 
 </style>
