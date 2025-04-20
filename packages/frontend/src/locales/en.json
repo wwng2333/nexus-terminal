@@ -643,6 +643,19 @@
          "saveFailed": "Failed to save Docker settings.",
          "invalidInterval": "Refresh interval must be a positive integer."
        }
+     },
+     "statusMonitor": {
+       "title": "Status Monitor Settings",
+       "refreshIntervalLabel": "Status Refresh Interval (seconds):",
+       "refreshIntervalHint": "How often to fetch server CPU, memory, disk, etc. status (minimum 1).",
+       "saveButton": "Save Status Monitor Settings",
+       "success": {
+         "saved": "Status monitor settings saved successfully."
+       },
+       "error": {
+         "saveFailed": "Failed to save status monitor settings.",
+         "invalidInterval": "Refresh interval must be a positive integer."
+       }
      }
   },
   "common": {

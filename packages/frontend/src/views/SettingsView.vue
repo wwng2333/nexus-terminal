@@ -156,6 +156,21 @@
         </div>
         <!-- END: Docker Settings Section -->
 
+        <!-- NEW: Status Monitor Settings Section -->
+        <div class="settings-section">
+          <h2>{{ t('settings.statusMonitor.title') }}</h2>
+          <form @submit.prevent="handleUpdateStatusMonitorInterval">
+            <div class="form-group">
+              <label for="statusMonitorInterval">{{ t('settings.statusMonitor.refreshIntervalLabel') }}</label>
+              <input type="number" id="statusMonitorInterval" v-model.number="statusMonitorIntervalLocal" min="1" step="1" required>
+              <small>{{ t('settings.statusMonitor.refreshIntervalHint') }}</small>
+            </div>
+            <button type="submit" :disabled="statusMonitorLoading">{{ statusMonitorLoading ? $t('common.saving') : t('settings.statusMonitor.saveButton') }}</button>
+            <p v-if="statusMonitorMessage" :class="{ 'success-message': statusMonitorSuccess, 'error-message': !statusMonitorSuccess }">{{ statusMonitorMessage }}</p>
+          </form>
+        </div>
+        <!-- END: Status Monitor Settings Section -->
+
         <div class="settings-section">
           <h2>{{ $t('settings.ipWhitelist.title') }}</h2>
           <p>{{ $t('settings.ipWhitelist.description') }}</p>
@@ -252,7 +267,7 @@ const { t } = useI18n();
 
 // --- Reactive state from store ---
 // 使用 storeToRefs 获取响应式 getter，包括 language
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean, language: storeLanguage } = storeToRefs(settingsStore); // +++ 添加 dockerDefaultExpandBoolean 和 language getter +++
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean, statusMonitorIntervalSecondsNumber, language: storeLanguage } = storeToRefs(settingsStore); // +++ 添加 statusMonitorIntervalSecondsNumber getter +++
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -290,6 +305,10 @@ const dockerExpandDefault = ref(false); // 本地状态，用于 Docker 默认�
 const dockerSettingsLoading = ref(false);
 const dockerSettingsMessage = ref('');
 const dockerSettingsSuccess = ref(false);
+const statusMonitorIntervalLocal = ref(3); // 本地状态，用于状态监控间隔 v-model
+const statusMonitorLoading = ref(false);
+const statusMonitorMessage = ref('');
+const statusMonitorSuccess = ref(false);
 
 
 // --- Watcher to sync local form state with store state ---
@@ -308,6 +327,7 @@ watch(settings, (newSettings, oldSettings) => {
   autoCopyEnabled.value = autoCopyOnSelectBoolean.value; // 同步选中即复制状态
   dockerInterval.value = parseInt(newSettings.dockerStatusIntervalSeconds || '2', 10); // 同步 Docker 间隔
   dockerExpandDefault.value = dockerDefaultExpandBoolean.value; // 同步 Docker 默认展开状态
+  statusMonitorIntervalLocal.value = statusMonitorIntervalSecondsNumber.value; // 同步状态监控间隔
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -398,6 +418,27 @@ const handleUpdateDockerSettings = async () => {
     }
 };
 
+// --- Status Monitor interval setting method ---
+const handleUpdateStatusMonitorInterval = async () => {
+    statusMonitorLoading.value = true;
+    statusMonitorMessage.value = '';
+    statusMonitorSuccess.value = false;
+    try {
+        const intervalValue = statusMonitorIntervalLocal.value;
+        if (isNaN(intervalValue) || intervalValue < 1 || !Number.isInteger(intervalValue)) {
+            throw new Error(t('settings.statusMonitor.error.invalidInterval')); // 需要添加翻译
+        }
+        await settingsStore.updateSetting('statusMonitorIntervalSeconds', String(intervalValue)); // 保存为字符串
+        statusMonitorMessage.value = t('settings.statusMonitor.success.saved'); // 需要添加翻译
+        statusMonitorSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新状态监控间隔失败:', error);
+        statusMonitorMessage.value = error.message || t('settings.statusMonitor.error.saveFailed'); // 需要添加翻译
+        statusMonitorSuccess.value = false;
+    } finally {
+        statusMonitorLoading.value = false;
+    }
+};
 
 // --- 外观设置 ---
 const openStyleCustomizer = () => {

@@ -33,7 +33,8 @@ export const settingsController = {
       const allowedSettingsKeys = [
           'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
           'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
-          'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand' // +++ 添加 Docker 设置键 +++
+          'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
+          'statusMonitorIntervalSeconds' // +++ 添加状态监控间隔键 +++
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {

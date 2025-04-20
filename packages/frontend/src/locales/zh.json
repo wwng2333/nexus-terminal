@@ -643,6 +643,19 @@
          "saveFailed": "保存 Docker 设置失败。",
          "invalidInterval": "刷新间隔必须是正整数。"
        }
+     },
+     "statusMonitor": {
+       "title": "状态监控设置",
+       "refreshIntervalLabel": "状态刷新间隔 (秒):",
+       "refreshIntervalHint": "获取服务器 CPU、内存、磁盘等状态的频率（最小为 1）。",
+       "saveButton": "保存状态监控设置",
+       "success": {
+         "saved": "状态监控设置已成功保存。"
+       },
+       "error": {
+         "saveFailed": "保存状态监控设置失败。",
+         "invalidInterval": "刷新间隔必须是正整数。"
+       }
      }
   },
   "common": {

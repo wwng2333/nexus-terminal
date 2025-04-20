@@ -6,6 +6,8 @@ const FOCUS_SEQUENCE_KEY = 'focusSwitcherSequence'; // 焦点切换顺序设置�
 const NAV_BAR_VISIBLE_KEY = 'navBarVisible'; // 导航栏可见性设置键
 const LAYOUT_TREE_KEY = 'layoutTree'; // 布局树设置键
 const AUTO_COPY_ON_SELECT_KEY = 'autoCopyOnSelect'; // 终端选中自动复制设置键
+const STATUS_MONITOR_INTERVAL_SECONDS_KEY = 'statusMonitorIntervalSeconds'; // 状态监控间隔设置键
+const DEFAULT_STATUS_MONITOR_INTERVAL_SECONDS = 3; // 默认状态监控间隔
 
 export const settingsService = {
   /**
@@ -239,6 +241,55 @@ export const settingsService = {
    } catch (error) {
      console.error(`[Service] Error calling settingsRepository.setSetting for key ${AUTO_COPY_ON_SELECT_KEY}:`, error);
      throw new Error('Failed to save auto copy on select setting.');
+   }
+ }, // *** 确保这里有逗号 ***
+
+ /**
+  * 获取状态监控轮询间隔 (秒)
+  * @returns 返回间隔秒数 (number)，如果未设置或无效则返回默认值
+  */
+ async getStatusMonitorIntervalSeconds(): Promise<number> {
+   console.log(`[Service] Attempting to get setting for key: ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}`);
+   try {
+     const intervalStr = await settingsRepository.getSetting(STATUS_MONITOR_INTERVAL_SECONDS_KEY);
+     console.log(`[Service] Raw value from repository for ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}:`, intervalStr);
+     if (intervalStr) {
+       const intervalNum = parseInt(intervalStr, 10);
+       // 验证是否为正整数
+       if (!isNaN(intervalNum) && intervalNum > 0) {
+         return intervalNum;
+       } else {
+         console.warn(`[Service] Invalid status monitor interval value found ('${intervalStr}'). Returning default.`);
+       }
+     } else {
+       console.log(`[Service] No status monitor interval found in settings. Returning default.`);
+     }
+   } catch (error) {
+     console.error(`[Service] Error getting status monitor interval setting (key: ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}):`, error);
+   }
+   // 返回默认值
+   return DEFAULT_STATUS_MONITOR_INTERVAL_SECONDS;
+ }, // *** 确保这里有逗号 ***
+
+ /**
+  * 设置状态监控轮询间隔 (秒)
+  * @param interval 间隔秒数 (number)
+  */
+ async setStatusMonitorIntervalSeconds(interval: number): Promise<void> {
+   console.log(`[Service] setStatusMonitorIntervalSeconds called with: ${interval}`);
+   // 验证输入是否为正整数
+   if (!Number.isInteger(interval) || interval <= 0) {
+     console.error(`[Service] Attempted to save invalid status monitor interval: ${interval}`);
+     throw new Error('Invalid interval value provided. Must be a positive integer.');
+   }
+   try {
+     const intervalStr = String(interval);
+     console.log(`[Service] Attempting to save setting. Key: ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}, Value: ${intervalStr}`);
+     await settingsRepository.setSetting(STATUS_MONITOR_INTERVAL_SECONDS_KEY, intervalStr);
+     console.log(`[Service] Successfully saved setting for key: ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}`);
+   } catch (error) {
+     console.error(`[Service] Error calling settingsRepository.setSetting for key ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}:`, error);
+     throw new Error('Failed to save status monitor interval setting.');
    }
  } // *** 最后的方法后面不需要逗号 ***
 };
