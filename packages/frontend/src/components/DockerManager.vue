@@ -379,15 +379,14 @@ onUnmounted(() => {
         </thead>
         <!-- Use template v-for to render pairs of rows -->
         <template v-for="container in containers" :key="container.id">
-          <!-- Main Row -->
-          <tr>
-            <!-- FIX: Expand button TD inside the main TR -->
+          <!-- Main Row / Card Container -->
+          <tr :class="{'expanded': expandedContainerId === container.id}">
+            <!-- 表格视图中的展开按钮 -->
             <td class="col-expand">
               <button @click="toggleExpand(container.id)" class="expand-btn" :title="expandedContainerId === container.id ? t('common.collapse') : t('common.expand')">
                 <i :class="['fas', expandedContainerId === container.id ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
               </button>
             </td>
-            <!-- End FIX -->
             <td :data-label="t('dockerManager.header.name')">{{ container.Names?.join(', ') || 'N/A' }}</td>
             <td :data-label="t('dockerManager.header.image')">{{ container.Image }}</td>
             <td :data-label="t('dockerManager.header.status')">
@@ -411,12 +410,52 @@ onUnmounted(() => {
               </button>
               <!-- Log button removed as per user request -->
             </td>
+
+            <!-- NEW: Container Cell for Card Footer/Expansion (Only visible in card view) -->
+            <td class="card-expansion-cell">
+              <!-- Card Footer Button (Show when NOT expanded in card view) -->
+              <div class="card-footer" v-if="expandedContainerId !== container.id">
+                 <button @click="toggleExpand(container.id)" class="card-expand-btn">
+                   <i class="fas fa-chevron-down"></i>
+                 </button>
+              </div>
+              <!-- Card Expansion Content (Show when expanded in card view) -->
+              <div class="expansion-card-content" v-if="expandedContainerId === container.id">
+                 <div class="stats-container card-stats-container">
+                    <!-- Stats content (loading, error, data) -->
+                    <div v-if="isStatsLoading" class="stats-loading">
+                      <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
+                    </div>
+                    <div v-else-if="statsError" class="stats-error">
+                      <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError }}
+                    </div>
+                    <dl v-else-if="containerStats" class="stats-dl">
+                      <dt>{{ t('dockerManager.stats.cpu') }}</dt>
+                      <dd>{{ containerStats.CPUPerc }}</dd>
+                      <dt>{{ t('dockerManager.stats.memory') }}</dt>
+                      <dd>{{ containerStats.MemUsage }} ({{ containerStats.MemPerc }})</dd>
+                      <dt>{{ t('dockerManager.stats.netIO') }}</dt>
+                      <dd>{{ containerStats.NetIO }}</dd>
+                      <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
+                      <dd>{{ containerStats.BlockIO }}</dd>
+                      <dt>{{ t('dockerManager.stats.pids') }}</dt>
+                      <dd>{{ containerStats.PIDs }}</dd>
+                      <!-- Add more stats if available -->
+                    </dl>
+                    <div v-else class="stats-nodata">
+                        {{ t('dockerManager.stats.noData') }}
+                    </div>
+                 </div>
+              </div>
+            </td>
           </tr>
-          <!-- Desktop Expansion Row -->
+
+          <!-- Desktop Expansion Row (Remains separate, only visible in desktop view when expanded) -->
           <tr v-if="expandedContainerId === container.id" class="expansion-row">
-            <td :colspan="6"> <!-- Colspan should match total number of columns -->
+            <!-- Colspan needs to match the number of VISIBLE columns in desktop view (excluding the new card-expansion-cell) -->
+            <td :colspan="6">
               <div class="stats-container">
-                 <!-- Stats content -->
+                <!-- Desktop stats content -->
                  <div v-if="isStatsLoading" class="stats-loading">
                   <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
                 </div>
@@ -442,36 +481,7 @@ onUnmounted(() => {
               </div>
             </td>
           </tr>
-
-          <tr v-if="expandedContainerId === container.id" class="expansion-card-row">
-              <td colspan="1"> <!-- Only one cell in card view -->
-                  <div class="stats-container card-stats-container">
-
-                       <div v-if="isStatsLoading" class="stats-loading">
-                           <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
-                       </div>
-                       <div v-else-if="statsError" class="stats-error">
-                           <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError }}
-                       </div>
-                       <dl v-else-if="containerStats" class="stats-dl">
-                           <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                           <dd>{{ containerStats.CPUPerc }}</dd>
-                           <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                           <dd>{{ containerStats.MemUsage }} ({{ containerStats.MemPerc }})</dd>
-                           <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                           <dd>{{ containerStats.NetIO }}</dd>
-                           <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                           <dd>{{ containerStats.BlockIO }}</dd>
-                           <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                           <dd>{{ containerStats.PIDs }}</dd>
-                       </dl>
-                       <div v-else class="stats-nodata">
-                           {{ t('dockerManager.stats.noData') }}
-                       </div>
-                  </div>
-              </td>
-          </tr>
-          <!-- End FIX -->
+          <!-- Removed original separate card-footer-row and expansion-card-row -->
         </template> <!-- End v-for template -->
       </table>
     </div>
@@ -679,9 +689,17 @@ onUnmounted(() => {
     font-family: var(--font-family-mono, monospace); /* Monospace for stats */
 }
 
-/* Hide card-specific expansion row by default */
-.expansion-card-row {
+/* Hide card-specific expansion row and footer row by default */
+.expansion-card-row,
+.card-footer-row {
     display: none;
+}
+
+/* Hide the new card expansion cell by default (for desktop view) */
+.responsive-table td.card-expansion-cell {
+  display: none;
+  padding: 0;
+  border: none;
 }
 
 
@@ -703,11 +721,11 @@ onUnmounted(() => {
     padding: 0.8rem;
     background-color: var(--item-bg-color, var(--app-bg-color)); /* Card background */
     box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
-    position: relative; /* Needed for absolute positioning of button */
-    padding-top: 2.5rem; /* Make space for the button at the top */
+    position: relative; /* Needed for absolute positioning */
+    /* padding-bottom: 0; /* Removed, expansion/footer is now inside */
   }
 
-  .responsive-table td {
+  .responsive-table td:not(.card-expansion-cell) { /* Exclude the new cell from general card TD styling */
     display: block; /* Stack cells vertically */
     text-align: right; /* Align cell content to the right */
     padding-left: 50%; /* Make space for the label */
@@ -736,19 +754,21 @@ onUnmounted(() => {
     color: var(--text-color-secondary);
   }
 
-  /* Hide expand button column in card view */
-  .responsive-table .col-expand {
-      display: none;
+  /* 表格模式下的展开按钮列样式 */
+  @container (min-width: 769px) {
+    .responsive-table .col-expand {
+        width: 30px;
+        padding: 0.6rem 0.4rem !important;
+        text-align: center !important;
+        border-bottom: 1px solid var(--border-color-light, #eee);
+    }
   }
-
-  /* Position the expand button within the card */
-  .responsive-table tr:not(.expansion-card-row) .expand-btn {
-      position: absolute;
-      top: 0.6rem;
-      left: 0.6rem; /* Position top-left */
-      font-size: 1em; /* Make it slightly larger */
-      z-index: 2; /* Ensure it's clickable */
-      display: inline-block; /* Ensure button is visible */
+  
+  /* 卡片模式下隐藏原始的展开按钮列，改用底部长条按钮 */
+  @container (max-width: 768px) {
+    .responsive-table .col-expand {
+        display: none !important; /* Force hide in card view */
+    }
   }
 
 
@@ -756,6 +776,67 @@ onUnmounted(() => {
    .responsive-table td:first-child { /* e.g., Name */
        font-weight: 500; /* Make name slightly bolder */
    }
+   
+   /* Styles for the new card expansion cell in card view */
+   .responsive-table td.card-expansion-cell {
+     display: block; /* Show in card view */
+     width: 100%; /* Take full width */
+     padding: 0 !important; /* Override default td padding */
+     position: static; /* Override relative positioning if needed */
+     border-top: 1px solid var(--border-color-light); /* Separator line */
+     margin-top: 0.8rem; /* Space above the separator */
+   }
+   .responsive-table td.card-expansion-cell::before {
+     display: none; /* No label for this cell */
+   }
+
+   /* Styles for the footer button container inside the cell */
+   .card-expansion-cell .card-footer {
+      display: block;
+      margin: 0;
+      padding: 0;
+   }
+   .card-expansion-cell .card-expand-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 40px;
+      padding: 0;
+      background: none;
+      border: none;
+      font-size: 0.9em;
+      color: var(--text-color-secondary);
+      cursor: pointer;
+      transition: color 0.2s ease, background-color 0.2s ease;
+      border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Add border radius to button */
+   }
+   .card-expansion-cell .card-expand-btn i {
+      margin-right: 6px;
+   }
+   .card-expansion-cell .card-expand-btn:hover {
+      color: var(--text-color);
+      background-color: var(--hover-bg-color, rgba(0,0,0,0.03));
+   }
+
+   /* Styles for the expansion content container inside the cell */
+   .card-expansion-cell .expansion-card-content {
+      display: block; /* Ensure visible */
+      background-color: var(--item-expanded-bg, rgba(0,0,0,0.02));
+      padding: 0; /* Let stats-container handle padding */
+      border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Add border radius */
+   }
+    .card-expansion-cell .card-stats-container {
+        padding: var(--base-padding, 1rem); /* Padding inside the content area */
+    }
+
+    /* Hide original separate rows in card view */
+    .responsive-table .card-footer-row,
+    .responsive-table .expansion-card-row {
+        display: none !important; /* Ensure they are hidden */
+    }
+   /* --- End New Card Expansion Cell Styles --- */
+
 
   .responsive-table .action-buttons {
     /* ... (existing action button styles) ... */
@@ -787,30 +868,9 @@ onUnmounted(() => {
 
    /* Hide the table-specific expansion row in card view */
    .responsive-table .expansion-row {
-       display: none;
+       display: none !important; /* Ensure desktop row is hidden in card view */
    }
-    /* Show the card-specific expansion row */
-    .responsive-table .expansion-card-row {
-        display: block; /* Ensure it's visible */
-        margin-bottom: 1rem; /* Match card spacing */
-        border: 1px solid var(--border-color);
-        border-top: none; /* Remove top border as it connects to the card */
-        border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Round bottom corners */
-        background-color: var(--item-expanded-bg, rgba(0,0,0,0.02));
-        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
-        margin-top: -1rem; /* Pull it up slightly to connect visually */
-    }
-    .responsive-table .expansion-card-row td {
-        display: block;
-        padding: 0 !important; /* Remove default td padding */
-        text-align: left; /* Reset text align */
-    }
-    .responsive-table .card-stats-container {
-        padding: var(--base-padding, 1rem);
-    }
-    .responsive-table .expansion-card-row td::before {
-        display: none; /* No label needed for this row */
-    }
+    /* Original expansion-card-row styles are now handled by .card-expansion-cell .expansion-card-content */
 
 }
 /* --- End Responsive Table Styles --- */
