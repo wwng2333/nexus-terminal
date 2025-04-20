@@ -17,6 +17,14 @@ interface PortInfo {
   Type: 'tcp' | 'udp' | string;
 }
 
+// --- Interfaces ---
+interface PortInfo {
+  IP?: string;
+  PrivatePort: number;
+  PublicPort?: number;
+  Type: 'tcp' | 'udp' | string;
+}
+
 interface DockerContainer {
   id: string; // <--- Changed from Id to id
   Names: string[];
@@ -28,6 +36,7 @@ interface DockerContainer {
   Status: string;
   Ports: PortInfo[];
   Labels: Record<string, string>;
+  stats?: DockerStats | null; // ADDED: Assume stats are pushed with the container data
 }
 
 // --- NEW: Stats Interface (Example structure, adjust based on actual docker stats json output) ---
@@ -50,12 +59,11 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const isDockerAvailable = ref(true); // This will now reflect remote docker availability
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
+// REMOVED: statsRefreshInterval
 let wsUnsubscribeHooks: (() => void)[] = []; // To store unsubscribe functions
-// --- NEW: State for expansion (multiple allowed) ---
+// --- State for expansion (multiple allowed) ---
 const expandedContainerIds = ref<Set<string>>(new Set()); // Use a Set to store multiple IDs
-const containerStats = ref<Map<string, DockerStats | null>>(new Map()); // Map: containerId -> stats
-const isStatsLoading = ref<Map<string, boolean>>(new Map()); // Map: containerId -> loading state
-const statsError = ref<Map<string, string | null>>(new Map()); // Map: containerId -> error message
+// REMOVED: containerStats, isStatsLoading, statsError maps
 
 
 // --- Computed ---
@@ -78,32 +86,54 @@ const setupWsListeners = () => {
   const wsManager = activeSession.value.wsManager;
 
   // Listener for Docker status updates
+  // Listener for Docker status updates (SIMPLIFIED)
   const unsubStatus = wsManager.onMessage('docker:status:update', (payload) => {
-    console.log('[DockerManager] Received docker:status:update', payload);
-    isLoading.value = false; // Stop loading indicator
-    if (payload && typeof payload.available === 'boolean') {
-      isDockerAvailable.value = payload.available;
-      if (payload.available && Array.isArray(payload.containers)) {
-        containers.value = payload.containers;
-        error.value = null;
+      console.log('[DockerManager] Received docker:status:update', payload);
+      isLoading.value = false; // Stop loading indicator
+
+      if (payload && typeof payload.available === 'boolean') {
+          isDockerAvailable.value = payload.available;
+          if (payload.available && Array.isArray(payload.containers)) {
+              // Directly replace the containers list with the received data
+              // Assuming payload.containers includes the 'stats' property for each container
+              containers.value = payload.containers as DockerContainer[];
+              error.value = null;
+
+              // Clean up expansion state for containers that no longer exist
+              const currentIds = new Set(containers.value.map(c => c.id));
+              const idsToRemove = new Set<string>();
+              expandedContainerIds.value.forEach(id => {
+                  if (!currentIds.has(id)) {
+                      idsToRemove.add(id);
+                  }
+              });
+              idsToRemove.forEach(id => expandedContainerIds.value.delete(id));
+
+          } else {
+              // Docker available but no containers, or Docker unavailable
+              containers.value = [];
+              error.value = null;
+              expandedContainerIds.value.clear(); // Collapse all
+
+              // Stop main refresh interval if Docker becomes unavailable remotely
+              // (No stats interval to stop anymore)
+              if (refreshInterval && !payload.available) {
+                  clearInterval(refreshInterval);
+                  refreshInterval = null;
+                  console.log('[DockerManager] Stopped refresh interval due to remote Docker unavailability.');
+              }
+          }
       } else {
-        containers.value = [];
-        error.value = null; // Clear error if Docker just unavailable
-        // Stop interval if Docker becomes unavailable remotely
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
-            console.log('[DockerManager] Stopped refresh interval due to remote Docker unavailability.');
-        }
+          // Handle invalid payload
+          isDockerAvailable.value = false;
+          containers.value = [];
+          error.value = t('dockerManager.error.invalidResponse');
+          expandedContainerIds.value.clear(); // Collapse all
+
+          if (refreshInterval) clearInterval(refreshInterval);
+          refreshInterval = null;
+          // No stats interval to stop
       }
-    } else {
-        // Handle invalid payload
-        isDockerAvailable.value = false;
-        containers.value = [];
-        error.value = t('dockerManager.error.invalidResponse');
-        if (refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = null;
-    }
   });
 
   // Listener for Docker status fetch errors
@@ -131,31 +161,13 @@ const setupWsListeners = () => {
       requestDockerStatus(); // Trigger a status refresh immediately
   });
 
-  // --- NEW: Listen for stats updates ---
-  const unsubStatsUpdate = wsManager.onMessage('docker:stats:update', (payload) => {
-      // Update stats for the specific container if it's being tracked
-      if (payload?.containerId && expandedContainerIds.value.has(payload.containerId)) {
-          console.log(`[DockerManager] Received stats update for ${payload.containerId}:`, payload.stats);
-          containerStats.value.set(payload.containerId, payload.stats as DockerStats);
-          isStatsLoading.value.set(payload.containerId, false);
-          statsError.value.set(payload.containerId, null);
-      }
-  });
-
-  const unsubStatsError = wsManager.onMessage('docker:stats:error', (payload) => {
-      // Update error status for the specific container if it's being tracked
-      if (payload?.containerId && expandedContainerIds.value.has(payload.containerId)) {
-          console.error(`[DockerManager] Error fetching stats for ${payload.containerId}:`, payload.message);
-          containerStats.value.set(payload.containerId, null);
-          isStatsLoading.value.set(payload.containerId, false);
-          statsError.value.set(payload.containerId, payload.message || t('dockerManager.stats.errorGeneric'));
-      }
-  });
+  // REMOVED: unsubStatsUpdate and unsubStatsError listeners
 
   wsUnsubscribeHooks.push(
-      unsubStatus, unsubStatusError, unsubCommandError, unsubRequestUpdate, // existing unsub hooks
-      unsubStatsUpdate,
-      unsubStatsError
+      unsubStatus,
+      unsubStatusError,
+      unsubCommandError,
+      unsubRequestUpdate
   );
 };
 
@@ -216,113 +228,97 @@ const sendDockerCommand = (containerId: string, command: 'start' | 'stop' | 'res
   });
 };
 
-// --- UPDATED: Method to toggle expansion for a specific container ---
+// --- SIMPLIFIED: Method to toggle expansion ---
 const toggleExpand = (containerId: string) => {
-    const currentlyExpanded = expandedContainerIds.value.has(containerId);
-
-    if (currentlyExpanded) {
-        // Collapse this specific container
+    if (expandedContainerIds.value.has(containerId)) {
         expandedContainerIds.value.delete(containerId);
-        // Clear its stats data
-        containerStats.value.delete(containerId);
-        isStatsLoading.value.delete(containerId);
-        statsError.value.delete(containerId);
-        console.log(`[DockerManager] Collapsed container ${containerId}. Remaining expanded:`, Array.from(expandedContainerIds.value));
+        console.log(`[DockerManager] Collapsed container ${containerId}.`);
     } else {
-        // Expand this specific container
         expandedContainerIds.value.add(containerId);
-        // Initialize its stats state
-        containerStats.value.set(containerId, null);
-        statsError.value.set(containerId, null);
-        isStatsLoading.value.set(containerId, true);
-        console.log(`[DockerManager] Expanded container ${containerId}. All expanded:`, Array.from(expandedContainerIds.value));
-
-        // Request stats from backend
-        if (activeSession.value && sshConnectionStatus.value === 'connected') {
-            console.log(`[DockerManager] Requesting stats for container ${containerId}`);
-            activeSession.value.wsManager.sendMessage({
-                type: 'docker:get_stats',
-                payload: { containerId }
-            });
-        } else {
-            console.warn('[DockerManager] Cannot fetch stats, SSH not connected.');
-            statsError.value.set(containerId, t('dockerManager.error.sshNotConnected'));
-            isStatsLoading.value.set(containerId, false);
-        }
+        console.log(`[DockerManager] Expanded container ${containerId}.`);
+        // No need to request stats here, they should be in containers.value
     }
 };
 
+// REMOVED: requestExpandedStats function
 
 // --- Lifecycle and Watchers ---
 
-// Watch for changes in the active session OR SSH connection status
+// --- SIMPLIFIED Watcher ---
 watch([currentSessionId, sshConnectionStatus], ([newSessionId, newSshStatus], [oldSessionId, oldSshStatus]) => {
-  console.log(`[DockerManager] Watch triggered. Session: ${oldSessionId}=>${newSessionId}, SSH Status: ${oldSshStatus}=>${newSshStatus}`);
+    console.log(`[DockerManager] Watch triggered. Session: ${oldSessionId}=>${newSessionId}, SSH Status: ${oldSshStatus}=>${newSshStatus}`);
 
-  // --- Reset state on session change or SSH disconnect/error ---
-  if (newSessionId !== oldSessionId || (newSessionId && (newSshStatus === 'disconnected' || newSshStatus === 'error'))) {
-      console.log('[DockerManager] Resetting state due to session change or SSH disconnect/error.');
-      containers.value = [];
-      isLoading.value = false;
-      error.value = null;
-      isDockerAvailable.value = true; // Assume available until fetch attempt
+    // --- Clear state and main interval on session change or SSH disconnect/error ---
+    const resetStateAndInterval = () => {
+        console.log('[DockerManager] Resetting state and clearing main interval.');
+        containers.value = [];
+        isLoading.value = false;
+        error.value = null;
+        isDockerAvailable.value = true; // Assume available until fetch attempt
+        expandedContainerIds.value.clear(); // Clear expansion state
 
-      if (refreshInterval) {
-          clearInterval(refreshInterval);
-          refreshInterval = null;
-          console.log('[DockerManager] Cleared refresh interval.');
-      }
-      clearWsListeners(); // Clear listeners on disconnect or session change
-       // --- Add: Collapse container when session changes or disconnects ---
-     // --- Add: Collapse ALL containers when session changes or disconnects ---
-     if (expandedContainerIds.value.size > 0) {
-         console.log('[DockerManager] Session changed/disconnected, collapsing all stats views.');
-         expandedContainerIds.value.clear();
-         containerStats.value.clear();
-         statsError.value.clear();
-         isStatsLoading.value.clear();
-     }
-     // --- End Add ---
-  }
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
+            console.log('[DockerManager] Cleared main refresh interval.');
+        }
+        // No stats interval to clear
+        clearWsListeners(); // Clear listeners
+    };
 
-  // --- Setup listeners and fetch data when session is active AND SSH is connected ---
-  if (newSessionId && newSshStatus === 'connected') {
-      // Only setup listeners/fetch if we weren't already connected in this session
-      if (oldSshStatus !== 'connected' || newSessionId !== oldSessionId) {
-          console.log(`[DockerManager] Session ${newSessionId} connected. Setting up listeners and fetching initial status.`);
-          setupWsListeners();
-          requestDockerStatus(); // Fetch initial status now that SSH is connected
+    if (newSessionId !== oldSessionId || (newSessionId && (newSshStatus === 'disconnected' || newSshStatus === 'error'))) {
+        resetStateAndInterval();
+    }
 
-          // Start interval only when SSH is connected
-          if (!refreshInterval) {
-              refreshInterval = setInterval(requestDockerStatus, 1000); // Check status every second
-              console.log('[DockerManager] Refresh interval started.');
-          }
-      }
-  } else if (newSessionId && newSshStatus === 'connecting') { // <--- Removed 'initializing' check
-       // If connecting, ensure loading indicator is potentially active, but don't fetch yet
-       isLoading.value = true; // Show loading as SSH connects
-       error.value = null; // Clear previous errors
-       containers.value = []; // Clear old containers
-       isDockerAvailable.value = false; // Docker not available until SSH connects
-       console.log('[DockerManager] SSH is connecting, waiting...');
-  } else {
-      // Handle cases like no active session (newSessionId is null)
-      isLoading.value = false; // Ensure loading is off if no session
-      console.log('[DockerManager] No active session or SSH not connected.');
-  }
+    // --- Setup listeners and start main interval when session is active AND SSH is connected ---
+    if (newSessionId && newSshStatus === 'connected') {
+        // Only setup/start if we weren't already connected or interval isn't running
+        if (oldSshStatus !== 'connected' || newSessionId !== oldSessionId || !refreshInterval) {
+            console.log(`[DockerManager] Session ${newSessionId} connected. Setting up listeners and starting main interval.`);
+            setupWsListeners();
+            requestDockerStatus(); // Fetch initial status
 
-}, { immediate: true, deep: true }); // immediate: true to run on initial mount, deep might be needed for status object?
+            // Start main status refresh interval (if backend doesn't push automatically)
+            // If backend *does* push automatically, this interval might be redundant or cause extra load.
+            // Consider making the interval optional or configurable based on backend behavior.
+            if (!refreshInterval) {
+                 // Let's keep a slower interval for safety, maybe backend push fails sometimes
+                refreshInterval = setInterval(requestDockerStatus, 15000); // Check status every 15 seconds
+                console.log('[DockerManager] Main refresh interval started (15s).');
+            }
+            // No stats interval to start
+        }
+    } else if (newSessionId && newSshStatus === 'connecting') {
+        isLoading.value = true;
+        error.value = null;
+        containers.value = [];
+        isDockerAvailable.value = false;
+        console.log('[DockerManager] SSH is connecting, waiting...');
+        // Ensure main interval is stopped while connecting
+        if (refreshInterval) clearInterval(refreshInterval);
+        refreshInterval = null;
+    } else {
+        // Handle cases like no active session or other statuses
+        isLoading.value = false;
+        console.log('[DockerManager] No active session or SSH not connected/connecting.');
+        // Ensure main interval is stopped if not connected
+         if (refreshInterval) clearInterval(refreshInterval);
+         refreshInterval = null;
+    }
+
+}, { immediate: true });
 
 
+// --- SIMPLIFIED onUnmounted ---
 onUnmounted(() => {
-  console.log('[DockerManager] Component unmounted.');
-  clearWsListeners(); // Clean up listeners
-  if (refreshInterval) {
-    clearInterval(refreshInterval);
-    refreshInterval = null;
-    console.log('[DockerManager] Refresh interval cleared on unmount.');
-  }
+    console.log('[DockerManager] Component unmounted.');
+    clearWsListeners(); // Clean up listeners
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+        console.log('[DockerManager] Main refresh interval cleared on unmount.');
+    }
+    // No stats interval to clear
 });
 
 </script>
@@ -431,23 +427,19 @@ onUnmounted(() => {
               <div class="expansion-card-content" v-if="expandedContainerIds.has(container.id)">
                  <div class="stats-container card-stats-container">
                     <!-- Stats content (loading, error, data) for this specific container -->
-                    <div v-if="isStatsLoading.get(container.id)" class="stats-loading">
-                      <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
-                    </div>
-                    <div v-else-if="statsError.get(container.id)" class="stats-error">
-                      <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError.get(container.id) }}
-                    </div>
-                    <dl v-else-if="containerStats.get(container.id)" class="stats-dl">
+                    <!-- SIMPLIFIED: Display stats directly from container object -->
+                    <!-- REMOVED: v-if="isStatsLoading..." and v-else-if="statsError..." -->
+                    <dl v-if="container.stats" class="stats-dl">
                       <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                      <dd>{{ containerStats.get(container.id)?.CPUPerc ?? 'N/A' }}</dd>
+                      <dd>{{ container.stats.CPUPerc ?? 'N/A' }}</dd>
                       <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                      <dd>{{ containerStats.get(container.id)?.MemUsage ?? 'N/A' }} ({{ containerStats.get(container.id)?.MemPerc ?? 'N/A' }})</dd>
+                      <dd>{{ container.stats.MemUsage ?? 'N/A' }} ({{ container.stats.MemPerc ?? 'N/A' }})</dd>
                       <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                      <dd>{{ containerStats.get(container.id)?.NetIO ?? 'N/A' }}</dd>
+                      <dd>{{ container.stats.NetIO ?? 'N/A' }}</dd>
                       <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                      <dd>{{ containerStats.get(container.id)?.BlockIO ?? 'N/A' }}</dd>
+                      <dd>{{ container.stats.BlockIO ?? 'N/A' }}</dd>
                       <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                      <dd>{{ containerStats.get(container.id)?.PIDs ?? 'N/A' }}</dd>
+                      <dd>{{ container.stats.PIDs ?? 'N/A' }}</dd>
                       <!-- Add more stats if available -->
                     </dl>
                     <div v-else class="stats-nodata">
@@ -468,23 +460,19 @@ onUnmounted(() => {
             <td :colspan="6">
               <div class="stats-container">
                 <!-- Desktop stats content for this specific container -->
-                 <div v-if="isStatsLoading.get(container.id)" class="stats-loading">
-                  <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
-                </div>
-                <div v-else-if="statsError.get(container.id)" class="stats-error">
-                  <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError.get(container.id) }}
-                </div>
-                <dl v-else-if="containerStats.get(container.id)" class="stats-dl">
+                <!-- SIMPLIFIED: Display stats directly from container object -->
+                <!-- REMOVED: v-if="isStatsLoading..." and v-else-if="statsError..." -->
+                <dl v-if="container.stats" class="stats-dl">
                   <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                  <dd>{{ containerStats.get(container.id)?.CPUPerc ?? 'N/A' }}</dd>
+                  <dd>{{ container.stats.CPUPerc ?? 'N/A' }}</dd>
                   <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                  <dd>{{ containerStats.get(container.id)?.MemUsage ?? 'N/A' }} ({{ containerStats.get(container.id)?.MemPerc ?? 'N/A' }})</dd>
+                  <dd>{{ container.stats.MemUsage ?? 'N/A' }} ({{ container.stats.MemPerc ?? 'N/A' }})</dd>
                   <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                  <dd>{{ containerStats.get(container.id)?.NetIO ?? 'N/A' }}</dd>
+                  <dd>{{ container.stats.NetIO ?? 'N/A' }}</dd>
                   <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                  <dd>{{ containerStats.get(container.id)?.BlockIO ?? 'N/A' }}</dd>
+                  <dd>{{ container.stats.BlockIO ?? 'N/A' }}</dd>
                   <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                  <dd>{{ containerStats.get(container.id)?.PIDs ?? 'N/A' }}</dd>
+                  <dd>{{ container.stats.PIDs ?? 'N/A' }}</dd>
                   <!-- Add more stats if available -->
                 </dl>
                  <div v-else class="stats-nodata">
