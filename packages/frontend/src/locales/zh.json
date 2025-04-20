@@ -725,7 +725,8 @@
       "editor": "编辑器",
       "statusMonitor": "状态监视器",
       "commandHistory": "命令历史",
-      "quickCommands": "快捷指令"
+      "quickCommands": "快捷指令",
+      "dockerManager": "Docker 管理器"
     }
   },
   "header": {

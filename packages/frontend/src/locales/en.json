@@ -725,7 +725,8 @@
       "editor": "Editor",
       "statusMonitor": "Status Monitor",
       "commandHistory": "Command History",
-      "quickCommands": "Quick Commands"
+      "quickCommands": "Quick Commands",
+      "dockerManager": "Docker Manager"
     }
   },
   "header": {

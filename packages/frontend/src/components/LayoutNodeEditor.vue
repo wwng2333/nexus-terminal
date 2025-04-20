@@ -20,6 +20,11 @@ const props = defineProps({
     type: Number,
     default: -1,
   },
+  // 接收来自父组件的面板标签
+  paneLabels: {
+    type: Object as PropType<Record<PaneName, string>>,
+    required: true,
+  },
 });
 
 // --- Emits ---
@@ -31,18 +36,6 @@ const { t } = useI18n();
 const layoutStore = useLayoutStore();
 
 // --- Computed ---
-// 获取面板标签
-const paneLabels = computed(() => ({
-  connections: t('layout.pane.connections', '连接列表'),
-  terminal: t('layout.pane.terminal', '终端'),
-  commandBar: t('layout.pane.commandBar', '命令栏'),
-  fileManager: t('layout.pane.fileManager', '文件管理器'),
-  editor: t('layout.pane.editor', '编辑器'),
-  statusMonitor: t('layout.pane.statusMonitor', '状态监视器'),
-  commandHistory: t('layout.pane.commandHistory', '命令历史'),
-  quickCommands: t('layout.pane.quickCommands', '快捷指令'),
-}));
-
 // 计算当前节点的子节点列表（用于 v-model）
 // 注意：直接修改 props 是不允许的，vuedraggable 需要一个可写的 list
 // 我们通过 emit 事件来通知父组件更新
@@ -139,7 +132,7 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
     <!-- 节点控制栏 -->
     <div class="node-controls">
       <span class="node-info">
-        {{ node.type === 'pane' ? (paneLabels[node.component!] || node.component) : `容器 (${node.direction === 'horizontal' ? '水平' : '垂直'})` }}
+        {{ node.type === 'pane' ? (props.paneLabels[node.component!] || node.component) : `容器 (${node.direction === 'horizontal' ? '水平' : '垂直'})` }}
       </span>
       <div class="node-actions">
          <button v-if="node.type === 'container'" @click="toggleDirection" title="切换方向" class="action-button">
@@ -178,6 +171,7 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
              :node="childNode"
              :parent-node="node"
              :node-index="index"
+             :pane-labels="props.paneLabels"
              @update:node="handleChildUpdate($event, index)"
              @removeNode="handleChildRemove"
            />

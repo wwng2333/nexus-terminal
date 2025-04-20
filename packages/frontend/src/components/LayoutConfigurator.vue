@@ -137,6 +137,7 @@ const paneLabels = computed(() => ({
   statusMonitor: t('layout.pane.statusMonitor', '状态监视器'),
   commandHistory: t('layout.pane.commandHistory', '命令历史'),
   quickCommands: t('layout.pane.quickCommands', '快捷指令'),
+  dockerManager: t('layout.pane.dockerManager', 'Docker 管理器'), // 添加 dockerManager
 }));
 
 // --- Methods ---
@@ -407,8 +408,9 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
             <LayoutNodeEditor
               v-if="localLayoutTree"
               :node="localLayoutTree"
-              :parent-node="null" 
-              :node-index="0" 
+              :parent-node="null"
+              :node-index="0"
+              :pane-labels="paneLabels"
               @update:node="handleNodeUpdate"
               @removeNode="handleNodeRemove"
             />
