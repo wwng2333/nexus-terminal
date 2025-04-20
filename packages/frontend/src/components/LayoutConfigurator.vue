@@ -143,14 +143,12 @@ const saveLayout = () => {
 
 const resetToDefault = () => {
   if (confirm(t('layoutConfigurator.confirmReset', '确定要恢复默认布局吗？当前更改将丢失。'))) {
-    // 重新调用 store 的初始化方法来获取默认布局
-    layoutStore.initializeLayout();
-    // 重新加载到本地副本
-    if (layoutStore.layoutTree) {
-      localLayoutTree.value = JSON.parse(JSON.stringify(layoutStore.layoutTree));
-      hasChanges.value = true; // 标记为有更改，因为是重置操作
-      console.log('[LayoutConfigurator] 已重置为默认布局。');
-    }
+    // 调用 store 中获取系统默认布局的方法
+    const defaultLayout = layoutStore.getSystemDefaultLayout();
+    // 直接将获取到的默认布局（深拷贝）赋值给本地副本
+    localLayoutTree.value = JSON.parse(JSON.stringify(defaultLayout));
+    hasChanges.value = true; // 标记为有更改，因为是重置操作
+    console.log('[LayoutConfigurator] 已重置为系统默认布局。');
   }
 };
 

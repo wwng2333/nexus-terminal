@@ -251,15 +251,16 @@ const appearanceStore = useAppearanceStore(); // 实例化外观 store
 const { t } = useI18n();
 
 // --- Reactive state from store ---
-// 使用 storeToRefs 获取响应式 getter
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean } = storeToRefs(settingsStore); // +++ 添加 dockerDefaultExpandBoolean +++
+// 使用 storeToRefs 获取响应式 getter，包括 language
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean, language: storeLanguage } = storeToRefs(settingsStore); // +++ 添加 dockerDefaultExpandBoolean 和 language getter +++
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
-const selectedLanguage = ref<'en' | 'zh'>('en'); // Default to 'en', will be updated by watcher
+// 使用 store 的 language getter 初始化 selectedLanguage
+const selectedLanguage = ref<'en' | 'zh'>(storeLanguage.value);
 const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store state name
-    maxLoginAttempts: '5',
-    loginBanDuration: '300',
+    maxLoginAttempts: '5', // 初始值将在 watcher 中被 store 值覆盖
+    loginBanDuration: '300', // 初始值将在 watcher 中被 store 值覆盖
 });
 const popupEditorEnabled = ref(true); // 本地状态，用于 v-model
 
@@ -297,11 +298,11 @@ watch(settings, (newSettings, oldSettings) => {
   const isInitialLoad = !oldSettings;
 
   ipWhitelistInput.value = newSettings.ipWhitelist || '';
-  selectedLanguage.value = newSettings.language || 'en';
+  // selectedLanguage.value = newSettings.language || 'en'; // <-- 移除这一行，selectedLanguage 现在由 v-model 更新
   blacklistSettingsForm.maxLoginAttempts = newSettings.maxLoginAttempts || '5';
   blacklistSettingsForm.loginBanDuration = newSettings.loginBanDuration || '300';
 
-  // 始终将本地布尔状态与 store 的布尔 getter 同步
+  // 始终将本地布尔状态与 store 的布尔 getter 同步 (除了 language)
   popupEditorEnabled.value = showPopupFileEditorBoolean.value;
   shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
   autoCopyEnabled.value = autoCopyOnSelectBoolean.value; // 同步选中即复制状态

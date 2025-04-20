@@ -43,7 +43,8 @@ export const useSettingsStore = defineStore('settings', () => {
       console.log('[SettingsStore] 加载通用设置...');
       const response = await apiClient.get<Record<string, string>>('/settings'); // 使用 apiClient
       settings.value = response.data; // Store fetched general settings
-      console.log('[SettingsStore] 通用设置已加载:', settings.value);
+      // --- 更详细的日志 ---
+      console.log('[SettingsStore] Fetched settings from backend:', JSON.stringify(settings.value));
 
       // --- 设置默认值 (如果后端未返回) ---
       if (settings.value.showPopupFileEditor === undefined) {
@@ -77,30 +78,34 @@ export const useSettingsStore = defineStore('settings', () => {
 
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
+      console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
       if (langFromSettings === 'en' || langFromSettings === 'zh') {
         fetchedLang = langFromSettings;
       } else {
         const navigatorLang = navigator.language?.split('-')[0];
         fetchedLang = navigatorLang === 'zh' ? 'zh' : defaultLng;
-        console.warn(`[SettingsStore] 语言设置无效 ('${langFromSettings}'), 回退到 '${fetchedLang}'.`);
+        console.warn(`[SettingsStore] Invalid language setting ('${langFromSettings}') received from backend or missing. Falling back to '${fetchedLang}'.`); // <-- 修改日志
         // Optionally save the fallback language back
         // await updateSetting('language', fetchedLang);
       }
 
       if (fetchedLang) {
-        console.log(`[SettingsStore] 设置语言: ${fetchedLang}`);
+        console.log(`[SettingsStore] Determined language: ${fetchedLang}. Calling setLocale...`); // <-- 添加日志
         setLocale(fetchedLang);
       } else {
-        console.error('[SettingsStore] 无法确定有效语言。');
+        // This case should theoretically not happen with the fallback logic above
+        console.error('[SettingsStore] Could not determine a valid language. This should not happen.');
+        console.log(`[SettingsStore] Falling back to default: ${defaultLng}. Calling setLocale...`); // <-- 添加日志
         setLocale(defaultLng);
       }
 
     } catch (err: any) {
-      console.error('加载通用设置失败:', err);
-      error.value = err.response?.data?.message || err.message || '加载设置失败';
+      console.error('Error loading general settings:', err); // <-- 修改日志
+      error.value = err.response?.data?.message || err.message || 'Failed to load settings';
       // 出错时（例如未登录），根据浏览器语言设置回退语言
       const navigatorLang = navigator.language?.split('-')[0];
       const fallbackLang = navigatorLang === 'zh' ? 'zh' : defaultLng;
+      console.log(`[SettingsStore] Error loading settings. Falling back to language: ${fallbackLang}. Calling setLocale...`); // <-- 添加日志
       setLocale(fallbackLang);
     } finally {
       isLoading.value = false;
@@ -134,6 +139,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
       // If updating language, also update i18n
       if (key === 'language' && (value === 'en' || value === 'zh')) {
+        console.log(`[SettingsStore] updateSetting: Language updated to ${value}. Calling setLocale...`); // <-- 添加日志
         setLocale(value);
       }
     } catch (err: any) {
@@ -180,6 +186,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
       // If language is updated, apply it
       if (languageUpdate) {
+        console.log(`[SettingsStore] updateMultipleSettings: Language updated to ${languageUpdate}. Calling setLocale...`); // <-- 添加日志
         setLocale(languageUpdate);
       }
     } catch (err: any) {

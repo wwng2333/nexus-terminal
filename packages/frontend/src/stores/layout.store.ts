@@ -251,6 +251,12 @@ export const useLayoutStore = defineStore('layout', () => {
     }
   }
 
+ // 新增 Action: 获取系统内置的默认布局
+ function getSystemDefaultLayout(): LayoutNode {
+   console.log('[Layout Store] Getting system default layout.');
+   return getDefaultLayout(); // 直接调用内部函数
+ }
+
  // 新增 Action: 将当前布局树持久化到后端和 localStorage
  async function persistLayoutTree() {
    if (!layoutTree.value) {
@@ -328,5 +334,7 @@ export const useLayoutStore = defineStore('layout', () => {
     isHeaderVisible,
     loadHeaderVisibility,
     toggleHeaderVisibility,
+    // 新增：暴露获取默认布局的方法
+    getSystemDefaultLayout,
   };
 });

@@ -41,17 +41,24 @@ const i18n = createI18n<[MessageSchema], 'en' | 'zh'>({
  * @param lang 要设置的语言代码 ('en', 'zh', etc.)
  */
 export const setLocale = (lang: 'en' | 'zh') => {
+  console.log(`[i18n] Attempting to set locale to: ${lang}`); // <-- 添加日志
   const globalComposer = i18n.global as unknown as Composer; // 强制类型断言
   if (globalComposer.availableLocales.includes(lang)) {
-    globalComposer.locale.value = lang; // 访问 .value 属性
-    try {
-      localStorage.setItem(localStorageKey, lang); // 持久化到 localStorage
-      console.log(`[i18n] Locale set to "${lang}" and saved to localStorage.`); // 添加日志
-    } catch (e) {
-      console.error('[i18n] Failed to save locale to localStorage:', e);
+    const currentLocale = globalComposer.locale.value; // <-- 获取当前 locale
+    if (currentLocale !== lang) { // <-- 仅在 locale 实际改变时更新
+        globalComposer.locale.value = lang; // 访问 .value 属性
+        console.log(`[i18n] Successfully updated global locale from "${currentLocale}" to "${lang}".`); // <-- 修改日志
+        try {
+          localStorage.setItem(localStorageKey, lang); // 持久化到 localStorage
+          console.log(`[i18n] Locale "${lang}" saved to localStorage.`); // <-- 修改日志
+        } catch (e) {
+          console.error('[i18n] Failed to save locale to localStorage:', e);
+        }
+    } else {
+        console.log(`[i18n] Locale is already "${lang}". No update needed.`); // <-- 添加日志
     }
   } else {
-    console.warn(`[i18n] Locale "${lang}" is not available.`);
+    console.warn(`[i18n] Locale "${lang}" is not available. Available locales: ${globalComposer.availableLocales.join(', ')}`); // <-- 修改日志
   }
 };
 
