@@ -11,7 +11,8 @@ import { tableDefinitions } from './schema.registry';
 // --- Revert to original path and filename ---
 // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
 // console.log('[Connection CWD]', process.cwd()); // 移除调试日志
-const dbDir = path.join(process.cwd(), 'data'); // Correct path relative to CWD (packages/backend)
+// 使用 __dirname 定位到 dist/database，然后回退两级到 packages/backend，再进入 data
+const dbDir = path.join(__dirname, '..', '..', 'data');
 const dbFilename = 'nexus-terminal.db'; // Revert to original filename
 const dbPath = path.join(dbDir, dbFilename);
 // console.log(`[DB Path] Determined database directory: ${dbDir}`); // 移除调试日志

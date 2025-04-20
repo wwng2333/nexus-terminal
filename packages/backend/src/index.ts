@@ -120,8 +120,9 @@ const startServer = () => {
     const FileStore = sessionFileStore(session); // 使用新的 FileStore
     // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
     // console.log('[Index CWD 2]', process.cwd()); // 移除调试日志
-    const dataPath = path.join(process.cwd(), 'data'); // 数据库文件目录保持不变 (重命名变量以便区分)
-    const sessionsPath = path.join(process.cwd(), 'sessions'); // 新建 sessions 目录存储会话文件
+    // const dataPath = path.join(process.cwd(), 'data'); // 不再需要 dataPath 在此文件
+    // 使用 __dirname 定位到 dist，然后回退一级到 packages/backend，再进入 sessions
+    const sessionsPath = path.join(__dirname, '..', 'sessions');
     // 确保 sessions 目录存在
     if (!fs.existsSync(sessionsPath)) {
         fs.mkdirSync(sessionsPath, { recursive: true });
