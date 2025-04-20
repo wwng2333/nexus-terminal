@@ -32,7 +32,7 @@ export const updateQuickCommand = async (id: number, name: string | null, comman
     }
     const finalName = name && name.trim().length > 0 ? name.trim() : null;
     const changes = await QuickCommandsRepository.updateQuickCommand(id, finalName, command.trim());
-    return changes > 0;
+    return changes;
 };
 
 /**
@@ -42,7 +42,7 @@ export const updateQuickCommand = async (id: number, name: string | null, comman
  */
 export const deleteQuickCommand = async (id: number): Promise<boolean> => {
     const changes = await QuickCommandsRepository.deleteQuickCommand(id);
-    return changes > 0;
+    return changes;
 };
 
 /**
@@ -61,7 +61,7 @@ export const getAllQuickCommands = async (sortBy: QuickCommandSortBy = 'name'): 
  */
 export const incrementUsageCount = async (id: number): Promise<boolean> => {
     const changes = await QuickCommandsRepository.incrementUsageCount(id);
-    return changes > 0;
+    return changes;
 };
 
 /**

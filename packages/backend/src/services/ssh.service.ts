@@ -49,11 +49,12 @@ export const getConnectionDetails = async (connectionId: number): Promise<Decryp
     try {
         const fullConnInfo: DecryptedConnectionDetails = {
             id: rawConnInfo.id,
-            name: rawConnInfo.name,
-            host: rawConnInfo.host,
-            port: rawConnInfo.port,
-            username: rawConnInfo.username,
-            auth_method: rawConnInfo.auth_method,
+            // Add null check for required fields from rawConnInfo
+            name: rawConnInfo.name ?? (() => { throw new Error(`Connection ID ${connectionId} has null name.`); })(),
+            host: rawConnInfo.host ?? (() => { throw new Error(`Connection ID ${connectionId} has null host.`); })(),
+            port: rawConnInfo.port ?? (() => { throw new Error(`Connection ID ${connectionId} has null port.`); })(),
+            username: rawConnInfo.username ?? (() => { throw new Error(`Connection ID ${connectionId} has null username.`); })(),
+            auth_method: rawConnInfo.auth_method ?? (() => { throw new Error(`Connection ID ${connectionId} has null auth_method.`); })(),
             password: (rawConnInfo.auth_method === 'password' && rawConnInfo.encrypted_password) ? decrypt(rawConnInfo.encrypted_password) : undefined,
             privateKey: (rawConnInfo.auth_method === 'key' && rawConnInfo.encrypted_private_key) ? decrypt(rawConnInfo.encrypted_private_key) : undefined,
             passphrase: (rawConnInfo.auth_method === 'key' && rawConnInfo.encrypted_passphrase) ? decrypt(rawConnInfo.encrypted_passphrase) : undefined,
@@ -61,14 +62,25 @@ export const getConnectionDetails = async (connectionId: number): Promise<Decryp
         };
 
         if (rawConnInfo.proxy_db_id) {
+             // Add null checks for required proxy fields inside the if block
+             const proxyName = rawConnInfo.proxy_name ?? (() => { throw new Error(`Proxy for Connection ID ${connectionId} has null name.`); })();
+             const proxyType = rawConnInfo.proxy_type ?? (() => { throw new Error(`Proxy for Connection ID ${connectionId} has null type.`); })();
+             const proxyHost = rawConnInfo.proxy_host ?? (() => { throw new Error(`Proxy for Connection ID ${connectionId} has null host.`); })();
+             const proxyPort = rawConnInfo.proxy_port ?? (() => { throw new Error(`Proxy for Connection ID ${connectionId} has null port.`); })();
+
+             // Ensure proxyType is one of the allowed values
+             if (proxyType !== 'SOCKS5' && proxyType !== 'HTTP') {
+                throw new Error(`Proxy for Connection ID ${connectionId} has invalid type: ${proxyType}`);
+             }
+
             fullConnInfo.proxy = {
-                id: rawConnInfo.proxy_db_id,
-                name: rawConnInfo.proxy_name,
-                type: rawConnInfo.proxy_type,
-                host: rawConnInfo.proxy_host,
-                port: rawConnInfo.proxy_port,
-                username: rawConnInfo.proxy_username || undefined,
-                password: rawConnInfo.proxy_encrypted_password ? decrypt(rawConnInfo.proxy_encrypted_password) : undefined,
+                id: rawConnInfo.proxy_db_id, // Already checked by the if condition
+                name: proxyName,
+                type: proxyType, // Already validated
+                host: proxyHost,
+                port: proxyPort,
+                username: rawConnInfo.proxy_username || undefined, // Optional, defaults to undefined
+                password: rawConnInfo.proxy_encrypted_password ? decrypt(rawConnInfo.proxy_encrypted_password) : undefined, // Optional, handled by decrypt logic
                 // 可以根据需要解密代理的其他凭证
             };
         }

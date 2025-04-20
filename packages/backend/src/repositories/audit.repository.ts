@@ -1,13 +1,15 @@
+// packages/backend/src/repositories/audit.repository.ts
 import { Database } from 'sqlite3';
-import { getDb } from '../database';
+// Import new async helpers and the instance getter
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { AuditLogEntry, AuditLogActionType } from '../types/audit.types';
 
-export class AuditLogRepository {
-    private db: Database;
+// Define the expected row structure from the database if it matches AuditLogEntry
+type DbAuditLogRow = AuditLogEntry;
 
-    constructor() {
-        this.db = getDb();
-    }
+export class AuditLogRepository {
+    // Remove constructor or leave it empty
+    // constructor() { }
 
     /**
      * 添加一条审计日志记录
@@ -21,28 +23,24 @@ export class AuditLogRepository {
         if (details) {
             try {
                 detailsString = typeof details === 'string' ? details : JSON.stringify(details);
-            } catch (error) {
-                console.error(`[Audit Log] Failed to stringify details for action ${actionType}:`, error);
-                detailsString = JSON.stringify({ error: 'Failed to stringify details', originalDetails: details });
+            } catch (error: any) {
+                console.error(`[Audit Log] Failed to stringify details for action ${actionType}:`, error.message);
+                detailsString = JSON.stringify({ error: 'Failed to stringify details', originalDetails: String(details) }); // Ensure originalDetails is stringifiable
             }
         }
 
         const sql = 'INSERT INTO audit_logs (timestamp, action_type, details) VALUES (?, ?, ?)';
         const params = [timestamp, actionType, detailsString];
 
-        return new Promise((resolve, reject) => {
-            this.db.run(sql, params, (err) => {
-                if (err) {
-                    console.error(`[Audit Log] Error adding log entry for action ${actionType}: ${err.message}`);
-                    // 不拒绝 Promise，记录日志失败不应阻止核心操作
-                    // 但可以在这里触发一个 SERVER_ERROR 通知或日志
-                    resolve(); // Or potentially reject if logging is critical
-                } else {
-                    // console.log(`[Audit Log] Logged action: ${actionType}`); // Optional: verbose logging
-                    resolve();
-                }
-            });
-        });
+        try {
+            const db = await getDbInstance();
+            await runDb(db, sql, params);
+            // console.log(`[Audit Log] Logged action: ${actionType}`); // Optional: verbose logging
+        } catch (err: any) {
+            console.error(`[Audit Log] Error adding log entry for action ${actionType}: ${err.message}`);
+            // Decide if logging failure should throw an error or just be logged
+            // throw new Error(`Error adding log entry: ${err.message}`); // Uncomment to make it critical
+        }
     }
 
     /**
@@ -66,21 +64,9 @@ export class AuditLogRepository {
         const params: (string | number)[] = [];
         const countParams: (string | number)[] = [];
 
-        if (actionType) {
-            whereClauses.push('action_type = ?');
-            params.push(actionType);
-            countParams.push(actionType);
-        }
-        if (startDate) {
-            whereClauses.push('timestamp >= ?');
-            params.push(startDate);
-            countParams.push(startDate);
-        }
-        if (endDate) {
-            whereClauses.push('timestamp <= ?');
-            params.push(endDate);
-            countParams.push(endDate);
-        }
+        if (actionType) { whereClauses.push('action_type = ?'); params.push(actionType); countParams.push(actionType); }
+        if (startDate) { whereClauses.push('timestamp >= ?'); params.push(startDate); countParams.push(startDate); }
+        if (endDate) { whereClauses.push('timestamp <= ?'); params.push(endDate); countParams.push(endDate); }
 
         if (whereClauses.length > 0) {
             const whereSql = ` WHERE ${whereClauses.join(' AND ')}`;
@@ -91,22 +77,22 @@ export class AuditLogRepository {
         baseSql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
 
-        return new Promise((resolve, reject) => {
+        try {
+            const db = await getDbInstance();
             // First get the total count
-            this.db.get(countSql, countParams, (err, row: { total: number }) => {
-                if (err) {
-                    return reject(new Error(`Error counting audit logs: ${err.message}`));
-                }
-                const total = row.total;
+            const countRow = await getDbRow<{ total: number }>(db, countSql, countParams);
+            const total = countRow?.total ?? 0;
 
-                // Then get the paginated logs
-                this.db.all(baseSql, params, (err, rows: AuditLogEntry[]) => {
-                    if (err) {
-                        return reject(new Error(`Error fetching audit logs: ${err.message}`));
-                    }
-                    resolve({ logs: rows, total });
-                });
-            });
-        });
+            // Then get the paginated logs
+            const logs = await allDb<DbAuditLogRow>(db, baseSql, params);
+
+            return { logs, total };
+        } catch (err: any) {
+            console.error(`Error fetching audit logs:`, err.message);
+            throw new Error(`Error fetching audit logs: ${err.message}`);
+        }
     }
 }
+
+// Export the class (Removed redundant export below as class is already exported)
+// export { AuditLogRepository };

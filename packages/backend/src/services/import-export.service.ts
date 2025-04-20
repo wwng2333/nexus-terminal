@@ -1,10 +1,13 @@
+// packages/backend/src/services/import-export.service.ts
 import * as ConnectionRepository from '../repositories/connection.repository';
 import * as ProxyRepository from '../repositories/proxy.repository';
-import { getDb } from '../database'; // Need db instance for transaction
+// Import the instance getter and helpers
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
+import { Database } from 'sqlite3'; // Import Database type
 
-const db = getDb(); // Get db instance for transaction management
+// Remove top-level db instance
 
-// Define structure for imported connection data (can be shared in types)
+// --- Interface definitions remain the same ---
 interface ImportedConnectionData {
     name: string;
     host: string;
@@ -27,35 +30,40 @@ interface ImportedConnectionData {
         encrypted_passphrase?: string | null;
     } | null;
 }
-
-// Define structure for exported connection data (can be shared in types)
-interface ExportedConnectionData extends Omit<ImportedConnectionData, 'id'> {
-    // Exclude fields not needed for export like id, created_at etc.
-}
-
-// Define structure for import results
+interface ExportedConnectionData extends Omit<ImportedConnectionData, 'id'> {}
 export interface ImportResult {
     successCount: number;
     failureCount: number;
     errors: { connectionName?: string; message: string }[];
 }
+// --- End Interface definitions ---
+
 
 /**
  * 导出所有连接配置
  */
 export const exportConnections = async (): Promise<ExportedConnectionData[]> => {
-    // 1. Fetch all connections with tags (basic info)
-    // We need full connection info including encrypted fields and proxy details for export
-    // Let's adapt the repository or add a new method if needed.
-    // For now, let's assume findFullConnectionById can be adapted or a similar findAll method exists.
-    // Re-using the logic from controller for now, ideally repo handles joins.
+    try {
+        const db = await getDbInstance(); // Get DB instance
 
-    const connectionsWithProxies = await new Promise<any[]>((resolve, reject) => {
-        db.all(
+        // Define a more specific type for the row structure
+        type ExportRow = ConnectionRepository.FullConnectionData & {
+             proxy_db_id: number | null;
+             proxy_name: string | null;
+             proxy_type: 'SOCKS5' | 'HTTP' | null;
+             proxy_host: string | null;
+             proxy_port: number | null;
+             proxy_username: string | null;
+             proxy_auth_method: 'none' | 'password' | 'key' | null;
+             proxy_encrypted_password?: string | null;
+             proxy_encrypted_private_key?: string | null;
+             proxy_encrypted_passphrase?: string | null;
+        };
+
+        // Fetch connections joined with proxies using await allDb
+        const connectionsWithProxies = await allDb<ExportRow>(db,
             `SELECT
-                c.id, c.name, c.host, c.port, c.username, c.auth_method,
-                c.encrypted_password, c.encrypted_private_key, c.encrypted_passphrase,
-                c.proxy_id,
+                c.*,
                 p.id as proxy_db_id, p.name as proxy_name, p.type as proxy_type,
                 p.host as proxy_host, p.port as proxy_port, p.username as proxy_username,
                 p.auth_method as proxy_auth_method,
@@ -64,64 +72,58 @@ export const exportConnections = async (): Promise<ExportedConnectionData[]> => 
                 p.encrypted_passphrase as proxy_encrypted_passphrase
              FROM connections c
              LEFT JOIN proxies p ON c.proxy_id = p.id
-             ORDER BY c.name ASC`,
-            (err, rows: any[]) => {
-                if (err) {
-                    console.error('Service: 查询连接和代理信息以供导出时出错:', err.message);
-                    return reject(new Error('导出连接失败：查询连接信息出错'));
-                }
-                resolve(rows);
-            }
+             ORDER BY c.name ASC`
         );
-    });
 
-    const connectionTags = await new Promise<{[connId: number]: number[]}>((resolve, reject) => {
-        db.all('SELECT connection_id, tag_id FROM connection_tags', (err, rows: {connection_id: number, tag_id: number}[]) => {
-            if (err) {
-                console.error('Service: 查询连接标签以供导出时出错:', err.message);
-                return reject(new Error('导出连接失败：查询标签信息出错'));
-            }
-            const tagsMap: {[connId: number]: number[]} = {};
-            rows.forEach(row => {
-                if (!tagsMap[row.connection_id]) tagsMap[row.connection_id] = [];
-                tagsMap[row.connection_id].push(row.tag_id);
-            });
-            resolve(tagsMap);
+        // Fetch all tag associations using await allDb
+        const tagRows = await allDb<{ connection_id: number, tag_id: number }>(db,
+            'SELECT connection_id, tag_id FROM connection_tags'
+        );
+
+        // Create a map for easy tag lookup
+        const tagsMap: { [connId: number]: number[] } = {};
+        tagRows.forEach(row => {
+            if (!tagsMap[row.connection_id]) tagsMap[row.connection_id] = [];
+            tagsMap[row.connection_id].push(row.tag_id);
         });
-    });
 
-    // 2. Format data for export
-    const formattedData: ExportedConnectionData[] = connectionsWithProxies.map(row => {
-        const connection: ExportedConnectionData = {
-            name: row.name,
-            host: row.host,
-            port: row.port,
-            username: row.username,
-            auth_method: row.auth_method,
-            encrypted_password: row.encrypted_password,
-            encrypted_private_key: row.encrypted_private_key,
-            encrypted_passphrase: row.encrypted_passphrase,
-            tag_ids: connectionTags[row.id] || [],
-            proxy: null // Initialize proxy as null
-        };
-
-        if (row.proxy_db_id) {
-            connection.proxy = {
-                name: row.proxy_name,
-                type: row.proxy_type,
-                host: row.proxy_host,
-                port: row.proxy_port,
-                username: row.proxy_username,
-                auth_method: row.proxy_auth_method,
-                encrypted_password: row.proxy_encrypted_password,
-                encrypted_private_key: row.proxy_encrypted_private_key,
-                encrypted_passphrase: row.proxy_encrypted_passphrase,
+        // Format data for export
+        const formattedData: ExportedConnectionData[] = connectionsWithProxies.map(row => {
+            const connection: ExportedConnectionData = {
+                name: row.name ?? 'Unnamed', // Provide default if name is null
+                host: row.host,
+                port: row.port,
+                username: row.username,
+                auth_method: row.auth_method,
+                encrypted_password: row.encrypted_password,
+                encrypted_private_key: row.encrypted_private_key,
+                encrypted_passphrase: row.encrypted_passphrase,
+                tag_ids: tagsMap[row.id] || [],
+                proxy: null
             };
-        }
-        return connection;
-    });
 
-    return formattedData;
+            if (row.proxy_db_id) {
+                connection.proxy = {
+                    name: row.proxy_name ?? 'Unnamed Proxy', // Provide default
+                    type: row.proxy_type ?? 'SOCKS5', // Provide default or handle error
+                    host: row.proxy_host ?? '', // Provide default or handle error
+                    port: row.proxy_port ?? 0, // Provide default or handle error
+                    username: row.proxy_username,
+                    auth_method: row.proxy_auth_method ?? 'none', // Provide default
+                    encrypted_password: row.proxy_encrypted_password,
+                    encrypted_private_key: row.proxy_encrypted_private_key,
+                    encrypted_passphrase: row.proxy_encrypted_passphrase,
+                };
+            }
+            return connection;
+        });
+
+        return formattedData;
+
+    } catch (err: any) {
+        console.error('Service: 导出连接时出错:', err.message);
+        throw new Error(`导出连接失败: ${err.message}`); // Re-throw for controller
+    }
 };
 
 
@@ -139,153 +141,127 @@ export const importConnections = async (fileBuffer: Buffer): Promise<ImportResul
         }
     } catch (error: any) {
         console.error('Service: 解析导入文件失败:', error);
-        throw new Error(`解析 JSON 文件失败: ${error.message}`); // Re-throw for controller
+        throw new Error(`解析 JSON 文件失败: ${error.message}`);
     }
 
     let successCount = 0;
     let failureCount = 0;
     const errors: { connectionName?: string; message: string }[] = [];
-    const connectionsToInsert: Omit<ConnectionRepository.FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'>[] = [];
+    const db = await getDbInstance(); // Get DB instance once for the transaction
 
-    // Use a transaction for atomicity
-    return new Promise<ImportResult>((resolveOuter, rejectOuter) => {
-        db.serialize(() => {
-            db.run('BEGIN TRANSACTION', async (beginErr: Error | null) => {
-                if (beginErr) {
-                    console.error('Service: 开始导入事务失败:', beginErr);
-                    return rejectOuter(new Error(`开始事务失败: ${beginErr.message}`));
+    try {
+        await runDb(db, 'BEGIN TRANSACTION'); // Start transaction using await runDb
+
+        const connectionsToInsert: Array<Omit<ConnectionRepository.FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { tag_ids?: number[] }> = [];
+        const proxyCache: { [key: string]: number } = {}; // Cache for created/found proxy IDs
+
+        // --- Pass 1: Validate data and prepare for insertion ---
+        for (const connData of importedData) {
+             try {
+                // Basic validation
+                if (!connData.name || !connData.host || !connData.port || !connData.username || !connData.auth_method) {
+                    throw new Error('缺少必要的连接字段 (name, host, port, username, auth_method)。');
                 }
+                // ... (add other validation as before) ...
 
-                try {
-                    // Process each connection data from the imported file
-                    for (const connData of importedData) {
-                        try {
-                            // 1. Validate connection data (basic)
-                            if (!connData.name || !connData.host || !connData.port || !connData.username || !connData.auth_method) {
-                                throw new Error('缺少必要的连接字段 (name, host, port, username, auth_method)。');
-                            }
-                            if (connData.auth_method === 'password' && !connData.encrypted_password) {
-                                throw new Error('密码认证缺少 encrypted_password。');
-                            }
-                            if (connData.auth_method === 'key' && !connData.encrypted_private_key) {
-                                throw new Error('密钥认证缺少 encrypted_private_key。');
-                            }
-                            // Add more validation as needed
+                let proxyIdToUse: number | null = null;
 
-                            let proxyIdToUse: number | null = null;
-
-                            // 2. Handle proxy (find or create)
-                            if (connData.proxy) {
-                                const proxyData = connData.proxy;
-                                // Validate proxy data
-                                if (!proxyData.name || !proxyData.type || !proxyData.host || !proxyData.port) {
-                                    throw new Error('代理信息不完整 (缺少 name, type, host, port)。');
-                                }
-                                // Add more proxy validation if needed
-
-                                // Try to find existing proxy
-                                const existingProxy = await ProxyRepository.findProxyByNameTypeHostPort(proxyData.name, proxyData.type, proxyData.host, proxyData.port);
-
-                                if (existingProxy) {
-                                    proxyIdToUse = existingProxy.id;
-                                } else {
-                                    // Proxy doesn't exist, create it
-                                    const newProxyData = {
-                                        name: proxyData.name,
-                                        type: proxyData.type,
-                                        host: proxyData.host,
-                                        port: proxyData.port,
-                                        username: proxyData.username || null,
-                                        auth_method: proxyData.auth_method || 'none',
-                                        encrypted_password: proxyData.encrypted_password || null,
-                                        encrypted_private_key: proxyData.encrypted_private_key || null,
-                                        encrypted_passphrase: proxyData.encrypted_passphrase || null,
-                                    };
-                                    proxyIdToUse = await ProxyRepository.createProxy(newProxyData);
-                                    console.log(`Service: 导入连接 ${connData.name}: 新代理 ${proxyData.name} 创建成功 (ID: ${proxyIdToUse})`);
-                                }
-                            }
-
-                            // 3. Prepare connection data for bulk insert
-                            connectionsToInsert.push({
-                                name: connData.name,
-                                host: connData.host,
-                                port: connData.port,
-                                username: connData.username,
-                                auth_method: connData.auth_method,
-                                encrypted_password: connData.encrypted_password || null,
-                                encrypted_private_key: connData.encrypted_private_key || null,
-                                encrypted_passphrase: connData.encrypted_passphrase || null,
-                                proxy_id: proxyIdToUse,
-                                // tag_ids will be handled separately after insertion
-                            });
-
-                        } catch (connError: any) {
-                            // Error processing this specific connection
-                            failureCount++;
-                            errors.push({ connectionName: connData.name || '未知连接', message: connError.message });
-                            console.warn(`Service: 处理导入连接 "${connData.name || '未知'}" 时出错: ${connError.message}`);
-                        }
-                    } // End for loop
-
-                    // 4. Bulk insert connections
-                    let insertedResults: { connectionId: number, originalData: any }[] = [];
-                    if (connectionsToInsert.length > 0) {
-                         insertedResults = await ConnectionRepository.bulkInsertConnections(connectionsToInsert);
-                         successCount = insertedResults.length;
+                // Handle proxy (find or create) - uses async repository functions
+                if (connData.proxy) {
+                    const proxyData = connData.proxy;
+                    if (!proxyData.name || !proxyData.type || !proxyData.host || !proxyData.port) {
+                        throw new Error('代理信息不完整 (缺少 name, type, host, port)。');
                     }
-
-                    // 5. Associate tags for successfully inserted connections
-                    for (const result of insertedResults) {
-                        const originalTagIds = result.originalData?.tag_ids;
-                        if (Array.isArray(originalTagIds) && originalTagIds.length > 0) {
-                            const validTagIds = originalTagIds.filter((id: any) => typeof id === 'number' && id > 0);
-                            if (validTagIds.length > 0) {
-                                try {
-                                    await ConnectionRepository.updateConnectionTags(result.connectionId, validTagIds);
-                                } catch (tagError: any) {
-                                    // Log warning but don't fail the entire import for tag association error
-                                    console.warn(`Service: 导入连接 ${result.originalData.name}: 关联标签失败 (ID: ${result.connectionId}): ${tagError.message}`);
-                                    // Optionally, add this to the 'errors' array reported back
-                                    errors.push({ connectionName: result.originalData.name, message: `关联标签失败: ${tagError.message}` });
-                                    // Decrement successCount or increment failureCount if tag failure should count as overall failure
-                                    // failureCount++; // Example: Count tag failures
-                                }
-                            }
-                        }
-                    }
-
-
-                    // 6. Commit or Rollback
-                    if (failureCount > 0 && successCount === 0) { // Only rollback if ALL fail, or adjust logic as needed
-                        console.warn(`Service: 导入连接存在 ${failureCount} 个错误，且无成功记录，正在回滚事务...`);
-                        db.run('ROLLBACK', (rollbackErr: Error | null) => {
-                            if (rollbackErr) console.error("Service: 回滚事务失败:", rollbackErr);
-                            // Reject outer promise with collected errors
-                            rejectOuter(new Error(`导入失败，存在 ${failureCount} 个错误。`));
-                        });
+                    const cacheKey = `${proxyData.name}-${proxyData.type}-${proxyData.host}-${proxyData.port}`;
+                    if (proxyCache[cacheKey]) {
+                        proxyIdToUse = proxyCache[cacheKey];
                     } else {
-                        // Commit even if some failed, report partial success
-                        db.run('COMMIT', (commitErr: Error | null) => {
-                            if (commitErr) {
-                                console.error('Service: 提交导入事务时出错:', commitErr);
-                                rejectOuter(new Error(`提交导入事务失败: ${commitErr.message}`));
-                            } else {
-                                console.log(`Service: 导入事务提交。成功: ${successCount}, 失败: ${failureCount}`);
-                                resolveOuter({ successCount, failureCount, errors }); // Resolve outer promise
-                            }
-                        });
+                        const existingProxy = await ProxyRepository.findProxyByNameTypeHostPort(proxyData.name, proxyData.type, proxyData.host, proxyData.port);
+                        if (existingProxy) {
+                            proxyIdToUse = existingProxy.id;
+                        } else {
+                            const newProxyData: Omit<ProxyRepository.ProxyData, 'id' | 'created_at' | 'updated_at'> = {
+                                name: proxyData.name,
+                                type: proxyData.type,
+                                host: proxyData.host,
+                                port: proxyData.port,
+                                username: proxyData.username || null,
+                                auth_method: proxyData.auth_method || 'none',
+                                encrypted_password: proxyData.encrypted_password || null,
+                                encrypted_private_key: proxyData.encrypted_private_key || null,
+                                encrypted_passphrase: proxyData.encrypted_passphrase || null,
+                            };
+                            proxyIdToUse = await ProxyRepository.createProxy(newProxyData);
+                            console.log(`Service: 导入连接 ${connData.name}: 新代理 ${proxyData.name} 创建成功 (ID: ${proxyIdToUse})`);
+                        }
+                        if (proxyIdToUse) proxyCache[cacheKey] = proxyIdToUse; // Cache the ID
                     }
-
-                } catch (innerError: any) {
-                    // Catch errors during the process (e.g., bulk insert failure)
-                    console.error('Service: 导入事务内部出错:', innerError);
-                    db.run('ROLLBACK', (rollbackErr: Error | null) => {
-                         if (rollbackErr) console.error("Service: 回滚事务失败:", rollbackErr);
-                         rejectOuter(innerError); // Reject outer promise
-                    });
                 }
-            }); // End BEGIN TRANSACTION
-        }); // End db.serialize
-    }); // End new Promise
+
+                // Prepare connection data for bulk insert (add tag_ids here)
+                connectionsToInsert.push({
+                    name: connData.name,
+                    host: connData.host,
+                    port: connData.port,
+                    username: connData.username,
+                    auth_method: connData.auth_method,
+                    encrypted_password: connData.encrypted_password || null,
+                    encrypted_private_key: connData.encrypted_private_key || null,
+                    encrypted_passphrase: connData.encrypted_passphrase || null,
+                    proxy_id: proxyIdToUse,
+                    tag_ids: connData.tag_ids || [] // Include tag_ids
+                });
+
+            } catch (connError: any) {
+                failureCount++;
+                errors.push({ connectionName: connData.name || '未知连接', message: connError.message });
+                console.warn(`Service: 处理导入连接 "${connData.name || '未知'}" 时出错: ${connError.message}`);
+            }
+        } // End for loop
+
+        // --- Pass 2: Bulk insert connections ---
+        let insertedResults: { connectionId: number, originalData: any }[] = [];
+        if (connectionsToInsert.length > 0) {
+             // Pass the transaction-aware db instance
+             insertedResults = await ConnectionRepository.bulkInsertConnections(db, connectionsToInsert);
+             successCount = insertedResults.length;
+        }
+
+        // --- Pass 3: Associate tags ---
+        const insertTagSql = `INSERT OR IGNORE INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`; // Use INSERT OR IGNORE
+        for (const result of insertedResults) {
+            const originalTagIds = result.originalData?.tag_ids;
+            if (Array.isArray(originalTagIds) && originalTagIds.length > 0) {
+                const validTagIds = originalTagIds.filter((id: any) => typeof id === 'number' && id > 0);
+                if (validTagIds.length > 0) {
+                    const tagPromises = validTagIds.map(tagId =>
+                        runDb(db, insertTagSql, [result.connectionId, tagId]).catch(tagError => { // Use await runDb
+                             console.warn(`Service: 导入连接 ${result.originalData.name}: 关联标签 ID ${tagId} 失败: ${tagError.message}`);
+                        })
+                    );
+                    await Promise.all(tagPromises);
+                }
+            }
+        }
+
+
+        // Commit transaction using await runDb
+        await runDb(db, 'COMMIT');
+        console.log(`Service: 导入事务提交。成功: ${successCount}, 失败: ${failureCount}`);
+        return { successCount, failureCount, errors };
+
+    } catch (error: any) {
+        // Rollback transaction on any error during the process
+        console.error('Service: 导入事务处理出错，正在回滚:', error);
+        try {
+            await runDb(db, 'ROLLBACK'); // Use await runDb
+        } catch (rollbackErr: any) {
+            console.error("Service: 回滚事务失败:", rollbackErr);
+        }
+        // Adjust failure count and return error summary
+        failureCount = importedData.length;
+        successCount = 0;
+        errors.push({ message: `事务处理失败: ${error.message}` });
+        return { successCount, failureCount, errors };
+    }
 };

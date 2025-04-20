@@ -1,7 +1,8 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-import { getDb } from '../database';
-import sqlite3, { RunResult } from 'sqlite3';
+// Import the instance getter and promisified helpers
+import { getDbInstance, runDb, getDb, allDb } from '../database/connection';
+import sqlite3, { RunResult } from 'sqlite3'; // Keep sqlite3 for type hints if needed
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { PasskeyService } from '../services/passkey.service'; // 导入 PasskeyService
@@ -9,7 +10,8 @@ import { NotificationService } from '../services/notification.service'; // 导�
 import { AuditLogService } from '../services/audit.service'; // 导入 AuditLogService
 import { ipBlacklistService } from '../services/ip-blacklist.service'; // 导入 IP 黑名单服务
 
-const db = getDb();
+// Remove top-level db instance acquisition
+// const db = getDb();
 const passkeyService = new PasskeyService(); // 实例化 PasskeyService
 const notificationService = new NotificationService(); // 实例化 NotificationService
 const auditLogService = new AuditLogService(); // 实例化 AuditLogService
@@ -49,6 +51,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     try {
+        const db = await getDbInstance(); // Get DB instance inside the function
+        // Use the promisified getDb helper
+        const user = await getDb<User>(db, 'SELECT id, username, hashed_password, two_factor_secret FROM users WHERE username = ?', [username]);
+
+        /* Original callback logic replaced by await getDb
         const user = await new Promise<User | undefined>((resolve, reject) => {
             // 查询用户，包含 2FA 密钥
             db.get('SELECT id, username, hashed_password, two_factor_secret FROM users WHERE username = ?', [username], (err, row: User) => {
@@ -59,6 +66,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
                 resolve(row);
             });
         });
+        */
 
         if (!user) {
             console.log(`登录尝试失败: 用户未找到 - ${username}`);
@@ -144,7 +152,11 @@ export const getAuthStatus = async (req: Request, res: Response): Promise<void> 
     }
 
     try {
-        // 查询用户的 2FA 状态
+        const db = await getDbInstance(); // Get DB instance
+        // 查询用户的 2FA 状态 using promisified getDb
+        const user = await getDb<{ two_factor_secret: string | null }>(db, 'SELECT two_factor_secret FROM users WHERE id = ?', [userId]);
+
+        /* Original callback logic replaced by await getDb
         const user = await new Promise<{ two_factor_secret: string | null } | undefined>((resolve, reject) => {
             db.get('SELECT two_factor_secret FROM users WHERE id = ?', [userId], (err, row: { two_factor_secret: string | null }) => {
                 if (err) {
@@ -154,6 +166,7 @@ export const getAuthStatus = async (req: Request, res: Response): Promise<void> 
                 resolve(row);
             });
         });
+        */
 
         // 如果找不到用户（理论上不应发生），也视为未认证
         if (!user) {
@@ -194,7 +207,11 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
     }
 
     try {
-        // 获取用户的 2FA 密钥
+        const db = await getDbInstance(); // Get DB instance
+        // 获取用户的 2FA 密钥 using promisified getDb
+        const user = await getDb<User>(db, 'SELECT id, username, two_factor_secret FROM users WHERE id = ?', [userId]);
+
+        /* Original callback logic replaced by await getDb
         const user = await new Promise<User | undefined>((resolve, reject) => {
             db.get('SELECT id, username, two_factor_secret FROM users WHERE id = ?', [userId], (err, row: User) => {
                 if (err) {
@@ -204,6 +221,7 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
                 resolve(row);
             });
         });
+        */
 
         if (!user || !user.two_factor_secret) {
             console.error(`2FA 验证错误: 未找到用户 ${userId} 或未设置密钥。`);
@@ -290,6 +308,11 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     }
 
     try {
+        const db = await getDbInstance(); // Get DB instance
+        // Use promisified getDb
+        const user = await getDb<User>(db, 'SELECT id, hashed_password FROM users WHERE id = ?', [userId]);
+
+        /* Original callback logic replaced by await getDb
         const user = await new Promise<User | undefined>((resolve, reject) => {
             db.get('SELECT id, hashed_password FROM users WHERE id = ?', [userId], (err, row: User) => {
                 if (err) {
@@ -299,6 +322,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
                 resolve(row);
             });
         });
+        */
 
         if (!user) {
             console.error(`修改密码错误: 未找到 ID 为 ${userId} 的用户。`);
@@ -317,27 +341,21 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
         const now = Math.floor(Date.now() / 1000);
 
-        await new Promise<void>((resolveUpdate, rejectUpdate) => {
-            const stmt = db.prepare(
-                'UPDATE users SET hashed_password = ?, updated_at = ? WHERE id = ?'
-            );
-            stmt.run(newHashedPassword, now, userId, function (this: RunResult, err: Error | null) {
-                if (err) {
-                    console.error(`更新用户 ${userId} 密码时出错:`, err.message);
-                    return rejectUpdate(new Error('更新密码失败'));
-                }
-                if (this.changes === 0) {
-                     console.error(`修改密码错误: 更新影响行数为 0 - 用户 ID ${userId}`);
-                 return rejectUpdate(new Error('未找到要更新的用户'));
-                }
-                console.log(`用户 ${userId} 密码已成功修改。`);
-                const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
-                // 记录审计日志 (添加 IP)
-                auditLogService.logAction('PASSWORD_CHANGED', { userId, ip: clientIp });
-                resolveUpdate();
-            });
-            stmt.finalize();
-        });
+        // Use promisified runDb instead of prepare/run/finalize
+        const result = await runDb(db,
+            'UPDATE users SET hashed_password = ?, updated_at = ? WHERE id = ?',
+            [newHashedPassword, now, userId]
+        );
+
+        if (result.changes === 0) {
+            console.error(`修改密码错误: 更新影响行数为 0 - 用户 ID ${userId}`);
+            throw new Error('未找到要更新的用户'); // Throw error to be caught below
+        }
+
+        console.log(`用户 ${userId} 密码已成功修改。`);
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+        // 记录审计日志 (添加 IP)
+        auditLogService.logAction('PASSWORD_CHANGED', { userId, ip: clientIp });
 
         res.status(200).json({ message: '密码已成功修改。' });
 
@@ -361,13 +379,19 @@ export const setup2FA = async (req: Request, res: Response): Promise<void> => {
     }
 
     try {
-        // 检查用户是否已启用 2FA
+        const db = await getDbInstance(); // Get DB instance
+        // 检查用户是否已启用 2FA using promisified getDb
+        const user = await getDb<{ two_factor_secret: string | null }>(db, 'SELECT two_factor_secret FROM users WHERE id = ?', [userId]);
+        const existingSecret = user ? user.two_factor_secret : null;
+
+        /* Original callback logic replaced by await getDb
         const existingSecret = await new Promise<string | null>((resolve, reject) => {
             db.get('SELECT two_factor_secret FROM users WHERE id = ?', [userId], (err, row: { two_factor_secret: string | null }) => {
                 if (err) reject(err);
                 else resolve(row ? row.two_factor_secret : null);
             });
         });
+        */
 
         if (existingSecret) {
             res.status(400).json({ message: '两步验证已启用。如需重置，请先禁用。' });
@@ -510,6 +534,7 @@ export const verifyAndActivate2FA = async (req: Request, res: Response): Promise
     }
 
     try {
+        const db = await getDbInstance(); // <<< Add this line to get the db instance
         // 使用临时密钥验证用户提交的令牌
         const verified = speakeasy.totp.verify({
             secret: tempSecret,
@@ -519,29 +544,22 @@ export const verifyAndActivate2FA = async (req: Request, res: Response): Promise
         });
 
         if (verified) {
-            // 验证成功，将密钥永久存储到数据库
+            // 验证成功，将密钥永久存储到数据库 using promisified runDb
             const now = Math.floor(Date.now() / 1000);
-            await new Promise<void>((resolveUpdate, rejectUpdate) => {
-                const stmt = db.prepare(
-                    'UPDATE users SET two_factor_secret = ?, updated_at = ? WHERE id = ?'
-                );
-                stmt.run(tempSecret, now, userId, function (this: RunResult, err: Error | null) {
-                    if (err) {
-                        console.error(`更新用户 ${userId} 的 2FA 密钥时出错:`, err.message);
-                        return rejectUpdate(new Error('激活两步验证失败'));
-                    }
-                    if (this.changes === 0) {
-                         console.error(`激活 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
-                     return rejectUpdate(new Error('未找到要更新的用户'));
-                    }
-                    console.log(`用户 ${userId} 已成功激活两步验证。`);
-                    const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
-                    // 记录审计日志 (添加 IP)
-                    auditLogService.logAction('2FA_ENABLED', { userId, ip: clientIp });
-                    resolveUpdate();
-                });
-                stmt.finalize();
-            });
+            const result = await runDb(db,
+                'UPDATE users SET two_factor_secret = ?, updated_at = ? WHERE id = ?',
+                [tempSecret, now, userId]
+            );
+
+            if (result.changes === 0) {
+                console.error(`激活 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
+                throw new Error('未找到要更新的用户');
+            }
+
+            console.log(`用户 ${userId} 已成功激活两步验证。`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            // 记录审计日志 (添加 IP)
+            auditLogService.logAction('2FA_ENABLED', { userId, ip: clientIp });
 
             // 清除 session 中的临时密钥
             delete req.session.tempTwoFactorSecret;
@@ -577,12 +595,17 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
     }
 
     try {
-        // 1. 验证当前密码
+        const db = await getDbInstance(); // Get DB instance
+        // 1. 验证当前密码 using promisified getDb
+        const user = await getDb<User>(db, 'SELECT id, hashed_password FROM users WHERE id = ?', [userId]);
+
+        /* Original callback logic replaced by await getDb
         const user = await new Promise<User | undefined>((resolve, reject) => {
             db.get('SELECT id, hashed_password FROM users WHERE id = ?', [userId], (err, row: User) => {
                 if (err) reject(err); else resolve(row);
             });
         });
+        */
         if (!user) {
             res.status(404).json({ message: '用户不存在。' }); return;
         }
@@ -591,29 +614,22 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
             res.status(400).json({ message: '当前密码不正确。' }); return;
         }
 
-        // 2. 清除数据库中的 2FA 密钥
+        // 2. 清除数据库中的 2FA 密钥 using promisified runDb
         const now = Math.floor(Date.now() / 1000);
-        await new Promise<void>((resolveUpdate, rejectUpdate) => {
-            const stmt = db.prepare(
-                'UPDATE users SET two_factor_secret = NULL, updated_at = ? WHERE id = ?'
-            );
-            stmt.run(now, userId, function (this: RunResult, err: Error | null) {
-                if (err) {
-                    console.error(`清除用户 ${userId} 的 2FA 密钥时出错:`, err.message);
-                    return rejectUpdate(new Error('禁用两步验证失败'));
-                }
-                if (this.changes === 0) {
-                     console.error(`禁用 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
-                     return rejectUpdate(new Error('未找到要更新的用户'));
-                }
-                console.log(`用户 ${userId} 已成功禁用两步验证。`);
-                const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
-                // 记录审计日志 (添加 IP)
-                auditLogService.logAction('2FA_DISABLED', { userId, ip: clientIp });
-                resolveUpdate();
-            });
-            stmt.finalize();
-        });
+        const result = await runDb(db,
+            'UPDATE users SET two_factor_secret = NULL, updated_at = ? WHERE id = ?',
+            [now, userId]
+        );
+
+        if (result.changes === 0) {
+            console.error(`禁用 2FA 错误: 更新影响行数为 0 - 用户 ID ${userId}`);
+            throw new Error('未找到要更新的用户');
+        }
+
+        console.log(`用户 ${userId} 已成功禁用两步验证。`);
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+        // 记录审计日志 (添加 IP)
+        auditLogService.logAction('2FA_DISABLED', { userId, ip: clientIp });
 
         res.status(200).json({ message: '两步验证已成功禁用。' });
 
@@ -629,6 +645,12 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
  */
 export const needsSetup = async (req: Request, res: Response): Promise<void> => {
     try {
+        const db = await getDbInstance(); // Get DB instance
+        // Use promisified getDb
+        const row = await getDb<{ count: number }>(db, 'SELECT COUNT(*) as count FROM users');
+        const userCount = row ? row.count : 0;
+
+        /* Original callback logic replaced by await getDb
         const userCount = await new Promise<number>((resolve, reject) => {
             db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => {
                 if (err) {
@@ -638,6 +660,7 @@ export const needsSetup = async (req: Request, res: Response): Promise<void> => 
                 resolve(row ? row.count : 0); // 如果表为空，row 可能为 undefined
             });
         });
+        */
 
         res.status(200).json({ needsSetup: userCount === 0 });
 
@@ -670,7 +693,12 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
 
 
     try {
-        // 2. 检查数据库中是否已存在用户 (关键安全检查)
+        const db = await getDbInstance(); // Get DB instance
+        // 2. 检查数据库中是否已存在用户 (关键安全检查) using promisified getDb
+        const row = await getDb<{ count: number }>(db, 'SELECT COUNT(*) as count FROM users');
+        const userCount = row ? row.count : 0;
+
+        /* Original callback logic replaced by await getDb
         const userCount = await new Promise<number>((resolve, reject) => {
             db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => {
                 if (err) {
@@ -680,6 +708,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
                 resolve(row ? row.count : 0);
             });
         });
+        */
 
         if (userCount > 0) {
             console.warn('尝试在已有用户的情况下执行初始设置。');
@@ -692,33 +721,20 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         const now = Math.floor(Date.now() / 1000);
 
-        // 4. 插入新用户
-        const newUser = await new Promise<{ id: number }>((resolveInsert, rejectInsert) => {
-            const stmt = db.prepare(
-                `INSERT INTO users (username, hashed_password, created_at, updated_at)
-                 VALUES (?, ?, ?, ?)`
-            );
-            // 使用 function(this: RunResult) 来获取 lastID
-            stmt.run(username, hashedPassword, now, now, function (this: RunResult, err: Error | null) {
-                if (err) {
-                    console.error('创建初始管理员时出错:', err.message);
-                    // 检查是否是唯一约束错误
-                    if (err.message.includes('UNIQUE constraint failed: users.username')) {
-                         return rejectInsert(new Error('用户名已存在。')); // 虽然理论上不应发生，但以防万一
-                    }
-                    return rejectInsert(new Error('创建初始管理员失败'));
-                }
-                 // 获取新插入用户的 ID
-                resolveInsert({ id: this.lastID });
-            });
-            stmt.finalize((finalizeErr) => {
-                 if (finalizeErr) {
-                     console.error('Finalizing statement failed:', finalizeErr.message);
-                     // 如果 finalize 失败，可能插入已完成，但最好还是通知错误
-                     rejectInsert(new Error('创建初始管理员时发生错误 (finalize)'));
-                 }
-             });
-        });
+        // 4. 插入新用户 using promisified runDb
+        const result = await runDb(db,
+            `INSERT INTO users (username, hashed_password, created_at, updated_at)
+             VALUES (?, ?, ?, ?)`,
+            [username, hashedPassword, now, now]
+        );
+
+        // Check if insertion was successful and get the ID
+        if (typeof result.lastID !== 'number' || result.lastID <= 0) {
+            // This might happen due to UNIQUE constraint or other issues caught by runDb's error handling
+             console.error('创建初始管理员后未能获取有效的 lastID。可能原因：用户名已存在或其他数据库错误。');
+             throw new Error('创建初始管理员失败，可能用户名已存在。');
+        }
+        const newUser = { id: result.lastID };
 
 
         console.log(`初始管理员账号 '${username}' (ID: ${newUser.id}) 已成功创建。`);

@@ -1,7 +1,10 @@
+// packages/backend/src/repositories/proxy.repository.ts
 import { Database, Statement } from 'sqlite3';
-import { getDb } from '../database';
+// Import new async helpers and the instance getter
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
-const db = getDb();
+// Remove top-level db instance
+// const db = getDb();
 
 // 定义 Proxy 类型 (可以共享到 types 文件)
 export interface ProxyData {
@@ -19,83 +22,83 @@ export interface ProxyData {
     updated_at: number;
 }
 
+// Define the expected row structure from the database if it matches ProxyData
+type DbProxyRow = ProxyData;
+
 /**
  * 根据名称、类型、主机和端口查找代理
  */
 export const findProxyByNameTypeHostPort = async (name: string, type: string, host: string, port: number): Promise<{ id: number } | undefined> => {
-    return new Promise((resolve, reject) => {
-        db.get(
-            `SELECT id FROM proxies WHERE name = ? AND type = ? AND host = ? AND port = ?`,
-            [name, type, host, port],
-            (err: Error | null, row: { id: number } | undefined) => {
-                if (err) {
-                    console.error(`Repository: 查找代理时出错 (name=${name}, type=${type}, host=${host}, port=${port}):`, err.message);
-                    return reject(new Error(`查找代理时出错: ${err.message}`));
-                }
-                resolve(row);
-            }
-        );
-    });
+    const sql = `SELECT id FROM proxies WHERE name = ? AND type = ? AND host = ? AND port = ?`;
+    try {
+        const db = await getDbInstance();
+        const row = await getDbRow<{ id: number }>(db, sql, [name, type, host, port]);
+        return row;
+    } catch (err: any) {
+        console.error(`Repository: 查找代理时出错 (name=${name}, type=${type}, host=${host}, port=${port}):`, err.message);
+        throw new Error(`查找代理时出错: ${err.message}`);
+    }
 };
 
 /**
  * 创建新代理
  */
 export const createProxy = async (data: Omit<ProxyData, 'id' | 'created_at' | 'updated_at'>): Promise<number> => {
-    return new Promise((resolve, reject) => {
-        const now = Math.floor(Date.now() / 1000);
-        const stmt = db.prepare(
-            `INSERT INTO proxies (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-        );
-        stmt.run(
-            data.name, data.type, data.host, data.port,
-            data.username || null,
-            data.auth_method || 'none',
-            data.encrypted_password || null,
-            data.encrypted_private_key || null,
-            data.encrypted_passphrase || null,
-            now, now,
-            function (this: Statement, err: Error | null) {
-                stmt.finalize();
-                if (err) {
-                    console.error('Repository: 创建代理时出错:', err.message);
-                    return reject(new Error(`创建代理时出错: ${err.message}`));
-                }
-                resolve((this as any).lastID);
-            }
-        );
-    });
+    const now = Math.floor(Date.now() / 1000);
+    const sql = `INSERT INTO proxies (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const params = [
+        data.name, data.type, data.host, data.port,
+        data.username || null,
+        data.auth_method || 'none',
+        data.encrypted_password || null,
+        data.encrypted_private_key || null,
+        data.encrypted_passphrase || null,
+        now, now
+    ];
+    try {
+        const db = await getDbInstance();
+        const result = await runDb(db, sql, params);
+        // Ensure lastID is valid before returning
+        if (typeof result.lastID !== 'number' || result.lastID <= 0) {
+             throw new Error('创建代理后未能获取有效的 lastID');
+        }
+        return result.lastID;
+    } catch (err: any) {
+        console.error('Repository: 创建代理时出错:', err.message);
+        // Handle potential UNIQUE constraint errors if needed (e.g., on name)
+        throw new Error(`创建代理时出错: ${err.message}`);
+    }
 };
 
 /**
  * 获取所有代理
  */
 export const findAllProxies = async (): Promise<ProxyData[]> => {
-    return new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM proxies ORDER BY name ASC`, (err, rows: ProxyData[]) => {
-            if (err) {
-                console.error('Repository: 查询代理列表时出错:', err.message);
-                return reject(new Error('获取代理列表失败'));
-            }
-            resolve(rows);
-        });
-    });
+    const sql = `SELECT * FROM proxies ORDER BY name ASC`;
+    try {
+        const db = await getDbInstance();
+        const rows = await allDb<DbProxyRow>(db, sql);
+        return rows;
+    } catch (err: any) {
+        console.error('Repository: 查询代理列表时出错:', err.message);
+        throw new Error('获取代理列表失败');
+    }
 };
 
 /**
  * 根据 ID 获取单个代理
  */
 export const findProxyById = async (id: number): Promise<ProxyData | null> => {
-     return new Promise((resolve, reject) => {
-         db.get(`SELECT * FROM proxies WHERE id = ?`, [id], (err, row: ProxyData) => {
-             if (err) {
-                 console.error(`Repository: 查询代理 ${id} 时出错:`, err.message);
-                 return reject(new Error('获取代理信息失败'));
-             }
-             resolve(row || null);
-         });
-     });
+     const sql = `SELECT * FROM proxies WHERE id = ?`;
+     try {
+        const db = await getDbInstance();
+        const row = await getDbRow<DbProxyRow>(db, sql, [id]);
+        return row || null;
+     } catch (err: any) {
+        console.error(`Repository: 查询代理 ${id} 时出错:`, err.message);
+        throw new Error('获取代理信息失败');
+     }
  };
 
 
@@ -106,8 +109,10 @@ export const updateProxy = async (id: number, data: Partial<Omit<ProxyData, 'id'
     const fieldsToUpdate: { [key: string]: any } = { ...data };
     const params: any[] = [];
 
+    // Remove fields that should not be updated directly
     delete fieldsToUpdate.id;
     delete fieldsToUpdate.created_at;
+    // updated_at will be set explicitly
 
     fieldsToUpdate.updated_at = Math.floor(Date.now() / 1000);
 
@@ -115,39 +120,37 @@ export const updateProxy = async (id: number, data: Partial<Omit<ProxyData, 'id'
     Object.values(fieldsToUpdate).forEach(value => params.push(value ?? null));
 
     if (!setClauses) {
-        return false;
+        console.warn(`[Repository] updateProxy called for ID ${id} with no fields to update.`);
+        return false; // Nothing to update
     }
 
-    params.push(id);
+    params.push(id); // Add the ID for the WHERE clause
 
-    return new Promise((resolve, reject) => {
-        const stmt = db.prepare(`UPDATE proxies SET ${setClauses} WHERE id = ?`);
-        stmt.run(...params, function (this: Statement, err: Error | null) {
-            stmt.finalize();
-            if (err) {
-                console.error(`Repository: 更新代理 ${id} 时出错:`, err.message);
-                return reject(new Error('更新代理记录失败'));
-            }
-            resolve((this as any).changes > 0);
-        });
-    });
+    const sql = `UPDATE proxies SET ${setClauses} WHERE id = ?`;
+
+    try {
+        const db = await getDbInstance();
+        const result = await runDb(db, sql, params);
+        return result.changes > 0;
+    } catch (err: any) {
+        console.error(`Repository: 更新代理 ${id} 时出错:`, err.message);
+        // Handle potential UNIQUE constraint errors if needed
+        throw new Error('更新代理记录失败');
+    }
 };
 
 /**
  * 删除代理
  */
 export const deleteProxy = async (id: number): Promise<boolean> => {
-    return new Promise((resolve, reject) => {
-        // 注意：connections 表中的 proxy_id 外键设置了 ON DELETE SET NULL，
-        // 所以删除代理时，关联的连接会自动将 proxy_id 设为 NULL。
-        const stmt = db.prepare(`DELETE FROM proxies WHERE id = ?`);
-        stmt.run(id, function (this: Statement, err: Error | null) {
-            stmt.finalize();
-            if (err) {
-                console.error(`Repository: 删除代理 ${id} 时出错:`, err.message);
-                return reject(new Error('删除代理记录失败'));
-            }
-            resolve((this as any).changes > 0);
-        });
-    });
+    // Note: connections table proxy_id foreign key has ON DELETE SET NULL.
+    const sql = `DELETE FROM proxies WHERE id = ?`;
+    try {
+        const db = await getDbInstance();
+        const result = await runDb(db, sql, [id]);
+        return result.changes > 0;
+    } catch (err: any) {
+        console.error(`Repository: 删除代理 ${id} 时出错:`, err.message);
+        throw new Error('删除代理记录失败');
+    }
 };

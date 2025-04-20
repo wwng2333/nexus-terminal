@@ -33,8 +33,9 @@ export const getAllCommandHistory = async (): Promise<CommandHistoryEntry[]> => 
  * @returns 返回是否成功删除 (删除行数 > 0)
  */
 export const deleteCommandHistoryById = async (id: number): Promise<boolean> => {
-    const changes = await CommandHistoryRepository.deleteCommandById(id);
-    return changes > 0;
+    // deleteCommandById now directly returns boolean indicating success
+    const success = await CommandHistoryRepository.deleteCommandById(id);
+    return success;
 };
 
 /**

@@ -3,7 +3,7 @@ import http from 'http';
 import { Request, RequestHandler } from 'express';
 import { Client, ClientChannel } from 'ssh2';
 import { v4 as uuidv4 } from 'uuid'; // 用于生成唯一的会话 ID
-import { getDb } from './database';
+import { getDbInstance } from './database/connection'; // Updated import path, use getDbInstance
 import { decrypt } from './utils/crypto';
 import { SftpService } from './services/sftp.service';
 import { StatusMonitorService } from './services/status-monitor.service';
@@ -33,7 +33,7 @@ export interface ClientState { // 导出以便 Service 可以导入
 }
 
 // 存储所有活动客户端的状态 (key: sessionId)
-const clientStates = new Map<string, ClientState>();
+export const clientStates = new Map<string, ClientState>(); // Export clientStates
 
 // --- 服务实例化 ---
 // 将 clientStates 传递给需要访问共享状态的服务
@@ -76,9 +76,9 @@ const cleanupClientConnection = (sessionId: string | undefined) => {
     }
 };
 
-export const initializeWebSocket = (server: http.Server, sessionParser: RequestHandler): WebSocketServer => {
+export const initializeWebSocket = async (server: http.Server, sessionParser: RequestHandler): Promise<WebSocketServer> => { // Make async
     const wss = new WebSocketServer({ noServer: true });
-    const db = getDb(); // 获取数据库实例
+    const db = await getDbInstance(); // 获取数据库实例 (use await and getDbInstance)
 
     // --- 心跳检测 ---
     const heartbeatInterval = setInterval(() => {

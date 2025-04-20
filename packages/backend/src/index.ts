@@ -2,12 +2,13 @@ import express = require('express');
 // import express = require('express'); // 移除重复导入
 import { Request, Response, NextFunction, RequestHandler } from 'express'; // 添加 RequestHandler
 import http from 'http'; // 引入 http 模块
+import fs from 'fs'; // 导入 fs 模块用于创建目录
 import session from 'express-session';
-import connectSqlite3 from 'connect-sqlite3';
+import sessionFileStore from 'session-file-store'; // 替换为 session-file-store
 import path from 'path'; // 需要 path 模块
 import bcrypt from 'bcrypt'; // 引入 bcrypt 用于哈希密码
-import { getDb } from './database';
-import { runMigrations } from './migrations';
+import { getDbInstance } from './database/connection'; // Updated import path, use getDbInstance
+import { runMigrations } from './database/migrations'; // Updated import path
 import authRouter from './auth/auth.routes'; // 导入认证路由
 import connectionsRouter from './connections/connections.routes';
 import sftpRouter from './sftp/sftp.routes';
@@ -23,6 +24,7 @@ import appearanceRoutes from './appearance/appearance.routes'; // 导入外观�
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
 
+
 // 基础 Express 应用设置 (后续会扩展)
 const app = express();
 const server = http.createServer(app); // 创建 HTTP 服务器实例
@@ -34,8 +36,10 @@ app.set('trust proxy', true);
 // --- 结束信任代理设置 ---
 
 // --- 会话存储设置 ---
-const SQLiteStore = connectSqlite3(session);
-const dbPath = path.resolve(__dirname, '../../data'); // 数据库目录路径
+// const SQLiteStore = connectSqlite3(session); // 移除旧的 Store 初始化
+// 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
+console.log('[Index CWD 1]', process.cwd()); // 添加 CWD 日志
+const dbPath = path.join(process.cwd(), 'data'); // Correct path relative to CWD (packages/backend)
 
 // --- 中间件 ---
 // !! 重要：IP 白名单应尽可能早地应用，通常在其他中间件之前 !!
@@ -50,40 +54,10 @@ if (sessionSecret === 'a-very-insecure-secret-for-dev') {
     console.warn('警告：正在使用默认的不安全会话密钥，请在生产环境中设置 SESSION_SECRET 环境变量！');
 }
 
-app.use(session({
-    // 使用类型断言 (as any) 来解决 @types/connect-sqlite3 和 @types/express-session 的类型冲突
-    store: new SQLiteStore({
-        db: 'nexus-terminal.db', // 数据库文件名
-        dir: dbPath,          // 数据库文件所在目录
-        table: 'sessions'     // 存储会话的表名 (会自动创建)
-    }) as any,
-    secret: sessionSecret,
-    resave: false,             // 强制保存 session 即使它没有变化 (通常为 false)
-    saveUninitialized: false,  // 强制将未初始化的 session 存储 (通常为 false)
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 7, // Cookie 有效期：7天 (毫秒)
-        httpOnly: true,                 // 防止客户端脚本访问 cookie
-        secure: process.env.NODE_ENV === 'production' // 仅在 HTTPS 下发送 cookie (生产环境)
-    }
-}));
-// 将 session 中间件保存到一个变量，以便传递给 WebSocket 初始化函数
-const sessionMiddleware = session({
-    // 使用类型断言 (as any) 来解决 @types/connect-sqlite3 和 @types/express-session 的类型冲突
-    store: new SQLiteStore({
-        db: 'nexus-terminal.db', // 数据库文件名
-        dir: dbPath,          // 数据库文件所在目录
-        table: 'sessions'     // 存储会话的表名 (会自动创建)
-    }) as any,
-    secret: sessionSecret,
-    resave: false,             // 强制保存 session 即使它没有变化 (通常为 false)
-    saveUninitialized: false,  // 强制将未初始化的 session 存储 (通常为 false)
-    cookie: {
-        maxAge: 1000 * 60 * 60 * 24 * 7, // Cookie 有效期：7天 (毫秒)
-        httpOnly: true,                 // 防止客户端脚本访问 cookie
-        secure: process.env.NODE_ENV === 'production' // 仅在 HTTPS 下发送 cookie (生产环境)
-    }
-});
-app.use(sessionMiddleware); // 应用会话中间件
+// !! 移除顶层的 session 中间件应用，将其移至 startServer 内部 !!
+// !! 将 sessionMiddleware 的创建和应用移到 startServer 函数内部 !!
+// const sessionMiddleware = session({ ... }); // 不在这里创建
+// app.use(sessionMiddleware); // 不在这里应用
 
 // --- 静态文件服务 ---
 // 提供上传的背景图片等静态资源
@@ -104,38 +78,25 @@ declare module 'express-session' {
 
 const port = process.env.PORT || 3001; // 示例端口，可配置
 
-// --- API 路由 ---
-app.use('/api/v1/auth', authRouter);
-app.use('/api/v1/connections', connectionsRouter);
-app.use('/api/v1/sftp', sftpRouter);
-app.use('/api/v1/proxies', proxyRoutes); // 挂载代理相关的路由
-app.use('/api/v1/tags', tagsRouter); // 挂载标签相关的路由
-app.use('/api/v1/settings', settingsRoutes); // 挂载设置相关的路由
-app.use('/api/v1/notifications', notificationRoutes); // 挂载通知相关的路由
-app.use('/api/v1/audit-logs', auditRoutes); // 挂载审计日志相关的路由
-app.use('/api/v1/command-history', commandHistoryRoutes); // 挂载命令历史记录相关的路由
-app.use('/api/v1/quick-commands', quickCommandsRoutes); // 挂载快捷指令相关的路由
-app.use('/api/v1/terminal-themes', terminalThemeRoutes); // 挂载终端主题路由
-app.use('/api/v1/appearance', appearanceRoutes); // 挂载外观设置路由
-
-// 状态检查接口
-app.get('/api/v1/status', (req: Request, res: Response) => {
-  res.json({ status: '后端服务运行中！' }); // 响应也改为中文
-});
+// --- API 路由 (移动到 startServer 内部，在 session 中间件之后应用) ---
 
 // 在服务器启动前初始化数据库并执行迁移
 const initializeDatabase = async () => {
   try {
-    const db = getDb(); // 获取数据库实例 (同时会建立连接)
-    await runMigrations(db); // 执行数据库迁移 (创建表)
-    // console.log('数据库迁移执行成功。'); // 日志已移至 migrations.ts
+    // getDb() now returns a Promise and handles initialization internally
+    const db = await getDbInstance(); // Correctly await the Promise, use getDbInstance
+    console.log('数据库实例已获取并初始化完成。');
+
+    // runMigrations is now just a placeholder and initialization is done within getDb
+    // await runMigrations(db); // Removed call to placeholder runMigrations
 
     // 检查管理员用户是否存在
     const userCount = await new Promise<number>((resolve, reject) => {
-      db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => { // 查询用户数量
+      // Use the resolved db instance here
+      db.get('SELECT COUNT(*) as count FROM users', (err: Error | null, row: { count: number }) => { // Add type for err
         if (err) {
           console.error('检查 users 表时出错:', err.message);
-          return reject(err);
+          return reject(err); // Reject the promise on error
         }
         resolve(row.count);
       });
@@ -143,20 +104,76 @@ const initializeDatabase = async () => {
 
     // 检查用户数量后不再执行任何操作 (移除了自动创建和日志记录)
 
-    console.log('数据库初始化检查完成。');
+    console.log(`数据库中找到 ${userCount} 个用户。`); // Log user count
+
+    console.log('数据库初始化后检查完成。');
   } catch (error) {
-    console.error('数据库初始化失败:', error);
+    console.error('数据库初始化或检查失败:', error); // More specific error message
     process.exit(1); // 如果数据库初始化失败，则退出进程
   }
 };
 
 // 启动 HTTP 服务器 (而不是直接 app.listen)
 const startServer = () => {
-  server.listen(port, () => { // 使用 server.listen
-    console.log(`后端服务器正在监听 http://localhost:${port}`);
-    // 初始化 WebSocket 服务器，并传入 HTTP 服务器实例和会话解析器
-    initializeWebSocket(server, sessionMiddleware as RequestHandler);
-  });
+    // !! 在服务器启动前，但在数据库初始化后，设置会话中间件 !!
+    console.log('数据库初始化成功，现在设置会话存储...');
+    const FileStore = sessionFileStore(session); // 使用新的 FileStore
+    // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
+    console.log('[Index CWD 2]', process.cwd()); // 添加 CWD 日志
+    const dataPath = path.join(process.cwd(), 'data'); // 数据库文件目录保持不变 (重命名变量以便区分)
+    const sessionsPath = path.join(process.cwd(), 'sessions'); // 新建 sessions 目录存储会话文件
+    // 确保 sessions 目录存在
+    if (!fs.existsSync(sessionsPath)) {
+        fs.mkdirSync(sessionsPath, { recursive: true });
+        console.log(`[Session Store] 已创建会话目录: ${sessionsPath}`);
+    }
+    console.log(`[Session Store] 使用文件存储，路径: ${sessionsPath}`);
+    const sessionMiddleware = session({
+        store: new FileStore({
+            path: sessionsPath, // 指定会话文件存储目录
+            ttl: 60 * 60 * 24 * 7, // 会话有效期 (秒)，7天，匹配 cookie maxAge (需要秒)
+            logFn: (message) => { console.log('[SessionFileStore]', message); } // 可选：启用日志
+            // reapInterval: 3600 // 清理过期会话间隔 (秒)，默认1小时
+        }),
+        secret: sessionSecret,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            maxAge: 1000 * 60 * 60 * 24 * 7,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production'
+        }
+    });
+    app.use(sessionMiddleware); // 在这里应用会话中间件
+    console.log('会话中间件已应用。');
+
+    // --- 应用 API 路由 ---
+    console.log('应用 API 路由...');
+    app.use('/api/v1/auth', authRouter);
+    app.use('/api/v1/connections', connectionsRouter);
+    app.use('/api/v1/sftp', sftpRouter);
+    app.use('/api/v1/proxies', proxyRoutes);
+    app.use('/api/v1/tags', tagsRouter);
+    app.use('/api/v1/settings', settingsRoutes);
+    app.use('/api/v1/notifications', notificationRoutes);
+    app.use('/api/v1/audit-logs', auditRoutes);
+    app.use('/api/v1/command-history', commandHistoryRoutes);
+    app.use('/api/v1/quick-commands', quickCommandsRoutes);
+    app.use('/api/v1/terminal-themes', terminalThemeRoutes);
+    app.use('/api/v1/appearance', appearanceRoutes);
+
+    // 状态检查接口 (如果不需要 session 可以保留在外面，但移入更安全)
+    app.get('/api/v1/status', (req: Request, res: Response) => {
+      res.json({ status: '后端服务运行中！' });
+    });
+    console.log('API 路由已应用。');
+
+
+    server.listen(port, () => { // 使用 server.listen
+        console.log(`后端服务器正在监听 http://localhost:${port}`);
+        // 初始化 WebSocket 服务器，并传入 HTTP 服务器实例和会话解析器
+        initializeWebSocket(server, sessionMiddleware as RequestHandler); // 传递新创建的 sessionMiddleware
+    });
 };
 
 // 先执行数据库初始化，成功后再启动服务器

@@ -1,164 +1,175 @@
-import { getDb } from '../database';
+// packages/backend/src/repositories/appearance.repository.ts
+// Import new async helpers and the instance getter, ensuring getDb is included
+import { getDbInstance, runDb, getDb, allDb } from '../database/connection';
 import { AppearanceSettings, UpdateAppearanceDto } from '../types/appearance.types';
-import { defaultUiTheme } from '../config/default-themes'; // Assuming default UI theme is here too
+import { defaultUiTheme } from '../config/default-themes';
+// Import findThemeById from terminal theme repository for validation
+import { findThemeById as findTerminalThemeById } from './terminal-theme.repository';
+import * as sqlite3 from 'sqlite3'; // Import sqlite3 for Database type hint
 
-// const db = getDb(); // Removed top-level call to avoid circular dependency issues
 const TABLE_NAME = 'appearance_settings';
-const SETTINGS_ID = 1; // Use a fixed ID for the single row of global settings
+// Remove SETTINGS_ID as the table is key-value based
+// const SETTINGS_ID = 1;
 
-/**
- * SQL语句：创建 appearance_settings 表
- */
-export const SQL_CREATE_TABLE = `
-  CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
-    id INTEGER PRIMARY KEY, -- Fixed ID for the single settings row
-    custom_ui_theme TEXT,
-    active_terminal_theme_id INTEGER NULL, -- 修改为 INTEGER NULL
-    terminal_font_family TEXT,
-    terminal_font_size INTEGER,
-    editor_font_size INTEGER, -- 新增：编辑器字体大小
-    terminal_background_image TEXT,
-    page_background_image TEXT,
-    updated_at INTEGER NOT NULL,
-    FOREIGN KEY(active_terminal_theme_id) REFERENCES terminal_themes(id) -- 添加外键约束
-  );
-`;
+// Define the expected row structure from the database (key-value)
+interface DbAppearanceSettingsRow {
+    key: string;
+    value: string;
+    created_at: number;
+    updated_at: number;
+}
 
-/**
- * 创建 appearance_settings 表 (如果不存在) - 不再自动调用
- */
-const createTableIfNotExists = () => {
-  // This function is no longer called automatically, initialization is handled in database.ts
-  getDb().run(SQL_CREATE_TABLE, (err) => {
-    if (err) {
-      console.error(`创建 ${TABLE_NAME} 表失败:`, err.message);
-    } else {
-      console.log(`${TABLE_NAME} 表已存在或已创建。`);
-      // 确保默认设置行存在 - 这个调用也应该移到 database.ts
-      // ensureDefaultSettingsExist();
+// Helper function to map DB rows (key-value pairs) to AppearanceSettings object
+const mapRowsToAppearanceSettings = (rows: DbAppearanceSettingsRow[]): AppearanceSettings => {
+    const settings: Partial<AppearanceSettings> = {};
+    let latestUpdatedAt = 0;
+
+    for (const row of rows) {
+        // Update latestUpdatedAt
+        if (row.updated_at > latestUpdatedAt) {
+            latestUpdatedAt = row.updated_at;
+        }
+
+        switch (row.key) {
+            case 'customUiTheme':
+                settings.customUiTheme = row.value;
+                break;
+            case 'activeTerminalThemeId':
+                // Ensure value is parsed as number or null
+                const parsedId = parseInt(row.value, 10);
+                settings.activeTerminalThemeId = isNaN(parsedId) ? null : parsedId;
+                break;
+            case 'terminalFontFamily':
+                settings.terminalFontFamily = row.value;
+                break;
+            case 'terminalFontSize':
+                settings.terminalFontSize = parseInt(row.value, 10);
+                break;
+            case 'editorFontSize':
+                settings.editorFontSize = parseInt(row.value, 10);
+                break;
+            case 'terminalBackgroundImage':
+                settings.terminalBackgroundImage = row.value || undefined; // Use undefined if empty string
+                break;
+            case 'pageBackgroundImage':
+                settings.pageBackgroundImage = row.value || undefined; // Use undefined if empty string
+                break;
+            // Add cases for other potential keys if needed
+        }
     }
-  });
-};
 
-// 辅助函数：将数据库行转换为 AppearanceSettings 对象
-const mapRowToAppearanceSettings = (row: any): AppearanceSettings => {
-    if (!row) return getDefaultAppearanceSettings(); // Return default if no row found
+    // Merge with defaults for any missing keys and add _id and updatedAt
+    const defaults = getDefaultAppearanceSettings(); // Get defaults
     return {
-        _id: row.id.toString(),
-        customUiTheme: row.custom_ui_theme,
-        activeTerminalThemeId: row.active_terminal_theme_id, // 直接返回数字或 null
-        terminalFontFamily: row.terminal_font_family,
-        terminalFontSize: row.terminal_font_size,
-        editorFontSize: row.editor_font_size, // 新增：编辑器字体大小映射
-        terminalBackgroundImage: row.terminal_background_image,
-        // terminalBackgroundOpacity: row.terminal_background_opacity, // Removed
-        pageBackgroundImage: row.page_background_image,
-        // pageBackgroundOpacity: row.page_background_opacity, // Removed
-        updatedAt: row.updated_at,
+        _id: 'global_appearance', // Use a fixed string ID for the conceptual global settings
+        customUiTheme: settings.customUiTheme ?? defaults.customUiTheme,
+        activeTerminalThemeId: settings.activeTerminalThemeId ?? defaults.activeTerminalThemeId,
+        terminalFontFamily: settings.terminalFontFamily ?? defaults.terminalFontFamily,
+        terminalFontSize: settings.terminalFontSize ?? defaults.terminalFontSize,
+        editorFontSize: settings.editorFontSize ?? defaults.editorFontSize,
+        terminalBackgroundImage: settings.terminalBackgroundImage ?? defaults.terminalBackgroundImage,
+        pageBackgroundImage: settings.pageBackgroundImage ?? defaults.pageBackgroundImage,
+        updatedAt: latestUpdatedAt || defaults.updatedAt, // Use latest DB timestamp or default
     };
 };
 
-// 获取默认外观设置
-const getDefaultAppearanceSettings = (): AppearanceSettings => {
-    // TODO: Find the ID of the default preset theme from terminal_themes table later
-    // For now, leave activeTerminalThemeId null or undefined
+
+// 获取默认外观设置 (Simplified, _id is no longer relevant here)
+const getDefaultAppearanceSettings = (): Omit<AppearanceSettings, '_id'> => {
     return {
-        _id: SETTINGS_ID.toString(),
-        customUiTheme: JSON.stringify(defaultUiTheme), // Use default UI theme
-        activeTerminalThemeId: null, // 初始应为 null，待 findAndSetDefaultThemeId 设置
-        terminalFontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"', // Default font
+        customUiTheme: JSON.stringify(defaultUiTheme),
+        activeTerminalThemeId: null, // Default should be null initially
+        terminalFontFamily: 'Consolas, "Courier New", monospace, "Microsoft YaHei", "微软雅黑"',
         terminalFontSize: 14,
-        editorFontSize: 14, // 新增：默认编辑器字体大小
+        editorFontSize: 14,
         terminalBackgroundImage: undefined,
-        // terminalBackgroundOpacity: 1.0, // Removed
         pageBackgroundImage: undefined,
-        // pageBackgroundOpacity: 1.0, // Removed
-        updatedAt: Date.now(),
+        updatedAt: Date.now(), // Provide a default timestamp
     };
 };
 
 
 /**
- * 确保默认设置行存在，并在需要时设置默认激活主题 ID。
- * 这个函数应该在数据库初始化时，在预设主题初始化之后调用。
+ * Ensures default settings exist in the key-value table.
+ * This function is called during database initialization.
  */
-export const ensureDefaultSettingsExist = async () => { // 改为 async 以便内部 await
+export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<void> => {
     const defaults = getDefaultAppearanceSettings();
-    const sqlSelect = `SELECT id, active_terminal_theme_id FROM ${TABLE_NAME} WHERE id = ?`; // 同时查询当前 ID
-    // 将回调函数改为 async
-    getDb().get(sqlSelect, [SETTINGS_ID], async (err, row) => {
-        if (err) {
-            console.error(`检查默认外观设置时出错:`, err.message);
-            return;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const sqlInsertOrIgnore = `INSERT OR IGNORE INTO ${TABLE_NAME} (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)`;
+
+    // Define default key-value pairs to ensure existence
+    const defaultEntries: Array<{ key: keyof Omit<AppearanceSettings, '_id' | 'updatedAt'>, value: any }> = [
+        { key: 'customUiTheme', value: defaults.customUiTheme },
+        { key: 'activeTerminalThemeId', value: null }, // Start with null
+        { key: 'terminalFontFamily', value: defaults.terminalFontFamily },
+        { key: 'terminalFontSize', value: defaults.terminalFontSize },
+        { key: 'editorFontSize', value: defaults.editorFontSize },
+        { key: 'terminalBackgroundImage', value: defaults.terminalBackgroundImage ?? '' }, // Use empty string for DB
+        { key: 'pageBackgroundImage', value: defaults.pageBackgroundImage ?? '' }, // Use empty string for DB
+    ];
+
+    try {
+        for (const entry of defaultEntries) {
+            // Convert value to string for DB storage, handle null/undefined
+            let dbValue: string;
+            if (entry.value === null || entry.value === undefined) {
+                dbValue = entry.key === 'activeTerminalThemeId' ? 'null' : ''; // Store null specifically for theme ID, empty otherwise
+            } else if (typeof entry.value === 'object') {
+                dbValue = JSON.stringify(entry.value);
+            } else {
+                dbValue = String(entry.value);
+            }
+
+            // Special handling for activeTerminalThemeId: store null as 'null' string or the number as string
+             if (entry.key === 'activeTerminalThemeId') {
+                 dbValue = entry.value === null ? 'null' : String(entry.value);
+             }
+
+
+            await runDb(db, sqlInsertOrIgnore, [entry.key, dbValue, nowSeconds, nowSeconds]);
         }
-        if (!row) {
-            const sqlInsert = `
-                INSERT INTO ${TABLE_NAME} (
-                    id, custom_ui_theme, active_terminal_theme_id, terminal_font_family, terminal_font_size, editor_font_size, -- 添加 editor_font_size 列
-                    terminal_background_image, -- terminal_background_opacity, -- Removed
-                    page_background_image, -- page_background_opacity, -- Removed
-                    updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) -- 调整占位符数量
-            `;
-           getDb().run(sqlInsert, [
-               SETTINGS_ID,
-               defaults.customUiTheme,
-                defaults.activeTerminalThemeId, // Initially null
-                defaults.terminalFontFamily,
-                defaults.terminalFontSize,
-                defaults.editorFontSize, // 添加 editor_font_size 默认值参数
-                defaults.terminalBackgroundImage,
-                // defaults.terminalBackgroundOpacity, // Removed
-                defaults.pageBackgroundImage,
-                // defaults.pageBackgroundOpacity, // Removed
-                defaults.updatedAt
-            ], (insertErr) => {
-                if (insertErr) {
-                    console.error('插入默认外观设置失败:', insertErr.message);
-                } else {
-                    console.log('默认外观设置已初始化。');
-                    // Now try to find and set the default theme ID
-                    findAndSetDefaultThemeId();
-                }
-            });
-        } else {
-             // 如果行已存在，直接调用 findAndSetDefaultThemeId 检查并设置默认 ID
-             await findAndSetDefaultThemeId(); // 使用 await
-        }
-    });
+        console.log('[AppearanceRepo] 默认外观设置键值对检查完成。');
+
+        // After ensuring keys exist, try to set the default theme ID if it's currently null
+        await findAndSetDefaultThemeIdIfNull(db);
+
+    } catch (err: any) {
+         console.error(`[AppearanceRepo] 检查或插入默认外观设置键值对时出错:`, err.message);
+         throw new Error(`检查或插入默认外观设置失败: ${err.message}`);
+    }
 };
 
 /**
- * 查找默认终端主题 ID 并更新外观设置
+ * Finds the default terminal theme ID and updates the 'activeTerminalThemeId' setting if it's currently null.
+ * @param db - The active database instance
  */
-const findAndSetDefaultThemeId = async () => {
+const findAndSetDefaultThemeIdIfNull = async (db: sqlite3.Database): Promise<void> => {
     try {
-        // Find the default theme from the other table
-        const defaultThemeSql = `SELECT id FROM terminal_themes WHERE is_system_default = 1 LIMIT 1`;
-        // Explicitly type the row or use type assertion
-        getDb().get(defaultThemeSql, [], async (err, defaultThemeRow: { id: number } | undefined) => {
-            if (err) {
-                console.error("查找默认终端主题 ID 失败:", err.message);
-                return;
-            }
+        // Check the current value of activeTerminalThemeId
+        const currentSetting = await getDb<{ value: string }>(db, `SELECT value FROM ${TABLE_NAME} WHERE key = ?`, ['activeTerminalThemeId']);
+
+        // Proceed only if the setting exists and its value represents null ('null' string)
+        if (currentSetting && currentSetting.value === 'null') {
+            // Find the default theme from the terminal_themes table (assuming name 'default' marks the default)
+            const defaultThemeSql = `SELECT id FROM terminal_themes WHERE name = 'default' AND theme_type = 'preset' LIMIT 1`;
+            const defaultThemeRow = await getDb<{ id: number }>(db, defaultThemeSql);
+
             if (defaultThemeRow) {
-                const defaultThemeIdNum = defaultThemeRow.id; // 直接使用数字 ID
-                // Check current appearance settings
-                const currentSettings = await getAppearanceSettings();
-                // Only set the default theme ID if no active theme ID is currently set (i.e., it's null in the DB)
-                if (currentSettings && currentSettings.activeTerminalThemeId === null) {
-                    console.log(`数据库中未设置激活终端主题，设置为默认数字 ID: ${defaultThemeIdNum}`);
-                    // 更新时传递数字 ID
-                    await updateAppearanceSettings({ activeTerminalThemeId: defaultThemeIdNum });
-                } else {
-                    console.log(`数据库中已设置激活终端主题数字 ID (${currentSettings?.activeTerminalThemeId}) 或未找到默认主题，跳过设置默认 ID。`);
-                }
+                const defaultThemeIdNum = defaultThemeRow.id;
+                console.log(`[AppearanceRepo] activeTerminalThemeId 为 null，尝试设置为默认主题 ID: ${defaultThemeIdNum}`);
+                // Update the setting using INSERT OR REPLACE
+                const sqlReplace = `INSERT OR REPLACE INTO ${TABLE_NAME} (key, value, updated_at) VALUES (?, ?, ?)`;
+                await runDb(db, sqlReplace, ['activeTerminalThemeId', String(defaultThemeIdNum), Math.floor(Date.now() / 1000)]);
             } else {
-                console.warn("未找到系统默认终端主题，无法设置 activeTerminalThemeId。");
+                console.warn("[AppearanceRepo] 未找到名为 'default' 的预设终端主题，无法设置默认 activeTerminalThemeId。");
             }
-        });
-    } catch (error) {
-        console.error("设置默认终端主题 ID 时出错:", error);
+        } else {
+             // console.log(`[AppearanceRepo] activeTerminalThemeId 已设置 (${currentSetting?.value}) 或键不存在，跳过设置默认 ID。`);
+        }
+    } catch (error: any) {
+        console.error("[AppearanceRepo] 设置默认终端主题 ID 时出错:", error.message);
+        // Don't throw here, just log
     }
 };
 
@@ -168,72 +179,90 @@ const findAndSetDefaultThemeId = async () => {
  * @returns Promise<AppearanceSettings>
  */
 export const getAppearanceSettings = async (): Promise<AppearanceSettings> => {
-  return new Promise((resolve, reject) => {
-    getDb().get(`SELECT * FROM ${TABLE_NAME} WHERE id = ?`, [SETTINGS_ID], (err, row) => {
-      if (err) {
-        console.error('获取外观设置失败:', err.message);
-        reject(new Error('获取外观设置失败'));
-      } else {
-        resolve(mapRowToAppearanceSettings(row));
-      }
-    });
-  });
+  try {
+    const db = await getDbInstance();
+    // Fetch all rows from the key-value table
+    const rows = await allDb<DbAppearanceSettingsRow>(db, `SELECT key, value, updated_at FROM ${TABLE_NAME}`);
+    return mapRowsToAppearanceSettings(rows); // Map the key-value pairs to the settings object
+  } catch (err: any) {
+    console.error('获取外观设置失败:', err.message);
+    throw new Error('获取外观设置失败');
+  }
 };
 
 /**
- * 更新外观设置
+ * 更新外观设置 (Public API)
  * @param settingsDto 更新的数据
  * @returns Promise<boolean> 是否成功更新
  */
 export const updateAppearanceSettings = async (settingsDto: UpdateAppearanceDto): Promise<boolean> => {
-  const now = Date.now();
-  let sql = `UPDATE ${TABLE_NAME} SET updated_at = ?`;
-  const params: any[] = [now];
+    const db = await getDbInstance();
+    // Perform validation or complex logic if needed before calling internal update
+    // Example validation (already present in service, but could be here too):
+    if (settingsDto.activeTerminalThemeId !== undefined && settingsDto.activeTerminalThemeId !== null) {
+        try {
+            const themeExists = await findTerminalThemeById(settingsDto.activeTerminalThemeId);
+            if (!themeExists) {
+                throw new Error(`指定的终端主题 ID 不存在: ${settingsDto.activeTerminalThemeId}`);
+            }
+        } catch (validationError: any) {
+             console.error(`[AppearanceRepo] 验证主题 ID ${settingsDto.activeTerminalThemeId} 时出错:`, validationError.message);
+             throw new Error(`验证主题 ID 失败: ${validationError.message}`);
+        }
+    }
+    // ... other validations ...
 
-  // Dynamically build the SET part of the query
-  const updates: string[] = [];
-  const validDbKeys = ['custom_ui_theme', 'active_terminal_theme_id', 'terminal_font_family', 'terminal_font_size', 'editor_font_size', 'terminal_background_image', 'page_background_image'];
-
-  // Iterate over potential keys to update
-  for (const key of Object.keys(settingsDto) as Array<keyof UpdateAppearanceDto>) {
-      const dbKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`); // Convert camelCase to snake_case
-
-      if (validDbKeys.includes(dbKey)) {
-          const value = settingsDto[key];
-          // active_terminal_theme_id 应该是数字或 null
-          if (dbKey === 'active_terminal_theme_id' && typeof value !== 'number' && value !== null) {
-              console.error(`[AppearanceRepo] 更新 active_terminal_theme_id 时收到无效类型值: ${value} (类型: ${typeof value})，应为数字或 null。跳过此字段。`);
-              continue; // 跳过无效类型
-          }
-          updates.push(`${dbKey} = ?`);
-          // 直接推入值 (数字或 null)
-          params.push(value);
-      }
-  }
-
-  if (updates.length === 0) {
-      return true; // Nothing to update
-  }
-
-  sql += `, ${updates.join(', ')} WHERE id = ?`;
-  params.push(SETTINGS_ID);
-
-  return new Promise((resolve, reject) => {
-    // --- 增加详细日志 ---
-    console.log(`[AppearanceRepo] Executing SQL: ${sql}`);
-    console.log(`[AppearanceRepo] With Params: ${JSON.stringify(params)}`);
-    // --- 日志结束 ---
-    getDb().run(sql, params, function (err) {
-      if (err) {
-        console.error('更新外观设置失败:', err.message);
-        reject(new Error('更新外观设置失败'));
-      } else {
-        console.log(`[AppearanceRepo] 更新外观设置成功，影响行数: ${this.changes}`);
-        resolve(this.changes > 0);
-      }
-    });
-  });
+    return updateAppearanceSettingsInternal(db, settingsDto);
 };
 
-// 初始化时创建表 - Removed: Initialization is now handled in database.ts
-// createTableIfNotExists();
+/**
+ * 内部更新外观设置函数 (供内部调用，如初始化)
+ * @param db - Active database instance
+ * @param settingsDto - Data to update
+ * @returns Promise<boolean> - Success status
+ */
+// Internal function to update settings in the key-value table
+const updateAppearanceSettingsInternal = async (db: sqlite3.Database, settingsDto: UpdateAppearanceDto): Promise<boolean> => {
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const sqlReplace = `INSERT OR REPLACE INTO ${TABLE_NAME} (key, value, updated_at) VALUES (?, ?, ?)`;
+  let changesMade = false;
+
+  try {
+      for (const key of Object.keys(settingsDto) as Array<keyof UpdateAppearanceDto>) {
+          const value = settingsDto[key];
+          let dbValue: string;
+
+          // Convert value to string for DB, handle null/undefined
+          if (value === null || value === undefined) {
+               dbValue = key === 'activeTerminalThemeId' ? 'null' : ''; // Store null specifically for theme ID
+          } else if (typeof value === 'object') {
+               dbValue = JSON.stringify(value);
+          } else {
+               dbValue = String(value);
+          }
+
+          // Special handling for activeTerminalThemeId to store 'null' string or number string
+          if (key === 'activeTerminalThemeId') {
+              dbValue = value === null ? 'null' : String(value);
+          }
+
+
+          // Validation for active_terminal_theme_id type before saving
+          if (key === 'activeTerminalThemeId' && value !== null && typeof value !== 'number') {
+               console.error(`[AppearanceRepo] 更新 activeTerminalThemeId 时收到无效类型值: ${value} (类型: ${typeof value})，应为数字或 null。跳过此字段。`);
+               continue; // Skip this key
+          }
+
+          // Execute INSERT OR REPLACE for each key-value pair
+          const result = await runDb(db, sqlReplace, [key, dbValue, nowSeconds]);
+          if (result.changes > 0) {
+              changesMade = true;
+          }
+      }
+      console.log(`[AppearanceRepo] 更新外观设置完成。是否有更改: ${changesMade}`);
+      return changesMade; // Return true if any row was inserted or replaced
+  } catch (err: any) {
+      console.error('更新外观设置失败:', err.message);
+      throw new Error('更新外观设置失败');
+  }
+};

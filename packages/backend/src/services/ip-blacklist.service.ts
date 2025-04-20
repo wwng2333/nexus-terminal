@@ -1,9 +1,12 @@
-import { getDb } from '../database';
+// packages/backend/src/services/ip-blacklist.service.ts
+// Import new async helpers and the instance getter
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { settingsService } from './settings.service';
 import { NotificationService } from './notification.service'; // 导入 NotificationService
-import * as sqlite3 from 'sqlite3';
+import * as sqlite3 from 'sqlite3'; // Keep for RunResult type if needed
 
-const db = getDb();
+// Remove top-level db instance
+// const db = getDb();
 const notificationService = new NotificationService(); // 实例化 NotificationService
 
 // 黑名单相关设置的 Key
@@ -25,6 +28,9 @@ interface IpBlacklistEntry {
     blocked_until: number | null;
 }
 
+// Define the expected row structure from the database if it matches IpBlacklistEntry
+type DbIpBlacklistRow = IpBlacklistEntry;
+
 export class IpBlacklistService {
 
     /**
@@ -33,15 +39,14 @@ export class IpBlacklistService {
      * @returns 黑名单记录或 undefined
      */
     private async getEntry(ip: string): Promise<IpBlacklistEntry | undefined> {
-        return new Promise((resolve, reject) => {
-            db.get('SELECT * FROM ip_blacklist WHERE ip = ?', [ip], (err, row: IpBlacklistEntry) => {
-                if (err) {
-                    console.error(`[IP Blacklist] 查询 IP ${ip} 时出错:`, err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row);
-            });
-        });
+        try {
+            const db = await getDbInstance();
+            const row = await getDbRow<DbIpBlacklistRow>(db, 'SELECT * FROM ip_blacklist WHERE ip = ?', [ip]);
+            return row; // Returns undefined if not found
+        } catch (err: any) {
+            console.error(`[IP Blacklist] 查询 IP ${ip} 时出错:`, err.message);
+            throw new Error('数据库查询失败'); // Re-throw error
+        }
     }
 
     /**
@@ -60,11 +65,10 @@ export class IpBlacklistService {
                 console.log(`[IP Blacklist] IP ${ip} 当前被封禁，直到 ${new Date(entry.blocked_until * 1000).toISOString()}`);
                 return true; // 仍在封禁期内
             }
-            // 如果封禁时间已过或为 null，则不再封禁
             return false;
-        } catch (error) {
-            console.error(`[IP Blacklist] 检查 IP ${ip} 封禁状态时出错:`, error);
-            return false; // 出错时默认不封禁，避免锁死用户
+        } catch (error: any) { // Catch errors from getEntry
+            console.error(`[IP Blacklist] 检查 IP ${ip} 封禁状态时出错:`, error.message);
+            return false; // 出错时默认不封禁
         }
     }
 
@@ -74,7 +78,6 @@ export class IpBlacklistService {
      * @param ip IP 地址
      */
     async recordFailedAttempt(ip: string): Promise<void> {
-        // 如果是本地 IP，则不记录失败尝试，直接返回
         if (LOCAL_IPS.includes(ip)) {
             console.log(`[IP Blacklist] 检测到本地 IP ${ip} 登录失败，跳过黑名单处理。`);
             return;
@@ -82,83 +85,75 @@ export class IpBlacklistService {
 
         const now = Math.floor(Date.now() / 1000);
         try {
-            // 获取设置，并提供默认值处理
+            const db = await getDbInstance();
             const maxAttemptsStr = await settingsService.getSetting(MAX_LOGIN_ATTEMPTS_KEY);
             const banDurationStr = await settingsService.getSetting(LOGIN_BAN_DURATION_KEY);
 
-            // 解析设置值，如果无效或未设置，则使用默认值
             const maxAttempts = parseInt(maxAttemptsStr || '5', 10) || 5;
             const banDuration = parseInt(banDurationStr || '300', 10) || 300;
 
             const entry = await this.getEntry(ip);
 
             if (entry) {
-                // 更新现有记录
+                // Update existing record
                 const newAttempts = entry.attempts + 1;
                 let blockedUntil = entry.blocked_until;
+                let shouldNotify = false;
 
-                // 检查是否达到封禁阈值
-                if (newAttempts >= maxAttempts && !entry.blocked_until) { // 只有在之前未被封禁时才触发通知
+                if (newAttempts >= maxAttempts && !entry.blocked_until) { // Only block and notify if not already blocked
                     blockedUntil = now + banDuration;
+                    shouldNotify = true;
                     console.warn(`[IP Blacklist] IP ${ip} 登录失败次数达到 ${newAttempts} 次 (阈值 ${maxAttempts})，将被封禁 ${banDuration} 秒。`);
-                    // 触发 IP_BLACKLISTED 通知
+                } else if (newAttempts >= maxAttempts && entry.blocked_until) {
+                    console.log(`[IP Blacklist] IP ${ip} 再次登录失败，当前已处于封禁状态。`);
+                    // Optionally extend ban duration here if needed
+                }
+
+                await runDb(db,
+                    'UPDATE ip_blacklist SET attempts = ?, last_attempt_at = ?, blocked_until = ? WHERE ip = ?',
+                    [newAttempts, now, blockedUntil, ip]
+                );
+
+                if (shouldNotify && blockedUntil) {
+                    // Trigger notification after successful DB update
                     notificationService.sendNotification('IP_BLACKLISTED', {
                         ip: ip,
                         attempts: newAttempts,
-                        duration: banDuration, // 封禁时长（秒）
-                        blockedUntil: new Date(blockedUntil * 1000).toISOString() // 封禁截止时间
+                        duration: banDuration,
+                        blockedUntil: new Date(blockedUntil * 1000).toISOString()
                     }).catch(err => console.error(`[IP Blacklist] 发送 IP_BLACKLISTED 通知失败 for IP ${ip}:`, err));
-                } else if (newAttempts >= maxAttempts && entry.blocked_until) {
-                    // 如果已经达到阈值且已被封禁，可能需要更新封禁时间（如果策略是每次失败都延长）
-                    // 当前逻辑是只在首次达到阈值时设置封禁时间，后续失败只增加次数
-                    console.log(`[IP Blacklist] IP ${ip} 再次登录失败，当前已处于封禁状态。`);
                 }
 
-
-                await new Promise<void>((resolve, reject) => {
-                    db.run(
-                        'UPDATE ip_blacklist SET attempts = ?, last_attempt_at = ?, blocked_until = ? WHERE ip = ?',
-                        [newAttempts, now, blockedUntil, ip],
-                        (err) => {
-                            if (err) {
-                                console.error(`[IP Blacklist] 更新 IP ${ip} 失败尝试次数时出错:`, err.message);
-                                return reject(err);
-                            }
-                            resolve();
-                        }
-                    );
-                });
             } else {
-                // 插入新记录
+                // Insert new record
                 let blockedUntil: number | null = null;
-                const attempts = 1; // 首次尝试
-                if (attempts >= maxAttempts) { // 首次尝试就达到阈值
+                const attempts = 1;
+                let shouldNotify = false;
+
+                if (attempts >= maxAttempts) {
                     blockedUntil = now + banDuration;
-                     console.warn(`[IP Blacklist] IP ${ip} 首次登录失败即达到阈值 ${maxAttempts}，将被封禁 ${banDuration} 秒。`);
-                     // 触发 IP_BLACKLISTED 通知
+                    shouldNotify = true;
+                    console.warn(`[IP Blacklist] IP ${ip} 首次登录失败即达到阈值 ${maxAttempts}，将被封禁 ${banDuration} 秒。`);
+                }
+
+                await runDb(db,
+                    'INSERT INTO ip_blacklist (ip, attempts, last_attempt_at, blocked_until) VALUES (?, ?, ?, ?)',
+                    [ip, attempts, now, blockedUntil]
+                );
+
+                 if (shouldNotify && blockedUntil) {
+                     // Trigger notification after successful DB insert
                      notificationService.sendNotification('IP_BLACKLISTED', {
                          ip: ip,
                          attempts: attempts,
                          duration: banDuration,
                          blockedUntil: new Date(blockedUntil * 1000).toISOString()
                      }).catch(err => console.error(`[IP Blacklist] 发送 IP_BLACKLISTED 通知失败 for IP ${ip}:`, err));
-                }
-                await new Promise<void>((resolve, reject) => {
-                    db.run(
-                        'INSERT INTO ip_blacklist (ip, attempts, last_attempt_at, blocked_until) VALUES (?, 1, ?, ?)',
-                        [ip, now, blockedUntil],
-                        (err) => {
-                            if (err) {
-                                console.error(`[IP Blacklist] 插入新 IP ${ip} 失败记录时出错:`, err.message);
-                                return reject(err);
-                            }
-                            resolve();
-                        }
-                    );
-                });
+                 }
             }
-        } catch (error) {
-            console.error(`[IP Blacklist] 记录 IP ${ip} 失败尝试时出错:`, error);
+        } catch (error: any) {
+            console.error(`[IP Blacklist] 记录 IP ${ip} 失败尝试时出错:`, error.message);
+            // Avoid throwing error here to prevent login process failure due to blacklist issues
         }
     }
 
@@ -168,19 +163,12 @@ export class IpBlacklistService {
      */
     async resetAttempts(ip: string): Promise<void> {
         try {
-            await new Promise<void>((resolve, reject) => {
-                // 直接删除记录，或者将 attempts 重置为 0 并清除 blocked_until
-                db.run('DELETE FROM ip_blacklist WHERE ip = ?', [ip], (err) => {
-                    if (err) {
-                        console.error(`[IP Blacklist] 重置 IP ${ip} 尝试次数时出错:`, err.message);
-                        return reject(err);
-                    }
-                    console.log(`[IP Blacklist] 已重置 IP ${ip} 的失败尝试记录。`);
-                    resolve();
-                });
-            });
-        } catch (error) {
-            console.error(`[IP Blacklist] 重置 IP ${ip} 尝试次数时出错:`, error);
+            const db = await getDbInstance();
+            await runDb(db, 'DELETE FROM ip_blacklist WHERE ip = ?', [ip]);
+            console.log(`[IP Blacklist] 已重置 IP ${ip} 的失败尝试记录。`);
+        } catch (error: any) {
+            console.error(`[IP Blacklist] 重置 IP ${ip} 尝试次数时出错:`, error.message);
+            // Avoid throwing error here
         }
     }
 
@@ -190,53 +178,42 @@ export class IpBlacklistService {
      * @param offset 偏移量
      */
     async getBlacklist(limit: number = 50, offset: number = 0): Promise<{ entries: IpBlacklistEntry[], total: number }> {
-        const entries = await new Promise<IpBlacklistEntry[]>((resolve, reject) => {
-            db.all('SELECT * FROM ip_blacklist ORDER BY last_attempt_at DESC LIMIT ? OFFSET ?', [limit, offset], (err, rows: IpBlacklistEntry[]) => {
-                if (err) {
-                    console.error('[IP Blacklist] 获取黑名单列表时出错:', err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(rows);
-            });
-        });
-
-        const total = await new Promise<number>((resolve, reject) => {
-            db.get('SELECT COUNT(*) as count FROM ip_blacklist', (err, row: { count: number }) => {
-                if (err) {
-                    console.error('[IP Blacklist] 获取黑名单总数时出错:', err.message);
-                    return reject(0); // 出错时返回 0
-                }
-                resolve(row.count);
-            });
-        });
-
-        return { entries, total };
+        try {
+            const db = await getDbInstance();
+            const entries = await allDb<DbIpBlacklistRow>(db,
+                'SELECT * FROM ip_blacklist ORDER BY last_attempt_at DESC LIMIT ? OFFSET ?',
+                [limit, offset]
+            );
+            const countRow = await getDbRow<{ count: number }>(db, 'SELECT COUNT(*) as count FROM ip_blacklist');
+            const total = countRow?.count ?? 0;
+            return { entries, total };
+        } catch (error: any) {
+             console.error('[IP Blacklist] 获取黑名单列表时出错:', error.message);
+             // Return empty list on error? Or re-throw?
+             // throw new Error('获取黑名单列表失败');
+             return { entries: [], total: 0 }; // Return empty on error
+        }
     }
 
     /**
      * 从黑名单中删除一个 IP (解除封禁)
      * @param ip IP 地址
+     * @returns Promise<boolean> 是否成功删除
      */
-    async removeFromBlacklist(ip: string): Promise<void> {
+    async removeFromBlacklist(ip: string): Promise<boolean> {
         try {
-            await new Promise<void>((resolve, reject) => {
-                // 将 this 类型改回 RunResult 以访问 changes 属性
-                db.run('DELETE FROM ip_blacklist WHERE ip = ?', [ip], function(this: sqlite3.RunResult, err: Error | null) {
-                    if (err) {
-                        console.error(`[IP Blacklist] 从黑名单删除 IP ${ip} 时出错:`, err.message);
-                        return reject(err);
-                    }
-                    if (this.changes === 0) {
-                        console.warn(`[IP Blacklist] 尝试删除 IP ${ip}，但该 IP 不在黑名单中。`);
-                    } else {
-                        console.log(`[IP Blacklist] 已从黑名单中删除 IP ${ip}。`);
-                    }
-                    resolve();
-                });
-            });
-        } catch (error) {
-            console.error(`[IP Blacklist] 从黑名单删除 IP ${ip} 时出错:`, error);
-            throw error; // 重新抛出错误，以便上层处理
+            const db = await getDbInstance();
+            const result = await runDb(db, 'DELETE FROM ip_blacklist WHERE ip = ?', [ip]);
+            if (result.changes > 0) {
+                console.log(`[IP Blacklist] 已从黑名单中删除 IP ${ip}。`);
+                return true;
+            } else {
+                console.warn(`[IP Blacklist] 尝试删除 IP ${ip}，但该 IP 不在黑名单中。`);
+                return false;
+            }
+        } catch (error: any) {
+            console.error(`[IP Blacklist] 从黑名单删除 IP ${ip} 时出错:`, error.message);
+            throw new Error(`从黑名单删除 IP ${ip} 时出错`); // Re-throw error
         }
     }
 }

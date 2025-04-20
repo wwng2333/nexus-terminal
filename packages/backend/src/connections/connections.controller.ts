@@ -9,7 +9,7 @@ const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
 // --- 移除所有不再需要的导入和变量 ---
 // import { Statement } from 'sqlite3';
-// import { getDb } from '../database';
+// import { getDb } from '../database/connection'; // Updated import path in comment
 // const db = getDb();
 // --- 清理结束 ---
 
