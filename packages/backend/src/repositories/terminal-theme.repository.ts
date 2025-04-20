@@ -146,15 +146,36 @@ export const findThemeById = async (id: number): Promise<TerminalTheme | null> =
  * @returns Promise<TerminalTheme> 新创建的主题
  */
 export const createTheme = async (themeDto: CreateTerminalThemeDto): Promise<TerminalTheme> => {
-  const now = Date.now();
-  const themeDataJson = JSON.stringify(themeDto.themeData);
+  const nowSeconds = Math.floor(Date.now() / 1000); // Use seconds for DB consistency
+  const theme = themeDto.themeData;
+
+  // Define columns based on the DbTerminalThemeRow interface (excluding id, created_at, updated_at)
+  const columns = [
+      'name', 'theme_type', 'foreground', 'background', 'cursor', 'cursor_accent',
+      'selection_background', 'black', 'red', 'green', 'yellow', 'blue',
+      'magenta', 'cyan', 'white', 'bright_black', 'bright_red', 'bright_green',
+      'bright_yellow', 'bright_blue', 'bright_magenta', 'bright_cyan', 'bright_white',
+      'created_at', 'updated_at'
+  ];
+  // Map themeDto data to corresponding columns, using null for missing optional values
+  const values = [
+      themeDto.name, 'user', // theme_type is 'user' for created themes
+      theme?.foreground ?? null, theme?.background ?? null, theme?.cursor ?? null, theme?.cursorAccent ?? null,
+      theme?.selectionBackground ?? null, theme?.black ?? null, theme?.red ?? null, theme?.green ?? null, theme?.yellow ?? null, theme?.blue ?? null,
+      theme?.magenta ?? null, theme?.cyan ?? null, theme?.white ?? null, theme?.brightBlack ?? null, theme?.brightRed ?? null, theme?.brightGreen ?? null,
+      theme?.brightYellow ?? null, theme?.brightBlue ?? null, theme?.brightMagenta ?? null, theme?.brightCyan ?? null, theme?.brightWhite ?? null,
+      nowSeconds, nowSeconds // Use seconds for timestamps
+  ];
+  const placeholders = columns.map(() => '?').join(', ');
+
   const sql = `
-    INSERT INTO terminal_themes (name, theme_data, is_preset, created_at, updated_at)
-    VALUES (?, ?, 0, ?, ?)
+    INSERT INTO terminal_themes (${columns.join(', ')})
+    VALUES (${placeholders})
   `;
+
   try {
     const db = await getDbInstance();
-    const result = await runDb(db, sql, [themeDto.name, themeDataJson, now, now]);
+    const result = await runDb(db, sql, values); // Use the mapped values array
     // Ensure lastID is valid before trying to find the theme
     if (typeof result.lastID !== 'number' || result.lastID <= 0) {
         throw new Error('创建主题后未能获取有效的 lastID');

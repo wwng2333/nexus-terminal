@@ -463,7 +463,8 @@ const handleSaveEditingTheme = async () => {
     try {
         // 确保 themeData 是最新的（以防万一解析没触发 watch 更新）
         if (!editingTheme.value) return; // 防御
-        const currentThemeData = JSON.parse(editableTerminalThemeString.value); // 再次解析以防万一
+        // 直接使用已经由 handleTerminalThemeStringChange 解析好的 themeData 对象
+        const currentThemeData = editingTheme.value.themeData;
 
         if (editingTheme.value._id) { // 更新
             // 确保传递的是 UpdateTerminalThemeDto 兼容的格式
