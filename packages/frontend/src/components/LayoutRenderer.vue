@@ -6,6 +6,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import { Splitpanes, Pane } from 'splitpanes';
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
 import { useSessionStore } from '../stores/session.store';
+import { useFileEditorStore } from '../stores/fileEditor.store'; // <-- Import FileEditorStore
 import { storeToRefs } from 'pinia';
 import { defineEmits } from 'vue';
 
@@ -65,9 +66,11 @@ const emit = defineEmits({
 // --- Setup ---
 const layoutStore = useLayoutStore();
 const sessionStore = useSessionStore();
+const fileEditorStore = useFileEditorStore(); // <-- Initialize FileEditorStore
 const { t } = useI18n(); // <-- Get translation function
 const { activeSession } = storeToRefs(sessionStore);
 const { sidebarPanes } = storeToRefs(layoutStore);
+const { orderedTabs: editorTabsFromStore, activeTabId: activeEditorTabIdFromStore } = storeToRefs(fileEditorStore); // <-- Get editor state
 
 // --- Sidebar State ---
 const activeLeftSidebarPane = ref<PaneName | null>(null);
@@ -227,28 +230,8 @@ const componentProps = computed(() => {
  }
 });
 
-// 为侧栏组件计算 Props (可能需要简化或根据组件调整)
-const sidebarComponentProps = computed(() => (paneName: PaneName | null) => {
-    if (!paneName) return {};
-    // 侧栏组件通常不需要像主布局那样复杂的事件转发和 session 依赖
-    // 这里可以返回一个通用的 props 对象，或者根据 paneName 返回特定 props
-    // 示例：只传递 class
-    return { class: 'sidebar-pane-content' };
-    // 如果侧栏组件也需要 session 信息或事件：
-    /*
-    switch (paneName) {
-        case 'connections':
-             return {
-                 class: 'sidebar-pane-content',
-                 onConnectRequest: (id: number) => emit('connect-request', id),
-                 // ... 其他 connections 需要的 props
-             };
-        // ... 其他 case
-        default:
-            return { class: 'sidebar-pane-content' };
-    }
-    */
-});
+// --- REMOVED sidebarComponentProps computed property ---
+// Props for sidebar components will be determined directly in the template
 
 
 // --- Methods ---
@@ -493,8 +476,18 @@ const getIconClasses = (paneName: PaneName): string[] => {
             v-if="currentLeftSidebarComponent"
             :is="currentLeftSidebarComponent"
             :key="`left-panel-${activeLeftSidebarPane}`"
-            v-bind="sidebarComponentProps(activeLeftSidebarPane)"
-        />
+            class="sidebar-pane-content"
+            v-bind="activeLeftSidebarPane === 'editor' ? {
+              tabs: editorTabsFromStore,
+              activeTabId: activeEditorTabIdFromStore,
+              sessionId: activeSessionId, // Pass session ID if needed by editor in sidebar
+              onCloseTab: (tabId: string) => emit('closeEditorTab', tabId),
+              onActivateTab: (tabId: string) => emit('activateEditorTab', tabId),
+              'onUpdate:content': (payload: { tabId: string; content: string }) => emit('updateEditorContent', payload),
+              onRequestSave: (tabId: string) => emit('saveEditorTab', tabId)
+            } : {}"
+            />
+            <!-- Add bindings for other sidebar components if they need props/events -->
     </div>
 
     <!-- Right Sidebar Panel -->
@@ -504,8 +497,18 @@ const getIconClasses = (paneName: PaneName): string[] => {
             v-if="currentRightSidebarComponent"
             :is="currentRightSidebarComponent"
             :key="`right-panel-${activeRightSidebarPane}`"
-            v-bind="sidebarComponentProps(activeRightSidebarPane)"
-        />
+            class="sidebar-pane-content"
+            v-bind="activeRightSidebarPane === 'editor' ? {
+              tabs: editorTabsFromStore,
+              activeTabId: activeEditorTabIdFromStore,
+              sessionId: activeSessionId, // Pass session ID if needed by editor in sidebar
+              onCloseTab: (tabId: string) => emit('closeEditorTab', tabId),
+              onActivateTab: (tabId: string) => emit('activateEditorTab', tabId),
+              'onUpdate:content': (payload: { tabId: string; content: string }) => emit('updateEditorContent', payload),
+              onRequestSave: (tabId: string) => emit('saveEditorTab', tabId)
+            } : {}"
+            />
+            <!-- Add bindings for other sidebar components if they need props/events -->
     </div>
 
      <!-- Right Sidebar Buttons (Only render if root) -->

@@ -1,4 +1,4 @@
-import { ref, computed, readonly, watch } from 'vue';
+import { ref, computed, readonly, watch, nextTick } from 'vue'; // Import nextTick
 import { defineStore } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from './session.store'; // 导入会话 Store
@@ -157,7 +157,13 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
             // sessionId: sessionId, // 记录来源会话
         };
         tabs.value.set(tabId, newTab);
-        setActiveTab(tabId); // 激活新标签页
+        // setActiveTab(tabId); // 移除同步激活
+
+        // 使用 nextTick 延迟激活，给 DOM 更新留出时间
+        nextTick(() => {
+            setActiveTab(tabId);
+        });
+
         // 不再在这里触发弹窗
         // popupTrigger.value++;
 
