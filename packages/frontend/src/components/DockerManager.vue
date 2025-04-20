@@ -490,10 +490,6 @@ onUnmounted(() => {
                  <div v-else class="stats-nodata">
                      {{ t('dockerManager.stats.noData') }}
                  </div>
-                 <!-- NEW: Collapse Button for List View -->
-                 <button @click="toggleExpand(container.id)" class="collapse-btn list-collapse-btn">
-                     <i class="fas fa-chevron-up"></i> {{ t('common.collapse') }}
-                 </button>
               </div>
             </td>
           </tr>
@@ -932,13 +928,6 @@ onUnmounted(() => {
     color: var(--text-color);
 }
 
-/* Specific styles for list collapse button */
-.list-collapse-btn {
-    max-width: 150px; /* Limit width */
-    margin-left: auto; /* Align right */
-    margin-right: auto; /* Center if needed, or adjust padding */
-    margin-top: 1rem; /* Add some space */
-}
 /* --- End Collapse Button Styles --- */
 
 </style>
