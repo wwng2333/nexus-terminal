@@ -4,7 +4,7 @@ import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
 import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 
 // 定义所有可用面板的名称
-export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory' | 'quickCommands';
+export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory' | 'quickCommands' | 'dockerManager';
 
 // 定义布局节点接口
 export interface LayoutNode {
@@ -92,7 +92,8 @@ export const useLayoutStore = defineStore('layout', () => {
   // 存储所有理论上可用的面板名称
   const allPossiblePanes: Ref<PaneName[]> = ref([
     'connections', 'terminal', 'commandBar', 'fileManager',
-    'editor', 'statusMonitor', 'commandHistory', 'quickCommands'
+    'editor', 'statusMonitor', 'commandHistory', 'quickCommands',
+    'dockerManager' // <--- 在这里添加 'dockerManager'
   ]);
   // 新增：控制布局（Header/Footer）可见性的状态
   const isLayoutVisible: Ref<boolean> = ref(true); // 控制整体布局（Header/Footer）可见性

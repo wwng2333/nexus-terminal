@@ -21,6 +21,7 @@ import commandHistoryRoutes from './command-history/command-history.routes'; // 
 import quickCommandsRoutes from './quick-commands/quick-commands.routes'; // 导入快捷指令路由
 import terminalThemeRoutes from './terminal-themes/terminal-theme.routes'; // 导入终端主题路由
 import appearanceRoutes from './appearance/appearance.routes'; // 导入外观设置路由
+// import dockerRouter from './docker/docker.routes'; // <--- 移除 Docker 路由导入
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
 
@@ -162,8 +163,9 @@ const startServer = () => {
     app.use('/api/v1/quick-commands', quickCommandsRoutes);
     app.use('/api/v1/terminal-themes', terminalThemeRoutes);
     app.use('/api/v1/appearance', appearanceRoutes);
+    // app.use('/api/v1/docker', dockerRouter); // <--- 移除 Docker 路由注册
 
-    // 状态检查接口 (如果不需要 session 可以保留在外面，但移入更安全)
+    // 状态检查接口
     app.get('/api/v1/status', (req: Request, res: Response) => {
       res.json({ status: '后端服务运行中！' });
     });

@@ -72,6 +72,7 @@ const componentMap: Record<PaneName, Component> = {
   statusMonitor: defineAsyncComponent(() => import('./StatusMonitor.vue')),
   commandHistory: defineAsyncComponent(() => import('../views/CommandHistoryView.vue')),
   quickCommands: defineAsyncComponent(() => import('../views/QuickCommandsView.vue')),
+  dockerManager: defineAsyncComponent(() => import('./DockerManager.vue')), // <--- 添加 dockerManager 映射
 };
 
 // --- Computed ---
@@ -179,9 +180,17 @@ const componentProps = computed(() => {
          class: 'pane-content',
          onExecuteCommand: (command: string) => emit('sendCommand', command), // 复用 sendCommand 事件
        };
-    default:
-      return { class: 'pane-content' };
-  }
+   case 'dockerManager':
+     // DockerManager 可能不需要 session 信息，但需要转发事件
+     return {
+       class: 'pane-content',
+       // 假设 DockerManager 会发出 'docker-command' 事件
+       // onDockerCommand: (payload: { containerId: string; command: 'up' | 'down' | 'restart' | 'stop' }) => emit('dockerCommand', payload),
+       // 暂时不添加事件转发，等组件实现后再确定
+     };
+   default:
+     return { class: 'pane-content' };
+ }
 });
 
 // --- Methods ---

@@ -32,6 +32,77 @@ export interface ClientState { // 导出以便 Service 可以导入
     ipAddress?: string; // 添加 IP 地址字段
 }
 
+// --- Interfaces (保持与前端一致) ---
+// --- FIX: Move PortInfo definition before its usage ---
+interface PortInfo {
+  IP?: string;
+  PrivatePort: number;
+  PublicPort?: number;
+  Type: 'tcp' | 'udp' | string;
+}
+// --- End FIX ---
+
+// --- 新增：解析 Ports 字符串的辅助函数 ---
+function parsePortsString(portsString: string | undefined | null): PortInfo[] { // Now PortInfo is defined
+    if (!portsString) {
+        return [];
+    }
+    const ports: PortInfo[] = []; // Now PortInfo is defined
+    // 示例格式: "0.0.0.0:8080->80/tcp, :::8080->80/tcp", "127.0.0.1:5432->5432/tcp", "6379/tcp"
+    const entries = portsString.split(', ');
+
+    for (const entry of entries) {
+        const parts = entry.split('->');
+        let publicPart = '';
+        let privatePart = '';
+
+        if (parts.length === 2) { // Format like "IP:PublicPort->PrivatePort/Type" or "PublicPort->PrivatePort/Type"
+            publicPart = parts[0];
+            privatePart = parts[1];
+        } else if (parts.length === 1) { // Format like "PrivatePort/Type"
+            privatePart = parts[0];
+        } else {
+            console.warn(`[WebSocket] Skipping unparsable port entry: ${entry}`);
+            continue;
+        }
+
+        // Parse Private Part (e.g., "80/tcp")
+        const privateMatch = privatePart.match(/^(\d+)\/(tcp|udp|\w+)$/);
+        if (!privateMatch) {
+             console.warn(`[WebSocket] Skipping unparsable private port part: ${privatePart}`);
+             continue;
+        }
+        const privatePort = parseInt(privateMatch[1], 10);
+        const type = privateMatch[2];
+
+        let ip: string | undefined = undefined;
+        let publicPort: number | undefined = undefined;
+
+        // Parse Public Part (e.g., "0.0.0.0:8080" or ":::8080" or just "8080")
+        if (publicPart) {
+            const publicMatch = publicPart.match(/^(?:([\d.:a-fA-F]+):)?(\d+)$/); // Supports IPv4, IPv6, or just port
+             if (publicMatch) {
+                 ip = publicMatch[1] || undefined; // IP might be undefined if only port is specified
+                 publicPort = parseInt(publicMatch[2], 10);
+             } else {
+                  console.warn(`[WebSocket] Skipping unparsable public port part: ${publicPart}`);
+                  // Continue processing with only private port info if public part is weird
+             }
+        }
+
+        if (!isNaN(privatePort)) {
+             ports.push({
+                 IP: ip,
+                 PrivatePort: privatePort,
+                 PublicPort: publicPort,
+                 Type: type
+             });
+        }
+    }
+    return ports;
+}
+// --- 结束辅助函数 ---
+
 // 存储所有活动客户端的状态 (key: sessionId)
 export const clientStates = new Map<string, ClientState>(); // Export clientStates
 
@@ -310,7 +381,191 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                         break;
                     }
 
-                    // --- SFTP 操作 (委托给 SftpService) ---
+                    // --- NEW: Handle Docker Status Request ---
+                    case 'docker:get_status': {
+                        if (!state || !state.sshClient) {
+                            console.warn(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但无活动 SSH 连接。`);
+                            ws.send(JSON.stringify({ type: 'docker:status:error', payload: { message: 'SSH connection not active.' } }));
+                            return;
+                        }
+                        console.log(`WebSocket: 处理来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求...`);
+                        try {
+                            // Execute docker ps command remotely
+                            const command = "docker ps -a --no-trunc --format '{{json .}}'";
+                            const execResult = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+                                let stdout = '';
+                                let stderr = '';
+                                state.sshClient.exec(command, { pty: false }, (err, stream) => { // pty: false might be better for non-interactive commands
+                                    if (err) return reject(err);
+                                    stream.on('data', (data: Buffer) => { stdout += data.toString(); });
+                                    stream.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+                                    stream.on('close', (code: number | null, signal: string | null) => {
+                                        if (code === 0) {
+                                            resolve({ stdout, stderr });
+                                        } else {
+                                            // Check if stderr indicates docker not found or cannot connect
+                                            if (stderr.includes('command not found') || stderr.includes('Cannot connect to the Docker daemon')) {
+                                                 console.warn(`WebSocket: 远程 Docker 命令 (${command}) 执行失败 (可能未安装或未运行) on session ${sessionId}. Stderr: ${stderr}`);
+                                                 // Send specific 'unavailable' status back
+                                                 ws.send(JSON.stringify({ type: 'docker:status:update', payload: { available: false, containers: [] } }));
+                                                 // Resolve normally here as we handled the 'unavailable' case
+                                                 resolve({ stdout: '', stderr });
+                                            } else {
+                                                reject(new Error(`Command failed with code ${code}. Stderr: ${stderr}`));
+                                            }
+                                        }
+                                    });
+                                    // Add type annotation for execErr
+                                    stream.on('error', (execErr: Error) => reject(execErr));
+                                });
+                            });
+
+                            // If stdout is empty, it means the command failed in a way we handled (like docker unavailable)
+                            if (!execResult.stdout.trim()) {
+                                // Response already sent if docker was unavailable
+                                if (!execResult.stderr.includes('command not found') && !execResult.stderr.includes('Cannot connect to the Docker daemon')) {
+                                     console.warn(`WebSocket: Docker ps command for session ${sessionId} produced no output, but no specific error detected. Assuming available but no containers.`);
+                                     ws.send(JSON.stringify({ type: 'docker:status:update', payload: { available: true, containers: [] } }));
+                                }
+                                return;
+                            }
+
+
+                            // Parse the multi-line JSON output
+                            const lines = execResult.stdout.trim().split('\n');
+                            const containers = lines.map(line => {
+                                try {
+                                    const data = JSON.parse(line);
+                                    // --- FIX: Use parsePortsString ---
+                                    const containerData = {
+                                        id: data.ID, // Assume original field is uppercase ID
+                                        Names: typeof data.Names === 'string' ? data.Names.split(',') : (data.Names || []),
+                                        Image: data.Image || '',
+                                        ImageID: data.ImageID || '',
+                                        Command: data.Command || '',
+                                        Created: data.CreatedAt || 0, // Check if CreatedAt exists
+                                        State: data.State || 'unknown',
+                                        Status: data.Status || '',
+                                        Ports: parsePortsString(data.Ports), // <--- Use the parser here
+                                        Labels: data.Labels || {}
+                                        // Add other fields as needed, mapping from data.*
+                                    };
+                                    // --- End FIX ---
+
+                                    // --- Add Log to verify parsed container ---
+                                    // console.log(`Parsed Container Data (Session: ${sessionId}):`, containerData);
+                                    // --- End Log ---
+
+                                    return containerData;
+                                } catch (parseError) {
+                                    console.error(`WebSocket: Failed to parse remote docker ps JSON line for session ${sessionId}: ${line}`, parseError);
+                                    return null;
+                                }
+                            }).filter(Boolean); // Filter out nulls from parse errors
+
+                            // --- Add Log to verify final containers array ---
+                            // console.log(`Final Containers Array to Send (Session: ${sessionId}):`, containers);
+                            // --- End Log ---
+
+                            ws.send(JSON.stringify({ type: 'docker:status:update', payload: { available: true, containers } }));
+
+                        } catch (error: any) {
+                            console.error(`WebSocket: 执行远程 Docker 状态命令失败 for session ${sessionId}:`, error);
+                             // Check if error indicates docker not found or cannot connect
+                             const errorMessage = error.message || '';
+                             if (errorMessage.includes('command not found') || errorMessage.includes('Cannot connect to the Docker daemon')) {
+                                 ws.send(JSON.stringify({ type: 'docker:status:update', payload: { available: false, containers: [] } }));
+                             } else {
+                                 ws.send(JSON.stringify({ type: 'docker:status:error', payload: { message: `Failed to get remote Docker status: ${errorMessage}` } }));
+                             }
+                        }
+                        break;
+                    } // end case 'docker:get_status'
+
+                    // --- NEW: Handle Docker Command Execution ---
+                    case 'docker:command': {
+                         if (!state || !state.sshClient) {
+                            console.warn(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但无活动 SSH 连接。`);
+                            ws.send(JSON.stringify({ type: 'docker:command:error', payload: { command: payload?.command, message: 'SSH connection not active.' } }));
+                            return;
+                        }
+                        const { containerId, command } = payload || {};
+                         if (!containerId || typeof containerId !== 'string' || !command || !['start', 'stop', 'restart', 'remove'].includes(command)) {
+                             console.error(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的无效 ${type} 请求。Payload:`, payload);
+                             ws.send(JSON.stringify({ type: 'docker:command:error', payload: { command: command, message: 'Invalid containerId or command.' } }));
+                             return;
+                         }
+
+                        // --- 添加日志 ---
+                        console.log(`WebSocket: Received docker:command. Raw Payload:`, payload);
+                        console.log(`WebSocket: Validating containerId: "${containerId}" (Type: ${typeof containerId}), Command: "${command}" (Type: ${typeof command})`);
+                        // --- 结束日志 ---
+
+                         // 验证逻辑:
+                         if (!containerId || typeof containerId !== 'string' || !command || !['start', 'stop', 'restart', 'remove'].includes(command)) {
+                             console.error(`WebSocket: Validation FAILED for docker:command. Payload:`, payload); // 增加失败日志
+                             ws.send(JSON.stringify({ type: 'docker:command:error', payload: { command: command, message: 'Invalid containerId or command.' } }));
+                             return;
+                         }
+
+                        console.log(`WebSocket: Validation PASSED for docker:command.`); // 增加成功日志
+                        console.log(`WebSocket: Processing command '${command}' for container '${containerId}' on session ${sessionId}...`);
+                        try {
+                             // Sanitize containerId (basic) - more robust validation might be needed
+                             const cleanContainerId = containerId.replace(/[^a-zA-Z0-9_-]/g, '');
+                             if (!cleanContainerId) throw new Error('Invalid container ID format after sanitization.');
+
+                             let dockerCliCommand: string;
+                             switch (command) {
+                                 case 'start': dockerCliCommand = `docker start ${cleanContainerId}`; break;
+                                 case 'stop': dockerCliCommand = `docker stop ${cleanContainerId}`; break;
+                                 case 'restart': dockerCliCommand = `docker restart ${cleanContainerId}`; break;
+                                 case 'remove': dockerCliCommand = `docker rm -f ${cleanContainerId}`; break; // Use -f for remove
+                                 default: throw new Error(`Unsupported command: ${command}`); // Should be caught by earlier validation
+                             }
+
+                             // Execute command remotely
+                             await new Promise<void>((resolve, reject) => {
+                                 state.sshClient.exec(dockerCliCommand, { pty: false }, (err, stream) => {
+                                     if (err) return reject(err);
+                                     let stderr = '';
+                                     stream.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+                                     stream.on('close', (code: number | null) => {
+                                         if (code === 0) {
+                                             console.log(`WebSocket: 远程 Docker 命令 (${dockerCliCommand}) on session ${sessionId} 执行成功。`);
+                                             resolve();
+                                         } else {
+                                             console.error(`WebSocket: 远程 Docker 命令 (${dockerCliCommand}) on session ${sessionId} 执行失败 (Code: ${code}). Stderr: ${stderr}`);
+                                             reject(new Error(`Command failed with code ${code}. ${stderr || 'No stderr output.'}`));
+                                         }
+                                     });
+                                      // Add type annotation for execErr
+                                      stream.on('error', (execErr: Error) => reject(execErr));
+                                 });
+                             });
+                             // Optionally send a success confirmation back? Not strictly needed if status updates quickly.
+                             // ws.send(JSON.stringify({ type: 'docker:command:success', payload: { command, containerId } }));
+
+                             // Trigger a status update after command execution
+                             // Use a small delay to allow Docker daemon to potentially update state
+                             setTimeout(() => {
+                                 if (clientStates.has(sessionId!)) { // Check if session still exists
+                                     ws.send(JSON.stringify({ type: 'request_docker_status_update' })); // Ask frontend to re-request
+                                     // Or directly trigger backend fetch and push:
+                                     // handleDockerGetStatus(ws, state); // Need to refactor get_status logic into a reusable function
+                                 }
+                             }, 500);
+
+
+                        } catch (error: any) {
+                             console.error(`WebSocket: 执行远程 Docker 命令 (${command} for ${containerId}) 失败 for session ${sessionId}:`, error);
+                             ws.send(JSON.stringify({ type: 'docker:command:error', payload: { command, containerId, message: `Failed to execute remote command: ${error.message}` } }));
+                        }
+                        break;
+                    } // end case 'docker:command'
+
+
+                    // --- SFTP Cases ---
                     case 'sftp:readdir':
                     case 'sftp:stat':
                     case 'sftp:readfile':
