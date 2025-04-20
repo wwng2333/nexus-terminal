@@ -44,14 +44,32 @@ watch(() => props.isVisible, (newValue) => {
     } else {
       localSidebarPanes.value = { left: [], right: [] }; // Default
     }
-    // Initialize available panes based on store's possible panes
-    localAvailablePanes.value = [...layoutStore.allPossiblePanes];
-    // Remove panes already in use (initial setup)
+    // Initialize available panes: Always include non-terminal panes, include terminal only if not already used.
     const initialUsed = getAllLocalUsedPaneNames(localLayoutTree.value, localSidebarPanes.value);
-    localAvailablePanes.value = localAvailablePanes.value.filter(pane => !initialUsed.has(pane));
+    const nonTerminalPanes = layoutStore.allPossiblePanes.filter(p => p !== 'terminal');
+    const available = [...nonTerminalPanes]; // Start with all non-terminal panes
+    if (!initialUsed.has('terminal')) {
+        // Add terminal only if it's not used in the current layout
+        // Try to insert it at its original position for consistency
+        const terminalOriginalIndex = layoutStore.allPossiblePanes.indexOf('terminal');
+        let inserted = false;
+        for (let i = 0; i < available.length; i++) {
+             const currentPane = available[i];
+             const currentOriginalIndex = layoutStore.allPossiblePanes.indexOf(currentPane);
+             if (terminalOriginalIndex < currentOriginalIndex) {
+                 available.splice(i, 0, 'terminal');
+                 inserted = true;
+                 break;
+             }
+        }
+        if (!inserted) {
+             available.push('terminal'); // Add to end if needed
+        }
+    }
+    localAvailablePanes.value = available;
 
     hasChanges.value = false; // Reset changes flag on open
-    console.log('[LayoutConfigurator] Dialog opened, loaded layout, sidebar config, and available panes.');
+    console.log('[LayoutConfigurator] Dialog opened, initialized available panes (non-terminals always present).');
   } else {
     localLayoutTree.value = null; // Clear main layout
     localSidebarPanes.value = { left: [], right: [] }; // Clear sidebars
@@ -190,11 +208,29 @@ const resetToDefault = () => {
     const defaultSidebarPanes = layoutStore.getSystemDefaultSidebarPanes();
     localSidebarPanes.value = JSON.parse(JSON.stringify(defaultSidebarPanes));
 
-    // Reset available panes
+    // Reset available panes using the new logic
     const defaultUsed = getAllLocalUsedPaneNames(localLayoutTree.value, localSidebarPanes.value);
-    localAvailablePanes.value = [...layoutStore.allPossiblePanes].filter(pane => !defaultUsed.has(pane));
+    const nonTerminalPanesDefault = layoutStore.allPossiblePanes.filter(p => p !== 'terminal');
+    const availableDefault = [...nonTerminalPanesDefault];
+    if (!defaultUsed.has('terminal')) {
+        const terminalOriginalIndex = layoutStore.allPossiblePanes.indexOf('terminal');
+         let inserted = false;
+        for (let i = 0; i < availableDefault.length; i++) {
+             const currentPane = availableDefault[i];
+             const currentOriginalIndex = layoutStore.allPossiblePanes.indexOf(currentPane);
+             if (terminalOriginalIndex < currentOriginalIndex) {
+                 availableDefault.splice(i, 0, 'terminal');
+                 inserted = true;
+                 break;
+             }
+        }
+         if (!inserted) {
+             availableDefault.push('terminal');
+         }
+    }
+     localAvailablePanes.value = availableDefault;
 
-    console.log('[LayoutConfigurator] Reset to default layout, sidebar panes, and available panes.');
+    console.log('[LayoutConfigurator] Reset to default layout, sidebar panes, and available panes (non-terminals always present).');
     hasChanges.value = true; // Mark as changed after reset
   }
 };
