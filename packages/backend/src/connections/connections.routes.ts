@@ -8,6 +8,7 @@ import {
     updateConnection, // 引入更新连接的控制器
     deleteConnection, // 引入删除连接的控制器
     testConnection, // 引入测试连接的控制器
+    testUnsavedConnection, // 添加导入: 引入测试未保存连接的控制器
     exportConnections, // 引入导出连接的控制器
     importConnections // 引入导入连接的控制器
 } from './connections.controller';
@@ -80,5 +81,8 @@ router.delete('/:id', deleteConnection);
 
 // POST /api/v1/connections/:id/test - 测试连接
 router.post('/:id/test', testConnection);
+
+// POST /api/v1/connections/test-unsaved - 测试未保存的连接信息
+router.post('/test-unsaved', testUnsavedConnection);
 
 export default router;

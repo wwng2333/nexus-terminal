@@ -3,6 +3,7 @@ import { SocksClient, SocksClientOptions } from 'socks';
 import http from 'http';
 import net from 'net';
 import * as ConnectionRepository from '../repositories/connection.repository';
+import * as ProxyRepository from '../repositories/proxy.repository'; // 引入 ProxyRepository
 import { decrypt } from '../utils/crypto';
 
 const CONNECT_TIMEOUT = 20000; // 连接超时时间 (毫秒)
@@ -221,12 +222,13 @@ export const openShell = (sshClient: Client): Promise<ClientChannel> => {
 /**
  * 测试给定 ID 的 SSH 连接（包括代理）
  * @param connectionId 连接 ID
- * @returns Promise<void> - 如果连接成功则 resolve，否则 reject
+ * @returns Promise<{ latency: number }> - 如果连接成功则 resolve 包含延迟的对象，否则 reject
  * @throws Error 如果连接失败或配置错误
  */
-export const testConnection = async (connectionId: number): Promise<void> => {
+export const testConnection = async (connectionId: number): Promise<{ latency: number }> => {
     console.log(`SshService: 测试连接 ${connectionId}...`);
     let sshClient: Client | null = null;
+    const startTime = Date.now(); // 开始计时
     try {
         // 1. 获取并解密连接信息
         const connDetails = await getConnectionDetails(connectionId);
@@ -234,8 +236,10 @@ export const testConnection = async (connectionId: number): Promise<void> => {
         // 2. 尝试建立连接 (使用较短的测试超时时间)
         sshClient = await establishSshConnection(connDetails, TEST_TIMEOUT);
 
-        console.log(`SshService: 测试连接 ${connectionId} 成功。`);
-        // 测试成功，Promise 自动 resolve void
+        const endTime = Date.now(); // 结束计时
+        const latency = endTime - startTime;
+        console.log(`SshService: 测试连接 ${connectionId} 成功，延迟: ${latency}ms。`);
+        return { latency }; // 返回延迟
     } catch (error) {
         console.error(`SshService: 测试连接 ${connectionId} 失败:`, error);
         throw error; // 将错误向上抛出
@@ -247,6 +251,97 @@ export const testConnection = async (connectionId: number): Promise<void> => {
         }
     }
 };
+
+
+/**
+ * 测试未保存的 SSH 连接信息（包括代理）
+ * @param connectionConfig - 包含连接参数的对象 (host, port, username, auth_method, password?, private_key?, passphrase?, proxy_id?)
+ * @returns Promise<{ latency: number }> - 如果连接成功则 resolve 包含延迟的对象，否则 reject
+ * @throws Error 如果连接失败或配置错误
+ */
+export const testUnsavedConnection = async (connectionConfig: {
+    host: string;
+    port: number;
+    username: string;
+    auth_method: 'password' | 'key';
+    password?: string;
+    private_key?: string; // 注意这里是 private_key
+    passphrase?: string;
+    proxy_id?: number | null;
+}): Promise<{ latency: number }> => {
+    console.log(`SshService: 测试未保存的连接到 ${connectionConfig.host}:${connectionConfig.port}...`);
+    let sshClient: Client | null = null;
+    const startTime = Date.now(); // 开始计时
+    try {
+        // 1. 构建临时的 DecryptedConnectionDetails 结构
+        const tempConnDetails: DecryptedConnectionDetails = {
+            id: -1, // 临时 ID，不实际使用
+            name: `Test-${connectionConfig.host}`, // 临时名称
+            host: connectionConfig.host,
+            port: connectionConfig.port,
+            username: connectionConfig.username,
+            auth_method: connectionConfig.auth_method,
+            // 直接使用传入的凭证，因为它们是未加密的
+            password: connectionConfig.password,
+            privateKey: connectionConfig.private_key, // 映射 private_key
+            passphrase: connectionConfig.passphrase,
+            proxy: null, // 稍后填充
+        };
+
+        // 2. 如果提供了 proxy_id，获取并解密代理信息
+        if (connectionConfig.proxy_id) {
+            console.log(`SshService: 测试连接需要获取代理 ${connectionConfig.proxy_id} 的信息...`);
+            const rawProxyInfo = await ProxyRepository.findProxyById(connectionConfig.proxy_id);
+            if (!rawProxyInfo) {
+                throw new Error(`代理 ID ${connectionConfig.proxy_id} 未找到。`);
+            }
+            try {
+                 // Add null checks for required proxy fields
+                 const proxyName = rawProxyInfo.name ?? (() => { throw new Error(`Proxy ID ${connectionConfig.proxy_id} has null name.`); })();
+                 const proxyType = rawProxyInfo.type ?? (() => { throw new Error(`Proxy ID ${connectionConfig.proxy_id} has null type.`); })();
+                 const proxyHost = rawProxyInfo.host ?? (() => { throw new Error(`Proxy ID ${connectionConfig.proxy_id} has null host.`); })();
+                 const proxyPort = rawProxyInfo.port ?? (() => { throw new Error(`Proxy ID ${connectionConfig.proxy_id} has null port.`); })();
+
+                 // Ensure proxyType is one of the allowed values
+                 if (proxyType !== 'SOCKS5' && proxyType !== 'HTTP') {
+                    throw new Error(`Proxy ID ${connectionConfig.proxy_id} has invalid type: ${proxyType}`);
+                 }
+
+                tempConnDetails.proxy = {
+                    id: rawProxyInfo.id,
+                    name: proxyName,
+                    type: proxyType,
+                    host: proxyHost,
+                    port: proxyPort,
+                    username: rawProxyInfo.username || undefined,
+                    password: rawProxyInfo.encrypted_password ? decrypt(rawProxyInfo.encrypted_password) : undefined,
+                };
+                console.log(`SshService: 代理 ${connectionConfig.proxy_id} 信息获取并解密成功。`);
+            } catch (decryptError: any) {
+                console.error(`SshService: 处理代理 ${connectionConfig.proxy_id} 凭证失败:`, decryptError);
+                throw new Error(`处理代理凭证失败: ${decryptError.message}`);
+            }
+        }
+
+        // 3. 尝试建立连接 (使用较短的测试超时时间)
+        sshClient = await establishSshConnection(tempConnDetails, TEST_TIMEOUT);
+
+        const endTime = Date.now(); // 结束计时
+        const latency = endTime - startTime;
+        console.log(`SshService: 测试未保存的连接到 ${connectionConfig.host}:${connectionConfig.port} 成功，延迟: ${latency}ms。`);
+        return { latency }; // 返回延迟
+    } catch (error) {
+        console.error(`SshService: 测试未保存的连接到 ${connectionConfig.host}:${connectionConfig.port} 失败:`, error);
+        throw error; // 将错误向上抛出
+    } finally {
+        // 无论成功失败，都关闭 SSH 客户端
+        if (sshClient) {
+            sshClient.end();
+            console.log(`SshService: 测试未保存连接的客户端已关闭。`);
+        }
+    }
+};
+
 
 // --- 移除旧的函数 ---
 // - connectAndOpenShell

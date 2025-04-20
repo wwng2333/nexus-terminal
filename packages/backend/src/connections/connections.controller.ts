@@ -166,13 +166,13 @@ export const testConnection = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-        // 调用 SshService 进行连接测试
-        await SshService.testConnection(connectionId);
+        // 调用 SshService 进行连接测试，现在它会返回延迟
+        const { latency } = await SshService.testConnection(connectionId);
 
         // 如果 SshService.testConnection 没有抛出错误，则表示成功
         // 记录审计日志 (可选，看是否需要记录测试操作)
         // auditLogService.logAction('CONNECTION_TESTED', { connectionId, success: true });
-        res.status(200).json({ success: true, message: '连接测试成功。' });
+        res.status(200).json({ success: true, message: '连接测试成功。', latency }); // 返回延迟
 
     } catch (error: any) {
         // 记录审计日志 (可选)
@@ -182,6 +182,70 @@ export const testConnection = async (req: Request, res: Response): Promise<void>
         res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
     }
 };
+
+
+/**
+ * 测试未保存的连接信息 (POST /api/v1/connections/test-unsaved)
+ */
+export const testUnsavedConnection = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // 从请求体中提取连接信息
+        const { host, port, username, auth_method, password, private_key, passphrase, proxy_id } = req.body;
+
+        // 基本验证
+        if (!host || !port || !username || !auth_method) {
+            res.status(400).json({ success: false, message: '缺少必要的连接信息 (host, port, username, auth_method)。' });
+            return;
+        }
+        // 密码认证时，password 字段必须存在，但可以为空字符串
+        if (auth_method === 'password' && password === undefined) {
+            res.status(400).json({ success: false, message: '密码认证方式需要提供 password 字段 (可以为空字符串)。' });
+            return;
+        }
+        // 密钥认证时，private_key 必须存在且不为空
+        if (auth_method === 'key' && !private_key) {
+            res.status(400).json({ success: false, message: '密钥认证方式需要提供 private_key。' });
+            return;
+        }
+
+        // 构建传递给服务层的连接配置对象
+        // 注意：这里传递的是未经验证和加密处理的原始数据
+        const connectionConfig = {
+            host,
+            port: parseInt(port, 10), // 确保 port 是数字
+            username,
+            auth_method,
+            password, // 传递原始密码
+            private_key, // 传递原始私钥
+            passphrase, // 传递原始密码短语
+            proxy_id: proxy_id ? parseInt(proxy_id, 10) : null // 确保 proxy_id 是数字或 null
+        };
+
+        // 验证 port 和 proxy_id 是否为有效数字
+        if (isNaN(connectionConfig.port)) {
+             res.status(400).json({ success: false, message: '端口号必须是有效的数字。' });
+             return;
+        }
+        if (proxy_id && isNaN(connectionConfig.proxy_id as number)) {
+             res.status(400).json({ success: false, message: '代理 ID 必须是有效的数字。' });
+             return;
+        }
+
+
+        // 调用 SshService 进行连接测试，现在它会返回延迟
+        // 注意：SshService.testUnsavedConnection 需要处理原始凭证
+        const { latency } = await SshService.testUnsavedConnection(connectionConfig);
+
+        // 如果 SshService.testUnsavedConnection 没有抛出错误，则表示成功
+        res.status(200).json({ success: true, message: '连接测试成功。', latency });
+
+    } catch (error: any) {
+        console.error(`Controller: 测试未保存连接时发生错误:`, error);
+        // SshService 会抛出包含具体原因的 Error
+        res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
+    }
+};
+
 
 // --- TODO: 将以下逻辑迁移到 ImportExportService ---
 /**

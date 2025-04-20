@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, reactive, watch, computed, onMounted } from 'vue'; // 引入 onMounted
+import { ref, reactive, watch, computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import apiClient from '../utils/apiClient'; // 修正导入路径和名称
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useProxiesStore } from '../stores/proxies.store'; // 引入代理 Store
 import { useTagsStore } from '../stores/tags.store'; // 引入标签 Store
@@ -42,6 +43,11 @@ const formError = ref<string | null>(null); // 表单级别的错误信息
 // 合并所有 store 的加载和错误状态
 const isLoading = computed(() => isConnLoading.value || isProxyLoading.value || isTagLoading.value);
 const storeError = computed(() => connStoreError.value || proxyStoreError.value || tagStoreError.value);
+
+// 测试连接状态
+const testStatus = ref<'idle' | 'testing' | 'success' | 'error'>('idle');
+const testResult = ref<string | number | null>(null); // 存储延迟或错误信息
+const testLatency = ref<number | null>(null); // 单独存储延迟用于颜色计算
 
 // 计算属性判断是否为编辑模式
 const isEditMode = computed(() => !!props.connectionToEdit);
@@ -188,6 +194,96 @@ const handleSubmit = async () => {
       }
   }
 };
+
+// 处理测试连接
+const handleTestConnection = async () => {
+  testStatus.value = 'testing';
+  testResult.value = null;
+  testLatency.value = null;
+
+  try {
+    let response;
+    if (isEditMode.value && props.connectionToEdit) {
+      // --- 编辑模式: 测试已保存的连接 ---
+      console.log(`Testing saved connection ID: ${props.connectionToEdit.id}`);
+      // 调用测试已保存连接的 API
+      response = await apiClient.post(`/connections/${props.connectionToEdit.id}/test`);
+    } else {
+      // --- 添加模式: 测试未保存的连接 ---
+      console.log("Testing unsaved connection data");
+      // 准备要发送的数据
+      const dataToSend = {
+          host: formData.host,
+          port: formData.port,
+          username: formData.username,
+          auth_method: formData.auth_method,
+          password: formData.auth_method === 'password' ? formData.password : undefined,
+          private_key: formData.auth_method === 'key' ? formData.private_key : undefined,
+          passphrase: formData.auth_method === 'key' ? formData.passphrase : undefined,
+          proxy_id: formData.proxy_id || null,
+      };
+
+      // 仅在添加模式下进行前端凭证验证
+      if (!dataToSend.host || !dataToSend.port || !dataToSend.username || !dataToSend.auth_method) {
+        // 使用 Error 抛出，由下面的 catch 块统一处理显示
+        throw new Error(t('connections.test.errorMissingFields'));
+      }
+      // 在添加模式下，密码或密钥必须提供
+      if (dataToSend.auth_method === 'password' && !formData.password) { // 检查 formData 而不是 dataToSend.password
+         throw new Error(t('connections.form.errorPasswordRequired')); // 复用表单提交的翻译键
+      }
+      if (dataToSend.auth_method === 'key' && !formData.private_key) { // 检查 formData 而不是 dataToSend.private_key
+         throw new Error(t('connections.form.errorPrivateKeyRequired')); // 复用表单提交的翻译键
+      }
+
+      // 调用测试未保存连接的 API
+      response = await apiClient.post('/connections/test-unsaved', dataToSend);
+    }
+
+    // --- 处理 API 响应 (对两种模式通用) ---
+    if (response.data.success) {
+      testStatus.value = 'success';
+      testLatency.value = response.data.latency; // 两个测试 API 现在都返回 latency
+      testResult.value = `${response.data.latency} ms`;
+    } else {
+      // 如果后端 API 返回 success: false (理论上不应发生，但作为保险)
+      testStatus.value = 'error';
+      testResult.value = response.data.message || t('connections.test.errorUnknown');
+    }
+
+  } catch (error: any) {
+    // --- 统一处理错误 (前端验证错误或 API 调用错误) ---
+    console.error('测试连接失败:', error);
+    testStatus.value = 'error';
+    if (error.response && error.response.data && error.response.data.message) {
+      // API 返回的错误信息
+      testResult.value = error.response.data.message;
+    } else {
+      // 前端验证错误 (error.message) 或 网络/其他错误
+      testResult.value = error.message || t('connections.test.errorNetwork');
+    }
+  }
+};
+
+// 计算延迟颜色
+const latencyColor = computed(() => {
+  if (testStatus.value !== 'success' || testLatency.value === null) {
+    return 'inherit'; // 默认颜色
+  }
+  const latency = testLatency.value;
+  if (latency < 100) return 'var(--color-success, #28a745)'; // 绿色
+  if (latency < 500) return 'var(--color-warning, #ffc107)'; // 黄色
+  return 'var(--color-danger, #dc3545)'; // 红色
+});
+
+// 计算测试按钮文本
+const testButtonText = computed(() => {
+    if (testStatus.value === 'testing') {
+        return t('connections.form.testing'); // 新增翻译键
+    }
+    return t('connections.form.testConnection'); // 新增翻译键
+});
+
 </script>
 
 <template>
@@ -280,10 +376,34 @@ const handleSubmit = async () => {
          </div> <!-- 结束 form-sections -->
 
          <div class="form-actions">
-           <button type="submit" :disabled="isLoading">
-             {{ submitButtonText }}
-           </button>
-           <button type="button" @click="emit('close')" :disabled="isLoading">{{ t('connections.form.cancel') }}</button>
+            <div class="test-action-area"> <!-- New container for button, icon, and result -->
+                <div class="test-button-wrapper"> <!-- Container for button and icon -->
+                    <button type="button" @click="handleTestConnection" :disabled="isLoading || testStatus === 'testing'">
+                      {{ testButtonText }}
+                    </button>
+                    <span class="info-icon">?
+                      <span class="tooltip-text">{{ t('connections.test.latencyTooltip') }}</span>
+                    </span>
+                </div>
+                <!-- Test result moved below the button -->
+                <div class="test-status-wrapper">
+                    <div v-if="testStatus === 'testing'" class="test-status loading-small">
+                      {{ t('connections.test.testingInProgress', '测试中...') }}
+                    </div>
+                    <div v-else-if="testStatus === 'success'" class="test-status success" :style="{ color: latencyColor }">
+                      {{ testResult }}
+                    </div>
+                    <div v-else-if="testStatus === 'error'" class="test-status error">
+                      {{ t('connections.test.errorPrefix', '错误:') }} {{ testResult }}
+                    </div>
+                </div>
+            </div>
+            <div class="main-actions">
+                <button type="submit" :disabled="isLoading || testStatus === 'testing'">
+                  {{ submitButtonText }}
+                </button>
+                <button type="button" @click="emit('close')" :disabled="isLoading || testStatus === 'testing'">{{ t('connections.form.cancel') }}</button>
+            </div>
          </div>
        </form>
     </div>
@@ -464,7 +584,8 @@ select {
 
 .form-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between; /* 改为 space-between 对齐 */
+  align-items: center; /* 垂直居中对齐 */
   margin-top: calc(var(--base-margin, 0.5rem) * 1.5); /* 减少顶部间距 */
   padding-top: calc(var(--base-padding, 1rem) * 0.8); /* 减少按钮上方间距 */
   border-top: 1px solid var(--border-color, #eee);
@@ -478,9 +599,9 @@ select {
   margin-right: calc(var(--base-padding, 1rem) * -0.5);
 }
 
-.form-actions button {
-  margin-left: calc(var(--base-margin, 0.5rem) * 0.8); /* 减少按钮左边距 */
-  padding: calc(var(--base-padding, 1rem) * 0.5) calc(var(--base-padding, 1rem) * 1.2); /* 减少按钮内边距 */
+.main-actions button { /* 主操作按钮（保存/取消） */
+  margin-left: calc(var(--base-margin, 0.5rem) * 0.8); /* 保持按钮间距 */
+  padding: calc(var(--base-padding, 1rem) * 0.5) calc(var(--base-padding, 1rem) * 1.2);
   cursor: pointer;
   border-radius: 3px; /* 稍小圆角 */
   font-family: var(--font-family-sans-serif, sans-serif);
@@ -514,4 +635,126 @@ select {
   opacity: 0.5; /* 调整禁用透明度 */
   cursor: not-allowed;
 }
+
+/* 测试按钮、图标和结果的整体区域 */
+.test-action-area {
+    display: flex;
+    flex-direction: column; /* 让结果显示在按钮下方 */
+    align-items: flex-start; /* 左对齐 */
+    gap: calc(var(--base-padding, 1rem) * 0.3); /* 按钮行和结果行之间的间距 */
+}
+
+/* 包裹测试按钮和信息图标的容器 */
+.test-button-wrapper {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--base-padding, 1rem) * 0.5); /* 按钮和图标之间的间距 */
+}
+
+/* 信息图标样式 & Tooltip Container */
+.info-icon {
+    position: relative; /* Needed for absolute positioning of the tooltip text */
+    cursor: help;
+    color: var(--text-color-secondary, #666);
+    font-size: 1.1em;
+    line-height: 1;
+    user-select: none;
+    display: inline-block; /* Ensure it takes space for positioning */
+}
+
+/* Tooltip Text Style */
+.tooltip-text {
+    visibility: hidden; /* Hide by default */
+    opacity: 0;
+    position: absolute;
+    bottom: 140%; /* Position above the icon */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.85); /* Slightly darker background */
+    color: white;
+    padding: 8px 12px; /* Slightly more padding */
+    border-radius: 5px; /* Slightly larger radius */
+    font-size: 0.9em; /* Slightly larger font */
+    white-space: pre-wrap; /* Allow line breaks */
+    min-width: 180px; /* Adjust width as needed */
+    max-width: 320px;
+    text-align: left;
+    z-index: 10;
+    pointer-events: none; /* Prevent tooltip from blocking hover */
+    transition: opacity 0.25s ease, visibility 0.25s ease; /* Slightly longer transition */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Add subtle shadow */
+}
+
+/* Tooltip Arrow */
+.tooltip-text::after {
+    content: '';
+    position: absolute;
+    top: 100%; /* Position arrow at the bottom of the tooltip */
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px; /* Slightly larger arrow */
+    border-style: solid;
+    border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
+}
+
+
+/* Show tooltip on hover */
+.info-icon:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* 测试按钮样式 (从之前的 .test-result-container button 移过来) */
+.test-button-wrapper button {
+  /* 测试按钮可以有自己的样式，或者继承 .form-actions button */
+  padding: calc(var(--base-padding, 1rem) * 0.5) calc(var(--base-padding, 1rem) * 1.2);
+  cursor: pointer;
+  border-radius: 3px;
+  font-family: var(--font-family-sans-serif, sans-serif);
+  font-weight: 500;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+  /* 可以给测试按钮一个不同的边框或背景色 */
+  background-color: transparent;
+  color: var(--text-color-secondary, #666);
+  border: 1px solid var(--border-color, #ccc);
+}
+.test-result-container button:hover:not(:disabled) {
+  background-color: var(--border-color, #eee);
+  border-color: var(--text-color-secondary, #bbb);
+  color: var(--text-color, #333);
+}
+.test-result-container button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 包裹测试状态文本的容器 */
+.test-status-wrapper {
+    min-height: 1.2em; /* 预留空间，防止布局跳动 */
+    padding-left: 2px; /* 轻微缩进，与按钮对齐 */
+}
+
+.test-status {
+  font-size: 0.9em;
+  font-weight: 500;
+  font-family: var(--font-family-sans-serif, sans-serif);
+}
+
+.test-status.loading-small {
+  color: var(--text-color-secondary, #666);
+}
+
+.test-status.success {
+  /* 颜色由 latencyColor 计算属性动态设置 */
+}
+
+.test-status.error {
+  color: var(--color-danger, #dc3545); /* 红色 */
+}
+
+/* 主操作按钮容器 */
+.main-actions {
+    display: flex; /* 保持原有按钮布局 */
+}
+
 </style>

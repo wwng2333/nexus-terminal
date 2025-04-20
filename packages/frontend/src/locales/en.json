@@ -172,7 +172,21 @@
       "tags": "Tags:",
       "sectionBasic": "Basic Information",
       "sectionAuth": "Authentication",
-      "sectionAdvanced": "Advanced Options"
+      "sectionAdvanced": "Advanced Options",
+      "testConnection": "Test Connection",
+      "testing": "Testing..."
+    },
+    "test": {
+        "success": "Connection test successful!",
+        "failed": "Connection test failed: {error}",
+        "latencyTooltip": "This measures the time to establish a new SSH connection (TCP, Proxy, SSH Handshake, Auth). It's typically higher than interaction latency on an already established connection.",
+        "errorMissingFields": "Please fill in Host, Port, Username, and select an Auth Method.",
+        "errorPasswordUndefined": "Password field is required for password authentication.",
+        "errorPrivateKeyRequired": "Private key is required for key authentication.",
+        "errorUnknown": "An unknown error occurred during testing.",
+        "errorNetwork": "Network error or server unreachable.",
+        "testingInProgress": "Testing...",
+        "errorPrefix": "Error:"
     },
     "prompts": {
         "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
@@ -186,10 +200,6 @@
     "filterAllTags": "All Tags",
     "untaggedGroup": "Untagged",
     "noUntaggedConnections": "No untagged connections found.",
-    "test": {
-        "success": "Connection test successful!",
-        "failed": "Connection test failed: {error}"
-    },
     "exportConnections": "Export Connections",
     "importConnections": "Import Connections",
     "exportError": "Failed to export connections: {message}",
