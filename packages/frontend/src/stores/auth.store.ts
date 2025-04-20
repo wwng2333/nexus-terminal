@@ -74,7 +74,7 @@ export const useAuthStore = defineStore('auth', {
                     if (this.user?.language) {
                         setLocale(this.user.language);
                     }
-                    await router.push({ name: 'Connections' });
+                    await router.push({ name: 'Workspace' });
                     return { success: true };
                 } else {
                     // 不应该发生，但作为防御性编程
@@ -110,7 +110,7 @@ export const useAuthStore = defineStore('auth', {
                 if (this.user?.language) {
                     setLocale(this.user.language);
                 }
-                await router.push({ name: 'Connections' });
+                await router.push({ name: 'Workspace' });
                 return { success: true };
             } catch (err: any) {
                 console.error('2FA 验证失败:', err);
