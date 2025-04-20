@@ -584,13 +584,29 @@ onUnmounted(() => {
 .docker-table th, .docker-table td {
   padding: 0.6rem 0.8rem;
   text-align: left;
+  vertical-align: top; /* Align content to the top */
   border-bottom: 1px solid var(--border-color-light, #eee);
-  white-space: nowrap;
+  white-space: nowrap; /* Default to nowrap */
 }
 .docker-table td:first-child, .docker-table th:first-child {
     /* white-space: normal; */ /* Let specific columns handle wrapping */
 }
 
+/* Allow specific columns to wrap */
+.docker-table td:nth-child(2), /* Name */
+.docker-table td:nth-child(3), /* Image */
+.docker-table td:nth-child(5) { /* Ports */
+  white-space: normal;
+  word-break: break-all; /* Break long words if necessary */
+}
+
+/* Style for Status column: truncate with ellipsis */
+.docker-table td:nth-child(4) {
+  max-width: 180px; /* Adjust as needed */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* Ensure ellipsis works */
+}
 
 .docker-table th {
   background-color: var(--header-bg-color);
@@ -716,7 +732,7 @@ onUnmounted(() => {
 
 
 /* --- Responsive Table Styles using Container Query --- */
-@container (max-width: 768px) {
+@container (max-width: 500px) { /* Lowered breakpoint */
   .responsive-table {
     border: none; /* Remove table border */
   }
@@ -767,7 +783,7 @@ onUnmounted(() => {
   }
 
   /* 表格模式下的展开按钮列样式 */
-  @container (min-width: 769px) {
+  @container (min-width: 601px) { /* Adjusted corresponding min-width */
     .responsive-table .col-expand {
         width: 30px;
         padding: 0.6rem 0.4rem !important;
@@ -777,7 +793,7 @@ onUnmounted(() => {
   }
   
   /* 卡片模式下隐藏原始的展开按钮列，改用底部长条按钮 */
-  @container (max-width: 768px) {
+  @container (max-width: 600px) { /* Lowered breakpoint */
     .responsive-table .col-expand {
         display: none !important; /* Force hide in card view */
     }
