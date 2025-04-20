@@ -230,8 +230,52 @@ const componentProps = computed(() => {
  }
 });
 
-// --- REMOVED sidebarComponentProps computed property ---
-// Props for sidebar components will be determined directly in the template
+// --- New computed property for sidebar component props and events ---
+const sidebarProps = computed(() => (paneName: PaneName | null) => {
+ if (!paneName) return {};
+
+ const baseProps = { class: 'sidebar-pane-content' }; // Base props for all sidebar components
+
+ switch (paneName) {
+   case 'editor':
+     return {
+       ...baseProps,
+       tabs: editorTabsFromStore.value, // Access .value for refs from storeToRefs
+       activeTabId: activeEditorTabIdFromStore.value, // Access .value
+       sessionId: props.activeSessionId,
+       // Event forwarding
+       onCloseTab: (tabId: string) => emit('closeEditorTab', tabId),
+       onActivateTab: (tabId: string) => emit('activateEditorTab', tabId),
+       'onUpdate:content': (payload: { tabId: string; content: string }) => emit('updateEditorContent', payload),
+       onRequestSave: (tabId: string) => emit('saveEditorTab', tabId),
+     };
+   case 'connections':
+     return {
+       ...baseProps,
+       // Event forwarding
+       onConnectRequest: (id: number) => {
+         console.log(`[LayoutRenderer Sidebar] Forwarding 'connect-request' for ID: ${id}`);
+         emit('connect-request', id);
+       },
+       onOpenNewSession: (id: number) => {
+          console.log(`[LayoutRenderer Sidebar] Forwarding 'open-new-session' for ID: ${id}`);
+          emit('open-new-session', id);
+       },
+       onRequestEditConnection: (conn: any) => {
+          console.log(`[LayoutRenderer Sidebar] Forwarding 'request-edit-connection'`);
+          emit('request-edit-connection', conn);
+       },
+       // We might not need 'request-add-connection' from the sidebar context
+       // onRequestAddConnection: () => emit('request-add-connection')
+     };
+   // Add cases for other components if they need specific props or event forwarding in the sidebar
+   // case 'fileManager': return { ...baseProps, ... };
+   // case 'commandHistory': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
+   // case 'quickCommands': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
+   default:
+     return baseProps; // Return only base props for other components
+ }
+});
 
 
 // --- Methods ---
@@ -476,18 +520,8 @@ const getIconClasses = (paneName: PaneName): string[] => {
             v-if="currentLeftSidebarComponent"
             :is="currentLeftSidebarComponent"
             :key="`left-panel-${activeLeftSidebarPane}`"
-            class="sidebar-pane-content"
-            v-bind="activeLeftSidebarPane === 'editor' ? {
-              tabs: editorTabsFromStore,
-              activeTabId: activeEditorTabIdFromStore,
-              sessionId: activeSessionId, // Pass session ID if needed by editor in sidebar
-              onCloseTab: (tabId: string) => emit('closeEditorTab', tabId),
-              onActivateTab: (tabId: string) => emit('activateEditorTab', tabId),
-              'onUpdate:content': (payload: { tabId: string; content: string }) => emit('updateEditorContent', payload),
-              onRequestSave: (tabId: string) => emit('saveEditorTab', tabId)
-            } : {}"
-            />
-            <!-- Add bindings for other sidebar components if they need props/events -->
+            v-bind="sidebarProps(activeLeftSidebarPane)"
+        />
     </div>
 
     <!-- Right Sidebar Panel -->
@@ -497,18 +531,8 @@ const getIconClasses = (paneName: PaneName): string[] => {
             v-if="currentRightSidebarComponent"
             :is="currentRightSidebarComponent"
             :key="`right-panel-${activeRightSidebarPane}`"
-            class="sidebar-pane-content"
-            v-bind="activeRightSidebarPane === 'editor' ? {
-              tabs: editorTabsFromStore,
-              activeTabId: activeEditorTabIdFromStore,
-              sessionId: activeSessionId, // Pass session ID if needed by editor in sidebar
-              onCloseTab: (tabId: string) => emit('closeEditorTab', tabId),
-              onActivateTab: (tabId: string) => emit('activateEditorTab', tabId),
-              'onUpdate:content': (payload: { tabId: string; content: string }) => emit('updateEditorContent', payload),
-              onRequestSave: (tabId: string) => emit('saveEditorTab', tabId)
-            } : {}"
-            />
-            <!-- Add bindings for other sidebar components if they need props/events -->
+            v-bind="sidebarProps(activeRightSidebarPane)"
+        />
     </div>
 
      <!-- Right Sidebar Buttons (Only render if root) -->
