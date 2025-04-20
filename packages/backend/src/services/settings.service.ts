@@ -5,6 +5,7 @@ const DEFAULT_FOCUS_SEQUENCE = ["quickCommandsSearch", "commandHistorySearch", "
 const FOCUS_SEQUENCE_KEY = 'focusSwitcherSequence'; // 焦点切换顺序设置键
 const NAV_BAR_VISIBLE_KEY = 'navBarVisible'; // 导航栏可见性设置键
 const LAYOUT_TREE_KEY = 'layoutTree'; // 布局树设置键
+const AUTO_COPY_ON_SELECT_KEY = 'autoCopyOnSelect'; // 终端选中自动复制设置键
 
 export const settingsService = {
   /**
@@ -203,6 +204,41 @@ export const settingsService = {
    } catch (error) {
      console.error(`[Service] Error calling settingsRepository.setSetting for key ${LAYOUT_TREE_KEY}:`, error);
      throw new Error('Failed to save layout tree setting.');
+   }
+ }, // *** 确保这里有逗号 ***
+
+ /**
+  * 获取终端选中自动复制设置
+  * @returns 返回是否启用该功能 (boolean)，如果未设置则默认为 false
+  */
+ async getAutoCopyOnSelect(): Promise<boolean> {
+   console.log(`[Service] Attempting to get setting for key: ${AUTO_COPY_ON_SELECT_KEY}`);
+   try {
+     const enabledStr = await settingsRepository.getSetting(AUTO_COPY_ON_SELECT_KEY);
+     console.log(`[Service] Raw value from repository for ${AUTO_COPY_ON_SELECT_KEY}:`, enabledStr);
+     // 如果设置存在且值为 'true'，则返回 true，否则都返回 false (包括未设置或值为 'false' 的情况)
+     return enabledStr === 'true';
+   } catch (error) {
+     console.error(`[Service] Error getting auto copy on select setting (key: ${AUTO_COPY_ON_SELECT_KEY}):`, error);
+     // 出错时返回默认值 false
+     return false;
+   }
+ }, // *** 确保这里有逗号 ***
+
+ /**
+  * 设置终端选中自动复制
+  * @param enabled 是否启用 (boolean)
+  */
+ async setAutoCopyOnSelect(enabled: boolean): Promise<void> {
+   console.log(`[Service] setAutoCopyOnSelect called with: ${enabled}`);
+   try {
+     const enabledStr = String(enabled); // 将布尔值转换为 'true' 或 'false'
+     console.log(`[Service] Attempting to save setting. Key: ${AUTO_COPY_ON_SELECT_KEY}, Value: ${enabledStr}`);
+     await settingsRepository.setSetting(AUTO_COPY_ON_SELECT_KEY, enabledStr);
+     console.log(`[Service] Successfully saved setting for key: ${AUTO_COPY_ON_SELECT_KEY}`);
+   } catch (error) {
+     console.error(`[Service] Error calling settingsRepository.setSetting for key ${AUTO_COPY_ON_SELECT_KEY}:`, error);
+     throw new Error('Failed to save auto copy on select setting.');
    }
  } // *** 最后的方法后面不需要逗号 ***
 };

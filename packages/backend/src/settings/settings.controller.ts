@@ -32,7 +32,8 @@ export const settingsController = {
 
       const allowedSettingsKeys = [
           'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
-          'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled'
+          'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
+          'autoCopyOnSelect' // +++ 添加新设置键 +++
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {
@@ -245,5 +246,49 @@ export const settingsController = {
       console.error(`从 IP 黑名单删除 ${req.params.ip} 时出错:`, error);
       res.status(500).json({ message: '从 IP 黑名单删除失败', error: error.message });
     }
-  }
+  }, // *** 确保这里有逗号 ***
+
+  /**
+   * 获取终端选中自动复制设置
+   */
+  async getAutoCopyOnSelect(req: Request, res: Response): Promise<void> {
+    try {
+      console.log('[Controller] Received request to get auto copy on select setting.');
+      const isEnabled = await settingsService.getAutoCopyOnSelect();
+      console.log(`[Controller] Sending auto copy on select setting to client: ${isEnabled}`);
+      res.json({ enabled: isEnabled });
+    } catch (error: any) {
+      console.error('[Controller] 获取终端选中自动复制设置时出错:', error);
+      res.status(500).json({ message: '获取终端选中自动复制设置失败', error: error.message });
+    }
+  }, // *** 确保这里有逗号 ***
+
+  /**
+   * 设置终端选中自动复制
+   */
+  async setAutoCopyOnSelect(req: Request, res: Response): Promise<void> {
+    console.log('[Controller] Received request to set auto copy on select setting.');
+    try {
+      const { enabled } = req.body;
+      console.log('[Controller] Request body enabled:', enabled);
+
+      if (typeof enabled !== 'boolean') {
+        console.warn('[Controller] Invalid enabled format received:', enabled);
+        res.status(400).json({ message: '无效的请求体，"enabled" 必须是一个布尔值' });
+        return;
+      }
+
+      console.log('[Controller] Calling settingsService.setAutoCopyOnSelect...');
+      await settingsService.setAutoCopyOnSelect(enabled);
+      console.log('[Controller] settingsService.setAutoCopyOnSelect completed successfully.');
+
+      // auditLogService.logAction('AUTO_COPY_ON_SELECT_UPDATED', { enabled }); // 可选：添加审计日志
+
+      console.log('[Controller] Sending success response.');
+      res.status(200).json({ message: '终端选中自动复制设置已成功更新' });
+    } catch (error: any) {
+      console.error('[Controller] 设置终端选中自动复制时出错:', error);
+      res.status(500).json({ message: '设置终端选中自动复制失败', error: error.message });
+    }
+  } // *** 最后的方法后面不需要逗号 ***
 };

@@ -591,6 +591,17 @@
         "title": "外观设置",
         "description": "自定义应用程序的视觉主题和背景。",
         "customizeButton": "自定义外观"
+    },
+    "autoCopyOnSelect": {
+      "title": "终端自动复制",
+      "enableLabel": "松开鼠标时自动复制选中文本",
+      "saveButton": "保存",
+      "success": {
+        "saved": "自动复制设置已成功保存。"
+      },
+      "error": {
+        "saveFailed": "保存自动复制设置失败。"
+      }
     }
   },
   "common": {

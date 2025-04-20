@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { ITheme } from 'xterm';
-import { Terminal } from 'xterm';
+import { Terminal, ITerminalAddon, IDisposable } from 'xterm'; // +++ 导入 ITerminalAddon 和 IDisposable +++
 import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观 store
+import { useSettingsStore } from '../stores/settings.store'; // +++ 导入设置 store +++
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -31,11 +32,16 @@ let fitAddon: FitAddon | null = null;
 let searchAddon: SearchAddon | null = null; // *** 添加 searchAddon 变量 ***
 let resizeObserver: ResizeObserver | null = null;
 let debounceTimer: number | null = null; // 用于防抖的计时器 ID
+let selectionListenerDisposable: IDisposable | null = null; // +++ 提升声明并添加类型 +++
 // const fontSize = ref(14); // 移除本地字体大小状态，将由 store 管理
 
 // --- Appearance Store ---
 const appearanceStore = useAppearanceStore();
 const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage, currentTerminalFontSize } = storeToRefs(appearanceStore); // <-- 添加 currentTerminalFontSize
+
+// --- Settings Store ---
+const settingsStore = useSettingsStore(); // +++ 实例化设置 store +++
+const { autoCopyOnSelectBoolean } = storeToRefs(settingsStore); // +++ 获取选中即复制状态 +++
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
@@ -209,7 +215,44 @@ onMounted(() => {
     if (terminal) {
         emit('ready', { sessionId: props.sessionId, terminal: terminal, searchAddon: searchAddon });
     }
-  
+
+    // --- 监听并处理选中即复制 ---
+    let currentSelection = ''; // 存储当前选区内容，避免重复复制空内容
+    const handleSelectionChange = () => {
+        if (terminal && autoCopyOnSelectBoolean.value) {
+            const newSelection = terminal.getSelection();
+            // 仅在选区内容发生变化且不为空时执行复制
+            if (newSelection && newSelection !== currentSelection) {
+                currentSelection = newSelection;
+                navigator.clipboard.writeText(newSelection).then(() => {
+                    // console.log('[Terminal] 文本已自动复制到剪贴板:', newSelection); // 可选：成功日志
+                }).catch(err => {
+                    console.error('[Terminal] 自动复制到剪贴板失败:', err);
+                    // 可以在这里向用户显示一个短暂的错误提示
+                });
+            } else if (!newSelection) {
+                // 如果新选区为空，重置 currentSelection
+                currentSelection = '';
+            }
+        } else {
+            // 如果设置关闭，也重置 currentSelection
+            currentSelection = '';
+        }
+    };
+
+    // 添加防抖以避免过于频繁地触发 handleSelectionChange
+    const debouncedSelectionChange = debounce(handleSelectionChange, 50); // 50ms 防抖
+
+    // 监听 xterm 的 selectionChange 事件
+    selectionListenerDisposable = terminal.onSelectionChange(debouncedSelectionChange); // Assign to outer variable
+
+    // 监听设置变化，如果关闭了自动复制，确保清除可能存在的旧选区状态
+    watch(autoCopyOnSelectBoolean, (newValue) => {
+        if (!newValue) {
+            currentSelection = '';
+        }
+    });
+
     // --- 监听外观变化 ---
     watch(currentTerminalTheme, (newTheme) => {
       if (terminal) {
@@ -319,6 +362,11 @@ onBeforeUnmount(() => {
   if (terminal) {
     terminal.dispose();
     terminal = null;
+  }
+
+  // 在卸载前清理选择监听器
+  if (selectionListenerDisposable) {
+      selectionListenerDisposable.dispose();
   }
 });
 

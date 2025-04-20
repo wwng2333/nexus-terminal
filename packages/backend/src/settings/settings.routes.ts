@@ -37,4 +37,10 @@ router.get('/ip-blacklist', settingsController.getIpBlacklist);
 router.delete('/ip-blacklist/:ip', settingsController.deleteIpFromBlacklist);
 
 
+// +++ 新增：终端选中自动复制路由 +++
+// GET /api/v1/settings/auto-copy-on-select - 获取设置
+router.get('/auto-copy-on-select', settingsController.getAutoCopyOnSelect);
+// PUT /api/v1/settings/auto-copy-on-select - 更新设置
+router.put('/auto-copy-on-select', settingsController.setAutoCopyOnSelect);
+
 export default router;

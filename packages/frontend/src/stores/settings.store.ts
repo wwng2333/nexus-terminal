@@ -13,6 +13,7 @@ interface SettingsState {
   showPopupFileEditor?: string; // 'true' or 'false'
   shareFileEditorTabs?: string; // 'true' or 'false'
   ipWhitelistEnabled?: string; // 添加 IP 白名单启用状态 'true' or 'false'
+  autoCopyOnSelect?: string; // 'true' or 'false' - 终端选中自动复制
   // Add other general settings keys here as needed
   [key: string]: string | undefined; // Allow other string settings
 }
@@ -60,6 +61,10 @@ export const useSettingsStore = defineStore('settings', () => {
       }
 
 
+      if (settings.value.autoCopyOnSelect === undefined) {
+          settings.value.autoCopyOnSelect = 'false'; // 默认禁用选中即复制
+      }
+
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       if (langFromSettings === 'en' || langFromSettings === 'zh') {
@@ -103,7 +108,8 @@ export const useSettingsStore = defineStore('settings', () => {
     // 移除外观相关的键检查
     const allowedKeys: Array<keyof SettingsState> = [
         'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
-        'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled'
+        'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
+        'autoCopyOnSelect' // +++ 添加新设置键 +++
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -134,7 +140,8 @@ export const useSettingsStore = defineStore('settings', () => {
      // 移除外观相关的键检查
     const allowedKeys: Array<keyof SettingsState> = [
         'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
-        'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled'
+        'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
+        'autoCopyOnSelect' // +++ 添加新设置键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: 'en' | 'zh' | undefined = undefined;
@@ -190,6 +197,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const ipWhitelistEnabled = computed(() => settings.value.ipWhitelistEnabled === 'true');
 
 
+  // Getter for auto copy on select setting, returning boolean
+  const autoCopyOnSelectBoolean = computed(() => {
+      return settings.value.autoCopyOnSelect === 'true';
+  });
+
   return {
     settings, // 只包含通用设置
     isLoading,
@@ -198,6 +210,7 @@ export const useSettingsStore = defineStore('settings', () => {
     showPopupFileEditorBoolean,
     shareFileEditorTabsBoolean,
     ipWhitelistEnabled, // 暴露 IP 白名单启用状态
+    autoCopyOnSelectBoolean, // +++ 暴露新 getter +++
     // 移除外观相关的 getters 和 actions
     loadInitialSettings,
     updateSetting,

@@ -591,6 +591,17 @@
         "title": "Appearance Settings",
         "description": "Customize the visual theme and background of the application.",
         "customizeButton": "Customize Appearance"
+    },
+    "autoCopyOnSelect": {
+      "title": "Terminal Auto Copy",
+      "enableLabel": "Copy text automatically on selection release",
+      "saveButton": "Save",
+      "success": {
+        "saved": "Auto copy setting saved successfully."
+      },
+      "error": {
+        "saveFailed": "Failed to save auto copy setting."
+      }
     }
   },
   "common": {

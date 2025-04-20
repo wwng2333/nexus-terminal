@@ -126,6 +126,18 @@
         </div>
 
         <div class="settings-section">
+          <h2>{{ $t('settings.autoCopyOnSelect.title') }}</h2>
+          <form @submit.prevent="handleUpdateAutoCopySetting">
+              <div class="form-group form-group-checkbox">
+                  <input type="checkbox" id="autoCopyOnSelect" v-model="autoCopyEnabled">
+                  <label for="autoCopyOnSelect">{{ $t('settings.autoCopyOnSelect.enableLabel') }}</label>
+              </div>
+              <button type="submit" :disabled="autoCopyLoading">{{ autoCopyLoading ? $t('common.saving') : $t('settings.autoCopyOnSelect.saveButton') }}</button>
+              <p v-if="autoCopyMessage" :class="{ 'success-message': autoCopySuccess, 'error-message': !autoCopySuccess }">{{ autoCopyMessage }}</p>
+          </form>
+        </div>
+
+        <div class="settings-section">
           <h2>{{ $t('settings.ipWhitelist.title') }}</h2>
           <p>{{ $t('settings.ipWhitelist.description') }}</p>
           <form @submit.prevent="handleUpdateIpWhitelist">
@@ -220,7 +232,7 @@ const { t } = useI18n();
 
 // --- Reactive state from store ---
 // 使用 storeToRefs 获取响应式 getter
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean } = storeToRefs(settingsStore);
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean } = storeToRefs(settingsStore); // +++ 添加 autoCopyOnSelectBoolean +++
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -248,6 +260,10 @@ const shareTabsEnabled = ref(true); // 本地状态，用于共享标签页 v-mo
 const shareTabsLoading = ref(false);
 const shareTabsMessage = ref('');
 const shareTabsSuccess = ref(false);
+const autoCopyEnabled = ref(false); // 本地状态，用于选中即复制 v-model
+const autoCopyLoading = ref(false);
+const autoCopyMessage = ref('');
+const autoCopySuccess = ref(false);
 
 // --- Watcher to sync local form state with store state ---
 watch(settings, (newSettings, oldSettings) => {
@@ -262,6 +278,7 @@ watch(settings, (newSettings, oldSettings) => {
   // 始终将本地布尔状态与 store 的布尔 getter 同步
   popupEditorEnabled.value = showPopupFileEditorBoolean.value;
   shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
+  autoCopyEnabled.value = autoCopyOnSelectBoolean.value; // +++ 同步选中即复制状态 +++
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -305,6 +322,25 @@ const handleUpdateShareTabsSetting = async () => {
         // shareTabsEnabled.value = shareFileEditorTabsBoolean.value; // <-- 移除恢复逻辑
     } finally {
         shareTabsLoading.value = false;
+    }
+};
+
+// --- Auto Copy on Select setting method ---
+const handleUpdateAutoCopySetting = async () => {
+    autoCopyLoading.value = true;
+    autoCopyMessage.value = '';
+    autoCopySuccess.value = false;
+    try {
+        const valueToSave = autoCopyEnabled.value ? 'true' : 'false';
+        await settingsStore.updateSetting('autoCopyOnSelect', valueToSave);
+        autoCopyMessage.value = t('settings.autoCopyOnSelect.success.saved'); // 需要添加翻译
+        autoCopySuccess.value = true;
+    } catch (error: any) {
+        console.error('更新自动复制设置失败:', error);
+        autoCopyMessage.value = error.message || t('settings.autoCopyOnSelect.error.saveFailed'); // 需要添加翻译
+        autoCopySuccess.value = false;
+    } finally {
+        autoCopyLoading.value = false;
     }
 };
 
