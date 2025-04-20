@@ -231,7 +231,8 @@ export const updateTheme = async (id: number, themeDto: UpdateTerminalThemeDto):
  * @returns Promise<boolean> 是否成功删除
  */
 export const deleteTheme = async (id: number): Promise<boolean> => {
-  const sql = 'DELETE FROM terminal_themes WHERE id = ? AND is_preset = 0';
+  // Correct the WHERE clause to use theme_type = 'user' instead of is_preset = 0
+  const sql = 'DELETE FROM terminal_themes WHERE id = ? AND theme_type = \'user\'';
   try {
     const db = await getDbInstance();
     const result = await runDb(db, sql, [id]);
