@@ -10,27 +10,27 @@ import { tableDefinitions } from './schema.registry';
 
 // --- Revert to original path and filename ---
 // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
-console.log('[Connection CWD]', process.cwd()); // 添加 CWD 日志
+// console.log('[Connection CWD]', process.cwd()); // 移除调试日志
 const dbDir = path.join(process.cwd(), 'data'); // Correct path relative to CWD (packages/backend)
 const dbFilename = 'nexus-terminal.db'; // Revert to original filename
 const dbPath = path.join(dbDir, dbFilename);
-console.log(`[DB Path] Determined database directory: ${dbDir}`);
-console.log(`[DB Path] Determined database file path: ${dbPath}`);
+// console.log(`[DB Path] Determined database directory: ${dbDir}`); // 移除调试日志
+// console.log(`[DB Path] Determined database file path: ${dbPath}`); // 移除调试日志
 
 // Add logging before checking/creating directory
-console.log(`[DB FS] Checking existence of directory: ${dbDir}`);
+// console.log(`[DB FS] Checking existence of directory: ${dbDir}`); // 移除调试日志
 if (!fs.existsSync(dbDir)) {
-    console.log(`[DB FS] Directory does not exist. Attempting to create: ${dbDir}`);
+    // console.log(`[DB FS] Directory does not exist. Attempting to create: ${dbDir}`); // 移除调试日志
     try {
         fs.mkdirSync(dbDir, { recursive: true });
-        console.log(`[DB FS] Directory successfully created: ${dbDir}`);
+        // console.log(`[DB FS] Directory successfully created: ${dbDir}`); // 移除调试日志
     } catch (mkdirErr: any) {
         console.error(`[DB FS] Failed to create directory ${dbDir}:`, mkdirErr.message);
         // Consider throwing error here to prevent proceeding if directory creation fails
         throw new Error(`Failed to create database directory: ${mkdirErr.message}`);
     }
 } else {
-    console.log(`[DB FS] Directory already exists: ${dbDir}`);
+    // console.log(`[DB FS] Directory already exists: ${dbDir}`); // 移除调试日志
 }
 
 const verboseSqlite3 = sqlite3.verbose();
@@ -99,17 +99,17 @@ export const allDb = <T = any>(db: sqlite3.Database, sql: string, params: any[] 
  * @param db The database instance
  */
 const runDatabaseInitializations = async (db: sqlite3.Database): Promise<void> => {
-    console.log('[DB Init] 开始数据库初始化序列...');
+    // console.log('[DB Init] 开始数据库初始化序列...'); // 移除调试日志
 
     try {
         // 1. Enable foreign key constraints
         await runDb(db, 'PRAGMA foreign_keys = ON;'); // Use promisified runDb
-        console.log('[DB Init] 外键约束已启用。');
+        // console.log('[DB Init] 外键约束已启用。'); // 移除调试日志
 
         // 2. Create tables and run initializations based on the registry
         for (const tableDef of tableDefinitions) {
             await runDb(db, tableDef.sql); // Create table (IF NOT EXISTS)
-            console.log(`[DB Init] ${tableDef.name} 表已存在或已创建。`);
+            // console.log(`[DB Init] ${tableDef.name} 表已存在或已创建。`); // 移除调试日志
             if (tableDef.init) {
                 // Pass the db instance to the init function
                 await tableDef.init(db);
@@ -121,7 +121,7 @@ const runDatabaseInitializations = async (db: sqlite3.Database): Promise<void> =
         // await runMigrations(db);
         // console.log('[DB Init] 迁移检查完成。');
 
-        console.log('[DB Init] 数据库初始化序列成功完成。');
+        // console.log('[DB Init] 数据库初始化序列成功完成。'); // 移除调试日志
 
     } catch (error) {
         console.error('[DB Init] 数据库初始化序列失败:', error);
@@ -141,7 +141,7 @@ export const getDbInstance = (): Promise<sqlite3.Database> => {
             // Remove connectionFailed flag and double check logic
 
             // Add logging before attempting connection
-            console.log(`[DB Connection] Attempting to connect/open database file with explicit create flag: ${dbPath}`);
+            // console.log(`[DB Connection] Attempting to connect/open database file with explicit create flag: ${dbPath}`); // 移除调试日志
             // Explicitly add OPEN_READWRITE and OPEN_CREATE flags
             const db = new verboseSqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, async (err) => { // Mark callback as async
                 // --- Strict Error Check FIRST ---
@@ -157,11 +157,11 @@ export const getDbInstance = (): Promise<sqlite3.Database> => {
                 // Remove Double Check Flag logic
 
                 // If no error, proceed with success logging and initialization
-                console.log(`[DB Connection] Successfully connected to SQLite database: ${dbPath}`);
+                // console.log(`[DB Connection] Successfully connected to SQLite database: ${dbPath}`); // 移除调试日志
                 try {
                     // Wait for initializations to complete
                     await runDatabaseInitializations(db);
-                    console.log('[DB] Database initialization complete. Ready.');
+                    // console.log('[DB] Database initialization complete. Ready.'); // 移除调试日志
                     resolve(db); // Resolve the main promise with the db instance
                 } catch (initError) {
                     console.error('[DB] Initialization failed after connection, closing connection...');

@@ -38,7 +38,7 @@ app.set('trust proxy', true);
 // --- 会话存储设置 ---
 // const SQLiteStore = connectSqlite3(session); // 移除旧的 Store 初始化
 // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
-console.log('[Index CWD 1]', process.cwd()); // 添加 CWD 日志
+// console.log('[Index CWD 1]', process.cwd()); // 移除调试日志
 const dbPath = path.join(process.cwd(), 'data'); // Correct path relative to CWD (packages/backend)
 
 // --- 中间件 ---
@@ -63,7 +63,7 @@ if (sessionSecret === 'a-very-insecure-secret-for-dev') {
 // 提供上传的背景图片等静态资源
 const uploadsPath = path.join(__dirname, '../uploads'); // 指向 backend/uploads 目录
 app.use('/uploads', express.static(uploadsPath));
-console.log(`静态文件服务已启动，路径: ${uploadsPath}`);
+// console.log(`静态文件服务已启动，路径: ${uploadsPath}`); // 移除调试日志
 // --- 结束静态文件服务 ---
 
 
@@ -85,7 +85,7 @@ const initializeDatabase = async () => {
   try {
     // getDb() now returns a Promise and handles initialization internally
     const db = await getDbInstance(); // Correctly await the Promise, use getDbInstance
-    console.log('数据库实例已获取并初始化完成。');
+    // console.log('数据库实例已获取并初始化完成。'); // 移除调试日志
 
     // runMigrations is now just a placeholder and initialization is done within getDb
     // await runMigrations(db); // Removed call to placeholder runMigrations
@@ -104,9 +104,9 @@ const initializeDatabase = async () => {
 
     // 检查用户数量后不再执行任何操作 (移除了自动创建和日志记录)
 
-    console.log(`数据库中找到 ${userCount} 个用户。`); // Log user count
+    // console.log(`数据库中找到 ${userCount} 个用户。`); // 移除调试日志
 
-    console.log('数据库初始化后检查完成。');
+    // console.log('数据库初始化后检查完成。'); // 移除调试日志
   } catch (error) {
     console.error('数据库初始化或检查失败:', error); // More specific error message
     process.exit(1); // 如果数据库初始化失败，则退出进程
@@ -116,23 +116,23 @@ const initializeDatabase = async () => {
 // 启动 HTTP 服务器 (而不是直接 app.listen)
 const startServer = () => {
     // !! 在服务器启动前，但在数据库初始化后，设置会话中间件 !!
-    console.log('数据库初始化成功，现在设置会话存储...');
+    // console.log('数据库初始化成功，现在设置会话存储...'); // 移除调试日志
     const FileStore = sessionFileStore(session); // 使用新的 FileStore
     // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
-    console.log('[Index CWD 2]', process.cwd()); // 添加 CWD 日志
+    // console.log('[Index CWD 2]', process.cwd()); // 移除调试日志
     const dataPath = path.join(process.cwd(), 'data'); // 数据库文件目录保持不变 (重命名变量以便区分)
     const sessionsPath = path.join(process.cwd(), 'sessions'); // 新建 sessions 目录存储会话文件
     // 确保 sessions 目录存在
     if (!fs.existsSync(sessionsPath)) {
         fs.mkdirSync(sessionsPath, { recursive: true });
-        console.log(`[Session Store] 已创建会话目录: ${sessionsPath}`);
+        // console.log(`[Session Store] 已创建会话目录: ${sessionsPath}`); // 移除调试日志
     }
-    console.log(`[Session Store] 使用文件存储，路径: ${sessionsPath}`);
+    // console.log(`[Session Store] 使用文件存储，路径: ${sessionsPath}`); // 移除调试日志
     const sessionMiddleware = session({
         store: new FileStore({
             path: sessionsPath, // 指定会话文件存储目录
             ttl: 60 * 60 * 24 * 7, // 会话有效期 (秒)，7天，匹配 cookie maxAge (需要秒)
-            logFn: (message) => { console.log('[SessionFileStore]', message); } // 可选：启用日志
+            // logFn: (message) => { console.log('[SessionFileStore]', message); } // 移除调试日志
             // reapInterval: 3600 // 清理过期会话间隔 (秒)，默认1小时
         }),
         secret: sessionSecret,
@@ -145,10 +145,10 @@ const startServer = () => {
         }
     });
     app.use(sessionMiddleware); // 在这里应用会话中间件
-    console.log('会话中间件已应用。');
+    // console.log('会话中间件已应用。'); // 移除调试日志
 
     // --- 应用 API 路由 ---
-    console.log('应用 API 路由...');
+    // console.log('应用 API 路由...'); // 移除调试日志
     app.use('/api/v1/auth', authRouter);
     app.use('/api/v1/connections', connectionsRouter);
     app.use('/api/v1/sftp', sftpRouter);
@@ -166,7 +166,7 @@ const startServer = () => {
     app.get('/api/v1/status', (req: Request, res: Response) => {
       res.json({ status: '后端服务运行中！' });
     });
-    console.log('API 路由已应用。');
+    // console.log('API 路由已应用。'); // 移除调试日志
 
 
     server.listen(port, () => { // 使用 server.listen
