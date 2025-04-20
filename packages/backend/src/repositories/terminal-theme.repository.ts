@@ -99,7 +99,8 @@ export const findAllThemes = async (): Promise<TerminalTheme[]> => {
   try {
     const db = await getDbInstance();
     // Specify the expected row type for allDb
-    const rows = await allDb<DbTerminalThemeRow>(db, 'SELECT * FROM terminal_themes ORDER BY is_preset DESC, name ASC');
+    // Correct the ORDER BY clause to use theme_type and sort presets first
+    const rows = await allDb<DbTerminalThemeRow>(db, 'SELECT * FROM terminal_themes ORDER BY CASE theme_type WHEN \'preset\' THEN 0 ELSE 1 END ASC, name ASC');
     // Filter out potential errors during mapping
     return rows.map(row => {
         try {
@@ -111,6 +112,8 @@ export const findAllThemes = async (): Promise<TerminalTheme[]> => {
     }).filter((theme): theme is TerminalTheme => theme !== null);
   } catch (err: any) { // Add type annotation for err
     console.error('查询所有终端主题失败:', err.message);
+    // 添加详细错误日志
+    console.error('详细错误:', err);
     throw new Error('查询终端主题失败'); // Re-throw or handle error appropriately
   }
 };

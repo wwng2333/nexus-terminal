@@ -458,6 +458,8 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+  min-width: 1072px;
+  min-height:748px;
   /* width, height, top, left 由 dialogStyle 控制 */
   /* 移除 max-width, max-height，由拖拽逻辑和 minSize 控制 */
   display: flex;
