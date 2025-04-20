@@ -1,39 +1,39 @@
 <template>
   <div class="status-monitor">
-    <h4>服务器状态</h4>
+    <h4>{{ t('statusMonitor.title') }}</h4>
     <!-- Corrected state display logic -->
     <div v-if="statusError" class="status-error">
-      错误: {{ statusError }}
+      {{ t('statusMonitor.errorPrefix') }} {{ statusError }}
     </div>
     <div v-else-if="!serverStatus" class="loading-status">
       <i class="fas fa-spinner fa-spin"></i>
-      等待数据...
+      {{ t('statusMonitor.loading') }}
     </div>
     <div v-else class="status-grid">
       <!-- Status items remain here -->
       <div class="status-item cpu-model">
-        <label>CPU 型号:</label>
+        <label>{{ t('statusMonitor.cpuModelLabel') }}</label>
         <!-- 使用 displayCpuModel 计算属性 -->
         <span class="cpu-model-value" :title="displayCpuModel">{{ displayCpuModel }}</span>
       </div>
       <!-- Added OS Name Display -->
       <div class="status-item os-name">
-        <label>系统:</label>
+        <label>{{ t('statusMonitor.osLabel') }}</label>
         <!-- 使用 displayOsName 计算属性 -->
         <span class="os-name-value" :title="displayOsName">{{ displayOsName }}</span>
       </div>
       <div class="status-item">
-        <label>CPU:</label>
+        <label>{{ t('statusMonitor.cpuLabel') }}</label>
         <!-- Wrap progress bar and percentage in a div -->
         <div class="value-wrapper">
           <div class="progress-bar-container">
             <div class="progress-bar" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
           </div>
-          <span>{{ serverStatus.cpuPercent?.toFixed(1) ?? 'N/A' }}%</span>
+          <span>{{ serverStatus.cpuPercent?.toFixed(1) ?? t('statusMonitor.notAvailable') }}%</span>
         </div>
       </div>
       <div class="status-item">
-        <label>内存:</label>
+        <label>{{ t('statusMonitor.memoryLabel') }}</label>
         <div class="value-wrapper">
           <div class="progress-bar-container">
             <div class="progress-bar" :style="{ width: `${serverStatus.memPercent ?? 0}%` }"></div>
@@ -43,7 +43,7 @@
       </div>
        <!-- Removed v-if, Swap will always show -->
        <div class="status-item">
-        <label>Swap:</label>
+        <label>{{ t('statusMonitor.swapLabel') }}</label>
         <div class="value-wrapper">
           <div class="progress-bar-container">
             <div class="progress-bar swap-bar" :style="{ width: `${serverStatus.swapPercent ?? 0}%` }"></div>
@@ -52,7 +52,7 @@
         </div>
       </div>
       <div class="status-item">
-        <label>磁盘:</label> <!-- 移除 (/) -->
+        <label>{{ t('statusMonitor.diskLabel') }}</label> <!-- 移除 (/) -->
         <div class="value-wrapper">
           <div class="progress-bar-container">
             <div class="progress-bar" :style="{ width: `${serverStatus.diskPercent ?? 0}%` }"></div>
@@ -61,7 +61,7 @@
         </div>
       </div>
       <div class="status-item network-rate">
-          <label>网络 ({{ serverStatus.netInterface || '...' }}):</label>
+          <label>{{ t('statusMonitor.networkLabel') }} ({{ serverStatus.netInterface || '...' }}):</label>
           <!-- Wrap rates in a div for alignment -->
           <div class="value-wrapper network-values">
             <span class="rate down">{{ formatBytesPerSecond(serverStatus.netRxRate) }}</span>

@@ -228,7 +228,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
     <header v-if="!isWorkspaceRoute || isHeaderVisible">
       <nav ref="navRef">
         <div class="nav-left"> <!-- Group left-aligned links -->
-            <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink>
+            <!-- <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> --> <!-- 隐藏仪表盘链接 -->
             <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink>
             <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink>
             <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink>
