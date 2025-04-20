@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios'; // 假设项目使用 axios
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue';
 import { useUiNotificationsStore } from './uiNotifications.store'; // 用于显示通知
 
@@ -42,7 +42,7 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.get<CommandHistoryEntryBE[]>('/api/v1/command-history');
+            const response = await apiClient.get<CommandHistoryEntryBE[]>('/command-history'); // 使用 apiClient
             // 后端返回的是按时间戳升序 (旧->新)
             // 前端需要按时间戳降序 (新->旧)，所以反转数组
             historyList.value = response.data.reverse();
@@ -62,7 +62,7 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
             return; // 不添加空命令
         }
         try {
-            const response = await axios.post<{ id: number }>('/api/v1/command-history', { command: command.trim() });
+            const response = await apiClient.post<{ id: number }>('/command-history', { command: command.trim() }); // 使用 apiClient
             // 添加成功后，重新获取列表以保证顺序和 ID 正确
             // 或者，可以在本地模拟添加，但为了简单和一致性，重新获取更好
             await fetchHistory();
@@ -77,7 +77,7 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
     // 删除单条历史记录
     const deleteCommand = async (id: number) => {
         try {
-            await axios.delete(`/api/v1/command-history/${id}`);
+            await apiClient.delete(`/command-history/${id}`); // 使用 apiClient
             // 从本地列表中移除
             const index = historyList.value.findIndex(entry => entry.id === id);
             if (index !== -1) {
@@ -95,7 +95,7 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
     const clearAllHistory = async () => {
         // 可以在调用前添加确认逻辑 (例如在组件层)
         try {
-            await axios.delete('/api/v1/command-history');
+            await apiClient.delete('/command-history'); // 使用 apiClient
             historyList.value = []; // 清空本地列表
             uiNotificationsStore.showSuccess('所有历史记录已清空');
         } catch (err: any) {

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed, watch, nextTick } from 'vue'; // 导入 nextTick
 import type { ITheme } from 'xterm';
 import type { TerminalTheme } from '../../../backend/src/types/terminal-theme.types'; // 引用后端类型
@@ -89,8 +89,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
         try {
             // 并行加载外观设置和主题列表
             const [settingsResponse, themesResponse] = await Promise.all([
-                axios.get<AppearanceSettings>('/api/v1/appearance'),
-                axios.get<TerminalTheme[]>('/api/v1/terminal-themes') // 获取所有主题
+                apiClient.get<AppearanceSettings>('/appearance'), // 使用 apiClient
+                apiClient.get<TerminalTheme[]>('/terminal-themes') // 使用 apiClient
             ]);
             appearanceSettings.value = settingsResponse.data;
             allTerminalThemes.value = themesResponse.data; // 更新 allTerminalThemes
@@ -137,7 +137,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
     async function updateAppearanceSettings(updates: UpdateAppearanceDto) {
         try {
             // 移除预设主题闪烁修复逻辑，不再需要
-            const response = await axios.put<AppearanceSettings>('/api/v1/appearance', updates);
+            const response = await apiClient.put<AppearanceSettings>('/appearance', updates); // 使用 apiClient
             // 使用后端返回的最新设置更新本地状态
             appearanceSettings.value = response.data;
             console.log('[AppearanceStore] 外观设置已更新:', appearanceSettings.value);
@@ -234,7 +234,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function createTerminalTheme(name: string, themeData: ITheme) {
         try {
-            await axios.post('/api/v1/terminal-themes', { name, themeData });
+            await apiClient.post('/terminal-themes', { name, themeData }); // 使用 apiClient
             await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
         } catch (err: any) {
              console.error('创建终端主题失败:', err);
@@ -250,7 +250,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function updateTerminalTheme(id: string, name: string, themeData: ITheme) {
          try {
-           await axios.put(`/api/v1/terminal-themes/${id}`, { name, themeData });
+           await apiClient.put(`/terminal-themes/${id}`, { name, themeData }); // 使用 apiClient
            await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
        } catch (err: any) {
             console.error('更新终端主题失败:', err);
@@ -264,7 +264,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function deleteTerminalTheme(id: string) {
          try {
-            await axios.delete(`/api/v1/terminal-themes/${id}`);
+            await apiClient.delete(`/terminal-themes/${id}`); // 使用 apiClient
             // 如果删除的是当前激活的主题，则切换回默认主题 ID
             // 需要将字符串 id 转换为数字进行比较
             const idNum = parseInt(id, 10);
@@ -294,7 +294,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
             formData.append('name', name);
         }
         try {
-            await axios.post('/api/v1/terminal-themes/import', formData, {
+            await apiClient.post('/terminal-themes/import', formData, { // 使用 apiClient
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             await loadInitialAppearanceData(); // 重新加载所有数据以更新列表
@@ -310,7 +310,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
      */
     async function exportTerminalTheme(id: string) {
         try {
-            const response = await axios.get(`/api/v1/terminal-themes/${id}/export`, {
+            const response = await apiClient.get(`/terminal-themes/${id}/export`, { // 使用 apiClient
                 responseType: 'blob' // 重要：接收二进制数据
             });
             // 从响应头获取文件名
@@ -346,7 +346,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         const formData = new FormData();
         formData.append('pageBackgroundFile', file);
         try {
-            const response = await axios.post<{ filePath: string }>('/api/v1/appearance/background/page', formData, {
+            const response = await apiClient.post<{ filePath: string }>('/appearance/background/page', formData, { // 使用 apiClient
                  headers: { 'Content-Type': 'multipart/form-data' }
             });
             // 更新本地状态 (虽然 updateAppearanceSettings 也会做，但这里立即反映)
@@ -366,7 +366,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         const formData = new FormData();
         formData.append('terminalBackgroundFile', file);
         try {
-            const response = await axios.post<{ filePath: string }>('/api/v1/appearance/background/terminal', formData, {
+            const response = await apiClient.post<{ filePath: string }>('/appearance/background/terminal', formData, { // 使用 apiClient
                  headers: { 'Content-Type': 'multipart/form-data' }
             });
             appearanceSettings.value.terminalBackgroundImage = response.data.filePath;

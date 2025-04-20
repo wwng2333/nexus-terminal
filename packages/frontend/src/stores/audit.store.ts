@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { AuditLogEntry, AuditLogApiResponse, AuditLogActionType } from '../types/server.types';
 
 export const useAuditLogStore = defineStore('auditLog', () => {
@@ -26,7 +26,7 @@ export const useAuditLogStore = defineStore('auditLog', () => {
             // Remove undefined filter values
             Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
 
-            const response = await axios.get<AuditLogApiResponse>('/api/v1/audit-logs', { params });
+            const response = await apiClient.get<AuditLogApiResponse>('/audit-logs', { params }); // 使用 apiClient
             logs.value = response.data.logs;
             totalLogs.value = response.data.total;
         } catch (err: any) {

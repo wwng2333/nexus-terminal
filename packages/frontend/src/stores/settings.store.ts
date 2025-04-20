@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue'; // 移除 watch
 import i18n, { setLocale, defaultLng } from '../i18n'; // Import i18n instance and setLocale
 // 移除 ITheme 和默认主题定义，这些移到 appearance.store.ts
@@ -39,7 +39,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
     try {
       console.log('[SettingsStore] 加载通用设置...');
-      const response = await axios.get<Record<string, string>>('/api/v1/settings');
+      const response = await apiClient.get<Record<string, string>>('/settings'); // 使用 apiClient
       settings.value = response.data; // Store fetched general settings
       console.log('[SettingsStore] 通用设置已加载:', settings.value);
 
@@ -118,7 +118,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
     try {
       // 注意：后端 controller 现在会过滤，但前端也做一层检查更好
-      await axios.put('/api/v1/settings', { [key]: value });
+      await apiClient.put('/settings', { [key]: value }); // 使用 apiClient
       // Update store state *after* successful API call
       settings.value = { ...settings.value, [key]: value };
 
@@ -164,7 +164,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
     try {
       // 注意：后端 controller 现在会过滤，但前端也做一层检查更好
-      await axios.put('/api/v1/settings', filteredUpdates);
+      await apiClient.put('/settings', filteredUpdates); // 使用 apiClient
       // Update store state *after* successful API call
       settings.value = { ...settings.value, ...filteredUpdates };
 

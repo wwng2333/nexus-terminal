@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
-import axios from 'axios'; // Assuming axios is globally available or installed
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { NotificationSetting, NotificationSettingData, NotificationChannelType } from '../types/server.types'; // Import NotificationChannelType
 
 export const useNotificationsStore = defineStore('notifications', () => {
@@ -12,7 +12,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.get<NotificationSetting[]>('/api/v1/notifications');
+            const response = await apiClient.get<NotificationSetting[]>('/notifications'); // 使用 apiClient
             settings.value = response.data;
         } catch (err: any) {
             console.error('Error fetching notification settings:', err);
@@ -27,7 +27,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.post<NotificationSetting>('/api/v1/notifications', settingData);
+            const response = await apiClient.post<NotificationSetting>('/notifications', settingData); // 使用 apiClient
             settings.value.push(response.data);
             return response.data;
         } catch (err: any) {
@@ -43,7 +43,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.put<NotificationSetting>(`/api/v1/notifications/${id}`, settingData);
+            const response = await apiClient.put<NotificationSetting>(`/notifications/${id}`, settingData); // 使用 apiClient
             const index = settings.value.findIndex(s => s.id === id);
             if (index !== -1) {
                 settings.value[index] = response.data;
@@ -65,7 +65,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            await axios.delete(`/api/v1/notifications/${id}`);
+            await apiClient.delete(`/notifications/${id}`); // 使用 apiClient
             settings.value = settings.value.filter(s => s.id !== id);
             return true;
         } catch (err: any) {
@@ -83,7 +83,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         error.value = null; // Clear previous general errors
         try {
             // Send the config to test in the request body
-            const response = await axios.post<{ message: string }>(`/api/v1/notifications/${id}/test`, { config });
+            const response = await apiClient.post<{ message: string }>(`/notifications/${id}/test`, { config }); // 使用 apiClient
             return { success: true, message: response.data.message || '测试成功' };
         } catch (err: any) {
             console.error(`Error testing notification setting ${id}:`, err);
@@ -99,7 +99,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         error.value = null;
         try {
             // Send the channel type and config in the request body
-            const response = await axios.post<{ message: string }>(`/api/v1/notifications/test-unsaved`, { channel_type: channelType, config });
+            const response = await apiClient.post<{ message: string }>(`/notifications/test-unsaved`, { channel_type: channelType, config }); // 使用 apiClient
             return { success: true, message: response.data.message || '测试成功' };
         } catch (err: any) {
             console.error(`Error testing unsaved notification setting:`, err);

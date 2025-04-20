@@ -691,6 +691,7 @@
     "configureFocusSwitch": "配置焦点切换器"
   },
   "layout": {
+    "loading": "加载中...",
     "configure": "配置布局",
     "pane": {
       "connections": "连接列表",
@@ -702,6 +703,9 @@
       "commandHistory": "命令历史",
       "quickCommands": "快捷指令"
     }
+  },
+  "header": {
+    "hide": "隐藏"
   },
   "commandHistory": {
     "title": "命令历史",

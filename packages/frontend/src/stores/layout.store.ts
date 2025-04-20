@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
 // 导入 axios 用于 API 调用
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 
 // 定义所有可用面板的名称
 export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory' | 'quickCommands';
@@ -116,7 +116,7 @@ export const useLayoutStore = defineStore('layout', () => {
     // 1. 尝试从后端加载
     try {
       console.log('[Layout Store] Attempting to load layout from backend...');
-      const response = await axios.get<LayoutNode | null>('/api/v1/settings/layout');
+      const response = await apiClient.get<LayoutNode | null>('/settings/layout'); // 使用 apiClient
       if (response.data) {
         // TODO: 在这里添加对 response.data 的结构验证，确保它符合 LayoutNode 接口
         layoutTree.value = response.data;
@@ -217,7 +217,7 @@ export const useLayoutStore = defineStore('layout', () => {
     console.log('[Layout Store] Attempting to load header visibility from backend...');
     try {
       // --- 调用后端 API (复用 nav-bar-visibility 接口) ---
-      const response = await axios.get<{ visible: boolean }>('/api/v1/settings/nav-bar-visibility');
+      const response = await apiClient.get<{ visible: boolean }>('/settings/nav-bar-visibility'); // 使用 apiClient
       if (response && typeof response.data.visible === 'boolean') {
         isHeaderVisible.value = response.data.visible;
         console.log(`[Layout Store] Header visibility loaded from backend: ${isHeaderVisible.value}`);
@@ -240,7 +240,7 @@ export const useLayoutStore = defineStore('layout', () => {
 
     try {
       // --- 调用后端 API (复用 nav-bar-visibility 接口) ---
-      await axios.put('/api/v1/settings/nav-bar-visibility', { visible: newValue });
+      await apiClient.put('/settings/nav-bar-visibility', { visible: newValue }); // 使用 apiClient
       console.log('[Layout Store] Header visibility saved to backend.');
     } catch (error) {
       console.error('[Layout Store] Failed to save header visibility to backend:', error);
@@ -265,7 +265,7 @@ export const useLayoutStore = defineStore('layout', () => {
    // 1. 保存到后端
    try {
      console.log('[Layout Store] Attempting to save layout to backend...');
-     await axios.put('/api/v1/settings/layout', layoutTree.value); // 发送对象，后端会 stringify
+     await apiClient.put('/settings/layout', layoutTree.value); // 使用 apiClient
      console.log('[Layout Store] 布局已成功保存到后端。');
    } catch (error) {
      console.error('[Layout Store] 保存布局到后端失败:', error);

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios'; // 引入 axios
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 
 // 定义连接信息接口 (与后端对应，不含敏感信息)
 export interface ConnectionInfo {
@@ -37,7 +37,7 @@ export const useConnectionsStore = defineStore('connections', {
             this.error = null;
             try {
                 // 注意：axios 默认会携带 cookie，因此如果用户已登录，会话 cookie 会被发送
-                const response = await axios.get<ConnectionInfo[]>('/api/v1/connections');
+                const response = await apiClient.get<ConnectionInfo[]>('/connections'); // 使用 apiClient
                 this.connections = response.data;
             } catch (err: any) {
                 console.error('获取连接列表失败:', err);
@@ -69,7 +69,7 @@ export const useConnectionsStore = defineStore('connections', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.post<{ message: string; connection: ConnectionInfo }>('/api/v1/connections', newConnectionData);
+                const response = await apiClient.post<{ message: string; connection: ConnectionInfo }>('/connections', newConnectionData); // 使用 apiClient
                 // 添加成功后，将新连接添加到列表前面 (或重新获取整个列表)
                 this.connections.unshift(response.data.connection);
                 return true; // 表示成功
@@ -93,7 +93,7 @@ export const useConnectionsStore = defineStore('connections', {
             try {
                 // 发送 PUT 请求到 /api/v1/connections/:id
                 // 注意：后端 API 需要支持接收这些字段并进行更新
-                const response = await axios.put<{ message: string; connection: ConnectionInfo }>(`/api/v1/connections/${connectionId}`, updatedData);
+                const response = await apiClient.put<{ message: string; connection: ConnectionInfo }>(`/connections/${connectionId}`, updatedData); // 使用 apiClient
 
                 // 更新成功后，在列表中找到并更新对应的连接信息
                 const index = this.connections.findIndex(conn => conn.id === connectionId);
@@ -124,7 +124,7 @@ export const useConnectionsStore = defineStore('connections', {
             this.error = null;
             try {
                 // 发送 DELETE 请求到 /api/v1/connections/:id
-                await axios.delete(`/api/v1/connections/${connectionId}`);
+                await apiClient.delete(`/connections/${connectionId}`); // 使用 apiClient
 
                 // 删除成功后，从本地列表中移除该连接
                 this.connections = this.connections.filter(conn => conn.id !== connectionId);
@@ -148,7 +148,7 @@ export const useConnectionsStore = defineStore('connections', {
             // this.isLoading = true;
             // this.error = null;
             try {
-                const response = await axios.post<{ success: boolean; message: string }>(`/api/v1/connections/${connectionId}/test`);
+                const response = await apiClient.post<{ success: boolean; message: string }>(`/connections/${connectionId}/test`); // 使用 apiClient
                 return { success: response.data.success, message: response.data.message };
             } catch (err: any) {
                 console.error(`测试连接 ${connectionId} 失败:`, err);

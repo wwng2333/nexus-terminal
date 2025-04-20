@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue';
 import { useUiNotificationsStore } from './uiNotifications.store';
 import type { QuickCommand } from '../../../backend/src/repositories/quick-commands.repository'; // 复用后端类型定义
@@ -58,7 +58,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.get<QuickCommandFE[]>('/api/v1/quick-commands', {
+            const response = await apiClient.get<QuickCommandFE[]>('/quick-commands', { // 使用 apiClient
                 params: { sortBy: sortBy.value } // 将排序参数传递给后端
             });
             quickCommandsList.value = response.data;
@@ -74,7 +74,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 添加快捷指令
     const addQuickCommand = async (name: string | null, command: string): Promise<boolean> => {
         try {
-            await axios.post('/api/v1/quick-commands', { name, command });
+            await apiClient.post('/quick-commands', { name, command }); // 使用 apiClient
             await fetchQuickCommands(); // 添加成功后刷新列表
             uiNotificationsStore.showSuccess('快捷指令已添加');
             return true;
@@ -89,7 +89,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 更新快捷指令
     const updateQuickCommand = async (id: number, name: string | null, command: string): Promise<boolean> => {
          try {
-            await axios.put(`/api/v1/quick-commands/${id}`, { name, command });
+            await apiClient.put(`/quick-commands/${id}`, { name, command }); // 使用 apiClient
             await fetchQuickCommands(); // 更新成功后刷新列表
             uiNotificationsStore.showSuccess('快捷指令已更新');
             return true;
@@ -104,7 +104,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 删除快捷指令
     const deleteQuickCommand = async (id: number) => {
         try {
-            await axios.delete(`/api/v1/quick-commands/${id}`);
+            await apiClient.delete(`/quick-commands/${id}`); // 使用 apiClient
             // 从本地列表中移除，避免重新请求
             const index = quickCommandsList.value.findIndex(cmd => cmd.id === id);
             if (index !== -1) {
@@ -121,7 +121,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 增加使用次数 (调用 API，然后更新本地数据)
     const incrementUsage = async (id: number) => {
          try {
-            await axios.post(`/api/v1/quick-commands/${id}/increment-usage`);
+            await apiClient.post(`/quick-commands/${id}/increment-usage`); // 使用 apiClient
             // 更新本地计数，避免重新请求整个列表
             const command = quickCommandsList.value.find(cmd => cmd.id === id);
             if (command) {

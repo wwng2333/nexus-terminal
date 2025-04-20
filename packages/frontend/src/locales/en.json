@@ -691,6 +691,7 @@
     "configureFocusSwitch": "Configure Focus Switcher"
   },
   "layout": {
+    "loading": "Loading...",
     "configure": "Configure Layout",
     "pane": {
       "connections": "Connections",
@@ -702,6 +703,9 @@
       "commandHistory": "Command History",
       "quickCommands": "Quick Commands"
     }
+  },
+  "header": {
+    "hide": "Hide"
   },
   "commandHistory": {
     "title": "Command History",

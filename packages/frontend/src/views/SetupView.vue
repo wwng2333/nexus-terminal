@@ -63,7 +63,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth.store'; // *** 新增：导入 Auth Store ***
@@ -97,7 +97,7 @@ const handleSetup = async () => {
 
   try {
     // 确保调用正确的后端 API 端点
-    await axios.post('/api/v1/auth/setup', {
+    await apiClient.post('/auth/setup', { // 使用 apiClient 并移除 base URL
       username: username.value,
       password: password.value,
       confirmPassword: confirmPassword.value

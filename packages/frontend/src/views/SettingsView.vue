@@ -222,7 +222,8 @@ import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 // setLocale is handled by the store now
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
+import { isAxiosError } from 'axios'; // 单独导入 isAxiosError
 import { startRegistration } from '@simplewebauthn/browser';
 
 const authStore = useAuthStore();
@@ -361,17 +362,17 @@ const handleRegisterPasskey = async () => {
     return;
   }
   try {
-    const optionsResponse = await axios.post('/api/v1/auth/passkey/register-options');
+    const optionsResponse = await apiClient.post('/auth/passkey/register-options'); // 使用 apiClient
     const options = optionsResponse.data;
     let registrationResponse = await startRegistration(options);
-    await axios.post('/api/v1/auth/passkey/verify-registration', { registrationResponse, name: passkeyName.value });
+    await apiClient.post('/auth/passkey/verify-registration', { registrationResponse, name: passkeyName.value }); // 使用 apiClient
     passkeyMessage.value = t('settings.passkey.success.registered');
     passkeyName.value = '';
   } catch (error: any) {
     console.error('Passkey 注册流程出错:', error);
     if (error.name === 'NotAllowedError') {
         passkeyError.value = t('settings.passkey.error.cancelled');
-    } else if (axios.isAxiosError(error) && error.response) {
+    } else if (isAxiosError(error) && error.response) { // 使用导入的 isAxiosError
       passkeyError.value = t('settings.passkey.error.verificationFailed', { message: error.response.data.message || 'Server error' });
     } else {
        passkeyError.value = t('settings.passkey.error.genericRegistration', { message: error.message || t('settings.passkey.error.unknown') });
@@ -427,7 +428,7 @@ const handleSetup2FA = async () => {
   twoFactorMessage.value = ''; twoFactorSuccess.value = false; twoFactorLoading.value = true;
   setupData.value = null; verificationCode.value = '';
   try {
-    const response = await axios.post<{ secret: string; qrCodeUrl: string }>('/api/v1/auth/2fa/setup');
+    const response = await apiClient.post<{ secret: string; qrCodeUrl: string }>('/auth/2fa/setup'); // 使用 apiClient
     setupData.value = response.data;
   } catch (error: any) {
     console.error('开始设置 2FA 失败:', error);
@@ -440,7 +441,7 @@ const handleVerifyAndActivate2FA = async () => {
   }
   twoFactorMessage.value = ''; twoFactorSuccess.value = false; twoFactorLoading.value = true;
   try {
-    await axios.post('/api/v1/auth/2fa/verify', { token: verificationCode.value });
+    await apiClient.post('/auth/2fa/verify', { token: verificationCode.value }); // 使用 apiClient
     twoFactorMessage.value = t('settings.twoFactor.success.activated');
     twoFactorSuccess.value = true; twoFactorEnabled.value = true;
     setupData.value = null; verificationCode.value = '';
@@ -455,7 +456,7 @@ const handleDisable2FA = async () => {
   }
   twoFactorMessage.value = ''; twoFactorSuccess.value = false; twoFactorLoading.value = true;
   try {
-    await axios.delete('/api/v1/auth/2fa', { data: { password: disablePassword.value } });
+    await apiClient.delete('/auth/2fa', { data: { password: disablePassword.value } }); // 使用 apiClient
     twoFactorMessage.value = t('settings.twoFactor.success.disabled');
     twoFactorSuccess.value = true; twoFactorEnabled.value = false;
     disablePassword.value = '';

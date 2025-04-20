@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import axios from 'axios'; // 假设使用 axios 发送请求
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 
 // 定义标签信息接口
 export interface TagInfo {
@@ -20,7 +20,7 @@ export const useTagsStore = defineStore('tags', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.get<TagInfo[]>('/api/v1/tags');
+            const response = await apiClient.get<TagInfo[]>('/tags'); // 使用 apiClient 并移除 base URL
             tags.value = response.data;
             return true;
         } catch (err: any) {
@@ -37,7 +37,7 @@ export const useTagsStore = defineStore('tags', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await axios.post<{ message: string, tag: TagInfo }>('/api/v1/tags', { name });
+            const response = await apiClient.post<{ message: string, tag: TagInfo }>('/tags', { name }); // 使用 apiClient 并移除 base URL
             // 添加成功后，重新获取列表以保证数据同步 (或者直接将新标签添加到 ref)
             await fetchTags(); // 简单起见，重新获取
             // tags.value.push(response.data.tag); // 另一种方式
@@ -57,7 +57,7 @@ export const useTagsStore = defineStore('tags', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            await axios.put(`/api/v1/tags/${id}`, { name });
+            await apiClient.put(`/tags/${id}`, { name }); // 使用 apiClient 并移除 base URL
             // 更新成功后，重新获取列表
             await fetchTags();
             return true;
@@ -75,7 +75,7 @@ export const useTagsStore = defineStore('tags', () => {
         isLoading.value = true;
         error.value = null;
         try {
-            await axios.delete(`/api/v1/tags/${id}`);
+            await apiClient.delete(`/tags/${id}`); // 使用 apiClient 并移除 base URL
             // 删除成功后，重新获取列表
             await fetchTags();
             return true;

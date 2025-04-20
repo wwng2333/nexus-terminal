@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 
 // 定义代理信息接口 (前端使用，不含密码)
 export interface ProxyInfo {
@@ -33,7 +33,7 @@ export const useProxiesStore = defineStore('proxies', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.get<ProxyInfo[]>('/api/v1/proxies');
+                const response = await apiClient.get<ProxyInfo[]>('/proxies'); // 使用 apiClient
                 this.proxies = response.data;
             } catch (err: any) {
                 console.error('获取代理列表失败:', err);
@@ -59,7 +59,7 @@ export const useProxiesStore = defineStore('proxies', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.post<{ message: string; proxy: ProxyInfo }>('/api/v1/proxies', newProxyData);
+                const response = await apiClient.post<{ message: string; proxy: ProxyInfo }>('/proxies', newProxyData); // 使用 apiClient
                 this.proxies.unshift(response.data.proxy); // 将新代理添加到列表开头
                 return true; // 成功
             } catch (err: any) {
@@ -82,7 +82,7 @@ export const useProxiesStore = defineStore('proxies', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.put<{ message: string; proxy: ProxyInfo }>(`/api/v1/proxies/${proxyId}`, updatedData);
+                const response = await apiClient.put<{ message: string; proxy: ProxyInfo }>(`/proxies/${proxyId}`, updatedData); // 使用 apiClient
                 const index = this.proxies.findIndex(p => p.id === proxyId);
                 if (index !== -1) {
                     // 使用返回的更新后的信息替换旧信息
@@ -111,7 +111,7 @@ export const useProxiesStore = defineStore('proxies', {
             this.isLoading = true;
             this.error = null;
             try {
-                await axios.delete(`/api/v1/proxies/${proxyId}`);
+                await apiClient.delete(`/proxies/${proxyId}`); // 使用 apiClient
                 this.proxies = this.proxies.filter(p => p.id !== proxyId); // 从列表中移除
                 return true; // 成功
             } catch (err: any) {

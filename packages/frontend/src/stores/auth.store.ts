@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import axios from 'axios';
+import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import router from '../router'; // 引入 router 用于重定向
 import { setLocale } from '../i18n'; // 导入 setLocale
 
@@ -57,7 +57,7 @@ export const useAuthStore = defineStore('auth', {
             try {
                 // 后端可能返回 user 或 requiresTwoFactor
                 // 将完整的 payload (包含 rememberMe) 发送给后端
-                const response = await axios.post<{ message: string; user?: UserInfo; requiresTwoFactor?: boolean }>('/api/v1/auth/login', payload);
+                const response = await apiClient.post<{ message: string; user?: UserInfo; requiresTwoFactor?: boolean }>('/auth/login', payload); // 使用 apiClient
 
                 if (response.data.requiresTwoFactor) {
                     // 需要 2FA 验证
@@ -100,7 +100,7 @@ export const useAuthStore = defineStore('auth', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.post<{ message: string; user: UserInfo }>('/api/v1/auth/login/2fa', { token });
+                const response = await apiClient.post<{ message: string; user: UserInfo }>('/auth/login/2fa', { token }); // 使用 apiClient
                 // 2FA 验证成功
                 this.isAuthenticated = true;
                 this.user = response.data.user;
@@ -130,7 +130,7 @@ export const useAuthStore = defineStore('auth', {
             this.loginRequires2FA = false; // 重置 2FA 状态
             try {
                 // 调用后端的登出 API
-                await axios.post('/api/v1/auth/logout');
+                await apiClient.post('/auth/logout'); // 使用 apiClient
 
                 // 清除本地状态
                 this.isAuthenticated = false;
@@ -178,7 +178,7 @@ export const useAuthStore = defineStore('auth', {
         async checkAuthStatus() {
             this.isLoading = true;
             try {
-                const response = await axios.get<{ isAuthenticated: boolean; user: UserInfo }>('/api/v1/auth/status');
+                const response = await apiClient.get<{ isAuthenticated: boolean; user: UserInfo }>('/auth/status'); // 使用 apiClient
                 if (response.data.isAuthenticated && response.data.user) {
                     this.isAuthenticated = true;
                     this.user = response.data.user; // 更新用户信息，包含 isTwoFactorEnabled 和 language
@@ -213,7 +213,7 @@ export const useAuthStore = defineStore('auth', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.put<{ message: string }>('/api/v1/auth/password', {
+                const response = await apiClient.put<{ message: string }>('/auth/password', { // 使用 apiClient
                     currentPassword,
                     newPassword,
                 });
@@ -240,7 +240,7 @@ export const useAuthStore = defineStore('auth', {
             this.isLoading = true;
             this.error = null;
             try {
-                const response = await axios.get('/api/v1/settings/ip-blacklist', {
+                const response = await apiClient.get('/settings/ip-blacklist', { // 使用 apiClient
                     params: { limit, offset }
                 });
                 // 注意：这里需要将获取到的数据存储在 state 中，
@@ -266,7 +266,7 @@ export const useAuthStore = defineStore('auth', {
             this.isLoading = true;
             this.error = null;
             try {
-                await axios.delete(`/api/v1/settings/ip-blacklist/${encodeURIComponent(ip)}`);
+                await apiClient.delete(`/settings/ip-blacklist/${encodeURIComponent(ip)}`); // 使用 apiClient
                 console.log(`IP ${ip} 已从黑名单删除`);
                 // 成功后需要重新获取列表或从本地 state 中移除
                 return true;
@@ -284,7 +284,7 @@ export const useAuthStore = defineStore('auth', {
         async checkSetupStatus() {
             // 不需要设置 isLoading，这个检查应该在后台快速完成
             try {
-                const response = await axios.get<{ needsSetup: boolean }>('/api/v1/auth/needs-setup');
+                const response = await apiClient.get<{ needsSetup: boolean }>('/auth/needs-setup'); // 使用 apiClient
                 this.needsSetup = response.data.needsSetup;
                 console.log(`[AuthStore] Needs setup status: ${this.needsSetup}`);
                 return this.needsSetup; // 返回状态给调用者
