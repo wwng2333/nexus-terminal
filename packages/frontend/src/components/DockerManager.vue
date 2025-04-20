@@ -51,11 +51,11 @@ const error = ref<string | null>(null);
 const isDockerAvailable = ref(true); // This will now reflect remote docker availability
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 let wsUnsubscribeHooks: (() => void)[] = []; // To store unsubscribe functions
-// --- NEW: State for expansion ---
-const expandedContainerId = ref<string | null>(null);
-const containerStats = ref<DockerStats | null>(null);
-const isStatsLoading = ref(false);
-const statsError = ref<string | null>(null);
+// --- NEW: State for expansion (multiple allowed) ---
+const expandedContainerIds = ref<Set<string>>(new Set()); // Use a Set to store multiple IDs
+const containerStats = ref<Map<string, DockerStats | null>>(new Map()); // Map: containerId -> stats
+const isStatsLoading = ref<Map<string, boolean>>(new Map()); // Map: containerId -> loading state
+const statsError = ref<Map<string, string | null>>(new Map()); // Map: containerId -> error message
 
 
 // --- Computed ---
@@ -133,21 +133,22 @@ const setupWsListeners = () => {
 
   // --- NEW: Listen for stats updates ---
   const unsubStatsUpdate = wsManager.onMessage('docker:stats:update', (payload) => {
-      // Ensure the update is for the currently expanded container
-      if (payload?.containerId === expandedContainerId.value) {
+      // Update stats for the specific container if it's being tracked
+      if (payload?.containerId && expandedContainerIds.value.has(payload.containerId)) {
           console.log(`[DockerManager] Received stats update for ${payload.containerId}:`, payload.stats);
-          containerStats.value = payload.stats as DockerStats; // Assuming payload.stats matches DockerStats
-          isStatsLoading.value = false;
-          statsError.value = null;
+          containerStats.value.set(payload.containerId, payload.stats as DockerStats);
+          isStatsLoading.value.set(payload.containerId, false);
+          statsError.value.set(payload.containerId, null);
       }
   });
 
   const unsubStatsError = wsManager.onMessage('docker:stats:error', (payload) => {
-      if (payload?.containerId === expandedContainerId.value) {
+      // Update error status for the specific container if it's being tracked
+      if (payload?.containerId && expandedContainerIds.value.has(payload.containerId)) {
           console.error(`[DockerManager] Error fetching stats for ${payload.containerId}:`, payload.message);
-          containerStats.value = null;
-          isStatsLoading.value = false;
-          statsError.value = payload.message || t('dockerManager.stats.errorGeneric');
+          containerStats.value.set(payload.containerId, null);
+          isStatsLoading.value.set(payload.containerId, false);
+          statsError.value.set(payload.containerId, payload.message || t('dockerManager.stats.errorGeneric'));
       }
   });
 
@@ -215,20 +216,26 @@ const sendDockerCommand = (containerId: string, command: 'start' | 'stop' | 'res
   });
 };
 
-// --- NEW: Method to toggle expansion and fetch stats ---
+// --- UPDATED: Method to toggle expansion for a specific container ---
 const toggleExpand = (containerId: string) => {
-    if (expandedContainerId.value === containerId) {
-        // Collapse
-        expandedContainerId.value = null;
-        containerStats.value = null;
-        statsError.value = null;
-        isStatsLoading.value = false;
+    const currentlyExpanded = expandedContainerIds.value.has(containerId);
+
+    if (currentlyExpanded) {
+        // Collapse this specific container
+        expandedContainerIds.value.delete(containerId);
+        // Clear its stats data
+        containerStats.value.delete(containerId);
+        isStatsLoading.value.delete(containerId);
+        statsError.value.delete(containerId);
+        console.log(`[DockerManager] Collapsed container ${containerId}. Remaining expanded:`, Array.from(expandedContainerIds.value));
     } else {
-        // Expand
-        expandedContainerId.value = containerId;
-        containerStats.value = null; // Clear previous stats
-        statsError.value = null;
-        isStatsLoading.value = true;
+        // Expand this specific container
+        expandedContainerIds.value.add(containerId);
+        // Initialize its stats state
+        containerStats.value.set(containerId, null);
+        statsError.value.set(containerId, null);
+        isStatsLoading.value.set(containerId, true);
+        console.log(`[DockerManager] Expanded container ${containerId}. All expanded:`, Array.from(expandedContainerIds.value));
 
         // Request stats from backend
         if (activeSession.value && sshConnectionStatus.value === 'connected') {
@@ -239,8 +246,8 @@ const toggleExpand = (containerId: string) => {
             });
         } else {
             console.warn('[DockerManager] Cannot fetch stats, SSH not connected.');
-            statsError.value = t('dockerManager.error.sshNotConnected');
-            isStatsLoading.value = false;
+            statsError.value.set(containerId, t('dockerManager.error.sshNotConnected'));
+            isStatsLoading.value.set(containerId, false);
         }
     }
 };
@@ -267,14 +274,15 @@ watch([currentSessionId, sshConnectionStatus], ([newSessionId, newSshStatus], [o
       }
       clearWsListeners(); // Clear listeners on disconnect or session change
        // --- Add: Collapse container when session changes or disconnects ---
-     if (expandedContainerId.value && (newSessionId !== oldSessionId || (newSessionId && (newSshStatus === 'disconnected' || newSshStatus === 'error')))) {
-         console.log('[DockerManager] Session changed/disconnected, collapsing stats view.');
-         expandedContainerId.value = null;
-         containerStats.value = null;
-         statsError.value = null;
-         isStatsLoading.value = false;
+     // --- Add: Collapse ALL containers when session changes or disconnects ---
+     if (expandedContainerIds.value.size > 0) {
+         console.log('[DockerManager] Session changed/disconnected, collapsing all stats views.');
+         expandedContainerIds.value.clear();
+         containerStats.value.clear();
+         statsError.value.clear();
+         isStatsLoading.value.clear();
      }
-    // --- End Add ---
+     // --- End Add ---
   }
 
   // --- Setup listeners and fetch data when session is active AND SSH is connected ---
@@ -380,11 +388,11 @@ onUnmounted(() => {
         <!-- Use template v-for to render pairs of rows -->
         <template v-for="container in containers" :key="container.id">
           <!-- Main Row / Card Container -->
-          <tr :class="{'expanded': expandedContainerId === container.id}">
+          <tr :class="{'expanded': expandedContainerIds.has(container.id)}">
             <!-- 表格视图中的展开按钮 -->
             <td class="col-expand">
-              <button @click="toggleExpand(container.id)" class="expand-btn" :title="expandedContainerId === container.id ? t('common.collapse') : t('common.expand')">
-                <i :class="['fas', expandedContainerId === container.id ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+              <button @click="toggleExpand(container.id)" class="expand-btn" :title="expandedContainerIds.has(container.id) ? t('common.collapse') : t('common.expand')">
+                <i :class="['fas', expandedContainerIds.has(container.id) ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
               </button>
             </td>
             <td :data-label="t('dockerManager.header.name')">{{ container.Names?.join(', ') || 'N/A' }}</td>
@@ -414,70 +422,78 @@ onUnmounted(() => {
             <!-- NEW: Container Cell for Card Footer/Expansion (Only visible in card view) -->
             <td class="card-expansion-cell">
               <!-- Card Footer Button (Show when NOT expanded in card view) -->
-              <div class="card-footer" v-if="expandedContainerId !== container.id">
+              <div class="card-footer" v-if="!expandedContainerIds.has(container.id)">
                  <button @click="toggleExpand(container.id)" class="card-expand-btn">
-                   <i class="fas fa-chevron-down"></i>
+                   <i class="fas fa-chevron-down"></i> {{ t('common.expand') }} <!-- Added text -->
                  </button>
               </div>
               <!-- Card Expansion Content (Show when expanded in card view) -->
-              <div class="expansion-card-content" v-if="expandedContainerId === container.id">
+              <div class="expansion-card-content" v-if="expandedContainerIds.has(container.id)">
                  <div class="stats-container card-stats-container">
-                    <!-- Stats content (loading, error, data) -->
-                    <div v-if="isStatsLoading" class="stats-loading">
+                    <!-- Stats content (loading, error, data) for this specific container -->
+                    <div v-if="isStatsLoading.get(container.id)" class="stats-loading">
                       <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
                     </div>
-                    <div v-else-if="statsError" class="stats-error">
-                      <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError }}
+                    <div v-else-if="statsError.get(container.id)" class="stats-error">
+                      <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError.get(container.id) }}
                     </div>
-                    <dl v-else-if="containerStats" class="stats-dl">
+                    <dl v-else-if="containerStats.get(container.id)" class="stats-dl">
                       <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                      <dd>{{ containerStats.CPUPerc }}</dd>
+                      <dd>{{ containerStats.get(container.id)?.CPUPerc ?? 'N/A' }}</dd>
                       <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                      <dd>{{ containerStats.MemUsage }} ({{ containerStats.MemPerc }})</dd>
+                      <dd>{{ containerStats.get(container.id)?.MemUsage ?? 'N/A' }} ({{ containerStats.get(container.id)?.MemPerc ?? 'N/A' }})</dd>
                       <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                      <dd>{{ containerStats.NetIO }}</dd>
+                      <dd>{{ containerStats.get(container.id)?.NetIO ?? 'N/A' }}</dd>
                       <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                      <dd>{{ containerStats.BlockIO }}</dd>
+                      <dd>{{ containerStats.get(container.id)?.BlockIO ?? 'N/A' }}</dd>
                       <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                      <dd>{{ containerStats.PIDs }}</dd>
+                      <dd>{{ containerStats.get(container.id)?.PIDs ?? 'N/A' }}</dd>
                       <!-- Add more stats if available -->
                     </dl>
                     <div v-else class="stats-nodata">
                         {{ t('dockerManager.stats.noData') }}
                     </div>
                  </div>
+                 <!-- NEW: Collapse Button for Card View -->
+                 <button @click="toggleExpand(container.id)" class="collapse-btn card-collapse-btn">
+                     <i class="fas fa-chevron-up"></i> {{ t('common.collapse') }}
+                 </button>
               </div>
             </td>
           </tr>
 
           <!-- Desktop Expansion Row (Remains separate, only visible in desktop view when expanded) -->
-          <tr v-if="expandedContainerId === container.id" class="expansion-row">
+          <tr v-if="expandedContainerIds.has(container.id)" class="expansion-row">
             <!-- Colspan needs to match the number of VISIBLE columns in desktop view (excluding the new card-expansion-cell) -->
             <td :colspan="6">
               <div class="stats-container">
-                <!-- Desktop stats content -->
-                 <div v-if="isStatsLoading" class="stats-loading">
+                <!-- Desktop stats content for this specific container -->
+                 <div v-if="isStatsLoading.get(container.id)" class="stats-loading">
                   <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
                 </div>
-                <div v-else-if="statsError" class="stats-error">
-                  <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError }}
+                <div v-else-if="statsError.get(container.id)" class="stats-error">
+                  <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError.get(container.id) }}
                 </div>
-                <dl v-else-if="containerStats" class="stats-dl">
+                <dl v-else-if="containerStats.get(container.id)" class="stats-dl">
                   <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                  <dd>{{ containerStats.CPUPerc }}</dd>
+                  <dd>{{ containerStats.get(container.id)?.CPUPerc ?? 'N/A' }}</dd>
                   <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                  <dd>{{ containerStats.MemUsage }} ({{ containerStats.MemPerc }})</dd>
+                  <dd>{{ containerStats.get(container.id)?.MemUsage ?? 'N/A' }} ({{ containerStats.get(container.id)?.MemPerc ?? 'N/A' }})</dd>
                   <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                  <dd>{{ containerStats.NetIO }}</dd>
+                  <dd>{{ containerStats.get(container.id)?.NetIO ?? 'N/A' }}</dd>
                   <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                  <dd>{{ containerStats.BlockIO }}</dd>
+                  <dd>{{ containerStats.get(container.id)?.BlockIO ?? 'N/A' }}</dd>
                   <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                  <dd>{{ containerStats.PIDs }}</dd>
+                  <dd>{{ containerStats.get(container.id)?.PIDs ?? 'N/A' }}</dd>
                   <!-- Add more stats if available -->
                 </dl>
                  <div v-else class="stats-nodata">
                      {{ t('dockerManager.stats.noData') }}
                  </div>
+                 <!-- NEW: Collapse Button for List View -->
+                 <button @click="toggleExpand(container.id)" class="collapse-btn list-collapse-btn">
+                     <i class="fas fa-chevron-up"></i> {{ t('common.collapse') }}
+                 </button>
               </div>
             </td>
           </tr>
@@ -874,5 +890,55 @@ onUnmounted(() => {
 
 }
 /* --- End Responsive Table Styles --- */
+
+/* --- NEW: Collapse Button Styles --- */
+.collapse-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 0.6rem;
+    margin-top: 0.8rem; /* Space above the button */
+    background-color: var(--button-secondary-bg, #e9ecef);
+    border: 1px solid var(--button-secondary-border, #ced4da);
+    color: var(--button-secondary-text, #495057);
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: var(--border-radius-small, 3px);
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.collapse-btn i {
+    margin-right: 6px;
+}
+.collapse-btn:hover {
+    background-color: var(--button-secondary-hover-bg, #dee2e6);
+    border-color: var(--button-secondary-hover-border, #adb5bd);
+    color: var(--button-secondary-hover-text, #343a40);
+}
+
+/* Specific styles for card collapse button */
+.card-collapse-btn {
+    border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Match card bottom radius */
+    border-top: 1px solid var(--border-color-light); /* Add top border */
+    margin-top: 0; /* Remove top margin as it's inside the content */
+    background-color: transparent; /* Make it less prominent than the expand button */
+    border: none;
+    border-top: 1px solid var(--border-color-light);
+    color: var(--text-color-secondary);
+}
+.card-collapse-btn:hover {
+    background-color: var(--hover-bg-color, rgba(0,0,0,0.03));
+    color: var(--text-color);
+}
+
+/* Specific styles for list collapse button */
+.list-collapse-btn {
+    max-width: 150px; /* Limit width */
+    margin-left: auto; /* Align right */
+    margin-right: auto; /* Center if needed, or adjust padding */
+    margin-top: 1rem; /* Add some space */
+}
+/* --- End Collapse Button Styles --- */
 
 </style>
