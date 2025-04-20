@@ -11,6 +11,7 @@ import * as SshService from './services/ssh.service';
 import { DockerService } from './services/docker.service'; // 导入 DockerService
 import { AuditLogService } from './services/audit.service'; // 导入 AuditLogService
 import { AuditLogActionType } from './types/audit.types'; // 导入 AuditLogActionType
+import { settingsService } from './services/settings.service'; // +++ 修正导入路径 +++
 
 // 扩展 WebSocket 类型以包含会话 ID
 interface AuthenticatedWebSocket extends WebSocket {
@@ -489,32 +490,52 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                 console.log(`WebSocket: 会话 ${newSessionId} 正在启动状态监控...`);
                                 statusMonitorService.startStatusPolling(newSessionId);
 
-                                // 8. Start Docker status polling
-                                console.log(`WebSocket: 会话 ${newSessionId} 正在启动 Docker 状态轮询...`);
-                                const dockerIntervalId = setInterval(async () => {
-                                    const currentState = clientStates.get(newSessionId); // Re-fetch state
-                                    if (!currentState || currentState.ws.readyState !== WebSocket.OPEN) {
-                                        console.log(`[Docker Polling] Session ${newSessionId} no longer valid or WS closed. Stopping poll.`);
-                                        clearInterval(dockerIntervalId);
-                                        return;
-                                    }
-                                    try {
-                                        // console.log(`[Docker Polling] Fetching status for session ${newSessionId}...`);
-                                        const statusPayload = await fetchRemoteDockerStatus(currentState);
-                                        if (currentState.ws.readyState === WebSocket.OPEN) {
-                                            currentState.ws.send(JSON.stringify({ type: 'docker:status:update', payload: statusPayload }));
-                                        }
-                                    } catch (error: any) {
-                                        console.error(`[Docker Polling] Error fetching Docker status for session ${newSessionId}:`, error);
-                                        // Optionally send error to client, or just log
-                                        // if (currentState.ws.readyState === WebSocket.OPEN) {
-                                        //    currentState.ws.send(JSON.stringify({ type: 'docker:status:error', payload: { message: `Polling failed: ${error.message}` } }));
-                                        // }
-                                    }
-                                }, DOCKER_STATUS_INTERVAL);
-                                newState.dockerStatusIntervalId = dockerIntervalId;
+                               // 8. Start Docker status polling (using setting)
+                               console.log(`WebSocket: 会话 ${newSessionId} 正在启动 Docker 状态轮询...`);
+                               // --- Get interval from settings ---
+                               let dockerPollIntervalMs = 2000; // Default interval
+                               try {
+                                   const intervalSetting = await settingsService.getSetting('dockerStatusIntervalSeconds');
+                                   if (intervalSetting) {
+                                       const intervalSeconds = parseInt(intervalSetting, 10);
+                                       if (!isNaN(intervalSeconds) && intervalSeconds >= 1) {
+                                           dockerPollIntervalMs = intervalSeconds * 1000;
+                                           console.log(`[Docker Polling] Using interval from settings: ${intervalSeconds}s (${dockerPollIntervalMs}ms) for session ${newSessionId}`);
+                                       } else {
+                                            console.warn(`[Docker Polling] Invalid interval setting '${intervalSetting}' found. Using default ${dockerPollIntervalMs}ms for session ${newSessionId}`);
+                                       }
+                                   } else {
+                                       console.log(`[Docker Polling] No interval setting found. Using default ${dockerPollIntervalMs}ms for session ${newSessionId}`);
+                                   }
+                               } catch (settingError) {
+                                    console.error(`[Docker Polling] Error fetching interval setting for session ${newSessionId}. Using default ${dockerPollIntervalMs}ms:`, settingError);
+                               }
+                               // --- End get interval ---
 
-                                // 9. Trigger initial Docker status fetch immediately
+                               const dockerIntervalId = setInterval(async () => {
+                                   const currentState = clientStates.get(newSessionId); // Re-fetch state
+                                   if (!currentState || currentState.ws.readyState !== WebSocket.OPEN) {
+                                       console.log(`[Docker Polling] Session ${newSessionId} no longer valid or WS closed. Stopping poll.`);
+                                       clearInterval(dockerIntervalId);
+                                       return;
+                                   }
+                                   try {
+                                       // console.log(`[Docker Polling] Fetching status for session ${newSessionId}...`);
+                                       const statusPayload = await fetchRemoteDockerStatus(currentState);
+                                       if (currentState.ws.readyState === WebSocket.OPEN) {
+                                           currentState.ws.send(JSON.stringify({ type: 'docker:status:update', payload: statusPayload }));
+                                       }
+                                   } catch (error: any) {
+                                       console.error(`[Docker Polling] Error fetching Docker status for session ${newSessionId}:`, error);
+                                       // Optionally send error to client, or just log
+                                       // if (currentState.ws.readyState === WebSocket.OPEN) {
+                                       //    currentState.ws.send(JSON.stringify({ type: 'docker:status:error', payload: { message: `Polling failed: ${error.message}` } }));
+                                       // }
+                                   }
+                               }, dockerPollIntervalMs); // <-- Use the determined interval
+                               newState.dockerStatusIntervalId = dockerIntervalId;
+
+                               // 9. Trigger initial Docker status fetch immediately
                                 (async () => {
                                     const currentState = clientStates.get(newSessionId);
                                     if (currentState && currentState.ws.readyState === WebSocket.OPEN) {

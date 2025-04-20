@@ -14,6 +14,8 @@ interface SettingsState {
   shareFileEditorTabs?: string; // 'true' or 'false'
   ipWhitelistEnabled?: string; // 添加 IP 白名单启用状态 'true' or 'false'
   autoCopyOnSelect?: string; // 'true' or 'false' - 终端选中自动复制
+  dockerStatusIntervalSeconds?: string; // NEW: Docker 状态刷新间隔 (秒)
+  dockerDefaultExpand?: string; // NEW: Docker 默认展开详情 'true' or 'false'
   // Add other general settings keys here as needed
   [key: string]: string | undefined; // Allow other string settings
 }
@@ -64,6 +66,14 @@ export const useSettingsStore = defineStore('settings', () => {
       if (settings.value.autoCopyOnSelect === undefined) {
           settings.value.autoCopyOnSelect = 'false'; // 默认禁用选中即复制
       }
+      // NEW: Docker setting defaults
+      if (settings.value.dockerStatusIntervalSeconds === undefined) {
+          settings.value.dockerStatusIntervalSeconds = '2'; // 默认 2 秒
+      }
+      if (settings.value.dockerDefaultExpand === undefined) {
+          settings.value.dockerDefaultExpand = 'false'; // 默认不展开
+      }
+
 
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
@@ -109,7 +119,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const allowedKeys: Array<keyof SettingsState> = [
         'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
         'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
-        'autoCopyOnSelect' // +++ 添加新设置键 +++
+        'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand' // +++ 添加 Docker 设置键 +++
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -141,7 +151,7 @@ export const useSettingsStore = defineStore('settings', () => {
     const allowedKeys: Array<keyof SettingsState> = [
         'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
         'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
-        'autoCopyOnSelect' // +++ 添加新设置键 +++
+        'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand' // +++ 添加 Docker 设置键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: 'en' | 'zh' | undefined = undefined;
@@ -202,6 +212,11 @@ export const useSettingsStore = defineStore('settings', () => {
       return settings.value.autoCopyOnSelect === 'true';
   });
 
+  // NEW: Getter for Docker default expand setting, returning boolean
+  const dockerDefaultExpandBoolean = computed(() => {
+      return settings.value.dockerDefaultExpand === 'true';
+  });
+
   return {
     settings, // 只包含通用设置
     isLoading,
@@ -210,7 +225,8 @@ export const useSettingsStore = defineStore('settings', () => {
     showPopupFileEditorBoolean,
     shareFileEditorTabsBoolean,
     ipWhitelistEnabled, // 暴露 IP 白名单启用状态
-    autoCopyOnSelectBoolean, // +++ 暴露新 getter +++
+    autoCopyOnSelectBoolean,
+    dockerDefaultExpandBoolean, // +++ 暴露 Docker 默认展开 getter +++
     // 移除外观相关的 getters 和 actions
     loadInitialSettings,
     updateSetting,

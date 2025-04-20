@@ -612,7 +612,21 @@
       "error": {
         "saveFailed": "Failed to save auto copy setting."
       }
-    }
+    },
+    "docker": {
+       "title": "Docker Manager Settings",
+       "refreshIntervalLabel": "Status Refresh Interval (seconds):",
+       "refreshIntervalHint": "How often to fetch Docker container status and stats (minimum 1).",
+       "defaultExpandLabel": "Expand container details by default",
+       "saveButton": "Save Docker Settings",
+       "success": {
+         "saved": "Docker settings saved successfully."
+       },
+       "error": {
+         "saveFailed": "Failed to save Docker settings.",
+         "invalidInterval": "Refresh interval must be a positive integer."
+       }
+     }
   },
   "common": {
     "loading": "Loading...",

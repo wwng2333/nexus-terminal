@@ -137,6 +137,25 @@
           </form>
         </div>
 
+        <!-- NEW: Docker Settings Section -->
+        <div class="settings-section">
+          <h2>{{ t('settings.docker.title') }}</h2>
+          <form @submit.prevent="handleUpdateDockerSettings">
+            <div class="form-group">
+              <label for="dockerInterval">{{ t('settings.docker.refreshIntervalLabel') }}</label>
+              <input type="number" id="dockerInterval" v-model.number="dockerInterval" min="1" step="1" required>
+               <small>{{ t('settings.docker.refreshIntervalHint') }}</small>
+            </div>
+            <div class="form-group form-group-checkbox">
+              <input type="checkbox" id="dockerExpandDefault" v-model="dockerExpandDefault">
+              <label for="dockerExpandDefault">{{ t('settings.docker.defaultExpandLabel') }}</label>
+            </div>
+            <button type="submit" :disabled="dockerSettingsLoading">{{ dockerSettingsLoading ? $t('common.saving') : t('settings.docker.saveButton') }}</button>
+            <p v-if="dockerSettingsMessage" :class="{ 'success-message': dockerSettingsSuccess, 'error-message': !dockerSettingsSuccess }">{{ dockerSettingsMessage }}</p>
+          </form>
+        </div>
+        <!-- END: Docker Settings Section -->
+
         <div class="settings-section">
           <h2>{{ $t('settings.ipWhitelist.title') }}</h2>
           <p>{{ $t('settings.ipWhitelist.description') }}</p>
@@ -233,7 +252,7 @@ const { t } = useI18n();
 
 // --- Reactive state from store ---
 // 使用 storeToRefs 获取响应式 getter
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean } = storeToRefs(settingsStore); // +++ 添加 autoCopyOnSelectBoolean +++
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean } = storeToRefs(settingsStore); // +++ 添加 dockerDefaultExpandBoolean +++
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -265,6 +284,12 @@ const autoCopyEnabled = ref(false); // 本地状态，用于选中即复制 v-mo
 const autoCopyLoading = ref(false);
 const autoCopyMessage = ref('');
 const autoCopySuccess = ref(false);
+const dockerInterval = ref(2); // 本地状态，用于 Docker 刷新间隔 v-model
+const dockerExpandDefault = ref(false); // 本地状态，用于 Docker 默认展开 v-model
+const dockerSettingsLoading = ref(false);
+const dockerSettingsMessage = ref('');
+const dockerSettingsSuccess = ref(false);
+
 
 // --- Watcher to sync local form state with store state ---
 watch(settings, (newSettings, oldSettings) => {
@@ -279,7 +304,9 @@ watch(settings, (newSettings, oldSettings) => {
   // 始终将本地布尔状态与 store 的布尔 getter 同步
   popupEditorEnabled.value = showPopupFileEditorBoolean.value;
   shareTabsEnabled.value = shareFileEditorTabsBoolean.value;
-  autoCopyEnabled.value = autoCopyOnSelectBoolean.value; // +++ 同步选中即复制状态 +++
+  autoCopyEnabled.value = autoCopyOnSelectBoolean.value; // 同步选中即复制状态
+  dockerInterval.value = parseInt(newSettings.dockerStatusIntervalSeconds || '2', 10); // 同步 Docker 间隔
+  dockerExpandDefault.value = dockerDefaultExpandBoolean.value; // 同步 Docker 默认展开状态
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -344,6 +371,32 @@ const handleUpdateAutoCopySetting = async () => {
         autoCopyLoading.value = false;
     }
 };
+
+// --- Docker settings method ---
+const handleUpdateDockerSettings = async () => {
+    dockerSettingsLoading.value = true;
+    dockerSettingsMessage.value = '';
+    dockerSettingsSuccess.value = false;
+    try {
+        const intervalValue = dockerInterval.value;
+        if (isNaN(intervalValue) || intervalValue < 1) {
+            throw new Error(t('settings.docker.error.invalidInterval')); // 需要添加翻译
+        }
+        await settingsStore.updateMultipleSettings({
+            dockerStatusIntervalSeconds: String(intervalValue), // 保存为字符串
+            dockerDefaultExpand: dockerExpandDefault.value ? 'true' : 'false' // 保存为字符串 'true'/'false'
+        });
+        dockerSettingsMessage.value = t('settings.docker.success.saved'); // 需要添加翻译
+        dockerSettingsSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新 Docker 设置失败:', error);
+        dockerSettingsMessage.value = error.message || t('settings.docker.error.saveFailed'); // 需要添加翻译
+        dockerSettingsSuccess.value = false;
+    } finally {
+        dockerSettingsLoading.value = false;
+    }
+};
+
 
 // --- 外观设置 ---
 const openStyleCustomizer = () => {

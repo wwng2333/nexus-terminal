@@ -612,7 +612,21 @@
       "error": {
         "saveFailed": "保存自动复制设置失败。"
       }
-    }
+    },
+    "docker": {
+       "title": "Docker 管理器设置",
+       "refreshIntervalLabel": "状态刷新间隔 (秒):",
+       "refreshIntervalHint": "获取 Docker 容器状态和统计信息的频率（最小为 1）。",
+       "defaultExpandLabel": "默认展开容器详情",
+       "saveButton": "保存 Docker 设置",
+       "success": {
+         "saved": "Docker 设置已成功保存。"
+       },
+       "error": {
+         "saveFailed": "保存 Docker 设置失败。",
+         "invalidInterval": "刷新间隔必须是正整数。"
+       }
+     }
   },
   "common": {
     "loading": "加载中...",

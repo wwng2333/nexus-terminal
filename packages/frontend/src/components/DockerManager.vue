@@ -4,10 +4,13 @@ import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from '../stores/session.store'; // Import session store
 import { storeToRefs } from 'pinia';
+import { useSettingsStore } from '../stores/settings.store'; // +++ Import settings store +++
 
 const { t } = useI18n();
 const sessionStore = useSessionStore();
 const { activeSession } = storeToRefs(sessionStore); // Get reactive active session
+const settingsStore = useSettingsStore(); // +++ Get settings store instance +++
+const { dockerDefaultExpandBoolean } = storeToRefs(settingsStore); // +++ Get reactive getter +++
 
 // --- Interfaces ---
 interface PortInfo {
@@ -63,6 +66,7 @@ let refreshInterval: ReturnType<typeof setInterval> | null = null;
 let wsUnsubscribeHooks: (() => void)[] = []; // To store unsubscribe functions
 // --- State for expansion (multiple allowed) ---
 const expandedContainerIds = ref<Set<string>>(new Set()); // Use a Set to store multiple IDs
+const initialLoadDone = ref(false); // +++ Flag for initial load processing +++
 // REMOVED: containerStats, isStatsLoading, statsError maps
 
 
@@ -108,6 +112,18 @@ const setupWsListeners = () => {
                   }
               });
               idsToRemove.forEach(id => expandedContainerIds.value.delete(id));
+
+              // +++ Handle default expand on initial load +++
+              if (!initialLoadDone.value && dockerDefaultExpandBoolean.value) {
+                  console.log('[DockerManager] Applying default expand setting.');
+                  containers.value.forEach(container => {
+                      if (!expandedContainerIds.value.has(container.id)) {
+                           expandedContainerIds.value.add(container.id);
+                      }
+                  });
+                  initialLoadDone.value = true; // Mark initial load processed
+              }
+              // +++ End handle default expand +++
 
           } else {
               // Docker available but no containers, or Docker unavailable
@@ -256,6 +272,7 @@ watch([currentSessionId, sshConnectionStatus], ([newSessionId, newSshStatus], [o
         error.value = null;
         isDockerAvailable.value = true; // Assume available until fetch attempt
         expandedContainerIds.value.clear(); // Clear expansion state
+        initialLoadDone.value = false; // +++ Reset initial load flag +++
 
         if (refreshInterval) {
             clearInterval(refreshInterval);
