@@ -2,6 +2,7 @@ import { Database } from 'sqlite3';
 import * as schemaSql from './schema';
 import * as appearanceRepository from '../repositories/appearance.repository';
 import * as terminalThemeRepository from '../repositories/terminal-theme.repository';
+import * as settingsRepository from '../repositories/settings.repository'; // <-- Import settings repository
 import { presetTerminalThemes } from '../config/preset-themes-definition';
 import { runDb } from './connection'; // Import runDb for init functions
 
@@ -16,20 +17,7 @@ export interface TableDefinition {
 
 // --- Initialization Functions ---
 
-/**
- * Initializes default settings in the settings table.
- */
-const initSettingsTable = async (db: Database): Promise<void> => {
-    const defaultSettings = [
-        { key: 'ipWhitelistEnabled', value: 'false' },
-        { key: 'ipWhitelist', value: '' }
-    ];
-    for (const setting of defaultSettings) {
-        // Use INSERT OR IGNORE to avoid errors if settings already exist
-        await runDb(db, "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", [setting.key, setting.value]);
-    }
-    console.log('[DB Init] 默认 settings 初始化检查完成。');
-};
+// Remove the old initSettingsTable function, as the logic is now in the repository
 
 /**
  * Initializes preset terminal themes.
@@ -66,7 +54,7 @@ export const tableDefinitions: TableDefinition[] = [
     {
         name: 'settings',
         sql: schemaSql.createSettingsTableSQL,
-        init: initSettingsTable
+        init: settingsRepository.ensureDefaultSettingsExist // <-- Use the function from the repository
     },
     { name: 'audit_logs', sql: schemaSql.createAuditLogsTableSQL },
     { name: 'api_keys', sql: schemaSql.createApiKeysTableSQL },

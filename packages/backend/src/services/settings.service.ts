@@ -1,4 +1,5 @@
-import { settingsRepository, Setting } from '../repositories/settings.repository';
+import { settingsRepository, Setting, getSidebarConfig as getSidebarConfigFromRepo, setSidebarConfig as setSidebarConfigInRepo } from '../repositories/settings.repository'; // Import specific repo functions
+import { SidebarConfig, PaneName, UpdateSidebarConfigDto } from '../types/settings.types'; // <-- Correct import path
 
 // +++ 定义默认的焦点切换顺序 +++
 const DEFAULT_FOCUS_SEQUENCE = ["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"];
@@ -291,5 +292,68 @@ export const settingsService = {
      console.error(`[Service] Error calling settingsRepository.setSetting for key ${STATUS_MONITOR_INTERVAL_SECONDS_KEY}:`, error);
      throw new Error('Failed to save status monitor interval setting.');
    }
- } // *** 最后的方法后面不需要逗号 ***
-};
+ }, // *** 确保这里有逗号 ***
+
+ // --- Sidebar Config Specific Functions ---
+
+ /**
+  * 获取侧栏配置
+  * @returns Promise<SidebarConfig>
+  */
+ async getSidebarConfig(): Promise<SidebarConfig> {
+     console.log('[SettingsService] Getting sidebar config...');
+     // Directly call the specific repository function
+     const config = await getSidebarConfigFromRepo();
+     console.log('[SettingsService] Returning sidebar config:', config);
+     return config;
+ },
+
+ /**
+  * 设置侧栏配置
+  * @param configDto - The sidebar configuration object from DTO
+  * @returns Promise<void>
+  */
+ async setSidebarConfig(configDto: UpdateSidebarConfigDto): Promise<void> {
+     console.log('[SettingsService] Setting sidebar config:', configDto);
+
+     // --- Validation ---
+     if (!configDto || typeof configDto !== 'object' || !Array.isArray(configDto.left) || !Array.isArray(configDto.right)) {
+         throw new Error('无效的侧栏配置格式。必须包含 left 和 right 数组。');
+     }
+
+     // Validate PaneName (using the type imported)
+     const validPaneNames: Set<PaneName> = new Set([
+         'connections', 'terminal', 'commandBar', 'fileManager',
+         'editor', 'statusMonitor', 'commandHistory', 'quickCommands',
+         'dockerManager'
+     ]);
+
+     const validatePaneArray = (arr: any[], side: string) => {
+         if (!arr.every(item => typeof item === 'string' && validPaneNames.has(item as PaneName))) {
+             const invalidItems = arr.filter(item => typeof item !== 'string' || !validPaneNames.has(item as PaneName));
+             throw new Error(`侧栏配置 (${side}) 包含无效的面板名称: ${invalidItems.join(', ')}`);
+         }
+     };
+
+     validatePaneArray(configDto.left, 'left');
+     validatePaneArray(configDto.right, 'right');
+
+     // Prevent duplicates (optional, uncomment if needed)
+     // const allPanes = [...configDto.left, ...configDto.right];
+     // const uniquePanes = new Set(allPanes);
+     // if (allPanes.length !== uniquePanes.size) {
+     //     throw new Error('侧栏配置中不允许包含重复的面板。');
+     // }
+
+     // Prepare the data in the exact SidebarConfig format expected by the repo
+     const configToSave: SidebarConfig = {
+         left: configDto.left,
+         right: configDto.right,
+     };
+
+     // Directly call the specific repository function
+     await setSidebarConfigInRepo(configToSave);
+     console.log('[SettingsService] Sidebar config successfully set.');
+ } // <-- No comma after the last method in the object
+
+}; // <-- End of settingsService object definition

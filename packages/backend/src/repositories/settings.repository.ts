@@ -1,8 +1,10 @@
 // packages/backend/src/repositories/settings.repository.ts
-import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection'; // Import new async helpers
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
+import { SidebarConfig } from '../types/settings.types'; // <-- Correct import path
+import * as sqlite3 from 'sqlite3'; // Import sqlite3 for Database type hint
 
-// Remove top-level db instance
-// const db = getDb();
+// Define keys for specific settings
+const SIDEBAR_CONFIG_KEY = 'sidebarConfig';
 
 export interface Setting {
   key: string;
@@ -92,4 +94,95 @@ export const settingsRepository = {
         throw new Error('批量设置失败');
     }
   },
+};
+
+// --- Specific Setting Getters/Setters ---
+
+/**
+ * 获取侧栏配置
+ * @returns Promise<SidebarConfig> - Returns the parsed config or default
+ */
+export const getSidebarConfig = async (): Promise<SidebarConfig> => {
+    const defaultValue: SidebarConfig = { left: [], right: [] };
+    try {
+        const jsonString = await settingsRepository.getSetting(SIDEBAR_CONFIG_KEY);
+        if (jsonString) {
+            try {
+                const config = JSON.parse(jsonString);
+                // Basic validation
+                if (config && Array.isArray(config.left) && Array.isArray(config.right)) {
+                    // TODO: Add deeper validation if needed (e.g., check if items are valid PaneName)
+                    return config as SidebarConfig;
+                }
+                console.warn(`[SettingsRepo] Invalid sidebarConfig format found in DB: ${jsonString}. Returning default.`);
+            } catch (parseError) {
+                console.error(`[SettingsRepo] Failed to parse sidebarConfig JSON from DB: ${jsonString}`, parseError);
+            }
+        }
+    } catch (error) {
+        console.error(`[SettingsRepo] Error fetching sidebar config setting (key: ${SIDEBAR_CONFIG_KEY}):`, error);
+    }
+    // Return default if not found, invalid, or error occurred
+    return defaultValue;
+};
+
+/**
+ * 设置侧栏配置
+ * @param config - The sidebar configuration object
+ */
+export const setSidebarConfig = async (config: SidebarConfig): Promise<void> => {
+    try {
+        // Basic validation before stringifying
+        if (!config || typeof config !== 'object' || !Array.isArray(config.left) || !Array.isArray(config.right)) {
+             throw new Error('Invalid sidebar config object provided.');
+        }
+        // TODO: Add deeper validation if needed (e.g., check PaneName validity)
+        const jsonString = JSON.stringify(config);
+        await settingsRepository.setSetting(SIDEBAR_CONFIG_KEY, jsonString);
+    } catch (error) {
+        console.error(`[SettingsRepo] Error setting sidebar config (key: ${SIDEBAR_CONFIG_KEY}):`, error);
+        throw new Error('Failed to save sidebar configuration.');
+    }
+};
+
+
+// --- Initialization ---
+
+/**
+ * Ensures default settings exist in the settings table.
+ * This function should be called during database initialization.
+ * @param db - The active database instance
+ */
+export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<void> => {
+    const defaultSettings: Record<string, string> = {
+        language: 'en', // Default language
+        ipWhitelistEnabled: 'false',
+        ipWhitelist: '',
+        maxLoginAttempts: '5',
+        loginBanDuration: '300', // 5 minutes in seconds
+        focusSwitcherSequence: JSON.stringify(["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"]), // Default focus sequence
+        navBarVisible: 'true', // Default nav bar visibility
+        layoutTree: 'null', // Default layout tree (null initially)
+        autoCopyOnSelect: 'false', // Default auto copy setting
+        showPopupFileEditor: 'false', // Default popup editor setting
+        shareFileEditorTabs: 'true', // Default editor tab sharing
+        dockerStatusIntervalSeconds: '5', // Default Docker refresh interval
+        dockerDefaultExpand: 'false', // Default Docker expand state
+        statusMonitorIntervalSeconds: '3', // Default Status Monitor interval
+        [SIDEBAR_CONFIG_KEY]: JSON.stringify({ left: [], right: [] }), // Default sidebar config
+        // Add other default settings here
+    };
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const sqlInsertOrIgnore = `INSERT OR IGNORE INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)`;
+
+    console.log('[SettingsRepo] Ensuring default settings exist...');
+    try {
+        for (const [key, value] of Object.entries(defaultSettings)) {
+            await runDb(db, sqlInsertOrIgnore, [key, value, nowSeconds, nowSeconds]);
+        }
+        console.log('[SettingsRepo] Default settings check complete.');
+    } catch (err: any) {
+        console.error(`[SettingsRepo] Error ensuring default settings:`, err.message);
+        throw new Error(`Failed to ensure default settings: ${err.message}`);
+    }
 };

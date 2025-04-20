@@ -675,12 +675,17 @@
     "remove": "移除"
   },
   "layoutConfigurator": {
-    "title": "布局配置器",
+    "title": "配置工作区布局",
     "availablePanes": "可用面板",
-    "layoutPreview": "布局预览",
-    "resetDefault": "重置为默认布局",
+    "layoutPreview": "主布局预览（拖拽到此处）",
+    "resetDefault": "恢复默认",
     "noAvailablePanes": "所有面板都已在布局中",
-    "emptyLayout": "布局为空，请从左侧拖拽面板或添加容器。"
+    "emptyLayout": "布局为空，请从左侧拖拽面板或添加容器。",
+    "leftSidebar": "左侧栏面板",
+    "rightSidebar": "右侧栏面板",
+    "dropHere": "从可用面板拖拽到此处",
+    "confirmClose": "有未保存的更改，确定要关闭吗？",
+    "confirmReset": "确定要恢复默认布局和侧栏配置吗？当前更改将丢失。"
   },
   "auditLog": {
     "title": "审计日志",

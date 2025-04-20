@@ -18,6 +18,7 @@ export interface LayoutNode {
 
 // 本地存储的 Key
 const LAYOUT_STORAGE_KEY = 'nexus_terminal_layout_config';
+const SIDEBAR_STORAGE_KEY = 'nexus_terminal_sidebar_config'; // 新增侧栏配置 Key
 
 // 生成唯一 ID 的辅助函数
 function generateId(): string {
@@ -67,8 +68,14 @@ const getDefaultLayout = (): LayoutNode => ({
   ],
 });
 
-// 递归查找布局树中所有使用的面板组件名称
-function getUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
+// 定义默认侧栏配置
+const getDefaultSidebarPanes = (): { left: PaneName[], right: PaneName[] } => ({
+  left: [],
+  right: [],
+});
+
+// 递归查找主布局树中使用的面板
+function getMainLayoutUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
   const usedNames = new Set<PaneName>();
   if (!node) return usedNames;
 
@@ -84,12 +91,43 @@ function getUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
   return usedNames;
 }
 
+// 获取所有使用的面板（主布局 + 侧栏）
+function getAllUsedPaneNames(mainNode: LayoutNode | null, sidebars: { left: PaneName[], right: PaneName[] }): Set<PaneName> {
+  const usedNames = getMainLayoutUsedPaneNames(mainNode);
+  sidebars.left.forEach(pane => usedNames.add(pane));
+  sidebars.right.forEach(pane => usedNames.add(pane));
+  return usedNames;
+}
+
+
+// --- Validation Helper ---
+// Checks if a value is a valid PaneName
+function isValidPaneName(value: any, allPanes: PaneName[]): value is PaneName {
+    return typeof value === 'string' && allPanes.includes(value as PaneName);
+}
+
+// Checks if an array contains only unique, valid PaneName strings
+function isValidPaneNameArray(arr: any, allPanes: PaneName[]): arr is PaneName[] {
+    if (!Array.isArray(arr)) return false;
+    const seen = new Set<PaneName>();
+    for (const item of arr) {
+        if (!isValidPaneName(item, allPanes) || seen.has(item)) {
+            return false; // Not a valid PaneName or duplicate found
+        }
+        seen.add(item);
+    }
+    return true; // All items are unique and valid PaneNames
+}
+
+
 // 定义 Store
 export const useLayoutStore = defineStore('layout', () => {
   // --- 状态 ---
-  // 核心状态：存储当前布局树结构
+  // 主布局树结构
   const layoutTree: Ref<LayoutNode | null> = ref(null);
-  // 存储所有理论上可用的面板名称
+  // 侧栏面板配置
+  const sidebarPanes: Ref<{ left: PaneName[], right: PaneName[] }> = ref(getDefaultSidebarPanes());
+  // 所有理论上可用的面板名称
   const allPossiblePanes: Ref<PaneName[]> = ref([
     'connections', 'terminal', 'commandBar', 'fileManager',
     'editor', 'statusMonitor', 'commandHistory', 'quickCommands',
@@ -101,73 +139,154 @@ export const useLayoutStore = defineStore('layout', () => {
   const isHeaderVisible: Ref<boolean> = ref(true); // 默认可见
 
   // --- 计算属性 ---
-  // 计算当前布局中正在使用的面板
-  const usedPanes: ComputedRef<Set<PaneName>> = computed(() => getUsedPaneNames(layoutTree.value));
+  // 计算当前布局和侧栏中正在使用的所有面板
+  const usedPanes: ComputedRef<Set<PaneName>> = computed(() => getAllUsedPaneNames(layoutTree.value, sidebarPanes.value));
 
-  // 计算当前未在布局中使用的面板（可用于配置器中添加）
+  // 计算当前未在布局或侧栏中使用的面板（可用于配置器中添加）
   const availablePanes: ComputedRef<PaneName[]> = computed(() => {
     const used = usedPanes.value;
     return allPossiblePanes.value.filter(pane => !used.has(pane));
   });
 
   // --- Actions ---
-  // 初始化布局：优先尝试从后端加载，然后 localStorage，最后默认布局
+  // 初始化布局和侧栏配置
   async function initializeLayout() {
-    let loadedFromBackend = false;
-    // 1. 尝试从后端加载
+    let layoutLoadedFromBackend = false;
+    let sidebarLoadedFromBackend = false;
+
+    // 1. 尝试从后端加载主布局
     try {
       console.log('[Layout Store] Attempting to load layout from backend...');
       const response = await apiClient.get<LayoutNode | null>('/settings/layout'); // 使用 apiClient
       if (response.data) {
         // TODO: 在这里添加对 response.data 的结构验证，确保它符合 LayoutNode 接口
         layoutTree.value = response.data;
-        loadedFromBackend = true;
-        console.log('[Layout Store] 从后端加载布局成功。');
-        // 可选：如果后端加载成功，可以更新 localStorage
+        layoutLoadedFromBackend = true;
+        console.log('[Layout Store] 主布局从后端加载成功。');
+        // 更新 localStorage
         try {
           localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(response.data));
         } catch (lsError) {
-          console.error('[Layout Store] 保存后端布局到 localStorage 失败:', lsError);
+          console.error('[Layout Store] 保存后端主布局到 localStorage 失败:', lsError);
         }
       } else {
-        console.log('[Layout Store] 后端未返回布局数据。');
+        console.log('[Layout Store] 后端未返回主布局数据。');
       }
     } catch (error) {
-      console.error('[Layout Store] 从后端加载布局失败:', error);
-      // 加载失败，继续尝试 localStorage
+      console.error('[Layout Store] 从后端加载主布局失败:', error);
     }
 
-    // 2. 如果后端未加载成功，尝试从 localStorage 加载
-    if (!loadedFromBackend) {
-      console.log('[Layout Store] Attempting to load layout from localStorage...');
+    // 2. 尝试从后端加载侧栏配置 (假设 API 端点为 /settings/sidebar)
+    try {
+        console.log('[Layout Store] Attempting to load sidebar config from backend...');
+        const response = await apiClient.get<{ left: any[], right: any[] } | null>('/settings/sidebar'); // Load as any[] first
+        // --- Add Validation ---
+        if (response.data &&
+            isValidPaneNameArray(response.data.left, allPossiblePanes.value) &&
+            isValidPaneNameArray(response.data.right, allPossiblePanes.value))
+        {
+            sidebarPanes.value = response.data as { left: PaneName[], right: PaneName[] }; // Cast after validation
+            sidebarLoadedFromBackend = true;
+            console.log('[Layout Store] 侧栏配置从后端加载成功并通过验证。');
+            // 更新 localStorage
+            try {
+                localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(response.data));
+            } catch (lsError) {
+                console.error('[Layout Store] 保存后端侧栏配置到 localStorage 失败:', lsError);
+            }
+        } else { // Handles the case where the 'if' at line 184 failed
+            if (response.data) { // Check if data existed but failed validation
+                 console.log('[Layout Store] 后端返回的侧栏配置数据格式无效或包含无效/重复面板名称。');
+            } else { // No data was returned from the backend
+                 console.log('[Layout Store] 后端未返回侧栏配置数据。');
+            }
+        }
+    } catch (error) {
+        console.error('[Layout Store] 从后端加载侧栏配置失败:', error);
+    }
+
+
+    // 3. 如果主布局后端未加载成功，尝试从 localStorage 加载
+    if (!layoutLoadedFromBackend) {
+      console.log('[Layout Store] Attempting to load main layout from localStorage...');
       try {
         const savedLayout = localStorage.getItem(LAYOUT_STORAGE_KEY);
         if (savedLayout) {
           const parsedLayout = JSON.parse(savedLayout) as LayoutNode;
-          // TODO: 添加验证逻辑确保加载的布局结构有效
+          // TODO: 添加验证逻辑
           layoutTree.value = parsedLayout;
-          console.log('[Layout Store] 从 localStorage 加载布局成功。');
+          console.log('[Layout Store] 主布局从 localStorage 加载成功。');
         } else {
-          // 3. 如果 localStorage 也没有，使用默认布局
+          // 4. 如果 localStorage 也没有，使用默认主布局
           layoutTree.value = getDefaultLayout();
-          console.log('[Layout Store] 未找到保存的布局，使用默认布局。');
+          console.log('[Layout Store] 未找到保存的主布局，使用默认布局。');
         }
       } catch (error) {
-        console.error('[Layout Store] 从 localStorage 加载或解析布局失败:', error);
-        layoutTree.value = getDefaultLayout(); // 出错时回退到默认布局
+        console.error('[Layout Store] 从 localStorage 加载或解析主布局失败:', error);
+        layoutTree.value = getDefaultLayout();
       }
+    }
+
+    // 5. 如果侧栏配置后端未加载成功，尝试从 localStorage 加载
+    if (!sidebarLoadedFromBackend) {
+        console.log('[Layout Store] Attempting to load sidebar config from localStorage...');
+        try {
+            const savedSidebars = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+            if (savedSidebars) {
+                const parsedSidebars = JSON.parse(savedSidebars) as { left: any[], right: any[] }; // Parse as any[] first
+                // --- Add Validation ---
+                if (parsedSidebars &&
+                    isValidPaneNameArray(parsedSidebars.left, allPossiblePanes.value) &&
+                    isValidPaneNameArray(parsedSidebars.right, allPossiblePanes.value))
+                {
+                    sidebarPanes.value = parsedSidebars as { left: PaneName[], right: PaneName[] }; // Cast after validation
+                    console.log('[Layout Store] 侧栏配置从 localStorage 加载成功并通过验证。');
+                } else {
+                     console.warn('[Layout Store] localStorage 中的侧栏配置格式无效或包含无效/重复面板名称，使用默认值。');
+                     sidebarPanes.value = getDefaultSidebarPanes();
+                }
+            } else {
+                // 6. 如果 localStorage 也没有，使用默认侧栏配置
+                sidebarPanes.value = getDefaultSidebarPanes();
+                console.log('[Layout Store] 未找到保存的侧栏配置，使用默认配置。');
+            }
+        } catch (error) {
+            console.error('[Layout Store] 从 localStorage 加载或解析侧栏配置失败:', error);
+            sidebarPanes.value = getDefaultSidebarPanes();
+        }
     }
   }
 
   // 更新整个布局树（通常由配置器保存时调用）
-  function updateLayoutTree(newTree: LayoutNode) {
-    // 可选：添加验证逻辑
-    layoutTree.value = newTree;
-    console.log('[Layout Store] 布局树已更新。');
+  function updateLayoutTree(newTree: LayoutNode | null) { // <-- Allow null
+    // 可选：添加验证逻辑 (如果 newTree 不是 null)
+    if (newTree) {
+        // TODO: Add validation for LayoutNode structure if needed
+    }
+    layoutTree.value = newTree; // Assign null or the new tree
+    console.log('[Layout Store] 布局树已更新。 New tree:', newTree);
     // 保存将在 watch 中自动触发
   }
 
-  // 新增：递归查找并更新节点大小
+  // 新增：更新侧栏配置
+  function updateSidebarPanes(newPanes: { left: PaneName[], right: PaneName[] }) {
+    // --- Add Validation ---
+    if (newPanes &&
+        isValidPaneNameArray(newPanes.left, allPossiblePanes.value) &&
+        isValidPaneNameArray(newPanes.right, allPossiblePanes.value))
+    {
+        sidebarPanes.value = newPanes as { left: PaneName[], right: PaneName[] }; // Assign validated data
+        // Log the value immediately after update
+        console.log('[Layout Store] 侧栏配置已通过验证并更新。 New sidebarPanes value:', JSON.parse(JSON.stringify(sidebarPanes.value)));
+        // 保存将在 watch 中自动触发
+    } else {
+        console.error('[Layout Store] updateSidebarPanes 接收到无效的侧栏配置数据，未更新状态:', newPanes);
+        // 可选：抛出错误或通知用户
+    }
+  }
+
+
+  // 递归查找并更新节点大小
   function findAndUpdateNodeSize(node: LayoutNode | null, nodeId: string, childrenSizes: { index: number; size: number }[]): LayoutNode | null {
     if (!node) return null;
     if (node.id === nodeId && node.type === 'container' && node.children) {
@@ -257,84 +376,129 @@ export const useLayoutStore = defineStore('layout', () => {
    return getDefaultLayout(); // 直接调用内部函数
  }
 
- // 新增 Action: 将当前布局树持久化到后端和 localStorage
+ // 新增 Action: 获取系统内置的默认侧栏配置
+ function getSystemDefaultSidebarPanes(): { left: PaneName[], right: PaneName[] } {
+     console.log('[Layout Store] Getting system default sidebar panes.');
+     return getDefaultSidebarPanes();
+ }
+
+ // 新增 Action: 将当前主布局树持久化到后端和 localStorage
  async function persistLayoutTree() {
    if (!layoutTree.value) {
      console.warn('[Layout Store] persistLayoutTree: layoutTree is null, cannot persist.');
-     // 可选：如果布局为空，是否也通知后端？或者删除后端的设置？
-     // await axios.delete('/api/v1/settings/layout'); // 示例：删除后端设置
-     localStorage.removeItem(LAYOUT_STORAGE_KEY); // 保持移除本地存储
+     // TODO: 考虑是否需要删除后端设置或发送空布局
+     // await apiClient.put('/settings/layout', null); // 发送 null 或空对象
+     localStorage.removeItem(LAYOUT_STORAGE_KEY);
      return;
    }
-
    const layoutToSave = JSON.stringify(layoutTree.value);
-
    // 1. 保存到后端
    try {
-     console.log('[Layout Store] Attempting to save layout to backend...');
-     await apiClient.put('/settings/layout', layoutTree.value); // 使用 apiClient
-     console.log('[Layout Store] 布局已成功保存到后端。');
+     console.log('[Layout Store] Attempting to save main layout to backend...');
+     // Send the layoutTree value directly (which can be null)
+     await apiClient.put('/settings/layout', layoutTree.value);
+     console.log('[Layout Store] 主布局已成功保存到后端 (sent value):', layoutTree.value);
    } catch (error) {
-     console.error('[Layout Store] 保存布局到后端失败:', error);
-     // 可以考虑添加用户提示
+     console.error('[Layout Store] 保存主布局到后端失败:', error);
    }
-
-   // 2. 保存到 localStorage (作为备份或离线支持)
+   // 2. 保存到 localStorage
    try {
+     // If layoutTree.value is null, layoutToSave will be 'null'
      localStorage.setItem(LAYOUT_STORAGE_KEY, layoutToSave);
-     console.log('[Layout Store] 布局已自动保存到 localStorage。');
+     console.log('[Layout Store] 主布局已自动保存到 localStorage (saved value):', layoutToSave);
    } catch (error) {
-     console.error('[Layout Store] 保存布局到 localStorage 失败:', error);
+     console.error('[Layout Store] 保存主布局到 localStorage 失败:', error);
    }
  }
 
-  // --- 持久化 ---
-  // 监听 layoutTree 的变化，并调用持久化方法
-  // 添加防抖以避免过于频繁的 API 调用
-  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  watch(
-    layoutTree,
-    (newTree, oldTree) => {
-      // 避免初始化时触发 (虽然 initializeLayout 已经是 async，但以防万一)
-      if (oldTree === undefined) return;
-      // 只有在实际发生变化时才触发持久化
-      if (JSON.stringify(newTree) !== JSON.stringify(oldTree)) {
-        console.log('[Layout Store] Layout tree changed, scheduling persistence...');
-        if (debounceTimer) {
-          clearTimeout(debounceTimer);
-        }
-        debounceTimer = setTimeout(() => {
-          persistLayoutTree();
-        }, 1000); // 1秒防抖
-      }
-    },
-    { deep: true }
-  );
+ // 新增 Action: 将当前侧栏配置持久化到后端和 localStorage
+ async function persistSidebarPanes() {
+     const sidebarsToSave = JSON.stringify(sidebarPanes.value);
+     // 1. 保存到后端 (假设 API 端点为 /settings/sidebar)
+     try {
+         console.log('[Layout Store] Attempting to save sidebar config to backend...');
+         await apiClient.put('/settings/sidebar', sidebarPanes.value); // 新 API 端点
+         console.log('[Layout Store] 侧栏配置已成功保存到后端。');
+     } catch (error) {
+         console.error('[Layout Store] 保存侧栏配置到后端失败:', error);
+     }
+     // 2. 保存到 localStorage
+     try {
+         localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarsToSave);
+         console.log('[Layout Store] 侧栏配置已自动保存到 localStorage。');
+     } catch (error) {
+         console.error('[Layout Store] 保存侧栏配置到 localStorage 失败:', error);
+     }
+ }
 
-  // --- 初始化 ---
-  // Store 创建时自动初始化布局
-  initializeLayout();
 
-  // --- 返回 ---
-  return {
-    layoutTree,
-    availablePanes, // 供配置器使用
-    usedPanes,      // 可用于调试或内部逻辑
-    updateLayoutTree,
-    initializeLayout, // 允许外部重置或重新加载
-    updateNodeSizes, // *** 新增：暴露更新大小的 action ***
-    // 暴露 generateId 供配置器使用（如果需要）
-    generateId,
-    // 暴露 allPossiblePanes 供配置器显示所有选项
-    allPossiblePanes,
-    // 新增：暴露布局可见性状态和切换方法
-    isLayoutVisible,
-    toggleLayoutVisibility,
-    // 新增：暴露主导航栏可见性状态和操作
-    isHeaderVisible,
-    loadHeaderVisibility,
-    toggleHeaderVisibility,
-    // 新增：暴露获取默认布局的方法
-    getSystemDefaultLayout,
-  };
+ // --- 持久化 Watchers ---
+ let layoutDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+ let sidebarDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+ // 监听主布局树变化
+ watch(
+   layoutTree,
+   (newTree, oldTree) => {
+     if (oldTree === undefined) return; // 避免初始化触发
+     if (JSON.stringify(newTree) !== JSON.stringify(oldTree)) {
+       console.log('[Layout Store] Main layout tree changed, scheduling persistence...');
+       if (layoutDebounceTimer) clearTimeout(layoutDebounceTimer);
+       layoutDebounceTimer = setTimeout(() => {
+         persistLayoutTree();
+       }, 1000); // 1秒防抖
+     }
+   },
+   { deep: true }
+ );
+
+ // 监听侧栏配置变化
+ watch(
+     sidebarPanes,
+     (newPanes, oldPanes) => {
+         if (oldPanes === undefined) return; // 避免初始化触发
+         if (JSON.stringify(newPanes) !== JSON.stringify(oldPanes)) {
+             console.log('[Layout Store] Sidebar panes changed, scheduling persistence...');
+             if (sidebarDebounceTimer) clearTimeout(sidebarDebounceTimer);
+             sidebarDebounceTimer = setTimeout(() => {
+                 persistSidebarPanes();
+             }, 1000); // 1秒防抖
+         }
+     },
+     { deep: true }
+ );
+
+ // --- 初始化 ---
+ // Store 创建时自动初始化布局和侧栏
+ initializeLayout();
+ // 单独加载 Header 可见性（如果需要与布局初始化分开）
+ loadHeaderVisibility();
+
+
+ // --- 返回 ---
+ return {
+   // State
+   layoutTree,
+   sidebarPanes, // <--- 暴露侧栏状态
+   allPossiblePanes,
+   isLayoutVisible,
+   isHeaderVisible,
+   // Computed
+   availablePanes,
+   usedPanes,
+   // Actions
+   updateLayoutTree,
+   updateSidebarPanes, // <--- 暴露侧栏更新 action
+   initializeLayout,
+   updateNodeSizes,
+   generateId,
+   toggleLayoutVisibility,
+   loadHeaderVisibility,
+   toggleHeaderVisibility,
+   getSystemDefaultLayout,
+   getSystemDefaultSidebarPanes, // <--- 暴露获取默认侧栏配置的方法
+   // Persist actions (可选暴露，如果需要手动触发)
+   // persistLayoutTree,
+   // persistSidebarPanes,
+ };
 });

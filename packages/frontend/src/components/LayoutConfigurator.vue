@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, type Ref, reactive } from 'vue'; // 导入 reactive
+import { ref, computed, watch, type Ref } from 'vue'; // Removed reactive as it wasn't used after style removal
 import { useI18n } from 'vue-i18n';
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
 import draggable from 'vuedraggable';
-import LayoutNodeEditor from './LayoutNodeEditor.vue'; // *** 导入节点编辑器 ***
+import LayoutNodeEditor from './LayoutNodeEditor.vue';
 
 // --- Props ---
 const props = defineProps({
@@ -21,67 +21,69 @@ const { t } = useI18n();
 const layoutStore = useLayoutStore();
 
 // --- State ---
-// 创建布局树的本地副本，以便在不直接修改 store 的情况下进行编辑
 const localLayoutTree: Ref<LayoutNode | null> = ref(null);
-// 标记是否有更改未保存
 const hasChanges = ref(false);
+const localSidebarPanes: Ref<{ left: PaneName[], right: PaneName[] }> = ref({ left: [], right: [] });
 
 // --- Dialog State ---
-const dialogRef = ref<HTMLElement | null>(null); // 对话框元素的引用
-// 移除 initialDialogState, width, height 从 dialogStyle
-// dialogStyle 现在不再需要，因为定位由 overlay flex 处理，尺寸由 CSS 处理
-// const dialogStyle = reactive({
-//   top: '50%',
-//   left: '50%',
-//   transform: 'translate(-50%, -50%)', // 初始居中
-//   position: 'absolute' as 'absolute', // 显式设置定位
-// });
-// 移除 Resizing 相关的状态
-// const isResizing = ref(false);
-// const resizeHandle = ref<string | null>(null);
-// const startDragPos = { x: 0, y: 0 };
-// const startDialogRect = { width: 0, height: 0, top: 0, left: 0 };
-// const minDialogSize = { width: 400, height: 300 }; // 移至 CSS
+const dialogRef = ref<HTMLElement | null>(null);
 
 // --- Watchers ---
-// 当弹窗可见时，从 store 加载当前布局并计算初始位置
 watch(() => props.isVisible, (newValue) => {
   if (newValue) {
-    // 加载布局
+    // Load main layout
     if (layoutStore.layoutTree) {
       localLayoutTree.value = JSON.parse(JSON.stringify(layoutStore.layoutTree));
+    } else {
+      localLayoutTree.value = null; // Ensure it's null if store is null
     }
-    hasChanges.value = false;
-    console.log('[LayoutConfigurator] 弹窗打开，已加载当前布局到本地副本。');
-
-    // 弹窗打开时的逻辑 (不再需要设置样式)
-    console.log('[LayoutConfigurator] Dialog opened.');
-    // 移除 requestAnimationFrame 和尺寸/位置计算逻辑
-
+    // Load sidebar config
+    if (layoutStore.sidebarPanes) {
+      localSidebarPanes.value = JSON.parse(JSON.stringify(layoutStore.sidebarPanes));
+    } else {
+      localSidebarPanes.value = { left: [], right: [] }; // Default
+    }
+    hasChanges.value = false; // Reset changes flag on open
+    console.log('[LayoutConfigurator] Dialog opened, loaded layout and sidebar config.');
   } else {
-    localLayoutTree.value = null; // 关闭时清空本地副本
-    // 移除 isResizing 和事件监听器移除 (因为 resizing 功能已移除)
-    // isResizing.value = false;
-    // window.removeEventListener('mousemove', handleMouseMove);
-    // window.removeEventListener('mouseup', handleMouseUp);
+    localLayoutTree.value = null;
+    localSidebarPanes.value = { left: [], right: [] };
+    console.log('[LayoutConfigurator] Dialog closed.');
   }
-}, /*{ immediate: true }*/); // 移除 immediate: true 解决初始化顺序问题
+});
 
-// 监听本地布局树的变化，标记有未保存更改
+// Watch for changes in the main layout tree
 watch(localLayoutTree, (newValue, oldValue) => {
-  // 确保不是初始化加载触发的 watch
-  if (oldValue !== null && props.isVisible) {
-    hasChanges.value = true;
-    console.log('[LayoutConfigurator] 本地布局已更改。');
+  // Check if it's not the initial load and the dialog is visible
+  if (oldValue !== undefined && oldValue !== null && props.isVisible) {
+      // Use stringify for a simple deep comparison
+      if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+          console.log('[LayoutConfigurator] Main layout tree changed.');
+          hasChanges.value = true;
+      }
   }
 }, { deep: true });
 
-// --- Helper Function for Local Tree ---
-// 递归查找本地布局树中所有使用的面板组件名称
-function getLocalUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
+// Watch for changes in the sidebar configuration
+watch(localSidebarPanes, (newValue, oldValue) => {
+   // Check if it's not the initial load and the dialog is visible
+   if (oldValue !== undefined && props.isVisible) {
+       const newJson = JSON.stringify(newValue);
+       const oldJson = JSON.stringify(oldValue);
+       console.log('[LayoutConfigurator Watcher] localSidebarPanes changed.');
+       // Use stringify for a simple deep comparison, including order changes
+       if (newJson !== oldJson) {
+            console.log('[LayoutConfigurator Watcher] Sidebar panes changed, setting hasChanges.');
+            hasChanges.value = true;
+       }
+   }
+}, { deep: true });
+
+
+// --- Helper Functions ---
+function getMainLayoutUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
   const usedNames = new Set<PaneName>();
   if (!node) return usedNames;
-
   function traverse(currentNode: LayoutNode) {
     if (currentNode.type === 'pane' && currentNode.component) {
       usedNames.add(currentNode.component);
@@ -89,24 +91,26 @@ function getLocalUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
       currentNode.children.forEach(traverse);
     }
   }
-
   traverse(node);
   return usedNames;
 }
 
+function getAllLocalUsedPaneNames(mainNode: LayoutNode | null, sidebars: { left: PaneName[], right: PaneName[] }): Set<PaneName> {
+  const usedNames = getMainLayoutUsedPaneNames(mainNode);
+  sidebars.left.forEach(pane => usedNames.add(pane));
+  sidebars.right.forEach(pane => usedNames.add(pane));
+  return usedNames;
+}
 
 // --- Computed ---
-// const availablePanes = computed(() => layoutStore.availablePanes); // 旧的，基于 store
-const allPossiblePanes = computed(() => layoutStore.allPossiblePanes); // 获取所有可能的面板
+const allPossiblePanes = computed(() => layoutStore.allPossiblePanes);
 
-// *** 新增：计算当前配置器预览中可用的面板 ***
 const configuratorAvailablePanes = computed(() => {
-  const localUsed = getLocalUsedPaneNames(localLayoutTree.value);
+  const localUsed = getAllLocalUsedPaneNames(localLayoutTree.value, localSidebarPanes.value);
   return allPossiblePanes.value.filter(pane => !localUsed.has(pane));
 });
 
-
-// 将 PaneName 映射到用户友好的中文标签
+// Panel Labels for display
 const paneLabels = computed(() => ({
   connections: t('layout.pane.connections', '连接列表'),
   terminal: t('layout.pane.terminal', '终端'),
@@ -116,7 +120,7 @@ const paneLabels = computed(() => ({
   statusMonitor: t('layout.pane.statusMonitor', '状态监视器'),
   commandHistory: t('layout.pane.commandHistory', '命令历史'),
   quickCommands: t('layout.pane.quickCommands', '快捷指令'),
-  dockerManager: t('layout.pane.dockerManager', 'Docker 管理器'), // 添加 dockerManager
+  dockerManager: t('layout.pane.dockerManager', 'Docker 管理器'),
 }));
 
 // --- Methods ---
@@ -131,122 +135,145 @@ const closeDialog = () => {
 };
 
 const saveLayout = () => {
+  // Save main layout
   if (localLayoutTree.value) {
     layoutStore.updateLayoutTree(localLayoutTree.value);
-    hasChanges.value = false;
-    console.log('[LayoutConfigurator] 布局已保存到 Store。');
-    emit('close'); // 保存后关闭
+    console.log('[LayoutConfigurator] Main layout saved to Store.');
   } else {
-    console.error('[LayoutConfigurator] 无法保存，本地布局树为空。');
+    // Handle potentially empty layout based on store logic
+     layoutStore.updateLayoutTree(null); // Assuming null is valid for empty
+    console.log('[LayoutConfigurator] Main layout is empty, saved null to Store.');
   }
+
+  // Save sidebar config
+  const sidebarConfigToSave = JSON.parse(JSON.stringify(localSidebarPanes.value));
+  console.log('[LayoutConfigurator] Preparing to save sidebar config:', sidebarConfigToSave); // Log before sending
+  layoutStore.updateSidebarPanes(sidebarConfigToSave);
+  console.log('[LayoutConfigurator] Sidebar config sent to Store.');
+
+  hasChanges.value = false;
+  emit('close');
 };
 
 const resetToDefault = () => {
-  if (confirm(t('layoutConfigurator.confirmReset', '确定要恢复默认布局吗？当前更改将丢失。'))) {
-    // 调用 store 中获取系统默认布局的方法
+  if (confirm(t('layoutConfigurator.confirmReset', '确定要恢复默认布局和侧栏配置吗？当前更改将丢失。'))) {
+    // Reset main layout
     const defaultLayout = layoutStore.getSystemDefaultLayout();
-    // 直接将获取到的默认布局（深拷贝）赋值给本地副本
     localLayoutTree.value = JSON.parse(JSON.stringify(defaultLayout));
-    hasChanges.value = true; // 标记为有更改，因为是重置操作
-    console.log('[LayoutConfigurator] 已重置为系统默认布局。');
+
+    // Reset sidebar config (assuming store provides a default or empty)
+    const defaultSidebarPanes = layoutStore.getSystemDefaultSidebarPanes(); // Get default from store
+    localSidebarPanes.value = JSON.parse(JSON.stringify(defaultSidebarPanes));
+    console.log('[LayoutConfigurator] Reset to default layout and sidebar panes.');
+
+    hasChanges.value = true; // Mark as changed after reset
   }
 };
 
-// --- Resizing Methods (Removed) ---
-// Resizing functionality is removed to allow content-based sizing.
-
-// --- Drag & Drop Methods (for panes, unchanged) ---
-// 克隆函数：当从可用列表拖拽时，创建新的 LayoutNode 对象
+// Clone function for dragging available panes
 const clonePane = (paneName: PaneName): LayoutNode => {
-  console.log(`[LayoutConfigurator] 克隆面板: ${paneName}`);
+  console.log(`[LayoutConfigurator] Cloning pane: ${paneName}`);
   return {
-    id: layoutStore.generateId(), // 使用 store 中的函数生成新 ID
+    id: layoutStore.generateId(),
     type: 'pane',
     component: paneName,
-    size: 50, // 默认大小，可以后续调整
+    size: 50, // Default size, can be adjusted later
   };
 };
 
-// 移除旧的 handleDragStart
-// const handleDragStart = (event: DragEvent, paneName: PaneName) => { ... }
-
-// 移除旧的预览区域 drop/dragover 处理，由 LayoutNodeEditor 内部处理
-// const handleDropOnPreview = (event: DragEvent) => { ... };
-// const handleDragOverPreview = (event: DragEvent) => { ... };
-
-// *** 新增：处理来自 LayoutNodeEditor 的更新事件 ***
+// Handle updates from LayoutNodeEditor (for main layout)
 const handleNodeUpdate = (updatedNode: LayoutNode) => {
-  // 因为 LayoutNodeEditor 是直接操作 localLayoutTree 的副本，
-  // 理论上 v-model 绑定应该能处理更新。
-  // 但为了明确和处理可能的深层更新问题，我们直接替换根节点。
-  // 注意：这假设 LayoutNodeEditor 只会 emit 根节点的更新事件，
-  // 或者我们需要一个更复杂的查找和替换逻辑。
-  // 简单的做法是，只要有更新，就认为整个 localLayoutTree 可能变了。
-  // （vuedraggable 的 v-model 应该能处理大部分情况）
-  // 暂时只打印日志，依赖 v-model 的更新
-  console.log('[LayoutConfigurator] Received node update:', updatedNode);
-  // 如果 v-model 更新不完全，可能需要手动更新：
-  localLayoutTree.value = updatedNode; // 强制更新整个树
+  console.log('[LayoutConfigurator] Received node update from editor:', updatedNode);
+  // Assuming the update is for the root node for simplicity
+  // v-model on LayoutNodeEditor might handle this, but explicit update is safer
+  localLayoutTree.value = updatedNode;
+  // No need to set hasChanges here, the watcher on localLayoutTree handles it
 };
 
-// *** 新增：处理来自 LayoutNodeEditor 的移除事件 ***
-// 递归查找并移除指定索引的节点
+// Handle remove requests from LayoutNodeEditor (for main layout)
 function findAndRemoveNode(node: LayoutNode | null, parentNodeId: string | undefined, nodeIndex: number): LayoutNode | null {
   if (!node) return null;
-
-  // 如果当前节点是目标节点的父节点
   if (node.id === parentNodeId && node.type === 'container' && node.children && node.children[nodeIndex]) {
     const updatedChildren = [...node.children];
     updatedChildren.splice(nodeIndex, 1);
-     console.log(`[LayoutConfigurator] Removed node at index ${nodeIndex} from parent ${parentNodeId}`);
-    // 如果移除后容器为空，可以选择移除容器自身，这里暂时保留空容器
+    console.log(`[LayoutConfigurator] Removed node at index ${nodeIndex} from parent ${parentNodeId}`);
     return { ...node, children: updatedChildren };
   }
-
-  // 递归查找子节点
   if (node.type === 'container' && node.children) {
     const updatedChildren = node.children.map(child => findAndRemoveNode(child, parentNodeId, nodeIndex));
-     // 检查是否有子节点被更新（即目标节点在更深层被找到并移除）
-     if (updatedChildren.some((child, index) => child !== node.children![index])) {
-       return { ...node, children: updatedChildren.filter(Boolean) as LayoutNode[] };
-     }
+    if (updatedChildren.some((child, index) => child !== node.children![index])) {
+      return { ...node, children: updatedChildren.filter(Boolean) as LayoutNode[] };
+    }
   }
-
-  return node; // 未找到或未修改，返回原节点
+  return node;
 }
 
 const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex: number }) => {
   console.log('[LayoutConfigurator] Received node remove request:', payload);
   if (payload.parentNodeId === undefined && payload.nodeIndex === 0) {
-     // 尝试移除根节点，不允许或清空布局
      if (confirm('确定要清空整个布局吗？')) {
-       localLayoutTree.value = null; // 或者设置为空容器
+       localLayoutTree.value = null;
+       // No need to set hasChanges here, the watcher on localLayoutTree handles it
      }
   } else if (payload.parentNodeId) {
      localLayoutTree.value = findAndRemoveNode(localLayoutTree.value, payload.parentNodeId, payload.nodeIndex);
+     // No need to set hasChanges here, the watcher on localLayoutTree handles it
   } else {
      console.warn('[LayoutConfigurator] Invalid remove payload:', payload);
   }
 };
 
+// Remove pane from sidebar list
+const removeSidebarPane = (side: 'left' | 'right', index: number) => {
+    localSidebarPanes.value[side].splice(index, 1);
+    console.log(`[LayoutConfigurator] Removed pane from ${side} sidebar at index ${index}.`);
+    // Explicitly set hasChanges flag
+    hasChanges.value = true;
+};
+
+// Handler for vuedraggable end event to ensure changes flag is set and handle added items
+const onDraggableChange = (event: any, side: 'left' | 'right') => { // Add side parameter
+    console.log(`[LayoutConfigurator] Draggable change event detected on ${side} sidebar:`, event);
+
+    // Check if an element was added to the sidebar list
+    if (event.added) {
+        const addedElement = event.added.element;
+        const targetList = localSidebarPanes.value[side]; // Use the side parameter directly
+        const addedIndex = event.added.newIndex;
+
+        // Check if the added element is a LayoutNode object (dragged from available panes)
+        if (targetList && typeof addedElement === 'object' && addedElement !== null && addedElement.type === 'pane' && typeof addedElement.component === 'string') {
+            // Replace the added LayoutNode object with its component name (PaneName)
+            targetList.splice(addedIndex, 1, addedElement.component);
+            console.log(`[LayoutConfigurator] Replaced added LayoutNode at index ${addedIndex} on ${side} sidebar with PaneName: ${addedElement.component}`);
+        } else {
+             console.log(`[LayoutConfigurator] Added event detected on ${side} sidebar, but element was not a LayoutNode:`, addedElement);
+        }
+    } else if (event.moved || event.removed) {
+         console.log(`[LayoutConfigurator] Item moved or removed within/from ${side} sidebar.`);
+    }
+
+    // Ensure changes flag is set for any modification (add, remove, move)
+    hasChanges.value = true;
+};
 
 </script>
 
 <template>
   <div v-if="isVisible" class="layout-configurator-overlay" @click.self="closeDialog">
-    <!-- 移除 :style 绑定，尺寸和定位由 CSS 控制 -->
     <div ref="dialogRef" class="layout-configurator-dialog">
-      <!-- Resize Handles Removed -->
 
       <header class="dialog-header">
         <h2>{{ t('layoutConfigurator.title', '配置工作区布局') }}</h2>
         <button class="close-button" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
       </header>
 
-      <main class="dialog-content">
+      <!-- Grid Layout -->
+      <main class="dialog-content-grid">
+
+        <!-- Available Panes -->
         <section class="available-panes-section">
           <h3>{{ t('layoutConfigurator.availablePanes', '可用面板') }}</h3>
-          <!-- *** 使用 draggable 包裹列表 *** -->
           <draggable
             :list="configuratorAvailablePanes"
             tag="ul"
@@ -256,29 +283,24 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
             :sort="false"
             :clone="clonePane"
           >
-            <template #item="{ element }: { element: PaneName }"> 
-              <li
-                class="available-pane-item"
-              >
-                <i class="fas fa-grip-vertical drag-handle"></i> 
-                {{ paneLabels[element] || element }} 
+            <template #item="{ element }: { element: PaneName }">
+              <li class="available-pane-item">
+                <i class="fas fa-grip-vertical drag-handle"></i>
+                {{ paneLabels[element] || element }}
               </li>
             </template>
-
              <template #footer>
-               <li v-if="configuratorAvailablePanes.length === 0" class="no-available-panes"> <!-- *** 使用新的计算属性 *** -->
+               <li v-if="configuratorAvailablePanes.length === 0" class="no-available-panes">
                  {{ t('layoutConfigurator.noAvailablePanes', '所有面板都已在布局中') }}
                </li>
              </template>
           </draggable>
         </section>
 
-        <section
-          class="layout-preview-section"
-        >
-          <h3>{{ t('layoutConfigurator.layoutPreview', '布局预览（拖拽到此处）') }}</h3>
-          <div class="preview-area">
-            <!-- *** 使用 LayoutNodeEditor 渲染预览 *** -->
+        <!-- Main Layout Preview -->
+        <section class="layout-preview-section">
+          <h3>{{ t('layoutConfigurator.layoutPreview', '主布局预览（拖拽到此处）') }}</h3>
+          <div class="preview-area main-layout-area">
             <LayoutNodeEditor
               v-if="localLayoutTree"
               :node="localLayoutTree"
@@ -287,8 +309,9 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
               :pane-labels="paneLabels"
               @update:node="handleNodeUpdate"
               @removeNode="handleNodeRemove"
+              :group="'layout-items'"
             />
-            <p v-else style="text-align: center; color: #aaa; margin-top: 50px;">
+            <p v-else class="empty-placeholder">
               {{ t('layoutConfigurator.emptyLayout', '布局为空，请从左侧拖拽面板或添加容器。') }}
             </p>
           </div>
@@ -296,9 +319,68 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
              <button @click="resetToDefault" class="button-secondary">
                {{ t('layoutConfigurator.resetDefault', '恢复默认') }}
              </button>
-             
            </div>
         </section>
+
+        <!-- Sidebar Configuration Container -->
+        <div class="sidebar-container">
+            <!-- Left Sidebar Config -->
+            <section class="sidebar-config-section left-sidebar-section">
+                <h3>{{ t('layoutConfigurator.leftSidebar', '左侧栏面板') }}</h3>
+                <draggable
+                    :list="localSidebarPanes.left"
+                    tag="ul"
+                    class="sidebar-panes-list"
+                    :item-key="(element: PaneName) => `left-${element}`"
+                    group="layout-items"
+                    :sort="true"
+                    @change="(event) => onDraggableChange(event, 'left')"
+                >
+                    <template #item="{ element, index }: { element: PaneName, index: number }">
+                        <li class="sidebar-pane-item">
+                            <i class="fas fa-grip-vertical drag-handle"></i>
+                            <!-- Correctly display translated label -->
+                            <span>{{ paneLabels[element] || element }}</span>
+                            <button @click="removeSidebarPane('left', index)" class="remove-sidebar-btn" :title="t('common.remove', '移除')">&times;</button>
+                        </li>
+                    </template>
+                    <template #footer>
+                        <li v-if="localSidebarPanes.left.length === 0" class="empty-placeholder sidebar-empty">
+                            {{ t('layoutConfigurator.dropHere', '从可用面板拖拽到此处') }}
+                        </li>
+                    </template>
+                </draggable>
+            </section>
+
+            <!-- Right Sidebar Config -->
+            <section class="sidebar-config-section right-sidebar-section">
+                <h3>{{ t('layoutConfigurator.rightSidebar', '右侧栏面板') }}</h3>
+                 <draggable
+                    :list="localSidebarPanes.right"
+                    tag="ul"
+                    class="sidebar-panes-list"
+                    :item-key="(element: PaneName) => `right-${element}`"
+                    group="layout-items"
+                    :sort="true"
+                    @change="(event) => onDraggableChange(event, 'right')" 
+                >
+                    <template #item="{ element, index }: { element: PaneName, index: number }">
+                         <li class="sidebar-pane-item">
+                            <i class="fas fa-grip-vertical drag-handle"></i>
+                            <!-- Correctly display translated label -->
+                            <span>{{ paneLabels[element] || element }}</span>
+                            <button @click="removeSidebarPane('right', index)" class="remove-sidebar-btn" :title="t('common.remove', '移除')">&times;</button>
+                        </li>
+                    </template>
+                     <template #footer>
+                        <li v-if="localSidebarPanes.right.length === 0" class="empty-placeholder sidebar-empty">
+                             {{ t('layoutConfigurator.dropHere', '从可用面板拖拽到此处') }}
+                        </li>
+                    </template>
+                </draggable>
+            </section>
+        </div>
+
       </main>
 
       <footer class="dialog-footer">
@@ -320,38 +402,28 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
   height: 100%;
   background-color: rgba(0, 0, 0, 0.6);
   display: flex;
-  /* 使用 Flexbox 居中 */
-  display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  /* 移除 pointer-events: none; */
 }
 
 .layout-configurator-dialog {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-  /* 让宽度和高度自适应内容 */
-  width: auto; /* 或移除 */
-  height: auto; /* 或移除 */
-  /* 添加最大/最小尺寸限制 */
-  min-width: 500px; /* 根据需要调整 */
-  min-height: 400px; /* 根据需要调整 */
-  max-width: 90vw; /* 视口宽度的90% */
-  max-height: 90vh; /* 视口高度的90% */
+  width: auto;
+  height: auto;
+  min-width: 800px; /* Adjusted min-width */
+  min-height: 600px; /* Adjusted min-height */
+  max-width: 95vw;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
-  /* overflow: hidden; */ /* 改为 auto 或 visible 以允许内容撑开 */
-  overflow: auto; /* 如果内容可能超出 max-height/max-width */
-  position: relative; /* 改为 relative，因为 overlay flex 负责居中 */
-  /* 移除 top, left, transform, position: absolute */
-  /* 允许 dialog 接收点击事件 */
+  overflow: auto;
+  position: relative;
   pointer-events: auto;
-  cursor: default; /* 保持默认光标 */
+  cursor: default;
 }
-
-/* 移除 body.resizing 样式 */
 
 .dialog-header {
   display: flex;
@@ -381,23 +453,51 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
   color: #333;
 }
 
-.dialog-content {
+/* Grid Layout for Dialog Content */
+.dialog-content-grid {
   flex-grow: 1;
   padding: 1.5rem;
-  overflow-y: auto; /* 允许内容区滚动 */
-  display: flex; /* 左右布局 */
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "available main"
+    "available sidebars";
   gap: 1.5rem;
+  min-height: 450px;
 }
 
 .available-panes-section {
-  flex: 1; /* 占据一部分空间 */
-  min-width: 200px;
+  grid-area: available;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
   border-right: 1px solid #eee;
   padding-right: 1.5rem;
+  min-width: 200px; /* Ensure minimum width */
 }
 
 .layout-preview-section {
-  flex: 2; /* 占据更多空间 */
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 350px;
+  min-height: 250px;
+}
+
+.sidebar-container {
+   grid-area: sidebars;
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   gap: 1.5rem;
+   border-top: 1px solid #eee;
+   padding-top: 1rem;
+   margin-top: 1rem;
+   min-height: 150px;
+}
+
+.sidebar-config-section {
   display: flex;
   flex-direction: column;
 }
@@ -414,6 +514,7 @@ h3 {
   list-style: none;
   padding: 0;
   margin: 0;
+  flex-grow: 1; /* Allow list to take available space */
 }
 
 .available-pane-item {
@@ -450,18 +551,15 @@ h3 {
   padding: 0.5rem 0;
 }
 
-.preview-area {
+.preview-area.main-layout-area {
   flex-grow: 1;
   border: 2px dashed #ced4da;
   border-radius: 4px;
   padding: 1rem;
   background-color: #f8f9fa;
-  min-height: 300px; /* 保证预览区有一定高度 */
-  display: flex; /* 用于内部占位符居中 */
+  display: flex;
   flex-direction: column;
-  /* justify-content: center; */ /* 移除，让内容从顶部开始 */
-  /* align-items: center; */ /* 移除 */
-  overflow: auto; /* 如果预览内容复杂，允许滚动 */
+  overflow: auto;
 }
 
 .preview-actions {
@@ -479,7 +577,7 @@ h3 {
   background-color: #f8f9fa;
 }
 
-/* 通用按钮样式 */
+/* Button Styles */
 .button-primary,
 .button-secondary {
   padding: 0.5rem 1rem;
@@ -512,7 +610,86 @@ h3 {
   background-color: #dee2e6;
 }
 
+/* Sidebar List Styles */
+.sidebar-panes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    min-height: 120px;
+    background-color: #f8f9fa;
+    border: 1px dashed #ced4da;
+    border-radius: 4px;
+    padding: 0.5rem;
+    flex-grow: 1;
+    overflow-y: auto;
+}
 
-/* --- Resize Handle Styles (Removed) --- */
+.sidebar-pane-item {
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.5rem;
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background-color 0.2s ease;
+}
+.sidebar-pane-item:hover {
+    background-color: #d8dde2;
+}
+.sidebar-pane-item:active {
+    cursor: grabbing;
+    background-color: #ced4da;
+}
+
+.sidebar-pane-item .drag-handle {
+    margin-right: 0.5rem;
+    color: #6c757d;
+    cursor: grab;
+}
+.sidebar-pane-item:active .drag-handle {
+    cursor: grabbing;
+}
+/* Ensure text span takes available space */
+.sidebar-pane-item span {
+    flex-grow: 1; /* Allow text to take space */
+    margin-right: 0.5rem; /* Space before remove button */
+    overflow: hidden; /* Prevent long text overflow */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+
+.remove-sidebar-btn {
+    background: none;
+    border: none;
+    color: #adb5bd;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.3rem;
+    line-height: 1;
+    flex-shrink: 0; /* Prevent button from shrinking */
+}
+.remove-sidebar-btn:hover {
+    color: #dc3545; /* Red on hover */
+}
+
+.empty-placeholder {
+    text-align: center;
+    color: #aaa;
+    padding: 2rem 1rem;
+    font-style: italic;
+    font-size: 0.9em;
+    width: 100%;
+}
+.sidebar-empty {
+    padding: 1rem;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
 </style>

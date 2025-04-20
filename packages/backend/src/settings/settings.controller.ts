@@ -1,9 +1,10 @@
 import { Request, Response } from 'express';
 import { settingsService } from '../services/settings.service';
 import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
-import { ipBlacklistService } from '../services/ip-blacklist.service'; // 引入 IP 黑名单服务
+import { ipBlacklistService } from '../services/ip-blacklist.service';
+import { UpdateSidebarConfigDto } from '../types/settings.types'; // <-- Correct import path
 
-const auditLogService = new AuditLogService(); // 实例化 AuditLogService
+const auditLogService = new AuditLogService();
 
 export const settingsController = {
   /**
@@ -291,5 +292,59 @@ export const settingsController = {
       console.error('[Controller] 设置终端选中自动复制时出错:', error);
       res.status(500).json({ message: '设置终端选中自动复制失败', error: error.message });
     }
-  } // *** 最后的方法后面不需要逗号 ***
-};
+  }, // *** 确保这里有逗号 ***
+
+ // --- Sidebar Config Controller Methods ---
+
+ /**
+  * 获取侧栏配置
+  */
+ async getSidebarConfig(req: Request, res: Response): Promise<void> {
+     try {
+         console.log('[Controller] Received request to get sidebar config.');
+         const config = await settingsService.getSidebarConfig();
+         console.log('[Controller] Sending sidebar config to client:', config);
+         res.json(config);
+     } catch (error: any) {
+         console.error('[Controller] 获取侧栏配置时出错:', error);
+         res.status(500).json({ message: '获取侧栏配置失败', error: error.message });
+     }
+ },
+
+ /**
+  * 设置侧栏配置
+  */
+ async setSidebarConfig(req: Request, res: Response): Promise<void> {
+     console.log('[Controller] Received request to set sidebar config.');
+     try {
+         const configDto: UpdateSidebarConfigDto = req.body;
+         console.log('[Controller] Request body:', configDto);
+
+         // --- DTO Validation (Basic) ---
+         // More specific validation happens in the service layer
+         if (!configDto || typeof configDto !== 'object' || !Array.isArray(configDto.left) || !Array.isArray(configDto.right)) {
+             console.warn('[Controller] Invalid sidebar config format received:', configDto);
+             res.status(400).json({ message: '无效的请求体，应为包含 left 和 right 数组的 JSON 对象' });
+             return;
+         }
+
+         console.log('[Controller] Calling settingsService.setSidebarConfig...');
+         await settingsService.setSidebarConfig(configDto);
+         console.log('[Controller] settingsService.setSidebarConfig completed successfully.');
+
+         // auditLogService.logAction('SIDEBAR_CONFIG_UPDATED'); // Optional: Add audit log
+
+         console.log('[Controller] Sending success response.');
+         res.status(200).json({ message: '侧栏配置已成功更新' });
+     } catch (error: any) {
+         console.error('[Controller] 设置侧栏配置时出错:', error);
+         // Handle specific validation errors from the service
+         if (error.message.includes('无效的面板名称') || error.message.includes('无效的侧栏配置格式')) {
+              res.status(400).json({ message: `设置侧栏配置失败: ${error.message}` });
+         } else {
+              res.status(500).json({ message: '设置侧栏配置失败', error: error.message });
+         }
+     }
+ } // <-- No comma after the last method
+
+}; // <-- End of settingsController object

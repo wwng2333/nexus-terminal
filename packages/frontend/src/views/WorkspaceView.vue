@@ -328,6 +328,7 @@ const handleCloseEditorTab = (tabId: string) => {
     <div class="main-content-area">
       <LayoutRenderer
         v-if="layoutTree"
+        :is-root-renderer="true"
         :layout-node="layoutTree"
         :active-session-id="activeSessionId"
         class="layout-renderer-wrapper"
