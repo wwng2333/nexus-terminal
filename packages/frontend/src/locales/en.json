@@ -813,6 +813,35 @@
       "start": "Start",
       "remove": "Remove"
     },
-    "waitingForSsh": "Waiting for SSH connection..."
+    "waitingForSsh": "Waiting for SSH connection...",
+    "stats": {
+      "loading": "Loading stats...",
+      "error": "Error loading stats",
+      "errorGeneric": "Could not load container statistics.",
+      "noData": "No stats data available.",
+      "cpu": "CPU %",
+      "memory": "Memory Usage / Limit",
+      "netIO": "Network I/O",
+      "blockIO": "Block I/O",
+      "pids": "PIDs"
+    }
+  },
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "testing": "Testing...",
+    "edit": "Edit",
+    "delete": "Delete",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "settings": "Settings",
+    "errorOccurred": "An error occurred.",
+    "dismiss": "Dismiss",
+    "close": "Close",
+    "remove": "Remove",
+    "expand": "Expand",
+    "collapse": "Collapse"
   }
 }

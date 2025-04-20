@@ -9,7 +9,7 @@ const { t } = useI18n();
 const sessionStore = useSessionStore();
 const { activeSession } = storeToRefs(sessionStore); // Get reactive active session
 
-// --- Interfaces (Keep these) ---
+// --- Interfaces ---
 interface PortInfo {
   IP?: string;
   PrivatePort: number;
@@ -30,6 +30,20 @@ interface DockerContainer {
   Labels: Record<string, string>;
 }
 
+// --- NEW: Stats Interface (Example structure, adjust based on actual docker stats json output) ---
+interface DockerStats {
+    ID: string;
+    Name: string;
+    CPUPerc: string; // e.g., "0.07%"
+    MemUsage: string; // e.g., "100MiB / 1.95GiB"
+    MemPerc: string; // e.g., "5.00%"
+    NetIO: string; // e.g., "1.5kB / 648B"
+    BlockIO: string; // e.g., "10MB / 0B"
+    PIDs: string; // e.g., "10"
+    // Add other fields if available from `docker stats --format json`
+}
+
+
 // --- State ---
 const containers = ref<DockerContainer[]>([]);
 const isLoading = ref(false);
@@ -37,6 +51,12 @@ const error = ref<string | null>(null);
 const isDockerAvailable = ref(true); // This will now reflect remote docker availability
 let refreshInterval: ReturnType<typeof setInterval> | null = null;
 let wsUnsubscribeHooks: (() => void)[] = []; // To store unsubscribe functions
+// --- NEW: State for expansion ---
+const expandedContainerId = ref<string | null>(null);
+const containerStats = ref<DockerStats | null>(null);
+const isStatsLoading = ref(false);
+const statsError = ref<string | null>(null);
+
 
 // --- Computed ---
 const currentSessionId = computed(() => activeSession.value?.sessionId);
@@ -51,11 +71,10 @@ const clearWsListeners = () => {
   wsUnsubscribeHooks = [];
 };
 
-// Setup WebSocket listeners for the current active session
+// Setup WebSocket listeners
 const setupWsListeners = () => {
   clearWsListeners(); // Clear previous listeners first
   if (!activeSession.value) return;
-
   const wsManager = activeSession.value.wsManager;
 
   // Listener for Docker status updates
@@ -112,7 +131,31 @@ const setupWsListeners = () => {
       requestDockerStatus(); // Trigger a status refresh immediately
   });
 
-  wsUnsubscribeHooks.push(unsubStatus, unsubStatusError, unsubCommandError, unsubRequestUpdate); // Add new unsubscribe hook
+  // --- NEW: Listen for stats updates ---
+  const unsubStatsUpdate = wsManager.onMessage('docker:stats:update', (payload) => {
+      // Ensure the update is for the currently expanded container
+      if (payload?.containerId === expandedContainerId.value) {
+          console.log(`[DockerManager] Received stats update for ${payload.containerId}:`, payload.stats);
+          containerStats.value = payload.stats as DockerStats; // Assuming payload.stats matches DockerStats
+          isStatsLoading.value = false;
+          statsError.value = null;
+      }
+  });
+
+  const unsubStatsError = wsManager.onMessage('docker:stats:error', (payload) => {
+      if (payload?.containerId === expandedContainerId.value) {
+          console.error(`[DockerManager] Error fetching stats for ${payload.containerId}:`, payload.message);
+          containerStats.value = null;
+          isStatsLoading.value = false;
+          statsError.value = payload.message || t('dockerManager.stats.errorGeneric');
+      }
+  });
+
+  wsUnsubscribeHooks.push(
+      unsubStatus, unsubStatusError, unsubCommandError, unsubRequestUpdate, // existing unsub hooks
+      unsubStatsUpdate,
+      unsubStatsError
+  );
 };
 
 
@@ -172,6 +215,37 @@ const sendDockerCommand = (containerId: string, command: 'start' | 'stop' | 'res
   });
 };
 
+// --- NEW: Method to toggle expansion and fetch stats ---
+const toggleExpand = (containerId: string) => {
+    if (expandedContainerId.value === containerId) {
+        // Collapse
+        expandedContainerId.value = null;
+        containerStats.value = null;
+        statsError.value = null;
+        isStatsLoading.value = false;
+    } else {
+        // Expand
+        expandedContainerId.value = containerId;
+        containerStats.value = null; // Clear previous stats
+        statsError.value = null;
+        isStatsLoading.value = true;
+
+        // Request stats from backend
+        if (activeSession.value && sshConnectionStatus.value === 'connected') {
+            console.log(`[DockerManager] Requesting stats for container ${containerId}`);
+            activeSession.value.wsManager.sendMessage({
+                type: 'docker:get_stats',
+                payload: { containerId }
+            });
+        } else {
+            console.warn('[DockerManager] Cannot fetch stats, SSH not connected.');
+            statsError.value = t('dockerManager.error.sshNotConnected');
+            isStatsLoading.value = false;
+        }
+    }
+};
+
+
 // --- Lifecycle and Watchers ---
 
 // Watch for changes in the active session OR SSH connection status
@@ -192,6 +266,15 @@ watch([currentSessionId, sshConnectionStatus], ([newSessionId, newSshStatus], [o
           console.log('[DockerManager] Cleared refresh interval.');
       }
       clearWsListeners(); // Clear listeners on disconnect or session change
+       // --- Add: Collapse container when session changes or disconnects ---
+     if (expandedContainerId.value && (newSessionId !== oldSessionId || (newSessionId && (newSshStatus === 'disconnected' || newSshStatus === 'error')))) {
+         console.log('[DockerManager] Session changed/disconnected, collapsing stats view.');
+         expandedContainerId.value = null;
+         containerStats.value = null;
+         statsError.value = null;
+         isStatsLoading.value = false;
+     }
+    // --- End Add ---
   }
 
   // --- Setup listeners and fetch data when session is active AND SSH is connected ---
@@ -283,10 +366,10 @@ onUnmounted(() => {
       <div v-if="containers.length === 0 && !isLoading" class="empty-placeholder">
         {{ t('dockerManager.noContainers') }}
       </div>
-      <!-- Add class="responsive-table" -->
-      <table v-else class="responsive-table">
+      <table v-else class="responsive-table docker-table"> <!-- Add specific class -->
         <thead>
           <tr>
+            <th class="col-expand"></th> <!-- Empty header for expand button -->
             <th>{{ t('dockerManager.header.name') }}</th>
             <th>{{ t('dockerManager.header.image') }}</th>
             <th>{{ t('dockerManager.header.status') }}</th>
@@ -294,9 +377,17 @@ onUnmounted(() => {
             <th>{{ t('dockerManager.header.actions') }}</th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="container in containers" :key="container.id">
-            <!-- Add data-label attributes -->
+        <!-- Use template v-for to render pairs of rows -->
+        <template v-for="container in containers" :key="container.id">
+          <!-- Main Row -->
+          <tr>
+            <!-- FIX: Expand button TD inside the main TR -->
+            <td class="col-expand">
+              <button @click="toggleExpand(container.id)" class="expand-btn" :title="expandedContainerId === container.id ? t('common.collapse') : t('common.expand')">
+                <i :class="['fas', expandedContainerId === container.id ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+              </button>
+            </td>
+            <!-- End FIX -->
             <td :data-label="t('dockerManager.header.name')">{{ container.Names?.join(', ') || 'N/A' }}</td>
             <td :data-label="t('dockerManager.header.image')">{{ container.Image }}</td>
             <td :data-label="t('dockerManager.header.status')">
@@ -321,7 +412,67 @@ onUnmounted(() => {
               <!-- Log button removed as per user request -->
             </td>
           </tr>
-        </tbody>
+          <!-- Desktop Expansion Row -->
+          <tr v-if="expandedContainerId === container.id" class="expansion-row">
+            <td :colspan="6"> <!-- Colspan should match total number of columns -->
+              <div class="stats-container">
+                 <!-- Stats content -->
+                 <div v-if="isStatsLoading" class="stats-loading">
+                  <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
+                </div>
+                <div v-else-if="statsError" class="stats-error">
+                  <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError }}
+                </div>
+                <dl v-else-if="containerStats" class="stats-dl">
+                  <dt>{{ t('dockerManager.stats.cpu') }}</dt>
+                  <dd>{{ containerStats.CPUPerc }}</dd>
+                  <dt>{{ t('dockerManager.stats.memory') }}</dt>
+                  <dd>{{ containerStats.MemUsage }} ({{ containerStats.MemPerc }})</dd>
+                  <dt>{{ t('dockerManager.stats.netIO') }}</dt>
+                  <dd>{{ containerStats.NetIO }}</dd>
+                  <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
+                  <dd>{{ containerStats.BlockIO }}</dd>
+                  <dt>{{ t('dockerManager.stats.pids') }}</dt>
+                  <dd>{{ containerStats.PIDs }}</dd>
+                  <!-- Add more stats if available -->
+                </dl>
+                 <div v-else class="stats-nodata">
+                     {{ t('dockerManager.stats.noData') }}
+                 </div>
+              </div>
+            </td>
+          </tr>
+
+          <tr v-if="expandedContainerId === container.id" class="expansion-card-row">
+              <td colspan="1"> <!-- Only one cell in card view -->
+                  <div class="stats-container card-stats-container">
+
+                       <div v-if="isStatsLoading" class="stats-loading">
+                           <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.stats.loading') }}
+                       </div>
+                       <div v-else-if="statsError" class="stats-error">
+                           <i class="fas fa-exclamation-triangle"></i> {{ t('dockerManager.stats.error') }}: {{ statsError }}
+                       </div>
+                       <dl v-else-if="containerStats" class="stats-dl">
+                           <dt>{{ t('dockerManager.stats.cpu') }}</dt>
+                           <dd>{{ containerStats.CPUPerc }}</dd>
+                           <dt>{{ t('dockerManager.stats.memory') }}</dt>
+                           <dd>{{ containerStats.MemUsage }} ({{ containerStats.MemPerc }})</dd>
+                           <dt>{{ t('dockerManager.stats.netIO') }}</dt>
+                           <dd>{{ containerStats.NetIO }}</dd>
+                           <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
+                           <dd>{{ containerStats.BlockIO }}</dd>
+                           <dt>{{ t('dockerManager.stats.pids') }}</dt>
+                           <dd>{{ containerStats.PIDs }}</dd>
+                       </dl>
+                       <div v-else class="stats-nodata">
+                           {{ t('dockerManager.stats.noData') }}
+                       </div>
+                  </div>
+              </td>
+          </tr>
+          <!-- End FIX -->
+        </template> <!-- End v-for template -->
       </table>
     </div>
   </div>
@@ -402,24 +553,24 @@ onUnmounted(() => {
   padding: var(--base-padding, 1rem); /* Added padding */
 }
 
-table {
+.docker-table { /* Use specific class */
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9em;
 }
 
-th, td {
+.docker-table th, .docker-table td {
   padding: 0.6rem 0.8rem;
   text-align: left;
   border-bottom: 1px solid var(--border-color-light, #eee);
   white-space: nowrap;
 }
-td:first-child, th:first-child {
-    white-space: normal;
+.docker-table td:first-child, .docker-table th:first-child {
+    /* white-space: normal; */ /* Let specific columns handle wrapping */
 }
 
 
-th {
+.docker-table th {
   background-color: var(--header-bg-color);
   font-weight: 600;
   position: sticky;
@@ -427,7 +578,7 @@ th {
   z-index: 1;
 }
 
-tbody tr:hover {
+.docker-table tbody tr:not(.expansion-row):not(.expansion-card-row):hover { /* Exclude expansion rows from hover */
   background-color: var(--hover-bg-color, #f5f5f5);
 }
 
@@ -473,8 +624,68 @@ tbody tr:hover {
 .action-btn.restart:not([disabled]):hover { color: var(--color-info, #17a2b8); }
 .action-btn.remove:not([disabled]):hover { color: var(--color-danger, #dc3545); }
 
+/* Styles for Expand Button */
+.col-expand {
+    width: 30px; /* Fixed width for the button column */
+    padding: 0.6rem 0.4rem !important; /* Adjust padding */
+    text-align: center !important;
+    border-bottom: 1px solid var(--border-color-light, #eee); /* Match other cells */
+}
+.expand-btn {
+    background: none;
+    border: none;
+    color: var(--text-color-secondary);
+    cursor: pointer;
+    padding: 0.2rem;
+    font-size: 0.8em;
+    transition: color 0.2s ease;
+}
+.expand-btn:hover {
+    color: var(--text-color);
+}
+
+/* Styles for Expansion Row */
+.expansion-row td {
+    padding: 0 !important; /* Remove padding from the cell itself */
+    border-bottom: 1px solid var(--border-color); /* Add a bottom border */
+    /* background-color: var(--item-expanded-bg, #f9f9f9); */ /* Optional background */
+}
+.stats-container {
+    padding: var(--base-padding, 1rem);
+    background-color: var(--item-expanded-bg, rgba(0,0,0,0.02)); /* Slightly different background */
+}
+.stats-loading, .stats-error, .stats-nodata {
+    color: var(--text-color-secondary);
+    padding: 0.5rem 0;
+    text-align: center;
+}
+.stats-error {
+    color: var(--color-danger);
+}
+.stats-dl {
+    display: grid;
+    grid-template-columns: max-content auto; /* Label column and value column */
+    gap: 0.5rem 1rem; /* Row and column gap */
+    font-size: 0.9em;
+}
+.stats-dl dt {
+    font-weight: 500;
+    color: var(--text-color-secondary);
+    grid-column: 1;
+}
+.stats-dl dd {
+    grid-column: 2;
+    margin-left: 0;
+    font-family: var(--font-family-mono, monospace); /* Monospace for stats */
+}
+
+/* Hide card-specific expansion row by default */
+.expansion-card-row {
+    display: none;
+}
+
+
 /* --- Responsive Table Styles using Container Query --- */
-/* Target the container directly */
 @container (max-width: 768px) {
   .responsive-table {
     border: none; /* Remove table border */
@@ -484,7 +695,7 @@ tbody tr:hover {
     display: none; /* Hide table header */
   }
 
-  .responsive-table tr {
+  .responsive-table tr:not(.expansion-card-row) { /* Target main rows only */
     display: block; /* Make rows behave like blocks/cards */
     margin-bottom: 1rem; /* Space between cards */
     border: 1px solid var(--border-color);
@@ -492,6 +703,8 @@ tbody tr:hover {
     padding: 0.8rem;
     background-color: var(--item-bg-color, var(--app-bg-color)); /* Card background */
     box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    position: relative; /* Needed for absolute positioning of button */
+    padding-top: 2.5rem; /* Make space for the button at the top */
   }
 
   .responsive-table td {
@@ -523,26 +736,40 @@ tbody tr:hover {
     color: var(--text-color-secondary);
   }
 
+  /* Hide expand button column in card view */
+  .responsive-table .col-expand {
+      display: none;
+  }
+
+  /* Position the expand button within the card */
+  .responsive-table tr:not(.expansion-card-row) .expand-btn {
+      position: absolute;
+      top: 0.6rem;
+      left: 0.6rem; /* Position top-left */
+      font-size: 1em; /* Make it slightly larger */
+      z-index: 2; /* Ensure it's clickable */
+      display: inline-block; /* Ensure button is visible */
+  }
+
+
   /* Adjust specific cells if needed */
    .responsive-table td:first-child { /* e.g., Name */
        font-weight: 500; /* Make name slightly bolder */
    }
 
   .responsive-table .action-buttons {
-    text-align: right; /* Keep buttons aligned right */
-    padding-left: 0; /* Remove padding override for actions */
-    padding-top: 0.8rem; /* Add some space above buttons */
-    border-bottom: none; /* Ensure no border below buttons */
-    display: flex; /* Use flex for better button alignment */
-    justify-content: flex-end; /* Align buttons to the right */
-    flex-wrap: wrap; /* Allow buttons to wrap */
-    gap: 0.5rem; /* Keep gap between buttons */
+    /* ... (existing action button styles) ... */
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding-left: 0; /* Reset padding */
+    padding-top: 0.8rem;
   }
    .responsive-table .action-buttons::before {
-       display: none; /* Hide label for action buttons cell */
+       display: none;
    }
    .responsive-table .action-buttons button {
-       /* Ensure buttons don't get too small */
        min-width: 30px;
    }
 
@@ -557,6 +784,34 @@ tbody tr:hover {
        white-space: nowrap; /* Prevent text inside badge from wrapping */
        flex-shrink: 0; /* Prevent badge from shrinking */
    }
+
+   /* Hide the table-specific expansion row in card view */
+   .responsive-table .expansion-row {
+       display: none;
+   }
+    /* Show the card-specific expansion row */
+    .responsive-table .expansion-card-row {
+        display: block; /* Ensure it's visible */
+        margin-bottom: 1rem; /* Match card spacing */
+        border: 1px solid var(--border-color);
+        border-top: none; /* Remove top border as it connects to the card */
+        border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Round bottom corners */
+        background-color: var(--item-expanded-bg, rgba(0,0,0,0.02));
+        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+        margin-top: -1rem; /* Pull it up slightly to connect visually */
+    }
+    .responsive-table .expansion-card-row td {
+        display: block;
+        padding: 0 !important; /* Remove default td padding */
+        text-align: left; /* Reset text align */
+    }
+    .responsive-table .card-stats-container {
+        padding: var(--base-padding, 1rem);
+    }
+    .responsive-table .expansion-card-row td::before {
+        display: none; /* No label needed for this row */
+    }
+
 }
 /* --- End Responsive Table Styles --- */
 

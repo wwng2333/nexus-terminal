@@ -42,6 +42,18 @@ interface PortInfo {
 }
 // --- End FIX ---
 
+// --- NEW: Stats Interface (Ensure this matches frontend) ---
+interface DockerStats {
+    ID: string;
+    Name: string;
+    CPUPerc: string;
+    MemUsage: string;
+    MemPerc: string;
+    NetIO: string;
+    BlockIO: string;
+    PIDs: string;
+}
+
 // --- 新增：解析 Ports 字符串的辅助函数 ---
 function parsePortsString(portsString: string | undefined | null): PortInfo[] { // Now PortInfo is defined
     if (!portsString) {
@@ -679,6 +691,74 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                         sftpService.cancelUpload(sessionId, payload.uploadId);
                         break;
                     }
+
+                    // --- NEW CASE: Handle docker:get_stats ---
+                    case 'docker:get_stats': {
+                        if (!state || !state.sshClient) { // Check state and sshClient
+                            console.warn(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但无活动 SSH 连接。`);
+                            ws.send(JSON.stringify({ type: 'docker:stats:error', payload: { containerId: payload?.containerId, message: 'SSH connection not active.' } }));
+                            return; // Use return instead of break inside switch
+                        }
+                        if (!payload || !payload.containerId) {
+                            console.warn(`WebSocket: Invalid payload for docker:get_stats in session ${sessionId}:`, payload);
+                            ws.send(JSON.stringify({ type: 'docker:stats:error', payload: { containerId: payload?.containerId, message: 'Missing containerId.' } }));
+                            return;
+                        }
+
+                        const containerId = payload.containerId;
+                        console.log(`WebSocket: Handling docker:get_stats for container ${containerId} in session ${sessionId}`);
+                        const command = `docker stats ${containerId} --no-stream --format '{{json .}}'`;
+
+                        try {
+                            // --- FIX: Use sshClient.exec directly ---
+                            const execResult = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+                                let stdout = '';
+                                let stderr = '';
+                                state.sshClient.exec(command, { pty: false }, (err, stream) => {
+                                    if (err) return reject(err);
+                                    stream.on('data', (data: Buffer) => { stdout += data.toString(); });
+                                    stream.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+                                    stream.on('close', (code: number | null) => {
+                                        // Don't reject on non-zero exit code here, stderr check is more reliable for docker stats
+                                        resolve({ stdout, stderr });
+                                    });
+                                    stream.on('error', (execErr: Error) => reject(execErr));
+                                });
+                            });
+                            // --- End FIX ---
+
+                            if (execResult.stderr) {
+                                // Handle cases like container not found or docker errors
+                                console.error(`WebSocket: Docker stats stderr for ${containerId} in session ${sessionId}: ${execResult.stderr}`);
+                                ws.send(JSON.stringify({ type: 'docker:stats:error', payload: { containerId, message: execResult.stderr.trim() || 'Error executing stats command.' } }));
+                                return; // Use return after sending error
+                            }
+
+                            if (!execResult.stdout) {
+                                console.warn(`WebSocket: No stats output for container ${containerId} in session ${sessionId}. Might be stopped or error occurred.`);
+                                // Check stderr again just in case, although previous check should catch most errors
+                                if (!execResult.stderr) {
+                                     ws.send(JSON.stringify({ type: 'docker:stats:error', payload: { containerId, message: 'No stats data received (container might be stopped).' } }));
+                                }
+                                return; // Use return after sending error or warning
+                            }
+
+                            try {
+                                const statsData = JSON.parse(execResult.stdout.trim());
+                                // Optional: Clean up or format statsData if needed before sending
+                                ws.send(JSON.stringify({ type: 'docker:stats:update', payload: { containerId, stats: statsData } }));
+                            } catch (parseError) {
+                                console.error(`WebSocket: Failed to parse docker stats JSON for ${containerId} in session ${sessionId}: ${execResult.stdout}`, parseError);
+                                ws.send(JSON.stringify({ type: 'docker:stats:error', payload: { containerId, message: 'Failed to parse stats data.' } }));
+                            }
+
+                        } catch (error: any) {
+                            console.error(`WebSocket: Failed to execute docker stats for ${containerId} in session ${sessionId}:`, error);
+                            ws.send(JSON.stringify({ type: 'docker:stats:error', payload: { containerId, message: error.message || 'Failed to fetch Docker stats.' } }));
+                        }
+                        break; // Break after handling the case
+                    } // --- END CASE: docker:get_stats ---
+
 
                     default:
                         console.warn(`WebSocket：收到来自 ${ws.username} (会话: ${sessionId}) 的未知消息类型: ${type}`);

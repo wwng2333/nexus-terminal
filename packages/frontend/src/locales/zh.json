@@ -813,6 +813,35 @@
       "start": "启动",
       "remove": "移除"
     },
-    "waitingForSsh": "等待 SSH 连接..."
+    "waitingForSsh": "等待 SSH 连接...",
+    "stats": {
+      "loading": "正在加载状态...",
+      "error": "加载状态出错",
+      "errorGeneric": "无法加载容器统计信息。",
+      "noData": "无可用状态数据。",
+      "cpu": "CPU 使用率",
+      "memory": "内存使用 / 限制",
+      "netIO": "网络 I/O",
+      "blockIO": "磁盘 I/O",
+      "pids": "进程数"
+    }
+  },
+  "common": {
+    "loading": "加载中...",
+    "cancel": "取消",
+    "save": "保存",
+    "saving": "保存中...",
+    "testing": "测试中...",
+    "edit": "编辑",
+    "delete": "删除",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "settings": "设置",
+    "errorOccurred": "发生错误。",
+    "dismiss": "忽略",
+    "close": "关闭",
+    "remove": "移除",
+    "expand": "展开",
+    "collapse": "折叠"
   }
 }
