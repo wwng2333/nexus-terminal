@@ -57,8 +57,7 @@ const route = useRoute(); // Keep for download URL generation for now
 // 移除本地 currentPath ref
 // const currentPath = ref<string>('.');
 
-// Access SFTP state and methods from the injected manager instance
-// Note: 'error' and 'clearSftpError' are handled by the UI notification store via useSftpActions
+
 const {
     fileList,
     isLoading,
@@ -73,7 +72,6 @@ const {
     writeFile, // Provided by the manager
     joinPath,
     currentPath, // 从 sftpManager 获取 currentPath
-    // clearSftpError, // Removed, handled by UI notification store
     cleanup: cleanupSftpHandlers, // Get the cleanup function from the manager
 } = props.sftpManager; // 直接从 props 获取
 
@@ -86,9 +84,6 @@ const {
 } = useFileUploader(
     currentPath, // 使用从 sftpManager 获取的 currentPath
     fileList, // 传递来自 sftpManager 的 fileList ref
-    // () => loadDirectory(currentPath.value), // 不再需要传递 refresh 函数
-    // props.sessionId, // 不再传递 sessionId
-    // props.dbConnectionId // 不再传递 dbConnectionId
     props.wsDeps // 传递注入的 WebSocket 依赖项
 );
 
@@ -101,41 +96,10 @@ const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换
 // 从 Settings Store 获取共享设置
 const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 使用 storeToRefs 保持响应性
 
-// 文件编辑器模块 - Needs file operations from sftpManager
-// const { // 移除旧的 composable 解构
-//     isEditorVisible,
-//     editingFilePath,
-//     editingFileLanguage,
-//     isEditorLoading,
-//     editorError,
-//     isSaving,
-//     saveStatus,
-//     saveError,
-//     editingFileContent,
-//     openFile,
-//     saveFile,
-//     closeEditor,
-//     // cleanup: cleanupEditor, // 假设 editor 也提供 cleanup
-// } = useFileEditor( // 移除旧的 composable 调用
-//     readFile, // 使用注入的 sftpManager 中的 readFile
-//     writeFile // Use writeFile from the injected sftpManager
-// );
+
 
 // --- UI 状态 Refs (Remain mostly the same) ---
 const fileInputRef = ref<HTMLInputElement | null>(null);
-// --- 选择状态 (移至 useFileManagerSelection) ---
-// const selectedItems = ref(new Set<string>()); // 移除旧的 ref
-// const lastClickedIndex = ref(-1); // 移除旧的 ref
-// --- 上下文菜单状态 (移至 useFileManagerContextMenu) ---
-// const contextMenuVisible = ref(false);
-// const contextMenuPosition = ref({ x: 0, y: 0 });
-// const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]);
-// const contextTargetItem = ref<FileListItem | null>(null);
-// --- 拖放状态 (移至 useFileManagerDragAndDrop) ---
-// const isDraggingOver = ref(false);
-// const draggedItem = ref<FileListItem | null>(null);
-// const dragOverTarget = ref<string | null>(null);
-// const scrollIntervalId = ref<number | null>(null);
 const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename');
 const sortDirection = ref<'asc' | 'desc'>('asc');
 const initialLoadDone = ref(false);
@@ -146,9 +110,6 @@ const isSearchActive = ref(false); // 新增：控制搜索框激活状态
 const searchInputRef = ref<HTMLInputElement | null>(null); // 新增：搜索输入框 ref
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
-// const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- 移至 useFileManagerContextMenu
-// const draggedItem = ref<FileListItem | null>(null); // 已移至 useFileManagerDragAndDrop
-// const dragOverTarget = ref<string | null>(null); // 已移至 useFileManagerDragAndDrop
 const fileListContainerRef = ref<HTMLDivElement | null>(null); // 文件列表容器引用 (保留，传递给 Composable)
 // const scrollIntervalId = ref<number | null>(null); // 已移至 useFileManagerDragAndDrop
 
@@ -573,11 +534,6 @@ onBeforeUnmount(() => {
     console.log(`[FileManager ${props.sessionId}] 组件即将卸载。`);
     // 调用注入的 SFTP 管理器提供的清理函数
     cleanupSftpHandlers();
-    // 如果其他 composables 也提供了 cleanup 函数，在此处调用
-    // cleanupUploader?.();
-    // cleanupEditor?.();
-    // 移除上下文菜单监听器 (现在由 Composable 处理)
-    // document.removeEventListener('click', hideContextMenu, { capture: true });
 });
 
 // --- 列宽调整逻辑 (保持不变) ---
@@ -897,22 +853,6 @@ const handleWheel = (event: WheelEvent) => {
       @close-request="hideContextMenu"
     />
 
-    <!-- FileEditorOverlay 不再在此处渲染 -->
-    <!--
-    <FileEditorOverlay
-      :is-visible="isEditorVisible"
-      :file-path="editingFilePath"
-      :language="editingFileLanguage"
-      :is-loading="isEditorLoading"
-      :loading-error="editorError"
-      :is-saving="isSaving"
-      :save-status="saveStatus"
-      :save-error="saveError"
-      v-model="editingFileContent"
-      @request-save="saveFile"
-      @close="closeEditor"
-    />
-    -->
 
   </div>
 </template>
