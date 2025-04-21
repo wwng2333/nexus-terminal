@@ -11,8 +11,10 @@ import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; 
 import { useSessionStore } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
+import { useFileManagerContextMenu } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable +++
 // WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
+import FileManagerContextMenu from './FileManagerContextMenu.vue'; // +++ 导入上下文菜单组件 +++
 // import FileEditorOverlay from './FileEditorOverlay.vue'; // 不再在此处渲染
 // 从类型文件导入所需类型
 import type { FileListItem } from '../types/sftp.types';
@@ -120,10 +122,11 @@ const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 使用 sto
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const selectedItems = ref(new Set<string>());
 const lastClickedIndex = ref(-1);
-const contextMenuVisible = ref(false);
-const contextMenuPosition = ref({ x: 0, y: 0 });
-const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]);
-const contextTargetItem = ref<FileListItem | null>(null);
+// --- 上下文菜单状态 (移至 useFileManagerContextMenu) ---
+// const contextMenuVisible = ref(false);
+// const contextMenuPosition = ref({ x: 0, y: 0 });
+// const contextMenuItems = ref<Array<{ label: string; action: () => void; disabled?: boolean }>>([]);
+// const contextTargetItem = ref<FileListItem | null>(null);
 const isDraggingOver = ref(false);
 const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename');
 const sortDirection = ref<'asc' | 'desc'>('asc');
@@ -135,7 +138,7 @@ const isSearchActive = ref(false); // 新增：控制搜索框激活状态
 const searchInputRef = ref<HTMLInputElement | null>(null); // 新增：搜索输入框 ref
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
-const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- Add ref for context menu element
+// const contextMenuRef = ref<HTMLDivElement | null>(null); // <-- 移至 useFileManagerContextMenu
 const draggedItem = ref<FileListItem | null>(null); // 新增：存储被拖拽的项
 const dragOverTarget = ref<string | null>(null); // 新增：存储当前拖拽悬停的目标文件夹名称
 const fileListContainerRef = ref<HTMLDivElement | null>(null); // 新增：文件列表容器引用
@@ -180,118 +183,129 @@ const formatMode = (mode: number): string => {
     return str;
 };
 
-// --- 上下文菜单逻辑 ---
-// Actions now call methods from props.sftpManager
-const showContextMenu = (event: MouseEvent, item?: FileListItem) => {
-    event.preventDefault();
-    const targetItem = item || null;
+// --- SFTP 操作处理函数 (定义在此处，供 Composable 使用) ---
+const handleDeleteSelectedClick = () => {
+    if (!props.wsDeps.isConnected.value || selectedItems.value.size === 0) return; // 恢复使用 props.wsDeps
+    const itemsToDelete = Array.from(selectedItems.value)
+                               .map(filename => fileList.value.find((f: FileListItem) => f.filename === filename)) // f 已有类型
+                               .filter((item): item is FileListItem => item !== undefined);
+    if (itemsToDelete.length === 0) return;
 
-    // Adjust selection based on right-click target
-    if (targetItem && !event.ctrlKey && !event.metaKey && !event.shiftKey && !selectedItems.value.has(targetItem.filename)) {
+    const names = itemsToDelete.map(i => i.filename).join(', ');
+    const confirmMsg = itemsToDelete.length > 1
+        ? t('fileManager.prompts.confirmDeleteMultiple', { count: itemsToDelete.length, names: names })
+        : itemsToDelete[0].attrs.isDirectory
+            ? t('fileManager.prompts.confirmDeleteFolder', { name: itemsToDelete[0].filename })
+            : t('fileManager.prompts.confirmDeleteFile', { name: itemsToDelete[0].filename });
+
+    if (confirm(confirmMsg)) {
+        deleteItems(itemsToDelete); // Use deleteItems from props
         selectedItems.value.clear();
-        selectedItems.value.add(targetItem.filename);
-        // 使用 props.sftpManager 中的 fileList
-        lastClickedIndex.value = fileList.value.findIndex((f: FileListItem) => f.filename === targetItem.filename); // 已添加类型
-    } else if (!targetItem) {
-        selectedItems.value.clear();
-        lastClickedIndex.value = -1;
     }
-
-    contextTargetItem.value = targetItem;
-    let menu: Array<{ label: string; action: () => void; disabled?: boolean }> = [];
-    const selectionSize = selectedItems.value.size;
-    const clickedItemIsSelected = targetItem && selectedItems.value.has(targetItem.filename);
-    const canPerformActions = props.wsDeps.isConnected.value && props.wsDeps.isSftpReady.value; // 恢复使用 props.wsDeps
-
-    // Build context menu items
-    if (selectionSize > 1 && clickedItemIsSelected) {
-        // Multi-selection menu
-        menu = [
-            { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: handleDeleteSelectedClick, disabled: !canPerformActions },
-            { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions },
-        ];
-    } else if (targetItem && targetItem.filename !== '..') {
-        // Single item (not '..') menu
-        menu = [
-            { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick, disabled: !canPerformActions },
-            { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick, disabled: !canPerformActions },
-            { label: t('fileManager.actions.upload'), action: triggerFileUpload, disabled: !canPerformActions }, // Upload depends on connection
-            { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions },
-        ];
-        if (targetItem.attrs.isFile) {
-            menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => triggerDownload(targetItem), disabled: !canPerformActions }); // Download depends on connection
-        }
-        menu.push({ label: t('fileManager.actions.delete'), action: handleDeleteSelectedClick, disabled: !canPerformActions });
-        menu.push({ label: t('fileManager.actions.rename'), action: () => handleRenameContextMenuClick(targetItem), disabled: !canPerformActions });
-        menu.push({ label: t('fileManager.actions.changePermissions'), action: () => handleChangePermissionsContextMenuClick(targetItem), disabled: !canPerformActions });
-
-    } else if (!targetItem) {
-        // Right-click on empty space menu
-        menu = [
-            { label: t('fileManager.actions.newFolder'), action: handleNewFolderContextMenuClick, disabled: !canPerformActions },
-            { label: t('fileManager.actions.newFile'), action: handleNewFileContextMenuClick, disabled: !canPerformActions },
-            { label: t('fileManager.actions.upload'), action: triggerFileUpload, disabled: !canPerformActions },
-            { label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions },
-        ];
-    } else { // Clicked on '..'
-        menu = [{ label: t('fileManager.actions.refresh'), action: () => loadDirectory(currentPath.value), disabled: !canPerformActions }];
-    }
-
-    contextMenuItems.value = menu;
-
-    // Set initial position based on click event
-    contextMenuPosition.value = { x: event.clientX, y: event.clientY };
-    contextMenuVisible.value = true; // Make menu visible so we can measure it
-
-    // Use nextTick to allow the DOM to update and the menu to render
-    nextTick(() => {
-        if (contextMenuRef.value && contextMenuVisible.value) {
-            const menuElement = contextMenuRef.value;
-            const menuRect = menuElement.getBoundingClientRect(); // Get actual dimensions and position
-            const menuWidth = menuRect.width;
-            const menuHeight = menuRect.height;
-
-            let finalX = contextMenuPosition.value.x;
-            let finalY = contextMenuPosition.value.y;
-
-            // Adjust horizontally if needed
-            if (finalX + menuWidth > window.innerWidth) {
-                finalX = window.innerWidth - menuWidth - 5; // Adjust left
-            }
-
-            // Adjust vertically if needed (using actual height)
-            if (finalY + menuHeight > window.innerHeight) {
-                finalY = window.innerHeight - menuHeight - 5; // Adjust up
-            }
-
-            // Ensure menu doesn't go off-screen top or left
-            finalX = Math.max(5, finalX); // Add small margin from left edge
-            finalY = Math.max(5, finalY); // Add small margin from top edge
-
-            // Update the position state if adjustments were made
-            if (finalX !== contextMenuPosition.value.x || finalY !== contextMenuPosition.value.y) {
-                 console.log(`[FileManager ${props.sessionId}] Adjusting context menu position: (${contextMenuPosition.value.x}, ${contextMenuPosition.value.y}) -> (${finalX}, ${finalY})`);
-                 contextMenuPosition.value = { x: finalX, y: finalY };
-            }
-
-            // Add global listener to hide menu *after* positioning
-            document.removeEventListener('click', hideContextMenu, { capture: true });
-            document.addEventListener('click', hideContextMenu, { capture: true, once: true });
-        } else {
-             // Fallback listener if measurement fails
-             document.removeEventListener('click', hideContextMenu, { capture: true });
-             document.addEventListener('click', hideContextMenu, { capture: true, once: true });
-        }
-    });
 };
 
-const hideContextMenu = () => {
-    if (!contextMenuVisible.value) return;
-    contextMenuVisible.value = false;
-    contextMenuItems.value = [];
-    contextTargetItem.value = null;
-    document.removeEventListener('click', hideContextMenu, { capture: true });
+const handleRenameContextMenuClick = (item: FileListItem) => { // item 已有类型
+    if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
+    const newName = prompt(t('fileManager.prompts.enterNewName', { oldName: item.filename }), item.filename);
+    if (newName && newName !== item.filename) {
+        renameItem(item, newName); // Use renameItem from props.sftpManager
+    }
 };
+
+const handleChangePermissionsContextMenuClick = (item: FileListItem) => { // item 已有类型
+    if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
+    const currentModeOctal = (item.attrs.mode & 0o777).toString(8).padStart(3, '0');
+    const newModeStr = prompt(t('fileManager.prompts.enterNewPermissions', { name: item.filename, currentMode: currentModeOctal }), currentModeOctal);
+    if (newModeStr) {
+        if (!/^[0-7]{3,4}$/.test(newModeStr)) {
+            alert(t('fileManager.errors.invalidPermissionsFormat'));
+            return;
+        }
+        const newMode = parseInt(newModeStr, 8);
+        changePermissions(item, newMode); // Use changePermissions from props.sftpManager
+    }
+};
+
+const handleNewFolderContextMenuClick = () => {
+    if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
+    const folderName = prompt(t('fileManager.prompts.enterFolderName'));
+    if (folderName) {
+        if (fileList.value.some((item: FileListItem) => item.filename === folderName)) { // item 已有类型
+             alert(t('fileManager.errors.folderExists', { name: folderName }));
+             return;
+        }
+        createDirectory(folderName); // Use createDirectory from props.sftpManager
+    }
+};
+
+const handleNewFileContextMenuClick = () => {
+    if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
+    const fileName = prompt(t('fileManager.prompts.enterFileName'));
+    if (fileName) {
+        if (fileList.value.some((item: FileListItem) => item.filename === fileName)) { // item 已有类型
+            alert(t('fileManager.errors.fileExists', { name: fileName }));
+            return;
+        }
+        createFile(fileName); // Use createFile from props.sftpManager
+    }
+};
+
+// --- 文件上传触发器 (定义在此处，供 Composable 使用) ---
+const triggerFileUpload = () => { fileInputRef.value?.click(); };
+
+// --- 下载触发器 (定义在此处，供 Composable 使用) ---
+const triggerDownload = (item: FileListItem) => { // item 已有类型
+    // 恢复使用 props.wsDeps.isConnected
+    if (!props.wsDeps.isConnected.value) {
+        alert(t('fileManager.errors.notConnected'));
+        return;
+    }
+    // connectionId might need to be passed differently, maybe via sftpManager or wsDeps
+    // 使用 props 传入的 dbConnectionId
+    const currentConnectionId = props.dbConnectionId; // <-- 使用 Prop
+    if (!currentConnectionId) {
+        console.error(`[FileManager ${props.sessionId}] Cannot download: Missing connection ID.`);
+        alert(t('fileManager.errors.missingConnectionId'));
+        return;
+    }
+    const downloadPath = joinPath(currentPath.value, item.filename); // Use joinPath from props
+    const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
+    console.log(`[FileManager ${props.sessionId}] Triggering download: ${downloadUrl}`);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.setAttribute('download', item.filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+
+// --- 上下文菜单逻辑 (使用 Composable) ---
+const {
+  contextMenuVisible,
+  contextMenuPosition,
+  contextMenuItems,
+  contextMenuRef, // 获取 ref 以传递给子组件
+  showContextMenu, // 使用 Composable 提供的函数
+  hideContextMenu, // <-- 获取 hideContextMenu 函数
+} = useFileManagerContextMenu({
+  selectedItems,
+  lastClickedIndex,
+  fileList, // 传递 sftpManager 的 fileList
+  currentPath, // 传递 sftpManager 的 currentPath
+  isConnected: props.wsDeps.isConnected, // 传递响应式引用
+  isSftpReady: props.wsDeps.isSftpReady, // 传递响应式引用
+  t, // 传递 i18n 的 t 函数
+  // --- 传递回调函数 ---
+  onRefresh: () => loadDirectory(currentPath.value),
+  onUpload: triggerFileUpload,
+  onDownload: triggerDownload,
+  onDelete: handleDeleteSelectedClick,
+  onRename: handleRenameContextMenuClick,
+  onChangePermissions: handleChangePermissionsContextMenuClick,
+  onNewFolder: handleNewFolderContextMenuClick,
+  onNewFile: handleNewFileContextMenuClick,
+});
 
 // --- 目录加载与导航 ---
 // loadDirectory is provided by props.sftpManager
@@ -358,35 +372,6 @@ const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已
             }
         }
     }
-};
-
-// --- 下载逻辑 ---
-// triggerDownload 中的 item 参数已有类型
-
-// --- 下载逻辑 ---
-const triggerDownload = (item: FileListItem) => { // item 已有类型
-    // 恢复使用 props.wsDeps.isConnected
-    if (!props.wsDeps.isConnected.value) {
-        alert(t('fileManager.errors.notConnected'));
-        return;
-    }
-    // connectionId might need to be passed differently, maybe via sftpManager or wsDeps
-    // For now, keep using route.params as a fallback, but this is not ideal for multi-session
-    const currentConnectionId = route.params.connectionId as string; // TODO: Revisit this for multi-session
-    if (!currentConnectionId) {
-        console.error(`[FileManager ${props.sessionId}] Cannot download: Missing connection ID.`);
-        alert(t('fileManager.errors.missingConnectionId'));
-        return;
-    }
-    const downloadPath = joinPath(currentPath.value, item.filename); // Use joinPath from props
-    const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
-    console.log(`[FileManager ${props.sessionId}] Triggering download: ${downloadUrl}`);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', item.filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 };
 
 // --- 拖放上传逻辑 ---
@@ -707,8 +692,7 @@ const handleDropOnRow = (targetItem: FileListItem, event: DragEvent) => {
 };
 
 
-// --- 文件上传逻辑 ---
-const triggerFileUpload = () => { fileInputRef.value?.click(); };
+// --- 文件上传逻辑 (handleFileSelected 保持在此处) ---
 const handleFileSelected = (event: Event) => {
     const input = event.target as HTMLInputElement;
     // 恢复使用 props.wsDeps.isConnected
@@ -716,75 +700,6 @@ const handleFileSelected = (event: Event) => {
     Array.from(input.files).forEach(startFileUpload); // Use startFileUpload from useFileUploader
     input.value = '';
 };
-
-// --- SFTP 操作处理函数 ---
-// 恢复使用 props.wsDeps.isConnected 和 props.sftpManager 的方法
-const handleDeleteSelectedClick = () => {
-    if (!props.wsDeps.isConnected.value || selectedItems.value.size === 0) return; // 恢复使用 props.wsDeps
-    const itemsToDelete = Array.from(selectedItems.value)
-                               .map(filename => fileList.value.find((f: FileListItem) => f.filename === filename)) // f 已有类型
-                               .filter((item): item is FileListItem => item !== undefined);
-    if (itemsToDelete.length === 0) return;
-
-    const names = itemsToDelete.map(i => i.filename).join(', ');
-    const confirmMsg = itemsToDelete.length > 1
-        ? t('fileManager.prompts.confirmDeleteMultiple', { count: itemsToDelete.length, names: names })
-        : itemsToDelete[0].attrs.isDirectory
-            ? t('fileManager.prompts.confirmDeleteFolder', { name: itemsToDelete[0].filename })
-            : t('fileManager.prompts.confirmDeleteFile', { name: itemsToDelete[0].filename });
-
-    if (confirm(confirmMsg)) {
-        deleteItems(itemsToDelete); // Use deleteItems from props
-        selectedItems.value.clear();
-    }
-};
-
-const handleRenameContextMenuClick = (item: FileListItem) => { // item 已有类型
-    if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
-    const newName = prompt(t('fileManager.prompts.enterNewName', { oldName: item.filename }), item.filename);
-    if (newName && newName !== item.filename) {
-        renameItem(item, newName); // Use renameItem from props.sftpManager
-    }
-};
-
-const handleChangePermissionsContextMenuClick = (item: FileListItem) => { // item 已有类型
-    if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
-    const currentModeOctal = (item.attrs.mode & 0o777).toString(8).padStart(3, '0');
-    const newModeStr = prompt(t('fileManager.prompts.enterNewPermissions', { name: item.filename, currentMode: currentModeOctal }), currentModeOctal);
-    if (newModeStr) {
-        if (!/^[0-7]{3,4}$/.test(newModeStr)) {
-            alert(t('fileManager.errors.invalidPermissionsFormat'));
-            return;
-        }
-        const newMode = parseInt(newModeStr, 8);
-        changePermissions(item, newMode); // Use changePermissions from props.sftpManager
-    }
-};
-
-const handleNewFolderContextMenuClick = () => {
-    if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
-    const folderName = prompt(t('fileManager.prompts.enterFolderName'));
-    if (folderName) {
-        if (fileList.value.some((item: FileListItem) => item.filename === folderName)) { // item 已有类型
-             alert(t('fileManager.errors.folderExists', { name: folderName }));
-             return;
-        }
-        createDirectory(folderName); // Use createDirectory from props.sftpManager
-    }
-};
-
-const handleNewFileContextMenuClick = () => {
-    if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
-    const fileName = prompt(t('fileManager.prompts.enterFileName'));
-    if (fileName) {
-        if (fileList.value.some((item: FileListItem) => item.filename === fileName)) { // item 已有类型
-            alert(t('fileManager.errors.fileExists', { name: fileName }));
-            return;
-        }
-        createFile(fileName); // Use createFile from props.sftpManager
-    }
-};
-
 
 // --- 排序逻辑 ---
 // Uses fileList from props.sftpManager
@@ -999,8 +914,8 @@ onBeforeUnmount(() => {
     // 如果其他 composables 也提供了 cleanup 函数，在此处调用
     // cleanupUploader?.();
     // cleanupEditor?.();
-    // 移除上下文菜单监听器
-    document.removeEventListener('click', hideContextMenu, { capture: true });
+    // 移除上下文菜单监听器 (现在由 Composable 处理)
+    // document.removeEventListener('click', hideContextMenu, { capture: true });
 });
 
 // --- 列宽调整逻辑 (保持不变) ---
@@ -1259,7 +1174,7 @@ const handleWheel = (event: WheelEvent) => {
           </tbody>
 
           <!-- File List State -->
-          <tbody v-else @contextmenu.prevent="showContextMenu($event)">
+          <tbody v-else @contextmenu.prevent="showContextMenu($event)"> <!-- 使用 Composable 的 showContextMenu -->
             <!-- '..' 条目 -->
             <tr v-if="currentPath !== '/'"
                 class="clickable file-row folder-row"
@@ -1292,10 +1207,10 @@ const handleWheel = (event: WheelEvent) => {
                     { 'folder-row': item.attrs.isDirectory }, // 添加文件夹标识类
                     { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename } // 拖拽悬停高亮
                 ]"
-                :data-filename="item.filename"
-                @contextmenu.prevent.stop="showContextMenu($event, item)"
-                @dragover.prevent="handleDragOverRow(item, $event)"
-                @dragleave="handleDragLeaveRow(item)"
+               :data-filename="item.filename"
+               @contextmenu.prevent.stop="showContextMenu($event, item)"
+               @dragover.prevent="handleDragOverRow(item, $event)"
+               @dragleave="handleDragLeaveRow(item)"
                 @drop.prevent="handleDropOnRow(item, $event)">
               <td>
                 <i :class="['file-icon', item.attrs.isDirectory ? 'fas fa-folder' : (item.attrs.isSymbolicLink ? 'fas fa-link' : 'far fa-file')]"></i>
@@ -1313,20 +1228,13 @@ const handleWheel = (event: WheelEvent) => {
      <!-- 使用 FileUploadPopup 组件 -->
      <FileUploadPopup :uploads="uploads" @cancel-upload="cancelUpload" />
 
-    <div ref="contextMenuRef"
-         v-if="contextMenuVisible"
-         class="context-menu"
-         :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
-         @click.stop> <!-- Keep @click.stop to prevent clicks inside menu from closing it immediately -->
-      <ul>
-        <li v-for="(menuItem, index) in contextMenuItems"
-            :key="index"
-            @click.stop="menuItem.action(); hideContextMenu()"
-            :class="{ disabled: menuItem.disabled }">
-          {{ menuItem.label }}
-        </li>
-      </ul>
-    </div>
+    <FileManagerContextMenu
+      ref="contextMenuRef"
+      :is-visible="contextMenuVisible"
+      :position="contextMenuPosition"
+      :items="contextMenuItems"
+      @close-request="hideContextMenu"
+    />
 
     <!-- FileEditorOverlay 不再在此处渲染 -->
     <!--
@@ -1683,11 +1591,12 @@ td:nth-child(5) { /* Modified */
     font-size: calc(var(--base-font-size) * 0.9 * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5));
 }
 
-.context-menu { position: fixed; background-color: var(--app-bg-color); border: 1px solid var(--border-color); box-shadow: 2px 2px 5px rgba(0,0,0,0.2); z-index: 1002; min-width: 150px; border-radius: 4px; } /* Add radius */
-.context-menu ul { list-style: none; padding: var(--base-margin) 0; margin: 0; }
-.context-menu li { padding: 0.6rem var(--base-padding); cursor: pointer; color: var(--text-color); font-size: 0.9em; display: flex; align-items: center; } /* Adjust padding/font */
-.context-menu li:hover { background-color: var(--header-bg-color); } /* Use theme variable */
-.context-menu li.disabled { color: var(--text-color-secondary); cursor: not-allowed; background-color: var(--app-bg-color); opacity: 0.6; } /* Use theme variables */
+/* 移除旧的上下文菜单样式 */
+/* .context-menu { ... } */
+/* .context-menu ul { ... } */
+/* .context-menu li { ... } */
+/* .context-menu li:hover { ... } */
+/* .context-menu li.disabled { ... } */
 
 /* Resizer Handle Styles */
 .resizer {
