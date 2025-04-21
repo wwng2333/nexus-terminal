@@ -733,6 +733,7 @@ const handleWheel = (event: WheelEvent) => {
       @drop.prevent="handleDrop"
       @click="fileListContainerRef?.focus()"
       @keydown="handleKeydown"
+      @wheel="handleWheel"
       tabindex="0"
       :style="{ '--row-size-multiplier': rowSizeMultiplier }"
     >
