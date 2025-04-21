@@ -12,6 +12,7 @@ import { useSessionStore } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 import { useFileManagerContextMenu } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable +++
+import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; // +++ 导入选择 Composable +++
 // WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
 import FileManagerContextMenu from './FileManagerContextMenu.vue'; // +++ 导入上下文菜单组件 +++
@@ -120,8 +121,9 @@ const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 使用 sto
 
 // --- UI 状态 Refs (Remain mostly the same) ---
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const selectedItems = ref(new Set<string>());
-const lastClickedIndex = ref(-1);
+// --- 选择状态 (移至 useFileManagerSelection) ---
+// const selectedItems = ref(new Set<string>()); // 移除旧的 ref
+// const lastClickedIndex = ref(-1); // 移除旧的 ref
 // --- 上下文菜单状态 (移至 useFileManagerContextMenu) ---
 // const contextMenuVisible = ref(false);
 // const contextMenuPosition = ref({ x: 0, y: 0 });
@@ -183,9 +185,107 @@ const formatMode = (mode: number): string => {
     return str;
 };
 
+// --- 排序与过滤逻辑 (保持在此处，Selection 和 ContextMenu 依赖它) ---
+const sortedFileList = computed(() => {
+    // Ensure fileList.value is used (it's reactive from the manager)
+    if (!fileList.value) return [];
+    const list = [...fileList.value];
+    const key = sortKey.value;
+    const direction = sortDirection.value === 'asc' ? 1 : -1;
+
+    list.sort((a, b) => {
+        if (key !== 'type') {
+            if (a.attrs.isDirectory && !b.attrs.isDirectory) return -1;
+            if (!a.attrs.isDirectory && b.attrs.isDirectory) return 1;
+        }
+        let valA: string | number | boolean;
+        let valB: string | number | boolean;
+        switch (key) {
+            case 'type':
+                valA = a.attrs.isDirectory ? 0 : (a.attrs.isSymbolicLink ? 1 : 2);
+                valB = b.attrs.isDirectory ? 0 : (b.attrs.isSymbolicLink ? 1 : 2);
+                break;
+            case 'filename': valA = a.filename.toLowerCase(); valB = b.filename.toLowerCase(); break;
+            case 'size': valA = a.attrs.isFile ? a.attrs.size : -1; valB = b.attrs.isFile ? b.attrs.size : -1; break;
+            case 'mtime': valA = a.attrs.mtime; valB = b.attrs.mtime; break;
+            default: valA = a.filename.toLowerCase(); valB = b.filename.toLowerCase();
+        }
+        if (valA < valB) return -1 * direction;
+        if (valA > valB) return 1 * direction;
+        if (key !== 'filename') return a.filename.localeCompare(b.filename);
+        return 0;
+    });
+    return list;
+});
+
+const filteredFileList = computed(() => {
+    if (!searchQuery.value) {
+        return sortedFileList.value; // 如果没有搜索查询，返回原始排序列表
+    }
+    const lowerCaseQuery = searchQuery.value.toLowerCase();
+    return sortedFileList.value.filter(item =>
+        item.filename.toLowerCase().includes(lowerCaseQuery)
+    );
+});
+
+const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
+    if (sortKey.value === key) {
+        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
+    } else {
+        sortKey.value = key;
+        sortDirection.value = 'asc';
+    }
+};
+
+
+// --- 列表项点击与选择逻辑 (使用 Composable) ---
+// 定义单击时的动作回调 (移到 Selection 实例化之前)
+const handleItemAction = (item: FileListItem) => {
+    if (item.attrs.isDirectory) {
+        if (isLoading.value) {
+            console.log(`[FileManager ${props.sessionId}] Ignoring directory click, already loading...`);
+            return;
+        }
+        const newPath = item.filename === '..'
+            ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/'
+            : joinPath(currentPath.value, item.filename);
+        loadDirectory(newPath);
+    } else if (item.attrs.isFile) {
+        const filePath = joinPath(currentPath.value, item.filename);
+        const fileInfo: FileInfo = { name: item.filename, fullPath: filePath };
+
+        if (settingsStore.showPopupFileEditorBoolean) {
+            console.log(`[FileManager ${props.sessionId}] Triggering popup for: ${filePath}`);
+            fileEditorStore.triggerPopup(filePath, props.sessionId);
+        }
+
+        if (shareFileEditorTabsBoolean.value) {
+            console.log(`[FileManager ${props.sessionId}] Opening file in shared mode (store handles loading): ${filePath}`);
+            fileEditorStore.openFile(filePath, props.sessionId);
+        } else {
+            console.log(`[FileManager ${props.sessionId}] Opening file in independent mode (store handles loading): ${filePath}`);
+            sessionStore.openFileInSession(props.sessionId, fileInfo);
+        }
+    }
+};
+
+// 实例化选择 Composable (需要 filteredFileList 和 handleItemAction)
+const {
+  selectedItems, // 使用 Composable 返回的 selectedItems
+  lastClickedIndex, // 获取 lastClickedIndex 以传递给 ContextMenu
+  handleItemClick, // 使用 Composable 返回的 handleItemClick
+  clearSelection, // 获取清空选择的方法
+} = useFileManagerSelection({
+  // 传递当前显示的列表 (已排序和过滤)
+  displayedFileList: filteredFileList, // 现在 filteredFileList 已定义
+  onItemAction: handleItemAction, // 传递动作回调
+});
+
+
 // --- SFTP 操作处理函数 (定义在此处，供 Composable 使用) ---
 const handleDeleteSelectedClick = () => {
-    if (!props.wsDeps.isConnected.value || selectedItems.value.size === 0) return; // 恢复使用 props.wsDeps
+    // 现在 selectedItems 来自 useFileManagerSelection
+    if (!props.wsDeps.isConnected.value || selectedItems.value.size === 0) return;
     const itemsToDelete = Array.from(selectedItems.value)
                                .map(filename => fileList.value.find((f: FileListItem) => f.filename === filename)) // f 已有类型
                                .filter((item): item is FileListItem => item !== undefined);
@@ -280,7 +380,7 @@ const triggerDownload = (item: FileListItem) => { // item 已有类型
 };
 
 
-// --- 上下文菜单逻辑 (使用 Composable) ---
+// --- 上下文菜单逻辑 (使用 Composable, 需要 Selection 和 Action Handlers) ---
 const {
   contextMenuVisible,
   contextMenuPosition,
@@ -289,8 +389,8 @@ const {
   showContextMenu, // 使用 Composable 提供的函数
   hideContextMenu, // <-- 获取 hideContextMenu 函数
 } = useFileManagerContextMenu({
-  selectedItems,
-  lastClickedIndex,
+  selectedItems, // 传递来自 useFileManagerSelection 的 selectedItems
+  lastClickedIndex, // 传递来自 useFileManagerSelection 的 lastClickedIndex
   fileList, // 传递 sftpManager 的 fileList
   currentPath, // 传递 sftpManager 的 currentPath
   isConnected: props.wsDeps.isConnected, // 传递响应式引用
@@ -309,70 +409,6 @@ const {
 
 // --- 目录加载与导航 ---
 // loadDirectory is provided by props.sftpManager
-
-// --- 列表项点击与选择逻辑 ---
-// handleItemClick 中的 item 参数已有类型
-
-// --- 列表项点击与选择逻辑 ---
-const handleItemClick = (event: MouseEvent, item: FileListItem) => { // item 已有类型
-    const itemIndex = fileList.value.findIndex((f: FileListItem) => f.filename === item.filename); // f 已有类型
-    if (itemIndex === -1 && item.filename !== '..') return;
-
-    if (event.ctrlKey || event.metaKey) {
-        if (item.filename === '..') return;
-        if (selectedItems.value.has(item.filename)) selectedItems.value.delete(item.filename);
-        else selectedItems.value.add(item.filename);
-        lastClickedIndex.value = itemIndex;
-    } else if (event.shiftKey && lastClickedIndex.value !== -1) {
-        if (item.filename === '..') return;
-        selectedItems.value.clear();
-        const start = Math.min(lastClickedIndex.value, itemIndex);
-        const end = Math.max(lastClickedIndex.value, itemIndex);
-        for (let i = start; i <= end; i++) {
-            // Use fileList from props
-            if (fileList.value[i]) selectedItems.value.add(fileList.value[i].filename);
-        }
-    } else {
-        selectedItems.value.clear();
-        if (item.filename !== '..') {
-             selectedItems.value.add(item.filename);
-             lastClickedIndex.value = itemIndex;
-        } else {
-             lastClickedIndex.value = -1;
-        }
-
-        if (item.attrs.isDirectory) {
-            if (isLoading.value) { // Use isLoading from props
-                console.log(`[FileManager ${props.sessionId}] Ignoring directory click, already loading...`);
-                return;
-            }
-            const newPath = item.filename === '..'
-                ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/' // 使用 sftpManager 的 currentPath
-                : joinPath(currentPath.value, item.filename); // Use joinPath from props
-            loadDirectory(newPath); // Use loadDirectory from props
-        } else if (item.attrs.isFile) {
-            const filePath = joinPath(currentPath.value, item.filename); // Use joinPath from props
-            const fileInfo: FileInfo = { name: item.filename, fullPath: filePath };
-
-            // 检查是否需要触发弹窗 (无论共享模式如何)
-            if (settingsStore.showPopupFileEditorBoolean) {
-                console.log(`[FileManager ${props.sessionId}] Triggering popup for: ${filePath}`);
-                fileEditorStore.triggerPopup(filePath, props.sessionId); // <-- 传递参数
-            }
-
-            // 根据共享模式决定如何打开/加载文件
-            if (shareFileEditorTabsBoolean.value) {
-                // 共享模式：调用全局 fileEditorStore (它会处理标签页和加载)
-                console.log(`[FileManager ${props.sessionId}] Opening file in shared mode (store handles loading): ${filePath}`);
-                fileEditorStore.openFile(filePath, props.sessionId);
-            } else {
-                // 独立模式：调用 sessionStore (它会处理标签页和加载)
-                console.log(`[FileManager ${props.sessionId}] Opening file in independent mode (store handles loading): ${filePath}`);
-                sessionStore.openFileInSession(props.sessionId, fileInfo);
-            }
-        }
-    }
-};
 
 // --- 拖放上传逻辑 ---
 const handleDragEnter = (event: DragEvent) => {
@@ -701,60 +737,6 @@ const handleFileSelected = (event: Event) => {
     input.value = '';
 };
 
-// --- 排序逻辑 ---
-// Uses fileList from props.sftpManager
-const sortedFileList = computed(() => {
-    // Ensure fileList.value is used (it's reactive from the manager)
-    if (!fileList.value) return [];
-    const list = [...fileList.value];
-    const key = sortKey.value;
-    const direction = sortDirection.value === 'asc' ? 1 : -1;
-
-    list.sort((a, b) => {
-        if (key !== 'type') {
-            if (a.attrs.isDirectory && !b.attrs.isDirectory) return -1;
-            if (!a.attrs.isDirectory && b.attrs.isDirectory) return 1;
-        }
-        let valA: string | number | boolean;
-        let valB: string | number | boolean;
-        switch (key) {
-            case 'type':
-                valA = a.attrs.isDirectory ? 0 : (a.attrs.isSymbolicLink ? 1 : 2);
-                valB = b.attrs.isDirectory ? 0 : (b.attrs.isSymbolicLink ? 1 : 2);
-                break;
-            case 'filename': valA = a.filename.toLowerCase(); valB = b.filename.toLowerCase(); break;
-            case 'size': valA = a.attrs.isFile ? a.attrs.size : -1; valB = b.attrs.isFile ? b.attrs.size : -1; break;
-            case 'mtime': valA = a.attrs.mtime; valB = b.attrs.mtime; break;
-            default: valA = a.filename.toLowerCase(); valB = b.filename.toLowerCase();
-        }
-        if (valA < valB) return -1 * direction;
-        if (valA > valB) return 1 * direction;
-        if (key !== 'filename') return a.filename.localeCompare(b.filename);
-        return 0;
-    });
-    return list;
-});
-
-// 新增：过滤后的文件列表计算属性
-const filteredFileList = computed(() => {
-    if (!searchQuery.value) {
-        return sortedFileList.value; // 如果没有搜索查询，返回原始排序列表
-    }
-    const lowerCaseQuery = searchQuery.value.toLowerCase();
-    return sortedFileList.value.filter(item =>
-        item.filename.toLowerCase().includes(lowerCaseQuery)
-    );
-});
-
-const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
-    if (sortKey.value === key) {
-        sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc';
-    } else {
-        sortKey.value = key;
-        sortDirection.value = 'asc';
-    }
-};
-
 // --- 键盘导航和执行 ---
 const handleKeydown = (event: KeyboardEvent) => {
     const list = filteredFileList.value;
@@ -817,11 +799,23 @@ const scrollToSelected = async () => {
     }
 };
 
-// --- 重置选中索引的 Watchers ---
-watch(currentPath, () => { selectedIndex.value = -1; });
-watch(searchQuery, () => { selectedIndex.value = -1; });
-watch(sortKey, () => { selectedIndex.value = -1; });
-watch(sortDirection, () => { selectedIndex.value = -1; });
+// --- 重置选中索引和清空选择的 Watchers ---
+watch(currentPath, () => {
+    selectedIndex.value = -1;
+    clearSelection(); // 清空选择
+});
+watch(searchQuery, () => {
+    selectedIndex.value = -1;
+    clearSelection(); // 清空选择
+});
+watch(sortKey, () => {
+    selectedIndex.value = -1;
+    clearSelection(); // 清空选择
+});
+watch(sortDirection, () => {
+    selectedIndex.value = -1;
+    clearSelection(); // 清空选择
+});
 
 
 // --- 生命周期钩子 ---
@@ -889,9 +883,9 @@ watchEffect((onCleanup) => {
 
     } else if (!props.wsDeps.isConnected.value && initialLoadDone.value) { // 恢复使用 props.wsDeps.isConnected
         console.log(`[FileManager ${props.sessionId}] 连接丢失 (之前已加载)，重置状态。`);
-        selectedItems.value.clear();
-        lastClickedIndex.value = -1;
+        clearSelection(); // 清空选择
         initialLoadDone.value = false; // 重置初始加载状态
+        // lastClickedIndex.value = -1; // 由 clearSelection 处理
         isFetchingInitialPath.value = false; // 重置获取状态
         cleanupListeners();
     }
@@ -1202,8 +1196,8 @@ const handleWheel = (event: WheelEvent) => {
                 :class="[
                     'file-row',
                     { clickable: item.attrs.isDirectory || item.attrs.isFile },
-                    /* { selected: selectedItems.has(item.filename) }, */ /* 移除鼠标选择的 selected 类，统一用键盘的 */
-                    { selected: index + (currentPath !== '/' ? 1 : 0) === selectedIndex }, /* 键盘选中高亮 */
+                    { selected: selectedItems.has(item.filename) }, /* 恢复：使用 selectedItems Set 控制选中高亮 */
+                    // { selected: index + (currentPath !== '/' ? 1 : 0) === selectedIndex }, /* 暂时移除键盘选中高亮 */
                     { 'folder-row': item.attrs.isDirectory }, // 添加文件夹标识类
                     { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename } // 拖拽悬停高亮
                 ]"
