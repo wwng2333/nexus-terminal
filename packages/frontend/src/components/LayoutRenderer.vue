@@ -286,12 +286,24 @@ const sidebarProps = computed(() => (paneName: PaneName | null) => {
      } else {
        return baseProps; // Return only base props if no active session
      }
-   // Add cases for other components if they need specific props or event forwarding in the sidebar
-   // case 'commandHistory': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
-   // case 'quickCommands': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
-   default:
-     return baseProps; // Return only base props for other components
- }
+   case 'statusMonitor':
+     // Only provide props if there's an active session
+     if (activeSession.value) {
+       return {
+         ...baseProps,
+         sessionId: activeSession.value.sessionId, // Pass session ID
+         serverStatus: activeSession.value.statusMonitorManager.serverStatus.value,
+         statusError: activeSession.value.statusMonitorManager.statusError.value,
+       };
+     } else {
+       return baseProps; // Return only base props if no active session
+     }
+    // Add cases for other components if they need specific props or event forwarding in the sidebar
+    // case 'commandHistory': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
+    // case 'quickCommands': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
+    default:
+      return baseProps; // Return only base props for other components
+  }
 });
 
 
