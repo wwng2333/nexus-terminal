@@ -14,6 +14,7 @@ import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ �
 import { useFileManagerContextMenu } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable +++
 import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; // +++ 导入选择 Composable +++
 import { useFileManagerDragAndDrop } from '../composables/file-manager/useFileManagerDragAndDrop'; // +++ 导入拖放 Composable +++
+import { useFileManagerKeyboardNavigation } from '../composables/file-manager/useFileManagerKeyboardNavigation'; // +++ 导入键盘导航 Composable +++
 // WebSocket composable 不再直接使用
 import FileUploadPopup from './FileUploadPopup.vue';
 import FileManagerContextMenu from './FileManagerContextMenu.vue'; // +++ 导入上下文菜单组件 +++
@@ -152,7 +153,8 @@ const fileListContainerRef = ref<HTMLDivElement | null>(null); // 文件列表�
 // const scrollIntervalId = ref<number | null>(null); // 已移至 useFileManagerDragAndDrop
 
 const rowSizeMultiplier = ref(1); // 新增：行大小（字体）乘数
-const selectedIndex = ref<number>(-1); // 新增：键盘选中索引
+// --- 键盘导航状态 (移至 useFileManagerKeyboardNavigation) ---
+// const selectedIndex = ref<number>(-1);
 
 // --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
@@ -451,69 +453,21 @@ const handleFileSelected = (event: Event) => {
     input.value = '';
 };
 
-// --- 键盘导航和执行 ---
-const handleKeydown = (event: KeyboardEvent) => {
-    const list = filteredFileList.value;
-    const hasParentLink = currentPath.value !== '/';
-    const totalItems = list.length + (hasParentLink ? 1 : 0); // 包含 '..' 的总项目数
+// --- 键盘导航逻辑 (使用 Composable) ---
+const {
+  selectedIndex, // 使用 Composable 返回的 selectedIndex
+  handleKeydown, // 使用 Composable 返回的 handleKeydown
+} = useFileManagerKeyboardNavigation({
+  filteredFileList: filteredFileList, // 传递过滤后的列表
+  currentPath: currentPath, // 传递当前路径
+  fileListContainerRef: fileListContainerRef, // 传递容器引用
+  // 当 Enter 键按下时，模拟鼠标单击
+  onEnterPress: (item) => handleItemClick(new MouseEvent('click'), item),
+});
 
-    if (totalItems === 0) return;
-
-    let currentEffectiveIndex = selectedIndex.value; // 0 代表 '..', 1+ 代表 filteredList 的 index + 1
-
-    switch (event.key) {
-        case 'ArrowDown':
-            event.preventDefault();
-            currentEffectiveIndex = (currentEffectiveIndex + 1) % totalItems;
-            selectedIndex.value = currentEffectiveIndex;
-            scrollToSelected();
-            break;
-        case 'ArrowUp':
-            event.preventDefault();
-            currentEffectiveIndex = (currentEffectiveIndex - 1 + totalItems) % totalItems;
-            selectedIndex.value = currentEffectiveIndex;
-            scrollToSelected();
-            break;
-        case 'Enter':
-            event.preventDefault();
-            if (selectedIndex.value === 0 && hasParentLink) {
-                // 选中 '..'
-                handleItemClick(new MouseEvent('click'), { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } });
-            } else if (selectedIndex.value > 0) {
-                // 选中列表中的项
-                const itemIndexInFilteredList = selectedIndex.value - (hasParentLink ? 1 : 0);
-                if (itemIndexInFilteredList >= 0 && itemIndexInFilteredList < list.length) {
-                    handleItemClick(new MouseEvent('click'), list[itemIndexInFilteredList]);
-                }
-            }
-            break;
-    }
-};
-
-const scrollToSelected = async () => {
-    await nextTick();
-    if (selectedIndex.value < 0 || !fileListContainerRef.value) return;
-
-    const container = fileListContainerRef.value;
-    // 使用 querySelectorAll 获取所有行，包括 '..'
-    const rows = container.querySelectorAll('tr.file-row');
-    if (selectedIndex.value >= rows.length) return; // 索引超出范围
-
-    const selectedRow = rows[selectedIndex.value] as HTMLElement;
-
-    if (selectedRow) {
-        const containerRect = container.getBoundingClientRect();
-        const rowRect = selectedRow.getBoundingClientRect();
-
-        if (rowRect.top < containerRect.top) {
-            container.scrollTop -= containerRect.top - rowRect.top;
-        } else if (rowRect.bottom > containerRect.bottom) {
-            container.scrollTop += rowRect.bottom - containerRect.bottom;
-        }
-    }
-};
 
 // --- 重置选中索引和清空选择的 Watchers ---
+// 注意：这里的 Watchers 现在需要修改 Composable 返回的 selectedIndex.value
 watch(currentPath, () => {
     selectedIndex.value = -1;
     clearSelection(); // 清空选择
@@ -821,7 +775,7 @@ const handleWheel = (event: WheelEvent) => {
       @dragover.prevent="handleDragOver" 
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
-      @click="fileListContainerRef?.focus()" 
+      @click="fileListContainerRef?.focus()"
       @keydown="handleKeydown"
       tabindex="0"
       :style="{ '--row-size-multiplier': rowSizeMultiplier }"
@@ -886,7 +840,7 @@ const handleWheel = (event: WheelEvent) => {
             <tr v-if="currentPath !== '/'"
                 class="clickable file-row folder-row"
                 :class="{
-                    selected: selectedIndex === 0,
+                    selected: selectedIndex === 0, // 使用 Composable 的 selectedIndex
                     'drop-target': dragOverTarget === '..'
                 }"
                 @click="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
@@ -909,8 +863,8 @@ const handleWheel = (event: WheelEvent) => {
                 :class="[
                     'file-row',
                     { clickable: item.attrs.isDirectory || item.attrs.isFile },
-                    { selected: selectedItems.has(item.filename) || (index + (currentPath !== '/' ? 1 : 0) === selectedIndex) }, /* 结合鼠标和键盘选中高亮 */
-                    // { selected: index + (currentPath !== '/' ? 1 : 0) === selectedIndex }, /* 移除单独的键盘高亮 */
+                    { selected: selectedItems.has(item.filename) || (index + (currentPath !== '/' ? 1 : 0) === selectedIndex) }, /* 使用 Composable 的 selectedIndex */
+                    // { selected: index + (currentPath !== '/' ? 1 : 0) === selectedIndex }, /* 保持注释 */
                     { 'folder-row': item.attrs.isDirectory }, // 添加文件夹标识类
                     { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename } // 使用 Composable 的 dragOverTarget
                 ]"
