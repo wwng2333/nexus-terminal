@@ -35,7 +35,8 @@ export const settingsController = {
           'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
           'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
           'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
-          'statusMonitorIntervalSeconds' // +++ 添加状态监控间隔键 +++
+          'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
+          'workspaceSidebarPersistent' // +++ 添加侧边栏固定键 +++
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {

@@ -7,6 +7,7 @@ import { Splitpanes, Pane } from 'splitpanes';
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
 import { useSessionStore } from '../stores/session.store';
 import { useFileEditorStore } from '../stores/fileEditor.store'; // <-- Import FileEditorStore
+import { useSettingsStore } from '../stores/settings.store'; // +++ Import SettingsStore +++
 import { storeToRefs } from 'pinia';
 import { defineEmits } from 'vue';
 
@@ -67,8 +68,10 @@ const emit = defineEmits({
 const layoutStore = useLayoutStore();
 const sessionStore = useSessionStore();
 const fileEditorStore = useFileEditorStore(); // <-- Initialize FileEditorStore
+const settingsStore = useSettingsStore(); // +++ Initialize SettingsStore +++
 const { t } = useI18n(); // <-- Get translation function
 const { activeSession } = storeToRefs(sessionStore);
+const { workspaceSidebarPersistentBoolean } = storeToRefs(settingsStore); // +++ Get sidebar setting +++
 const { sidebarPanes } = storeToRefs(layoutStore);
 const { orderedTabs: editorTabsFromStore, activeTabId: activeEditorTabIdFromStore } = storeToRefs(fileEditorStore); // <-- Get editor state
 
@@ -354,6 +357,14 @@ watch(() => props.activeSessionId, () => {
     // closeSidebars(); // 取消注释以在切换会话时关闭侧栏
 });
 
+// +++ 新方法：处理主内容区域点击，用于非固定模式下关闭侧边栏 +++
+const handleMainAreaClick = () => {
+  // 仅当侧边栏激活且不处于固定模式时才关闭
+  if ((activeLeftSidebarPane.value || activeRightSidebarPane.value) && !workspaceSidebarPersistentBoolean.value) {
+    closeSidebars();
+  }
+};
+
 // --- Debug Watcher for sidebarPanes from store ---
 watch(sidebarPanes, (newVal) => {
   console.log('[LayoutRenderer] Received updated sidebarPanes from store:', JSON.parse(JSON.stringify(newVal)));
@@ -393,7 +404,7 @@ const getIconClasses = (paneName: PaneName): string[] => {
     </div>
 
     <!-- Main Layout Area -->
-    <div class="main-layout-area">
+    <div class="main-layout-area" @click="handleMainAreaClick"> <!-- --- 移除 .self 修饰符 --- -->
         <div class="layout-renderer" :data-node-id="layoutNode.id">
             <!-- 如果是容器节点 -->
             <template v-if="layoutNode.type === 'container' && layoutNode.children && layoutNode.children.length > 0">
@@ -539,7 +550,7 @@ const getIconClasses = (paneName: PaneName): string[] => {
     <div
         v-if="activeLeftSidebarPane || activeRightSidebarPane"
         class="sidebar-overlay"
-        @click="closeSidebars"
+
     ></div>
 
     <!-- Left Sidebar Panel -->
@@ -767,7 +778,9 @@ const getIconClasses = (paneName: PaneName): string[] => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
+  /* background-color: rgba(0, 0, 0, 0.4); */ /* <-- 移除背景色 */
+  background-color: transparent; /* <-- 确保完全透明 */
+  pointer-events: none; /* <-- 不拦截鼠标事件 */
   z-index: 100; /* Below panel, above main content */
   opacity: 0;
   visibility: hidden;

@@ -656,6 +656,18 @@
          "saveFailed": "Failed to save status monitor settings.",
          "invalidInterval": "Refresh interval must be a positive integer."
        }
+     },
+     "workspace": {
+       "title": "Workspace & Terminal",
+       "sidebarPersistentTitle": "Sidebar Behavior",
+       "sidebarPersistentLabel": "Pin sidebar when opened (prevent auto-collapse)",
+       "sidebarPersistentDescription": "When enabled, clicking outside the sidebar will not automatically collapse it.",
+       "success": {
+         "sidebarPersistentSaved": "Sidebar setting saved."
+       },
+       "error": {
+         "sidebarPersistentSaveFailed": "Failed to save sidebar setting."
+       }
      }
   },
   "common": {

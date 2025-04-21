@@ -100,42 +100,71 @@
           <button @click="openStyleCustomizer">{{ t('settings.appearance.customizeButton') }}</button>
         </div>
 
-        <div class="settings-section">
-          <h2>{{ $t('settings.popupEditor.title') }}</h2>
-          <form @submit.prevent="handleUpdatePopupEditorSetting">
-              <div class="form-group form-group-checkbox">
-                  <input type="checkbox" id="showPopupEditor" v-model="popupEditorEnabled">
-                  <label for="showPopupEditor">{{ $t('settings.popupEditor.enableLabel') }}</label>
-              </div>
-              <button type="submit" :disabled="popupEditorLoading">{{ popupEditorLoading ? $t('common.saving') : $t('settings.popupEditor.saveButton') }}</button>
-              <p v-if="popupEditorMessage" :class="{ 'success-message': popupEditorSuccess, 'error-message': !popupEditorSuccess }">{{ popupEditorMessage }}</p>
-          </form>
-        </div>
+        <!-- START: Workspace/Terminal Settings Group -->
+        <div class="settings-section settings-section-group">
+          <h2>{{ $t('settings.workspace.title') }}</h2> <!-- New Group Title -->
 
-        <div class="settings-section">
-          <h2>{{ $t('settings.shareEditorTabs.title') }}</h2>
-          <form @submit.prevent="handleUpdateShareTabsSetting">
-              <div class="form-group form-group-checkbox">
-                  <input type="checkbox" id="shareEditorTabs" v-model="shareTabsEnabled">
-                  <label for="shareEditorTabs">{{ $t('settings.shareEditorTabs.enableLabel') }}</label>
-              </div>
-              <p class="setting-description">{{ $t('settings.shareEditorTabs.description') }}</p>
-              <button type="submit" :disabled="shareTabsLoading">{{ shareTabsLoading ? $t('common.saving') : $t('settings.shareEditorTabs.saveButton') }}</button>
-              <p v-if="shareTabsMessage" :class="{ 'success-message': shareTabsSuccess, 'error-message': !shareTabsSuccess }">{{ shareTabsMessage }}</p>
-          </form>
-        </div>
+          <div class="settings-subsection"> <!-- Subsection for Popup Editor -->
+            <h3>{{ $t('settings.popupEditor.title') }}</h3>
+            <form @submit.prevent="handleUpdatePopupEditorSetting">
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" id="showPopupEditor" v-model="popupEditorEnabled">
+                    <label for="showPopupEditor">{{ $t('settings.popupEditor.enableLabel') }}</label>
+                </div>
+                <button type="submit" :disabled="popupEditorLoading">{{ popupEditorLoading ? $t('common.saving') : $t('settings.popupEditor.saveButton') }}</button>
+                <p v-if="popupEditorMessage" :class="{ 'success-message': popupEditorSuccess, 'error-message': !popupEditorSuccess }">{{ popupEditorMessage }}</p>
+            </form>
+          </div>
 
-        <div class="settings-section">
-          <h2>{{ $t('settings.autoCopyOnSelect.title') }}</h2>
-          <form @submit.prevent="handleUpdateAutoCopySetting">
-              <div class="form-group form-group-checkbox">
-                  <input type="checkbox" id="autoCopyOnSelect" v-model="autoCopyEnabled">
-                  <label for="autoCopyOnSelect">{{ $t('settings.autoCopyOnSelect.enableLabel') }}</label>
-              </div>
-              <button type="submit" :disabled="autoCopyLoading">{{ autoCopyLoading ? $t('common.saving') : $t('settings.autoCopyOnSelect.saveButton') }}</button>
-              <p v-if="autoCopyMessage" :class="{ 'success-message': autoCopySuccess, 'error-message': !autoCopySuccess }">{{ autoCopyMessage }}</p>
-          </form>
+          <hr class="subsection-divider">
+
+          <div class="settings-subsection"> <!-- Subsection for Share Tabs -->
+            <h3>{{ $t('settings.shareEditorTabs.title') }}</h3>
+            <form @submit.prevent="handleUpdateShareTabsSetting">
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" id="shareEditorTabs" v-model="shareTabsEnabled">
+                    <label for="shareEditorTabs">{{ $t('settings.shareEditorTabs.enableLabel') }}</label>
+                </div>
+                <p class="setting-description">{{ $t('settings.shareEditorTabs.description') }}</p>
+                <button type="submit" :disabled="shareTabsLoading">{{ shareTabsLoading ? $t('common.saving') : $t('settings.shareEditorTabs.saveButton') }}</button>
+                <p v-if="shareTabsMessage" :class="{ 'success-message': shareTabsSuccess, 'error-message': !shareTabsSuccess }">{{ shareTabsMessage }}</p>
+            </form>
+          </div>
+
+          <hr class="subsection-divider">
+
+          <div class="settings-subsection"> <!-- Subsection for Auto Copy -->
+            <h3>{{ $t('settings.autoCopyOnSelect.title') }}</h3>
+            <form @submit.prevent="handleUpdateAutoCopySetting">
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" id="autoCopyOnSelect" v-model="autoCopyEnabled">
+                    <label for="autoCopyOnSelect">{{ $t('settings.autoCopyOnSelect.enableLabel') }}</label>
+                </div>
+                <button type="submit" :disabled="autoCopyLoading">{{ autoCopyLoading ? $t('common.saving') : $t('settings.autoCopyOnSelect.saveButton') }}</button>
+                <p v-if="autoCopyMessage" :class="{ 'success-message': autoCopySuccess, 'error-message': !autoCopySuccess }">{{ autoCopyMessage }}</p>
+            </form>
+          </div>
+
+          <hr class="subsection-divider">
+
+          <!-- NEW: Persistent Sidebar Setting -->
+          <div class="settings-subsection">
+            <h3>{{ $t('settings.workspace.sidebarPersistentTitle') }}</h3>
+            <form @submit.prevent="handleUpdateWorkspaceSidebarSetting">
+                <div class="form-group form-group-checkbox">
+                    <input type="checkbox" id="workspaceSidebarPersistent" v-model="workspaceSidebarPersistentEnabled">
+                    <label for="workspaceSidebarPersistent">{{ $t('settings.workspace.sidebarPersistentLabel') }}</label>
+                </div>
+                <p class="setting-description">{{ $t('settings.workspace.sidebarPersistentDescription') }}</p>
+                <button type="submit" :disabled="workspaceSidebarPersistentLoading">{{ workspaceSidebarPersistentLoading ? $t('common.saving') : $t('common.save') }}</button>
+                <p v-if="workspaceSidebarPersistentMessage" :class="{ 'success-message': workspaceSidebarPersistentSuccess, 'error-message': !workspaceSidebarPersistentSuccess }">{{ workspaceSidebarPersistentMessage }}</p>
+            </form>
+          </div>
+          <!-- END: Persistent Sidebar Setting -->
+
         </div>
+        <!-- END: Workspace/Terminal Settings Group -->
+
 
         <!-- NEW: Docker Settings Section -->
         <div class="settings-section">
@@ -267,7 +296,7 @@ const { t } = useI18n();
 
 // --- Reactive state from store ---
 // 使用 storeToRefs 获取响应式 getter，包括 language
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean, statusMonitorIntervalSecondsNumber, language: storeLanguage } = storeToRefs(settingsStore); // +++ 添加 statusMonitorIntervalSecondsNumber getter +++
+const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean, statusMonitorIntervalSecondsNumber, language: storeLanguage, workspaceSidebarPersistentBoolean } = storeToRefs(settingsStore); // +++ 添加 workspaceSidebarPersistentBoolean getter +++
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -278,6 +307,7 @@ const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store
     loginBanDuration: '300', // 初始值将在 watcher 中被 store 值覆盖
 });
 const popupEditorEnabled = ref(true); // 本地状态，用于 v-model
+const workspaceSidebarPersistentEnabled = ref(false); // 新增：侧边栏固定设置的本地状态
 
 // --- Local UI feedback state ---
 const ipWhitelistLoading = ref(false);
@@ -309,6 +339,9 @@ const statusMonitorIntervalLocal = ref(3); // 本地状态，用于状态监控�
 const statusMonitorLoading = ref(false);
 const statusMonitorMessage = ref('');
 const statusMonitorSuccess = ref(false);
+const workspaceSidebarPersistentLoading = ref(false); // 新增
+const workspaceSidebarPersistentMessage = ref(''); // 新增
+const workspaceSidebarPersistentSuccess = ref(false); // 新增
 
 
 // --- Watcher to sync local form state with store state ---
@@ -328,6 +361,7 @@ watch(settings, (newSettings, oldSettings) => {
   dockerInterval.value = parseInt(newSettings.dockerStatusIntervalSeconds || '2', 10); // 同步 Docker 间隔
   dockerExpandDefault.value = dockerDefaultExpandBoolean.value; // 同步 Docker 默认展开状态
   statusMonitorIntervalLocal.value = statusMonitorIntervalSecondsNumber.value; // 同步状态监控间隔
+  workspaceSidebarPersistentEnabled.value = workspaceSidebarPersistentBoolean.value; // 新增：同步侧边栏固定设置
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -437,6 +471,25 @@ const handleUpdateStatusMonitorInterval = async () => {
         statusMonitorSuccess.value = false;
     } finally {
         statusMonitorLoading.value = false;
+    }
+};
+
+// --- Workspace Sidebar Persistent setting method ---
+const handleUpdateWorkspaceSidebarSetting = async () => {
+    workspaceSidebarPersistentLoading.value = true;
+    workspaceSidebarPersistentMessage.value = '';
+    workspaceSidebarPersistentSuccess.value = false;
+    try {
+        const valueToSave = workspaceSidebarPersistentEnabled.value ? 'true' : 'false';
+        await settingsStore.updateSetting('workspaceSidebarPersistent', valueToSave);
+        workspaceSidebarPersistentMessage.value = t('settings.workspace.success.sidebarPersistentSaved'); // 需要添加翻译
+        workspaceSidebarPersistentSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新侧边栏固定设置失败:', error);
+        workspaceSidebarPersistentMessage.value = error.message || t('settings.workspace.error.sidebarPersistentSaveFailed'); // 需要添加翻译
+        workspaceSidebarPersistentSuccess.value = false;
+    } finally {
+        workspaceSidebarPersistentLoading.value = false;
     }
 };
 
@@ -731,6 +784,35 @@ h1 {
   /* height: 100%; */ /* <-- 移除此行，让高度自适应内容 */
 }
 
+/* Styles for grouped sections */
+.settings-section-group {
+  /* Styles for the container of subsections */
+  padding-bottom: 0; /* Remove bottom padding if subsections have their own */
+}
+
+.settings-subsection {
+  padding-top: calc(var(--base-padding) * 0.8);
+  padding-bottom: calc(var(--base-padding) * 1.2);
+  /* No border or background needed here, inherited from parent or default */
+}
+
+.settings-subsection h3 {
+  font-size: 1rem; /* Slightly smaller than section h2 */
+  color: var(--text-color);
+  margin-top: 0;
+  margin-bottom: calc(var(--base-margin) * 0.8);
+  padding-bottom: calc(var(--base-margin) * 0.5);
+  border-bottom: none; /* Remove individual borders for subsections */
+}
+
+.subsection-divider {
+  border: none;
+  border-top: 1px dashed var(--border-color-light, var(--border-color));
+  margin: 0 calc(var(--base-padding) * -1.2); /* Extend divider across padding */
+  /* margin-top: 0; */
+  /* margin-bottom: calc(var(--base-padding) * 0.8); */ /* Space before next subsection */
+}
+
 .settings-section-full-width {
   grid-column: 1 / -1; /* 让黑名单部分横跨所有列 */
 }
@@ -867,7 +949,7 @@ button:disabled, .btn:disabled {
 hr.section-divider { /* 区域内分隔线 */
     border: none;
     border-top: 1px dashed var(--border-color-light, var(--border-color));
-    margin: var(--base-margin) 0;
+    margin: var(--base-margin) 0; /* Keep for general dividers */
 }
 
 code {
