@@ -162,6 +162,13 @@ const saveConfiguration = () => {
   emit('close'); // 保存后关闭
 };
 
+const removeFromSequence = (index: number) => {
+  if (index >= 0 && index < localSequence.value.length) {
+    localSequence.value.splice(index, 1);
+    // hasChanges 会在 watch 中自动更新
+  }
+};
+
 // --- Computed ---
 // ++ 修改：计算属性，获取不在右侧序列中的项目 (用于左侧列表) ++
 const localAvailableInputs = computed(() => {
@@ -171,7 +178,7 @@ const localAvailableInputs = computed(() => {
     .filter(input => !sequenceIds.has(input.id))
     .map(input => ({
         ...input,
-        shortcut: localItemConfigs.value[input.id]?.shortcut // 从本地配置获取快捷键
+        // shortcut: localItemConfigs.value[input.id]?.shortcut // 快捷键在下方单独配置
     }));
 });
 
@@ -188,63 +195,89 @@ const localAvailableInputs = computed(() => {
         <button class="close-button" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
       </header>
 
-      <main class="dialog-content">
-        <section class="available-inputs-section">
-          <h3>{{ t('focusSwitcher.availableInputs', '可用输入框') }}</h3>
-          <draggable
-            :list="localAvailableInputs"
-            tag="ul"
-            class="draggable-list available-list"
-            item-key="id"
-            :group="{ name: 'focus-inputs', pull: true, put: false }"
-            :sort="false"
-          >
-            <template #item="{ element }: { element: FocusableInput & FocusItemConfig }">
-              <li class="draggable-item">
-                <i class="fas fa-grip-vertical drag-handle"></i>
-                <span class="item-label">{{ element.label }}</span>
-                <!-- ++ 在左侧列表添加快捷键输入框 ++ -->
-                <input
-                  type="text"
-                  v-model="localItemConfigs[element.id].shortcut"
-                  class="shortcut-input"
-                  :placeholder="t('focusSwitcher.shortcutPlaceholder')"
-                  @keydown.prevent="captureShortcut($event, localItemConfigs[element.id])"
-                /> <!-- Correctly close the input tag -->
-              </li>
-            </template>
-             <template #footer>
-               <li v-if="localAvailableInputs.length === 0" class="no-items-placeholder">
-                 <span>{{ t('focusSwitcher.allInputsConfigured', '所有输入框都已配置') }}</span>
-               </li>
-             </template>
-          </draggable>
-        </section>
-
-        <section class="configured-sequence-section">
-          <h3>{{ t('focusSwitcher.configuredSequence', '切换顺序 (拖拽排序)') }}</h3>
-           <draggable
-             :list="localSequence"
-             tag="ul"
-             class="draggable-list configured-list"
-             item-key="id"
-             :group="{ name: 'focus-inputs', put: true }"
-             handle=".drag-handle"
-           >
-             <template #item="{ element, index }: { element: SequenceDisplayItem, index: number }">
-               <li class="draggable-item">
-                 <i class="fas fa-grip-vertical drag-handle"></i>
-                 <span class="item-label">{{ element.label }}</span>
-               </li>
-             </template>
-              <template #footer>
-                <li v-if="localSequence.length === 0" class="no-items-placeholder">
-                  {{ t('focusSwitcher.dragHere', '从左侧拖拽输入框到此处') }}
+      <!-- 将原 main 内容包裹，并改用新 class -->
+      <div class="dialog-main-content">
+        <!-- +++ 创建第一行容器 +++ -->
+        <div class="top-row">
+          <section class="available-inputs-section">
+            <h3>{{ t('focusSwitcher.availableInputs', '可用输入框') }}</h3>
+            <draggable
+              :list="localAvailableInputs"
+              tag="ul"
+              class="draggable-list available-list"
+              item-key="id"
+              :group="{ name: 'focus-inputs', pull: true, put: false }"
+              :sort="false"
+            >
+              <template #item="{ element }: { element: FocusableInput & FocusItemConfig }">
+                <li class="draggable-item">
+                  <i class="fas fa-grip-vertical drag-handle"></i>
+                  <span class="item-label">{{ element.label }}</span>
+                  <!-- 快捷键设置在下方 -->
                 </li>
               </template>
-           </draggable>
+               <template #footer>
+                 <li v-if="localAvailableInputs.length === 0" class="no-items-placeholder">
+                   <span>{{ t('focusSwitcher.allInputsConfigured', '所有输入框都已配置') }}</span>
+                 </li>
+               </template>
+            </draggable>
+          </section>
+
+          <section class="configured-sequence-section">
+            <h3>{{ t('focusSwitcher.configuredSequence', '切换顺序 (拖拽排序)') }}</h3>
+             <draggable
+               :list="localSequence"
+               tag="ul"
+               class="draggable-list configured-list"
+               item-key="id"
+               :group="{ name: 'focus-inputs', put: true }"
+               handle=".drag-handle"
+             >
+               <template #item="{ element, index }: { element: SequenceDisplayItem, index: number }">
+                 <li class="draggable-item">
+                   <i class="fas fa-grip-vertical drag-handle"></i>
+                   <span class="item-label">{{ element.label }}</span>
+                   <!-- 快捷键设置在下方 -->
+                   <button
+                     class="remove-button"
+                     @click="removeFromSequence(index)"
+                     :title="t('common.remove', '移除')"
+                   >&times;</button>
+                 </li>
+               </template>
+                <template #footer>
+                  <li v-if="localSequence.length === 0" class="no-items-placeholder">
+                    {{ t('focusSwitcher.dragHere', '从左侧拖拽输入框到此处') }}
+                  </li>
+                </template>
+             </draggable>
+          </section>
+        </div>
+        <!-- +++ 第一行容器结束 +++ -->
+
+        <!-- +++ 第二行：快捷键配置区域 +++ -->
+        <section class="shortcut-config-section">
+          <h3>{{ t('focusSwitcher.shortcutSettings', '快捷键设置') }}</h3>
+          <div class="shortcut-list">
+            <!-- 遍历所有可用输入项来设置快捷键 -->
+            <div v-for="input in focusSwitcherStore.availableInputs" :key="input.id" class="shortcut-item">
+              <span class="item-label">{{ input.label }}</span>
+              <input
+                type="text"
+                v-model="localItemConfigs[input.id].shortcut"
+                class="shortcut-input"
+                :placeholder="t('focusSwitcher.shortcutPlaceholder')"
+                @keydown.prevent="captureShortcut($event, localItemConfigs[input.id])"
+              />
+            </div>
+             <div v-if="!focusSwitcherStore.availableInputs || focusSwitcherStore.availableInputs.length === 0" class="no-items-placeholder">
+               {{ t('focusSwitcher.noInputsAvailable', '没有可配置的输入项') }}
+             </div>
+          </div>
         </section>
-      </main>
+        <!-- +++ 快捷键配置区域结束 +++ -->
+      </div>
 
       <footer class="dialog-footer">
         <button @click="closeDialog" class="button-secondary">{{ t('common.cancel', '取消') }}</button>
@@ -319,18 +352,80 @@ const captureShortcut = (event: KeyboardEvent, itemConfig: FocusItemConfig) => {
 }
 .close-button:hover { color: var(--text-color); }
 
-.dialog-content {
-  flex-grow: 1; padding: 1.5rem; overflow-y: auto;
-  display: flex; gap: 1.5rem;
+/* 修改：原 dialog-content 现在是 dialog-main-content */
+.dialog-main-content {
+  flex-grow: 1; /* 占据主要垂直空间 */
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column; /* 改为上下两行布局 */
+  align-items: stretch; /* 默认拉伸，让快捷键区域横跨 */
+  gap: 1.5rem;
   background-color: var(--app-bg-color); /* 内容区背景 */
+  overflow-y: auto; /* 如果内容过多允许滚动 */
 }
+/* +++ 第一行容器样式 +++ */
+.top-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-shrink: 0; /* 防止第一行被压缩 */
+  min-height: 300px; /* 给第一行一个最小高度 */
+}
+/* +++ 第一行内部左右列样式 +++ */
 .available-inputs-section, .configured-sequence-section {
-  flex: 1; padding: 1rem; border: 1px solid var(--border-color);
+  flex: 1; /* 平分第一行的宽度 */
+  padding: 1rem; border: 1px solid var(--border-color);
   border-radius: 4px; background-color: var(--input-bg-color); /* 区域背景 */
-  display: flex; /* +++ 添加 flex 布局 +++ */
-  flex-direction: column; /* +++ 垂直排列内部元素 +++ */
-  overflow-y: auto; /* +++ 允许垂直滚动 +++ */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto; /* 允许内部列表滚动 */
 }
+/* +++ 第二行（快捷键配置区域）样式 +++ */
+.shortcut-config-section {
+  padding: 1rem; border: 1px solid var(--border-color);
+  border-radius: 4px; background-color: var(--input-bg-color); /* 区域背景 */
+  display: flex; /* 确保内部元素正确布局 */
+  flex-direction: column;
+  overflow-y: auto; /* 允许滚动 */
+  max-height: 250px; /* 限制最大高度 */
+  flex-shrink: 0; /* 防止被压缩 */
+}
+.shortcut-config-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+  border-bottom: 1px solid var(--border-color-light);
+  padding-bottom: 0.5rem;
+}
+.shortcut-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* 自动填充列 */
+  gap: 0.8rem; /* 项目间距 */
+}
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--input-bg-color); /* 使用输入框背景色 */
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color-light);
+}
+.shortcut-item .item-label {
+  flex-grow: 1;
+  margin-right: 0.8rem; /* 增加与输入框间距 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.9rem;
+}
+.shortcut-item .shortcut-input {
+  /* 样式继承自全局 .shortcut-input */
+  margin-left: 0.5rem; /* 确保左边有间距 */
+  margin-right: 0; /* 右侧不需要额外间距 */
+}
+/* --- 原有样式继续 --- */
 h3 {
   margin-top: 0; margin-bottom: 1rem; font-size: 1rem;
   font-weight: 600; color: var(--text-color-secondary);
@@ -389,8 +484,8 @@ h3 {
   color: var(--text-color);
   font-size: 0.85rem;
   text-align: center;
-  margin-left: auto; /* 将其推到标签和移除按钮之间 */
-  margin-right: 0.5rem; /* 与移除按钮保持间距 */
+  /* margin-left: auto; */ /* 不再需要自动推 */
+  /* margin-right: 0.5rem; */ /* 间距由父元素 gap 或 .shortcut-item .item-label 控制 */
   flex-shrink: 0; /* 防止被压缩 */
 }
 .shortcut-input::placeholder {
@@ -401,7 +496,7 @@ h3 {
   background: none; border: none; color: var(--text-color-secondary);
   font-size: 1.2rem; cursor: pointer; padding: 0 0.3rem; line-height: 1;
   flex-shrink: 0; /* 防止被压缩 */
-  /* margin-left: auto; 现在由 shortcut-input 推 */
+  margin-left: auto; /* 将移除按钮推到最右侧 */
 }
 .remove-button:hover { color: var(--danger-color, red); }
 .no-items-placeholder {
