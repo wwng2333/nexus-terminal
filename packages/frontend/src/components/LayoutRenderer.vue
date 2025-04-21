@@ -546,7 +546,7 @@ const getIconClasses = (paneName: PaneName): string[] => {
     <div :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]">
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
-            v-if="currentLeftSidebarComponent && (!['fileManager', 'statusMonitor'].includes(activeLeftSidebarPane) || activeSession)"
+            v-if="currentLeftSidebarComponent && activeLeftSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeLeftSidebarPane) || activeSession)"
             :is="currentLeftSidebarComponent"
             :key="`left-panel-${activeLeftSidebarPane ?? 'null'}`"
             v-bind="sidebarProps(activeLeftSidebarPane)"
@@ -573,9 +573,10 @@ const getIconClasses = (paneName: PaneName): string[] => {
      <div :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]">
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
-            v-if="currentRightSidebarComponent && (!['fileManager', 'statusMonitor'].includes(activeRightSidebarPane) || activeSession)"
+            v-if="currentRightSidebarComponent && activeRightSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeRightSidebarPane) || activeSession)"
             :is="currentRightSidebarComponent"
             :key="`right-panel-${activeRightSidebarPane ?? 'null'}`"
+            v-bind="sidebarProps(activeRightSidebarPane)"
         />
         <!-- Placeholder if FileManager is selected but no active session -->
         <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
