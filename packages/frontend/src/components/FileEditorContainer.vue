@@ -112,10 +112,45 @@ defineExpose({ focusActiveEditor });
 // +++ 注册/注销自定义聚焦动作 +++
 onMounted(() => {
   focusSwitcherStore.registerFocusAction('fileEditorActive', focusActiveEditor);
+  // +++ 添加键盘事件监听器 +++
+  window.addEventListener('keydown', handleKeyDown);
 });
 onBeforeUnmount(() => {
   focusSwitcherStore.unregisterFocusAction('fileEditorActive');
+  // +++ 移除键盘事件监听器 +++
+  window.removeEventListener('keydown', handleKeyDown);
 });
+
+// +++ 新增：处理键盘事件以切换标签 +++
+const handleKeyDown = (event: KeyboardEvent) => {
+  // 检查是否在编辑器内部或其容器内触发（避免全局冲突）
+  // 这里简化处理，假设只要此组件挂载就监听，更精确的判断可能需要检查 event.target
+  if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (!props.activeTabId || props.tabs.length <= 1) {
+      return; // 没有活动标签或只有一个标签，无需切换
+    }
+
+    const currentIndex = props.tabs.findIndex(tab => tab.id === props.activeTabId);
+    if (currentIndex === -1) {
+      return; // 未找到当前标签索引
+    }
+
+    let nextIndex: number;
+    if (event.key === 'ArrowLeft') {
+      nextIndex = (currentIndex - 1 + props.tabs.length) % props.tabs.length;
+    } else { // ArrowRight
+      nextIndex = (currentIndex + 1) % props.tabs.length;
+    }
+
+    const nextTabId = props.tabs[nextIndex]?.id;
+    if (nextTabId) {
+      emit('activate-tab', nextTabId);
+    }
+  }
+};
 </script>
 
 <template>
