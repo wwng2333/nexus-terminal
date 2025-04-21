@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, reactive, type Ref } from 'vue'; // 添加 Ref
 import { useI18n } from 'vue-i18n';
-import draggable from 'vuedraggable'; // 导入 draggable
-import { useFocusSwitcherStore, type FocusableInput } from '../stores/focusSwitcher.store'; // 导入 Store 和类型
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
+import draggable from 'vuedraggable';
+import { useFocusSwitcherStore, type FocusableInput, type ConfiguredFocusableInput } from '../stores/focusSwitcher.store'; // +++ 导入新接口 +++
+import { storeToRefs } from 'pinia';
+// --- 移除本地类型定义 ---
+
+
+
 
 // --- Props ---
 const props = defineProps({
@@ -33,23 +37,26 @@ const dialogStyle = reactive({
 });
 const hasChanges = ref(false);
 // 本地副本，用于在弹窗内编辑而不直接修改 store
-const localSequence: Ref<FocusableInput[]> = ref([]);
-// +++ 存储原始序列 ID，用于比较 +++
-const originalSequenceIds: Ref<string[]> = ref([]);
+const localSequence: Ref<ConfiguredFocusableInput[]> = ref([]); // +++ 使用导入的接口 +++
+// +++ 存储原始序列（包含 ID 和快捷键），用于比较 +++
+const originalSequence: Ref<ConfiguredFocusableInput[]> = ref([]); // +++ 使用导入的接口 +++
 
 // --- Watchers ---
 watch(() => props.isVisible, (newValue) => {
   if (newValue) {
     // 从 Store 加载当前配置到本地副本
-    // 使用深拷贝确保 localSequence 是独立的
-    const loadedSequence = focusSwitcherStore.getConfiguredInputs; // 直接获取 getter 的值
-    console.log('[FocusSwitcherConfigurator] Loading sequence from store getter...'); // +++ Log: Start loading +++
-    localSequence.value = JSON.parse(JSON.stringify(loadedSequence));
-    // +++ 存储原始 ID 序列 +++
-    originalSequenceIds.value = loadedSequence.map(item => item.id);
+    // 从 Store 加载当前配置到本地副本
+    // !!! 注意：Store 现在也需要支持快捷键，这里暂时假设它返回的数据包含 shortcut !!!
+    // 假设 getConfiguredInputs 返回的是 LocalFocusableInput[] 或能转换的类型
+    const loadedSequenceFromStore = focusSwitcherStore.getConfiguredInputs; // 这个 getter 可能需要修改
+    console.log('[FocusSwitcherConfigurator] Loading sequence from store getter...');
+    // 深拷贝，并确保每个项目都有 shortcut 属性（可能为 undefined）
+    // Store getter 现在返回正确的类型，可以直接深拷贝
+    localSequence.value = JSON.parse(JSON.stringify(loadedSequenceFromStore));
+    originalSequence.value = JSON.parse(JSON.stringify(loadedSequenceFromStore)); // 同样直接拷贝
     hasChanges.value = false;
-    console.log('[FocusSwitcherConfigurator] Dialog opened. Loaded sequence to local copy:', localSequence.value); // +++ Log: Loaded local +++
-    console.log('[FocusSwitcherConfigurator] Original sequence IDs stored:', originalSequenceIds.value); // +++ Log: Stored original +++
+    console.log('[FocusSwitcherConfigurator] Dialog opened. Loaded sequence to local copy:', localSequence.value);
+    console.log('[FocusSwitcherConfigurator] Original sequence stored:', originalSequence.value);
     // 重置/计算初始位置和大小
     requestAnimationFrame(() => {
       if (dialogRef.value) {
@@ -68,14 +75,10 @@ watch(() => props.isVisible, (newValue) => {
   }
 });
 
-// 监听本地序列变化，标记未保存更改
+// 监听本地序列（包括快捷键）变化，标记未保存更改
 watch(localSequence, (currentLocalSequence) => {
-  // 直接比较当前本地序列的 ID 和原始 ID 序列
-  const currentIds = currentLocalSequence.map(item => item.id);
-  const originalIds = originalSequenceIds.value;
-
-  // 比较 JSON 字符串看是否有变化
-  const hasChanged = JSON.stringify(currentIds) !== JSON.stringify(originalIds); // +++ Calculate change status +++
+  // 比较当前本地序列和原始序列的 JSON 字符串
+  const hasChanged = JSON.stringify(currentLocalSequence) !== JSON.stringify(originalSequence.value);
   if (hasChanged) {
     // console.log('[FocusSwitcherConfigurator] Local sequence changed.'); // +++ Log: Changed +++
     hasChanges.value = true;
@@ -99,11 +102,15 @@ const closeDialog = () => {
 };
 
 const saveConfiguration = () => {
-  // 从本地副本提取 ID 序列
-  const newSequenceIds = localSequence.value.map(item => item.id);
-  console.log('[FocusSwitcherConfigurator] Saving configuration. Sequence IDs to save:', newSequenceIds); // +++ Log: Saving IDs +++
-  focusSwitcherStore.updateSequence(newSequenceIds); // 更新 Store 中的序列 (这会触发保存到后端)
-  console.log('[FocusSwitcherConfigurator] Configuration save process triggered via updateSequence.'); // +++ Log: Save triggered +++
+  // 提取仅包含 id 和 shortcut 的配置项数组
+  const configToSave = localSequence.value.map(item => ({
+    id: item.id,
+    shortcut: item.shortcut || undefined, // 空字符串视为未设置
+  }));
+  console.log('[FocusSwitcherConfigurator] Saving configuration. Config to save:', configToSave);
+  // 调用 Store 中正确的更新函数
+  focusSwitcherStore.updateConfiguration(configToSave);
+  console.log('[FocusSwitcherConfigurator] Configuration save process triggered via updateConfiguration.');
   hasChanges.value = false;
   emit('close'); // 保存后关闭
 };
@@ -163,16 +170,26 @@ const localAvailableInputs = computed(() => {
              tag="ul"
              class="draggable-list configured-list"
              item-key="id"
-             :group="{ name: 'focus-inputs', put: true }" <!-- 明确允许放入 -->
+             :group="{ name: 'focus-inputs', put: true }"
              handle=".drag-handle"
            >
-             <template #item="{ element, index }: { element: FocusableInput, index: number }">
-               <li class="draggable-item">
-                 <i class="fas fa-grip-vertical drag-handle"></i>
-                 <span class="item-label">{{ element.label }}</span>
+             <template #item="{ element, index }: { element: ConfiguredFocusableInput, index: number }">
+               <div> <!-- Wrap the content in a single div -->
+                 <li class="draggable-item">
+                   <i class="fas fa-grip-vertical drag-handle"></i>
+                   <span class="item-label">{{ element.label }}</span>
+                 <!-- +++ 添加快捷键输入框 +++ -->
+                 <input
+                   type="text"
+                   v-model="element.shortcut"
+                   class="shortcut-input"
+                   :placeholder="t('focusSwitcher.shortcutPlaceholder')"
+                   @keydown.prevent="captureShortcut($event, element)"
+                 />
                  <!-- 添加移除按钮 -->
                  <button @click="localSequence.splice(index, 1)" class="remove-button" :title="t('common.remove', '移除')">&times;</button>
-               </li>
+                 </li>
+               </div>
              </template>
               <template #footer>
                 <li v-if="localSequence.length === 0" class="no-items-placeholder">
@@ -192,6 +209,42 @@ const localAvailableInputs = computed(() => {
     </div>
   </div>
 </template>
+
+<script lang="ts">
+// +++ 在 <script setup> 之外定义辅助函数（如果需要更复杂的逻辑或重用）+++
+// 或者直接在 setup 内部定义 captureShortcut
+
+// 内部定义 captureShortcut
+const captureShortcut = (event: KeyboardEvent, element: ConfiguredFocusableInput) => { // +++ 使用导入的接口 +++
+  if (event.key === 'Alt' || event.key === 'Control' || event.key === 'Shift' || event.key === 'Meta') {
+    // 忽略单独的修饰键按下
+    return;
+  }
+
+  if (event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+    // 必须是 Alt + 非修饰键
+    let key = event.key;
+    if (key.length === 1) { // 将小写字母转为大写
+      key = key.toUpperCase();
+    }
+    // 可以添加更多验证，例如只允许字母、数字等
+    if (/^[a-zA-Z0-9]$/.test(key)) { // 简化：只允许单个字母或数字
+        element.shortcut = `Alt+${key}`;
+    } else if (key === 'Backspace' || key === 'Delete') {
+        element.shortcut = ''; // 允许使用 Backspace 或 Delete 清空
+    } else {
+        // 可选：提示不支持的键
+        console.warn(`[FocusSwitcherConfigurator] Unsupported key for shortcut: ${key}`);
+    }
+  } else if (event.key === 'Backspace' || event.key === 'Delete') {
+      // 允许单独按 Backspace 或 Delete 清空 (即使没有 Alt)
+      element.shortcut = '';
+  } else {
+    // 可选：如果按下非 Alt 组合键，可以清空或提示
+    // console.log('[FocusSwitcherConfigurator] Invalid shortcut combination.');
+  }
+};
+</script>
 
 <style scoped>
 /* 样式很大程度上复用 LayoutConfigurator，但使用不同的类名以避免冲突 */
@@ -277,13 +330,32 @@ h3 {
   flex-grow: 1; /* 占据剩余空间 */
   overflow: hidden; /* 隐藏溢出文本 */
   text-overflow: ellipsis; /* 显示省略号 */
-  white-space: nowrap; /* 防止换行 */
+  white-space: nowrap;
+  margin-right: 0.5rem; /* 与快捷键输入框保持间距 */
+}
+/* +++ 新增快捷键输入框样式 +++ */
+.shortcut-input {
+  width: 100px; /* 固定宽度 */
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: var(--input-bg-color);
+  color: var(--text-color);
+  font-size: 0.85rem;
+  text-align: center;
+  margin-left: auto; /* 将其推到标签和移除按钮之间 */
   margin-right: 0.5rem; /* 与移除按钮保持间距 */
+  flex-shrink: 0; /* 防止被压缩 */
+}
+.shortcut-input::placeholder {
+    color: #888;
+    font-style: italic;
 }
 .remove-button {
   background: none; border: none; color: var(--text-color-secondary);
   font-size: 1.2rem; cursor: pointer; padding: 0 0.3rem; line-height: 1;
-  margin-left: auto; /* 推到最右边 */
+  flex-shrink: 0; /* 防止被压缩 */
+  /* margin-left: auto; 现在由 shortcut-input 推 */
 }
 .remove-button:hover { color: var(--danger-color, red); }
 .no-items-placeholder {
