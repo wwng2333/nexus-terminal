@@ -2,33 +2,35 @@ import { defineStore } from 'pinia';
 import { ref, computed, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 // 假设有一个 API 客户端或辅助函数，这里我们直接使用 fetch
-// import apiClient from '@/services/api'; // 理想情况下
+// import apiClient from '@/services/api';
 
-// 定义输入框的接口
+// 基础输入框接口 (保持不变)
 export interface FocusableInput {
-  id: string; // 唯一标识符
-  label: string; // 用户友好的名称
-  // componentPath 和 selector 不再需要，聚焦完全依赖 focusAction
-  focusAction: () => boolean | Promise<boolean>;
-  // shortcut?: string; // --- 从基础接口移除快捷键，因为它只在配置中相关 ---
-}
-
-// +++ 新增：定义包含快捷键的完整配置项接口 (用于 Store 内部和配置器) +++
-export interface ConfiguredFocusableInput extends FocusableInput {
-  shortcut?: string; // 快捷键是可选的
-}
-
-// 定义存储在后端的配置项接口 (仅 ID 和 shortcut)
-export interface ConfigurableFocusableItem {
   id: string;
-  shortcut?: string; // 快捷键是可选的
+  label: string;
+  focusAction: () => boolean | Promise<boolean>;
 }
 
-// 定义 Store 的 State 接口 (可选但推荐)
+// --- 移除 ConfiguredFocusableInput ---
+
+// 单个项目配置接口 (主要用于快捷键)
+export interface FocusItemConfig {
+  shortcut?: string;
+}
+
+// 存储在后端或发送给后端的完整配置结构
+export interface FocusSwitcherFullConfig {
+  sequence: string[]; // 顺序切换的 ID 列表
+  shortcuts: Record<string, FocusItemConfig>; // 所有项目的快捷键配置 (id -> config)
+}
+
+// --- 移除 ConfigurableFocusableItem ---
+
+// Store State 接口
 interface FocusSwitcherState {
-  availableInputs: FocusableInput[]; // 保持不变，定义所有可用项及其基础信息
-  // configuredSequence: string[]; // --- 移除旧的状态 ---
-  configuredItems: ConfigurableFocusableItem[]; // +++ 新增：存储已配置项的 ID 和快捷键 +++
+  availableInputs: FocusableInput[]; // 所有可用项的基础信息
+  sequenceOrder: string[]; // 顺序切换的 ID 列表
+  itemConfigs: Record<string, FocusItemConfig>; // 所有项目的配置 (id -> config)
   isConfiguratorVisible: boolean;
   activateFileManagerSearchTrigger: number;
   activateTerminalSearchTrigger: number;
@@ -51,8 +53,8 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     { id: 'connectionListSearch', label: t('focusSwitcher.input.connectionListSearch', '连接列表搜索'), focusAction: () => false },
     { id: 'fileEditorActive', label: t('focusSwitcher.input.fileEditorActive', '文件编辑器'), focusAction: () => false },
   ]);
-  // const configuredSequence = ref<string[]>([]); // --- 移除旧的状态 ref ---
-  const configuredItems = ref<ConfigurableFocusableItem[]>([]); // +++ 新增：存储配置项的状态 ref +++
+  const sequenceOrder = ref<string[]>([]); // +++ 新增：存储顺序 +++
+  const itemConfigs = ref<Record<string, FocusItemConfig>>({}); // +++ 新增：存储所有配置 +++
   const isConfiguratorVisible = ref(false);
   const activateFileManagerSearchTrigger = ref(0);
   const activateTerminalSearchTrigger = ref(0);
@@ -63,9 +65,9 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   // --- Actions ---
 
   // +++ 修改：从后端加载配置（包括快捷键） +++
-  async function loadConfigurationFromBackend() { // 重命名以反映加载的是完整配置
-    const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变
-    console.log(`[FocusSwitcherStore] Attempting to load configuration (sequence & shortcuts) from backend via: ${apiUrl}`);
+  async function loadConfigurationFromBackend() {
+    const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变，但返回结构改变
+    console.log(`[FocusSwitcherStore] Attempting to load full configuration (sequence & shortcuts) from backend via: ${apiUrl}`);
     try {
       const response = await fetch(apiUrl);
       console.log(`[FocusSwitcherStore] Received response from ${apiUrl}. Status: ${response.status}`);
@@ -75,68 +77,70 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // *** 假设后端返回 ConfigurableFocusableItem[] 结构 ***
-      const loadedConfig = await response.json();
-      console.log(`[FocusSwitcherStore] Raw JSON received from backend:`, JSON.stringify(loadedConfig));
+      // *** 假设后端返回 FocusSwitcherFullConfig 结构 ***
+      const loadedFullConfig: FocusSwitcherFullConfig = await response.json();
+      console.log(`[FocusSwitcherStore] Raw JSON received from backend:`, JSON.stringify(loadedFullConfig));
 
-      // --- 验证和过滤 ---
-      if (Array.isArray(loadedConfig) && loadedConfig.every(item => typeof item?.id === 'string')) {
-        console.log('[FocusSwitcherStore] Configuration format seems valid (array of objects with id). Filtering against available inputs...');
-        const availableIds = new Set(availableInputs.value.map(input => input.id));
-        const filteredConfig: ConfigurableFocusableItem[] = loadedConfig
-          .filter((item: any) => {
-            const isValid = availableIds.has(item.id);
-            if (!isValid) {
-              console.warn(`[FocusSwitcherStore] Filtered out invalid ID during load: ${item.id}`);
-            }
-            return isValid;
-          })
-          .map((item: any) => ({ // 确保只保留 id 和 shortcut
-            id: item.id,
-            shortcut: typeof item.shortcut === 'string' && item.shortcut.startsWith('Alt+') ? item.shortcut : undefined // 验证快捷键格式
-          }));
+      // --- 验证和设置 ---
+      const availableIds = new Set(availableInputs.value.map(input => input.id));
 
-        configuredItems.value = filteredConfig;
-        console.log('[FocusSwitcherStore] Successfully loaded and set configuredItems:', JSON.stringify(configuredItems.value));
+      // 验证 sequence
+      if (Array.isArray(loadedFullConfig?.sequence) && loadedFullConfig.sequence.every(id => typeof id === 'string' && availableIds.has(id))) {
+        sequenceOrder.value = loadedFullConfig.sequence;
+        console.log('[FocusSwitcherStore] Successfully loaded and set sequenceOrder:', JSON.stringify(sequenceOrder.value));
       } else {
-         // --- 处理旧格式 (仅 ID 数组) 或无效格式 ---
-         if (Array.isArray(loadedConfig) && loadedConfig.every(item => typeof item === 'string')) {
-            console.warn('[FocusSwitcherStore] Received old format (string array) from backend. Converting to new structure without shortcuts.');
-            const availableIds = new Set(availableInputs.value.map(input => input.id));
-            const filteredSequence = loadedConfig.filter((id: string) => availableIds.has(id));
-            configuredItems.value = filteredSequence.map(id => ({ id })); // 转换为新结构，无快捷键
-            console.log('[FocusSwitcherStore] Converted old format to configuredItems:', JSON.stringify(configuredItems.value));
-            // 可以考虑触发一次保存，将转换后的新格式存回后端
-            // saveSequenceToBackend();
-         } else {
-            console.error('[FocusSwitcherStore] Invalid configuration format received from backend:', loadedConfig);
-            configuredItems.value = []; // 使用空数组作为回退
-            console.log('[FocusSwitcherStore] Set configuredItems to empty array due to invalid format.');
-         }
+        console.warn('[FocusSwitcherStore] Invalid or missing sequence in loaded config. Resetting to empty array.');
+        sequenceOrder.value = [];
       }
+
+      // 验证 shortcuts (itemConfigs)
+      if (typeof loadedFullConfig?.shortcuts === 'object' && loadedFullConfig.shortcuts !== null) {
+        const validConfigs: Record<string, FocusItemConfig> = {};
+        for (const id in loadedFullConfig.shortcuts) {
+          if (availableIds.has(id)) { // 只保留有效的 ID
+            const config = loadedFullConfig.shortcuts[id];
+            if (typeof config === 'object' && config !== null && (config.shortcut === undefined || (typeof config.shortcut === 'string' && config.shortcut.startsWith('Alt+')))) {
+              validConfigs[id] = { shortcut: config.shortcut }; // 只保留 shortcut
+            } else {
+               console.warn(`[FocusSwitcherStore] Invalid shortcut config for ID ${id}. Ignoring shortcut.`);
+               validConfigs[id] = {}; // 保留 ID 但清空无效快捷键
+            }
+          } else {
+             console.warn(`[FocusSwitcherStore] Ignoring shortcut config for unknown ID: ${id}`);
+          }
+        }
+        itemConfigs.value = validConfigs;
+        console.log('[FocusSwitcherStore] Successfully loaded and set itemConfigs:', JSON.stringify(itemConfigs.value));
+      } else {
+        console.warn('[FocusSwitcherStore] Invalid or missing shortcuts in loaded config. Resetting to empty object.');
+        itemConfigs.value = {};
+      }
+
     } catch (error) {
       console.error(`[FocusSwitcherStore] Failed to load or parse configuration from backend (${apiUrl}):`, error);
-      configuredItems.value = [];
-      console.log('[FocusSwitcherStore] Set configuredItems to empty array due to loading error.');
+      sequenceOrder.value = [];
+      itemConfigs.value = {};
+      console.log('[FocusSwitcherStore] Reset sequenceOrder and itemConfigs due to loading error.');
     }
   }
 
-  // +++ 修改：保存配置到后端（包括快捷键） +++
-  async function saveConfigurationToBackend() { // 重命名以反映保存的是完整配置
-    const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变
-    console.log(`[FocusSwitcherStore] Attempting to save configuration (sequence & shortcuts) to backend via PUT: ${apiUrl}`);
+  async function saveConfigurationToBackend() {
+    const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变，但接受结构改变
+    console.log(`[FocusSwitcherStore] Attempting to save full configuration (sequence & shortcuts) to backend via PUT: ${apiUrl}`);
     try {
-      // *** 发送 configuredItems 结构到后端 (包含快捷键) ***
-      // !!! 注意：这需要后端 API 支持接收此结构 !!!
-      const configToSave = configuredItems.value;
-      console.log('[FocusSwitcherStore] Configuration data to save (including shortcuts):', JSON.stringify(configToSave));
+      // *** 构造 FocusSwitcherFullConfig 结构发送给后端 ***
+      const configToSave: FocusSwitcherFullConfig = {
+        sequence: sequenceOrder.value,
+        shortcuts: itemConfigs.value,
+      };
+      console.log('[FocusSwitcherStore] Full configuration data to save:', JSON.stringify(configToSave));
       const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           // Auth headers if needed
         },
-        body: JSON.stringify(configToSave), // *** 发送完整的配置对象数组 ***
+        body: JSON.stringify(configToSave), // *** 发送包含 sequence 和 shortcuts 的对象 ***
       });
       console.log(`[FocusSwitcherStore] Received response from PUT ${apiUrl}. Status: ${response.status}`);
 
@@ -184,23 +188,40 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   }
   */
 
-  // +++ 修改：更新配置（包括顺序和快捷键） +++
-  function updateConfiguration(newConfig: ConfigurableFocusableItem[]) { // 重命名并修改参数类型
-    console.log('[FocusSwitcherStore] updateConfiguration called with new configuration:', JSON.stringify(newConfig));
+  // +++ 修改：更新完整配置（包括顺序和所有快捷键） +++
+  function updateConfiguration(newFullConfig: FocusSwitcherFullConfig) {
+    console.log('[FocusSwitcherStore] updateConfiguration called with new full configuration:', JSON.stringify(newFullConfig));
     const availableIds = new Set(availableInputs.value.map(input => input.id));
 
-    // 过滤掉无效的 ID，并验证/清理快捷键
-    const filteredConfig = newConfig
-        .filter(item => availableIds.has(item.id))
-        .map(item => ({
-            id: item.id,
-            shortcut: typeof item.shortcut === 'string' && item.shortcut.startsWith('Alt+') ? item.shortcut : undefined
-        }));
+    // 更新 sequenceOrder (过滤无效 ID)
+    if (Array.isArray(newFullConfig?.sequence)) {
+      sequenceOrder.value = newFullConfig.sequence.filter(id => availableIds.has(id));
+      console.log('[FocusSwitcherStore] sequenceOrder updated locally to:', JSON.stringify(sequenceOrder.value));
+    } else {
+       console.warn('[FocusSwitcherStore] Invalid sequence provided in updateConfiguration. Keeping existing sequence.');
+    }
 
-    configuredItems.value = filteredConfig;
-    console.log('[FocusSwitcherStore] configuredItems updated locally to:', JSON.stringify(configuredItems.value));
+    // 更新 itemConfigs (过滤无效 ID 和快捷键)
+    if (typeof newFullConfig?.shortcuts === 'object' && newFullConfig.shortcuts !== null) {
+        const validConfigs: Record<string, FocusItemConfig> = {};
+        for (const id in newFullConfig.shortcuts) {
+          if (availableIds.has(id)) {
+            const config = newFullConfig.shortcuts[id];
+             if (typeof config === 'object' && config !== null && (config.shortcut === undefined || (typeof config.shortcut === 'string' && config.shortcut.startsWith('Alt+')))) {
+               validConfigs[id] = { shortcut: config.shortcut };
+             } else {
+                validConfigs[id] = {}; // 保留 ID 但清空无效快捷键
+             }
+          }
+        }
+        itemConfigs.value = validConfigs;
+       console.log('[FocusSwitcherStore] itemConfigs updated locally to:', JSON.stringify(itemConfigs.value));
+    } else {
+        console.warn('[FocusSwitcherStore] Invalid shortcuts provided in updateConfiguration. Keeping existing configs.');
+    }
+
     // 更新后立即保存到后端
-    saveConfigurationToBackend(); // 调用重命名后的保存函数
+    saveConfigurationToBackend();
   }
 
   // 注册聚焦动作 (现在更新 availableInputs 中的 focusAction)
@@ -257,49 +278,75 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   // --- 修改 Getters ---
   // +++ 修改：获取完整的已配置输入框信息（合并快捷键）+++
   // 返回类型现在包含 shortcut，所以需要调整或确认 FocusableInput 定义
-  const getConfiguredInputs = computed((): ConfiguredFocusableInput[] => { // +++ 更新返回类型 +++
+  // +++ 修改：获取在序列中的输入框信息（包含快捷键）+++
+  const getSequenceInputs = computed((): (FocusableInput & FocusItemConfig)[] => {
     const inputsMap = new Map(availableInputs.value.map(input => [input.id, input]));
-    return configuredItems.value
-      .map(item => {
-        const baseInput = inputsMap.get(item.id);
+    const configs = itemConfigs.value;
+    // Step 1: Map sequenceOrder to potential objects or undefined
+    const mappedInputs = sequenceOrder.value
+      .map(id => {
+        const baseInput = inputsMap.get(id);
         if (!baseInput) return undefined;
-        // 创建一个新对象，类型为 ConfiguredFocusableInput
-        const configuredInput: ConfiguredFocusableInput = { // +++ 使用新类型 +++
+        const config = configs[id] || {};
+        // ++ Explicitly create object with the intersection type ++
+        const combinedInput: FocusableInput & FocusItemConfig = {
             ...baseInput,
-            shortcut: item.shortcut,
+            shortcut: config.shortcut,
         };
-        return configuredInput;
-      })
-      .filter((input): input is ConfiguredFocusableInput => input !== undefined); // +++ 更新类型断言 +++
+        return combinedInput; // Return the correctly typed object
+      });
+
+    // Step 2: Filter out any undefined values using the type predicate
+    const filteredInputs = mappedInputs.filter(
+        (input): input is FocusableInput & FocusItemConfig => input !== undefined
+    );
+
+    return filteredInputs; // Return the correctly typed array
   });
 
   // +++ 修改：获取配置器中“可用”的输入框列表 +++
-  const getAvailableInputsForConfigurator = computed((): FocusableInput[] => {
-    const configuredIds = new Set(configuredItems.value.map(item => item.id));
-    // 返回尚未配置的基础输入框信息（不需要快捷键）
-    return availableInputs.value.filter(input => !configuredIds.has(input.id));
+  // +++ 修改：获取不在序列中的输入框信息（也包含快捷键，因为现在全局管理） +++
+  const getAvailableInputsForConfigurator = computed((): (FocusableInput & FocusItemConfig)[] => {
+    const sequenceIds = new Set(sequenceOrder.value);
+    const configs = itemConfigs.value;
+    return availableInputs.value
+      .filter(input => !sequenceIds.has(input.id)) // 过滤掉已在序列中的
+      .map(input => {
+          const config = configs[input.id] || {};
+          return {
+              ...input,
+              shortcut: config.shortcut, // 合并快捷键
+          };
+      });
   });
 
   // +++ 修改：获取序列中的下一个聚焦目标 ID +++
+  // +++ 修改：根据 sequenceOrder 获取下一个聚焦目标 ID +++
   function getNextFocusTargetId(currentFocusedId: string | null): string | null {
-    if (configuredItems.value.length === 0) {
+    const order = sequenceOrder.value;
+    if (order.length === 0) {
       return null;
     }
     if (currentFocusedId === null) {
-      return configuredItems.value[0].id; // 返回第一个配置项的 ID
+      return order[0]; // 返回序列中的第一个 ID
     }
-    const currentIndex = configuredItems.value.findIndex(item => item.id === currentFocusedId);
+    const currentIndex = order.findIndex(id => id === currentFocusedId);
     if (currentIndex === -1) {
-      return configuredItems.value[0].id; // 如果当前 ID 不在配置中，返回第一个
+      return order[0]; // 如果当前 ID 不在序列中，返回第一个
     }
-    const nextIndex = (currentIndex + 1) % configuredItems.value.length;
-    return configuredItems.value[nextIndex].id; // 返回下一个配置项的 ID
+    const nextIndex = (currentIndex + 1) % order.length;
+    return order[nextIndex]; // 返回序列中的下一个 ID
   }
 
   // +++ 新增：根据快捷键获取目标 ID +++
+  // +++ 修改：根据 itemConfigs 获取快捷键对应的目标 ID +++
   function getFocusTargetIdByShortcut(shortcut: string): string | null {
-      const foundItem = configuredItems.value.find(item => item.shortcut === shortcut);
-      return foundItem?.id ?? null;
+      for (const id in itemConfigs.value) {
+          if (itemConfigs.value[id]?.shortcut === shortcut) {
+              return id;
+          }
+      }
+      return null;
   }
 
 
@@ -314,8 +361,8 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   return {
     // State
     availableInputs,
-    // configuredSequence, // --- 移除 ---
-    configuredItems, // +++ 暴露新状态 +++
+    sequenceOrder, // +++ 暴露新状态 +++
+    itemConfigs,   // +++ 暴露新状态 +++
     isConfiguratorVisible,
     activateFileManagerSearchTrigger,
     activateTerminalSearchTrigger,
@@ -323,14 +370,14 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     toggleConfigurator,
     triggerFileManagerSearchActivation,
     triggerTerminalSearchActivation,
-    loadConfigurationFromBackend, // +++ 使用新名称 +++
-    saveConfigurationToBackend, // +++ 使用新名称 +++
-    updateConfiguration, // +++ 使用新名称 +++
+    loadConfigurationFromBackend,
+    saveConfigurationToBackend,
+    updateConfiguration, // 已修改为接收完整配置
     // Getters / Methods
-    getConfiguredInputs, // 已修改
+    getSequenceInputs, // +++ 重命名并修改 +++
     getAvailableInputsForConfigurator, // 已修改
     getNextFocusTargetId, // 已修改
-    getFocusTargetIdByShortcut, // +++ 新增 +++
+    getFocusTargetIdByShortcut, // 已修改
     registerFocusAction,
     unregisterFocusAction,
     focusTarget,

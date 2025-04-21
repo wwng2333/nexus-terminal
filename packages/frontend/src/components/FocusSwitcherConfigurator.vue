@@ -2,11 +2,11 @@
 import { ref, computed, watch, reactive, type Ref } from 'vue'; // 添加 Ref
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
-import { useFocusSwitcherStore, type FocusableInput, type ConfiguredFocusableInput } from '../stores/focusSwitcher.store'; // +++ 导入新接口 +++
+import { useFocusSwitcherStore, type FocusableInput, type FocusItemConfig, type FocusSwitcherFullConfig } from '../stores/focusSwitcher.store'; // ++ 导入新接口 ++
 import { storeToRefs } from 'pinia';
-// --- 移除本地类型定义 ---
 
-
+// 本地接口，仅用于右侧列表显示
+interface SequenceDisplayItem extends FocusableInput {}
 
 
 // --- Props ---
@@ -36,27 +36,50 @@ const dialogStyle = reactive({
   position: 'absolute' as 'absolute',
 });
 const hasChanges = ref(false);
-// 本地副本，用于在弹窗内编辑而不直接修改 store
-const localSequence: Ref<ConfiguredFocusableInput[]> = ref([]); // +++ 使用导入的接口 +++
-// +++ 存储原始序列（包含 ID 和快捷键），用于比较 +++
-const originalSequence: Ref<ConfiguredFocusableInput[]> = ref([]); // +++ 使用导入的接口 +++
+// 本地副本，用于在弹窗内编辑
+const localSequence = ref<SequenceDisplayItem[]>([]); // 右侧列表，只关心顺序和基础信息
+const localItemConfigs = ref<Record<string, FocusItemConfig>>({}); // 所有项目的配置 (快捷键)
+const originalConfig = ref<FocusSwitcherFullConfig | null>(null); // 存储原始完整配置用于比较
 
 // --- Watchers ---
-watch(() => props.isVisible, (newValue) => {
+watch(() => props.isVisible, async (newValue) => { // ++ Make async for potential backend load ++
   if (newValue) {
-    // 从 Store 加载当前配置到本地副本
-    // 从 Store 加载当前配置到本地副本
-    // !!! 注意：Store 现在也需要支持快捷键，这里暂时假设它返回的数据包含 shortcut !!!
-    // 假设 getConfiguredInputs 返回的是 LocalFocusableInput[] 或能转换的类型
-    const loadedSequenceFromStore = focusSwitcherStore.getConfiguredInputs; // 这个 getter 可能需要修改
-    console.log('[FocusSwitcherConfigurator] Loading sequence from store getter...');
-    // 深拷贝，并确保每个项目都有 shortcut 属性（可能为 undefined）
-    // Store getter 现在返回正确的类型，可以直接深拷贝
-    localSequence.value = JSON.parse(JSON.stringify(loadedSequenceFromStore));
-    originalSequence.value = JSON.parse(JSON.stringify(loadedSequenceFromStore)); // 同样直接拷贝
+    // --- 加载完整配置 ---
+    // 确保 Store 已初始化 (如果 Store 还没有加载完)
+    // await focusSwitcherStore.loadConfigurationFromBackend(); // 如果 Store 初始化时未加载，则在此加载
+
+    const currentSequenceOrder = focusSwitcherStore.sequenceOrder;
+    const currentItemConfigs = focusSwitcherStore.itemConfigs;
+    const allAvailableInputs = focusSwitcherStore.availableInputs; // 获取所有可用输入的基础信息
+    const inputsMap = new Map(allAvailableInputs.map(input => [input.id, input]));
+
+    console.log('[FocusSwitcherConfigurator] Loading full config from store...');
+    console.log('[FocusSwitcherConfigurator] Store sequenceOrder:', JSON.stringify(currentSequenceOrder));
+    console.log('[FocusSwitcherConfigurator] Store itemConfigs:', JSON.stringify(currentItemConfigs));
+
+    // 构建本地右侧列表 (localSequence)
+    localSequence.value = currentSequenceOrder
+      .map(id => inputsMap.get(id)) // 获取基础信息
+      .filter((input): input is SequenceDisplayItem => input !== undefined); // 过滤掉无效 ID 并断言类型
+
+    // 构建本地所有项目配置 (localItemConfigs) - 深拷贝
+    // 确保所有 availableInputs 都有一个条目，即使没有快捷键
+    const initialConfigs: Record<string, FocusItemConfig> = {};
+    allAvailableInputs.forEach(input => {
+        initialConfigs[input.id] = { ... (currentItemConfigs[input.id] || {}) }; // 复制 store 中的配置，或创建空对象
+    });
+    localItemConfigs.value = JSON.parse(JSON.stringify(initialConfigs));
+
+    // 存储原始完整配置用于比较
+    originalConfig.value = JSON.parse(JSON.stringify({
+        sequence: currentSequenceOrder,
+        shortcuts: currentItemConfigs
+    }));
+
     hasChanges.value = false;
-    console.log('[FocusSwitcherConfigurator] Dialog opened. Loaded sequence to local copy:', localSequence.value);
-    console.log('[FocusSwitcherConfigurator] Original sequence stored:', originalSequence.value);
+    console.log('[FocusSwitcherConfigurator] Dialog opened. Loaded localSequence:', JSON.stringify(localSequence.value));
+    console.log('[FocusSwitcherConfigurator] Loaded localItemConfigs:', JSON.stringify(localItemConfigs.value));
+    console.log('[FocusSwitcherConfigurator] Original full config stored:', JSON.stringify(originalConfig.value));
     // 重置/计算初始位置和大小
     requestAnimationFrame(() => {
       if (dialogRef.value) {
@@ -76,17 +99,30 @@ watch(() => props.isVisible, (newValue) => {
 });
 
 // 监听本地序列（包括快捷键）变化，标记未保存更改
-watch(localSequence, (currentLocalSequence) => {
-  // 比较当前本地序列和原始序列的 JSON 字符串
-  const hasChanged = JSON.stringify(currentLocalSequence) !== JSON.stringify(originalSequence.value);
-  if (hasChanged) {
-    // console.log('[FocusSwitcherConfigurator] Local sequence changed.'); // +++ Log: Changed +++
-    hasChanges.value = true;
-  } else {
-    // console.log('[FocusSwitcherConfigurator] Local sequence reverted to original.'); // +++ Log: Reverted +++
-    // 如果序列变回和原来一样，则标记为无更改
-    hasChanges.value = false;
+// --- 修改：监听 localSequence 和 localItemConfigs 的变化 ---
+watch([localSequence, localItemConfigs], ([currentSequence, currentConfigs]) => {
+  if (!originalConfig.value) return; // 尚未加载完成
+
+  // 比较序列顺序
+  const sequenceChanged = JSON.stringify(currentSequence.map(item => item.id)) !== JSON.stringify(originalConfig.value.sequence);
+
+  // 比较快捷键配置 (需要过滤掉原始配置中不存在的键，以防初始化时加入)
+  const currentShortcuts: Record<string, FocusItemConfig> = {};
+  for(const id in currentConfigs) {
+      // 只比较原始配置中存在的 ID 或当前序列中的 ID 的快捷键是否有变化
+      if (originalConfig.value.shortcuts[id] !== undefined || currentSequence.some(item => item.id === id)) {
+          currentShortcuts[id] = { shortcut: currentConfigs[id].shortcut };
+      }
   }
+  const originalShortcuts: Record<string, FocusItemConfig> = {};
+   for(const id in originalConfig.value.shortcuts) {
+       originalShortcuts[id] = { shortcut: originalConfig.value.shortcuts[id].shortcut };
+   }
+  const shortcutsChanged = JSON.stringify(currentShortcuts) !== JSON.stringify(originalShortcuts);
+
+  hasChanges.value = sequenceChanged || shortcutsChanged;
+  // console.log(`[FocusSwitcherConfigurator] Changes detected: sequence=${sequenceChanged}, shortcuts=${shortcutsChanged}, hasChanges=${hasChanges.value}`);
+
 }, { deep: true });
 
 
@@ -102,27 +138,41 @@ const closeDialog = () => {
 };
 
 const saveConfiguration = () => {
-  // 提取仅包含 id 和 shortcut 的配置项数组
-  const configToSave = localSequence.value.map(item => ({
-    id: item.id,
-    shortcut: item.shortcut || undefined, // 空字符串视为未设置
-  }));
-  console.log('[FocusSwitcherConfigurator] Saving configuration. Config to save:', configToSave);
-  // 调用 Store 中正确的更新函数
-  focusSwitcherStore.updateConfiguration(configToSave);
-  console.log('[FocusSwitcherConfigurator] Configuration save process triggered via updateConfiguration.');
+  // 构造 FocusSwitcherFullConfig 对象
+  const newSequence = localSequence.value.map(item => item.id);
+  // 清理 shortcuts，移除没有快捷键的条目 (可选，取决于后端是否需要)
+  const newShortcuts: Record<string, FocusItemConfig> = {};
+  for (const id in localItemConfigs.value) {
+      if (localItemConfigs.value[id]?.shortcut) {
+          newShortcuts[id] = { shortcut: localItemConfigs.value[id].shortcut };
+      }
+      // 如果需要保存空快捷键的记录，则取消 if 条件
+      // newShortcuts[id] = { shortcut: localItemConfigs.value[id]?.shortcut };
+  }
+
+  const fullConfigToSave: FocusSwitcherFullConfig = {
+    sequence: newSequence,
+    shortcuts: newShortcuts,
+  };
+
+  console.log('[FocusSwitcherConfigurator] Saving full configuration:', JSON.stringify(fullConfigToSave));
+  focusSwitcherStore.updateConfiguration(fullConfigToSave); // 调用 Store 更新函数
+  console.log('[FocusSwitcherConfigurator] Configuration save process triggered.');
   hasChanges.value = false;
   emit('close'); // 保存后关闭
 };
 
 // --- Computed ---
-// 新的计算属性：基于本地已配置列表动态计算可用输入框
+// ++ 修改：计算属性，获取不在右侧序列中的项目 (用于左侧列表) ++
 const localAvailableInputs = computed(() => {
-  // 获取本地已配置项的 ID 集合
-  const configuredIds = new Set(localSequence.value.map(item => item.id));
-  // 从 store 的 availableInputs state 中过滤掉已在本地配置的项
-  // 注意：直接访问 store 的 state ref
-  return focusSwitcherStore.availableInputs.filter(input => !configuredIds.has(input.id));
+  const sequenceIds = new Set(localSequence.value.map(item => item.id));
+  // 从所有可用输入中过滤掉已在序列中的，并合并本地快捷键配置
+  return focusSwitcherStore.availableInputs
+    .filter(input => !sequenceIds.has(input.id))
+    .map(input => ({
+        ...input,
+        shortcut: localItemConfigs.value[input.id]?.shortcut // 从本地配置获取快捷键
+    }));
 });
 
 // 注意：已配置的列表直接使用 localSequence ref
@@ -149,15 +199,23 @@ const localAvailableInputs = computed(() => {
             :group="{ name: 'focus-inputs', pull: true, put: false }"
             :sort="false"
           >
-            <template #item="{ element }: { element: FocusableInput }">
+            <template #item="{ element }: { element: FocusableInput & FocusItemConfig }">
               <li class="draggable-item">
                 <i class="fas fa-grip-vertical drag-handle"></i>
                 <span class="item-label">{{ element.label }}</span>
+                <!-- ++ 在左侧列表添加快捷键输入框 ++ -->
+                <input
+                  type="text"
+                  v-model="localItemConfigs[element.id].shortcut"
+                  class="shortcut-input"
+                  :placeholder="t('focusSwitcher.shortcutPlaceholder')"
+                  @keydown.prevent="captureShortcut($event, localItemConfigs[element.id])"
+                /> <!-- Correctly close the input tag -->
               </li>
             </template>
              <template #footer>
-               <li v-if="localAvailableInputs.length === 0" class="no-items-placeholder"> <!-- 判断条件也更新 -->
-                 {{ t('focusSwitcher.allInputsConfigured', '所有输入框都已配置') }}
+               <li v-if="localAvailableInputs.length === 0" class="no-items-placeholder">
+                 <span>{{ t('focusSwitcher.allInputsConfigured', '所有输入框都已配置') }}</span>
                </li>
              </template>
           </draggable>
@@ -173,23 +231,11 @@ const localAvailableInputs = computed(() => {
              :group="{ name: 'focus-inputs', put: true }"
              handle=".drag-handle"
            >
-             <template #item="{ element, index }: { element: ConfiguredFocusableInput, index: number }">
-               <div> <!-- Wrap the content in a single div -->
-                 <li class="draggable-item">
-                   <i class="fas fa-grip-vertical drag-handle"></i>
-                   <span class="item-label">{{ element.label }}</span>
-                 <!-- +++ 添加快捷键输入框 +++ -->
-                 <input
-                   type="text"
-                   v-model="element.shortcut"
-                   class="shortcut-input"
-                   :placeholder="t('focusSwitcher.shortcutPlaceholder')"
-                   @keydown.prevent="captureShortcut($event, element)"
-                 />
-                 <!-- 添加移除按钮 -->
-                 <button @click="localSequence.splice(index, 1)" class="remove-button" :title="t('common.remove', '移除')">&times;</button>
-                 </li>
-               </div>
+             <template #item="{ element, index }: { element: SequenceDisplayItem, index: number }">
+               <li class="draggable-item">
+                 <i class="fas fa-grip-vertical drag-handle"></i>
+                 <span class="item-label">{{ element.label }}</span>
+               </li>
              </template>
               <template #footer>
                 <li v-if="localSequence.length === 0" class="no-items-placeholder">
@@ -214,8 +260,8 @@ const localAvailableInputs = computed(() => {
 // +++ 在 <script setup> 之外定义辅助函数（如果需要更复杂的逻辑或重用）+++
 // 或者直接在 setup 内部定义 captureShortcut
 
-// 内部定义 captureShortcut
-const captureShortcut = (event: KeyboardEvent, element: ConfiguredFocusableInput) => { // +++ 使用导入的接口 +++
+// ++ 修改：captureShortcut 现在接收 FocusItemConfig 并更新它 ++
+const captureShortcut = (event: KeyboardEvent, itemConfig: FocusItemConfig) => {
   if (event.key === 'Alt' || event.key === 'Control' || event.key === 'Shift' || event.key === 'Meta') {
     // 忽略单独的修饰键按下
     return;
@@ -229,16 +275,16 @@ const captureShortcut = (event: KeyboardEvent, element: ConfiguredFocusableInput
     }
     // 可以添加更多验证，例如只允许字母、数字等
     if (/^[a-zA-Z0-9]$/.test(key)) { // 简化：只允许单个字母或数字
-        element.shortcut = `Alt+${key}`;
+        itemConfig.shortcut = `Alt+${key}`; // 直接修改传入的配置对象
     } else if (key === 'Backspace' || key === 'Delete') {
-        element.shortcut = ''; // 允许使用 Backspace 或 Delete 清空
+        itemConfig.shortcut = undefined; // 使用 undefined 清空
     } else {
         // 可选：提示不支持的键
         console.warn(`[FocusSwitcherConfigurator] Unsupported key for shortcut: ${key}`);
     }
   } else if (event.key === 'Backspace' || event.key === 'Delete') {
       // 允许单独按 Backspace 或 Delete 清空 (即使没有 Alt)
-      element.shortcut = '';
+      itemConfig.shortcut = undefined; // 使用 undefined 清空
   } else {
     // 可选：如果按下非 Alt 组合键，可以清空或提示
     // console.log('[FocusSwitcherConfigurator] Invalid shortcut combination.');

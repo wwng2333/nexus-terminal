@@ -177,14 +177,14 @@ const handleGlobalKeyUp = async (event: KeyboardEvent) => {
           }
       }
 
-      const configuredItems = focusSwitcherStore.configuredItems;
-      if (configuredItems.length === 0) {
+      const order = focusSwitcherStore.sequenceOrder; // ++ 使用新的 sequenceOrder state ++
+      if (order.length === 0) { // ++ 检查新的 state ++
         console.log('[App] No focus sequence configured.');
         return;
       }
 
       let focused = false;
-      for (let i = 0; i < configuredItems.length; i++) {
+      for (let i = 0; i < order.length; i++) { // ++ Use order.length for loop condition ++
         const nextFocusId = focusSwitcherStore.getNextFocusTargetId(currentFocusId);
         if (!nextFocusId) {
           console.warn('[App] Could not determine next focus target ID in sequence.');

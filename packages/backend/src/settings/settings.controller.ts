@@ -87,27 +87,29 @@ export const settingsController = {
   async setFocusSwitcherSequence(req: Request, res: Response): Promise<void> {
     console.log('[Controller] Received request to set focus switcher sequence.');
     try {
-      // +++ 修改：直接获取请求体作为配置数组 +++
-      const focusConfig = req.body;
-      console.log('[Controller] Request body focusConfig:', JSON.stringify(focusConfig));
+      // +++ 修改：获取请求体并验证其是否符合 FocusSwitcherFullConfig 结构 +++
+      const fullConfig = req.body;
+      console.log('[Controller] Request body fullConfig:', JSON.stringify(fullConfig));
 
-      // +++ 修改：验证新的数据结构 (ConfigurableFocusableItem[]) +++
-      if (!Array.isArray(focusConfig) || !focusConfig.every(item =>
-          typeof item === 'object' && item !== null && typeof item.id === 'string' &&
-          (item.shortcut === undefined || typeof item.shortcut === 'string')
-      )) {
-        console.warn('[Controller] Invalid focus config format received:', focusConfig);
-        res.status(400).json({ message: '无效的请求体，必须是包含 id (string) 和可选 shortcut (string) 的对象数组' });
+      // +++ 验证 FocusSwitcherFullConfig 结构 +++
+      if (
+          !(typeof fullConfig === 'object' && fullConfig !== null &&
+          Array.isArray(fullConfig.sequence) && fullConfig.sequence.every((item: any) => typeof item === 'string') &&
+          typeof fullConfig.shortcuts === 'object' && fullConfig.shortcuts !== null &&
+          Object.values(fullConfig.shortcuts).every((sc: any) => typeof sc === 'object' && sc !== null && (sc.shortcut === undefined || typeof sc.shortcut === 'string')))
+      ) {
+        console.warn('[Controller] Invalid full focus config format received:', fullConfig);
+        res.status(400).json({ message: '无效的请求体，必须是包含 sequence (string[]) 和 shortcuts (Record<string, {shortcut?: string}>) 的对象' });
         return;
       }
 
-      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence with new config format...');
-      // +++ 修改：传递完整的配置数组给服务层 +++
-      await settingsService.setFocusSwitcherSequence(focusConfig);
+      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence with validated full config...');
+      // +++ 传递验证后的 fullConfig 给服务层 +++
+      await settingsService.setFocusSwitcherSequence(fullConfig);
       console.log('[Controller] settingsService.setFocusSwitcherSequence completed successfully.');
 
       console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED');
-      auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { config: focusConfig }); // +++ 修改审计日志内容 +++
+      auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { config: fullConfig }); // +++ 修改审计日志内容 +++
 
       console.log('[Controller] Sending success response.');
       res.status(200).json({ message: '焦点切换顺序已成功更新' });

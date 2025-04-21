@@ -1,15 +1,16 @@
 import { settingsRepository, Setting, getSidebarConfig as getSidebarConfigFromRepo, setSidebarConfig as setSidebarConfigInRepo } from '../repositories/settings.repository'; // Import specific repo functions
 import { SidebarConfig, PaneName, UpdateSidebarConfigDto } from '../types/settings.types';
 
-// +++ 定义焦点切换配置项接口 (与前端 store 保持一致) +++
-interface ConfigurableFocusableItem {
-  id: string;
+// +++ 定义焦点切换完整配置接口 (与前端 store 保持一致) +++
+interface FocusItemConfig { // 单个项目的配置
   shortcut?: string;
 }
+interface FocusSwitcherFullConfig { // 完整配置结构
+  sequence: string[];
+  shortcuts: Record<string, FocusItemConfig>;
+}
 
-// --- 移除旧的默认字符串数组 ---
-// const DEFAULT_FOCUS_SEQUENCE = ["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"];
-const FOCUS_SEQUENCE_KEY = 'focusSwitcherSequence'; // 焦点切换顺序设置键
+const FOCUS_SEQUENCE_KEY = 'focusSwitcherSequence'; // 设置键保持不变
 const NAV_BAR_VISIBLE_KEY = 'navBarVisible'; // 导航栏可见性设置键
 const LAYOUT_TREE_KEY = 'layoutTree'; // 布局树设置键
 const AUTO_COPY_ON_SELECT_KEY = 'autoCopyOnSelect'; // 终端选中自动复制设置键
@@ -95,52 +96,60 @@ export const settingsService = {
 
   /**
    * 获取焦点切换顺序
-   * @returns 返回存储的焦点切换顺序数组，如果未设置或无效则返回默认顺序
+   * @returns 返回存储的完整焦点切换配置对象，如果未设置或无效则返回默认空配置
    */
-  async getFocusSwitcherSequence(): Promise<ConfigurableFocusableItem[]> { // +++ 更新返回类型 +++
+  async getFocusSwitcherSequence(): Promise<FocusSwitcherFullConfig> { // +++ 更新返回类型 +++
     console.log(`[Service] Attempting to get setting for key: ${FOCUS_SEQUENCE_KEY}`);
+    const defaultConfig: FocusSwitcherFullConfig = { sequence: [], shortcuts: {} }; // 默认值
     try {
       const configJson = await settingsRepository.getSetting(FOCUS_SEQUENCE_KEY);
       console.log(`[Service] Raw value from repository for ${FOCUS_SEQUENCE_KEY}:`, configJson);
       if (configJson) {
         const config = JSON.parse(configJson);
-        // +++ 验证新的数据结构 +++
-        if (Array.isArray(config) && config.every(item =>
-            typeof item === 'object' && item !== null && typeof item.id === 'string' &&
-            (item.shortcut === undefined || typeof item.shortcut === 'string')
-        )) {
-          console.log('[Service] Fetched and validated focus switcher config:', JSON.stringify(config));
-          return config as ConfigurableFocusableItem[];
+        // +++ 验证 FocusSwitcherFullConfig 结构 +++
+        if (
+          typeof config === 'object' && config !== null &&
+          Array.isArray(config.sequence) && config.sequence.every((item: any) => typeof item === 'string') &&
+          typeof config.shortcuts === 'object' && config.shortcuts !== null &&
+          Object.values(config.shortcuts).every((sc: any) => typeof sc === 'object' && sc !== null && (sc.shortcut === undefined || typeof sc.shortcut === 'string'))
+        ) {
+          console.log('[Service] Fetched and validated full focus switcher config:', JSON.stringify(config));
+          // TODO: 可能需要进一步验证 sequence 中的 id 是否仍然有效 (存在于某个地方定义的可用 ID 列表)
+          // TODO: 可能需要进一步验证 shortcuts 中的 key 是否是有效的 ID
+          return config as FocusSwitcherFullConfig;
         } else {
-          console.warn('[Service] Invalid focus switcher config format found in settings. Returning empty array.');
+          console.warn('[Service] Invalid full focus switcher config format found in settings. Returning default.');
         }
       } else {
-        console.log('[Service] No focus switcher config found in settings. Returning empty array.');
+        console.log('[Service] No focus switcher config found in settings. Returning default.');
       }
     } catch (error) {
-      console.error(`[Service] Error parsing focus switcher config from settings (key: ${FOCUS_SEQUENCE_KEY}):`, error);
+      console.error(`[Service] Error parsing full focus switcher config from settings (key: ${FOCUS_SEQUENCE_KEY}):`, error);
     }
-    // +++ 返回空数组作为默认值 +++
-    console.log('[Service] Returning empty array as default focus config.');
-    return [];
+    console.log('[Service] Returning default focus config:', JSON.stringify(defaultConfig));
+    return defaultConfig;
   },
 
   /**
-   * 设置焦点切换顺序
-   * @param sequence 要保存的焦点切换顺序数组
+   * 设置完整的焦点切换配置
+   * @param fullConfig 包含 sequence 和 shortcuts 的完整配置对象
    */
-  async setFocusSwitcherSequence(config: ConfigurableFocusableItem[]): Promise<void> { // +++ 更新参数类型 +++
-    console.log('[Service] setFocusSwitcherSequence called with new config format:', JSON.stringify(config));
-    // +++ 验证新的数据结构 (虽然控制器层已验证，服务层再次验证更健壮) +++
-    if (!Array.isArray(config) || !config.every(item =>
-        typeof item === 'object' && item !== null && typeof item.id === 'string' &&
-        (item.shortcut === undefined || typeof item.shortcut === 'string')
-    )) {
-       console.error('[Service] Attempted to save invalid focus switcher config format:', config);
-       throw new Error('Invalid config format provided.');
-    }
+  async setFocusSwitcherSequence(fullConfig: FocusSwitcherFullConfig): Promise<void> { // +++ 更新参数类型 +++
+    console.log('[Service] setFocusSwitcherSequence called with full config:', JSON.stringify(fullConfig));
+    // +++ 验证 FocusSwitcherFullConfig 结构 (控制器层已做基本验证) +++
+     if (
+          !(typeof fullConfig === 'object' && fullConfig !== null &&
+          Array.isArray(fullConfig.sequence) && fullConfig.sequence.every((item: any) => typeof item === 'string') &&
+          typeof fullConfig.shortcuts === 'object' && fullConfig.shortcuts !== null &&
+          Object.values(fullConfig.shortcuts).every((sc: any) => typeof sc === 'object' && sc !== null && (sc.shortcut === undefined || typeof sc.shortcut === 'string')))
+     ) {
+       console.error('[Service] Attempted to save invalid full focus switcher config format:', fullConfig);
+       throw new Error('Invalid full config format provided.');
+     }
+     // TODO: 可能需要进一步验证 sequence 中的 id 和 shortcuts 中的 key 是否有效
+
     try {
-      const configJson = JSON.stringify(config); // +++ 序列化新的结构 +++
+      const configJson = JSON.stringify(fullConfig); // +++ 序列化完整结构 +++
       console.log(`[Service] Attempting to save setting. Key: ${FOCUS_SEQUENCE_KEY}, Value: ${configJson}`);
       await settingsRepository.setSetting(FOCUS_SEQUENCE_KEY, configJson);
       console.log(`[Service] Successfully saved setting for key: ${FOCUS_SEQUENCE_KEY}`);
