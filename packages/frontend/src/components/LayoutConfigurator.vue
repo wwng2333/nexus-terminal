@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, type Ref } from 'vue'; // Re-added computed
+import { ref, computed, watch, type Ref, nextTick } from 'vue'; // Import nextTick
 import { useI18n } from 'vue-i18n';
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
 import draggable from 'vuedraggable';
@@ -22,9 +22,14 @@ const layoutStore = useLayoutStore();
 
 // --- State ---
 const localLayoutTree: Ref<LayoutNode | null> = ref(null);
-const hasChanges = ref(false);
+// State for current edits
+// const localLayoutTree: Ref<LayoutNode | null> = ref(null); // REMOVE DUPLICATE
 const localSidebarPanes: Ref<{ left: PaneName[], right: PaneName[] }> = ref({ left: [], right: [] });
-const localAvailablePanes: Ref<PaneName[]> = ref([]); // New state for available panes
+const localAvailablePanes: Ref<PaneName[]> = ref([]);
+
+// State for original values to compare against
+const originalLayoutTree: Ref<LayoutNode | null> = ref(null);
+const originalSidebarPanes: Ref<{ left: PaneName[], right: PaneName[] }> = ref({ left: [], right: [] });
 
 // --- Dialog State ---
 const dialogRef = ref<HTMLElement | null>(null);
@@ -32,79 +37,43 @@ const dialogRef = ref<HTMLElement | null>(null);
 // --- Watchers ---
 watch(() => props.isVisible, (newValue) => {
   if (newValue) {
-    // Load main layout
-    if (layoutStore.layoutTree) {
-      localLayoutTree.value = JSON.parse(JSON.stringify(layoutStore.layoutTree));
-    } else {
-      localLayoutTree.value = null; // Ensure it's null if store is null
-    }
-    // Load sidebar config
-    if (layoutStore.sidebarPanes) {
-      localSidebarPanes.value = JSON.parse(JSON.stringify(layoutStore.sidebarPanes));
-    } else {
-      localSidebarPanes.value = { left: [], right: [] }; // Default
-    }
-    // Initialize available panes: Always include non-terminal panes, include terminal only if not already used.
-    const initialUsed = getAllLocalUsedPaneNames(localLayoutTree.value, localSidebarPanes.value);
-    const nonTerminalPanes = layoutStore.allPossiblePanes.filter(p => p !== 'terminal');
-    const available = [...nonTerminalPanes]; // Start with all non-terminal panes
-    if (!initialUsed.has('terminal')) {
-        // Add terminal only if it's not used in the current layout
-        // Try to insert it at its original position for consistency
-        const terminalOriginalIndex = layoutStore.allPossiblePanes.indexOf('terminal');
-        let inserted = false;
-        for (let i = 0; i < available.length; i++) {
-             const currentPane = available[i];
-             const currentOriginalIndex = layoutStore.allPossiblePanes.indexOf(currentPane);
-             if (terminalOriginalIndex < currentOriginalIndex) {
-                 available.splice(i, 0, 'terminal');
-                 inserted = true;
-                 break;
-             }
-        }
-        if (!inserted) {
-             available.push('terminal'); // Add to end if needed
-        }
-    }
-    localAvailablePanes.value = available;
+    // --- Load initial data and create original copies ---
+    // Main layout
+    const initialLayout = layoutStore.layoutTree ? JSON.parse(JSON.stringify(layoutStore.layoutTree)) : null;
+    localLayoutTree.value = initialLayout;
+    originalLayoutTree.value = JSON.parse(JSON.stringify(initialLayout)); // Deep copy for original
 
-    hasChanges.value = false; // Reset changes flag on open
-    console.log('[LayoutConfigurator] Dialog opened, initialized available panes (non-terminals always present).');
+    // Sidebar config
+    const initialSidebars = layoutStore.sidebarPanes ? JSON.parse(JSON.stringify(layoutStore.sidebarPanes)) : { left: [], right: [] };
+    localSidebarPanes.value = initialSidebars;
+    originalSidebarPanes.value = JSON.parse(JSON.stringify(initialSidebars)); // Deep copy for original
+
+    // Initialize available panes: Include 'terminal' only if it's not already used.
+    const initialUsed = getAllLocalUsedPaneNames(localLayoutTree.value, localSidebarPanes.value);
+    if (initialUsed.has('terminal')) {
+        // Terminal is used, available list excludes it
+        localAvailablePanes.value = layoutStore.allPossiblePanes.filter(p => p !== 'terminal');
+    } else {
+        // Terminal is not used, available list includes all
+        localAvailablePanes.value = [...layoutStore.allPossiblePanes];
+    }
+    // Ensure original order is maintained
+    localAvailablePanes.value.sort((a, b) =>
+        layoutStore.allPossiblePanes.indexOf(a) - layoutStore.allPossiblePanes.indexOf(b)
+    );
+
+    console.log('[LayoutConfigurator] Dialog opened, initial data loaded and original copies created.');
+
   } else {
-    localLayoutTree.value = null; // Clear main layout
-    localSidebarPanes.value = { left: [], right: [] }; // Clear sidebars
-    localAvailablePanes.value = []; // Clear available panes
-    console.log('[LayoutConfigurator] Dialog closed.');
+    // --- Clear all state on close ---
+    localLayoutTree.value = null;
+    originalLayoutTree.value = null;
+    localSidebarPanes.value = { left: [], right: [] };
+    originalSidebarPanes.value = { left: [], right: [] };
+    localAvailablePanes.value = [];
+    console.log('[LayoutConfigurator] Dialog closed, state cleared.');
   }
 });
-
-// Watch for changes in the main layout tree
-watch(localLayoutTree, (newValue, oldValue) => {
-  // Check if it's not the initial load and the dialog is visible
-  if (oldValue !== undefined && oldValue !== null && props.isVisible) {
-      // Use stringify for a simple deep comparison
-      if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
-          console.log('[LayoutConfigurator] Main layout tree changed.');
-          hasChanges.value = true;
-      }
-  }
-}, { deep: true });
-
-// Watch for changes in the sidebar configuration
-watch(localSidebarPanes, (newValue, oldValue) => {
-   // Check if it's not the initial load and the dialog is visible
-   if (oldValue !== undefined && props.isVisible) {
-       const newJson = JSON.stringify(newValue);
-       const oldJson = JSON.stringify(oldValue);
-       console.log('[LayoutConfigurator Watcher] localSidebarPanes changed.');
-       // Use stringify for a simple deep comparison, including order changes
-       if (newJson !== oldJson) {
-            console.log('[LayoutConfigurator Watcher] Sidebar panes changed, setting hasChanges.');
-            hasChanges.value = true;
-       }
-   }
-}, { deep: true });
-
 
 // --- Helper Functions ---
 function getMainLayoutUsedPaneNames(node: LayoutNode | null): Set<PaneName> {
@@ -128,32 +97,56 @@ function getAllLocalUsedPaneNames(mainNode: LayoutNode | null, sidebars: { left:
   return usedNames;
 }
 
-// Helper to add pane back to available list if not present
+// --- Restore Helper Functions for Terminal ---
+// Helper to add 'terminal' back to available list if not present
 function addPaneToAvailableList(paneName: PaneName) {
-   if (!localAvailablePanes.value.includes(paneName) && layoutStore.allPossiblePanes.includes(paneName)) {
-       // Maintain original order if possible, otherwise just add
-       // Find the original index in allPossiblePanes
-       const originalIndex = layoutStore.allPossiblePanes.indexOf(paneName);
+   // Only act if the pane is 'terminal' and it's not already available
+   if (paneName === 'terminal' && !localAvailablePanes.value.includes('terminal')) {
+       // Maintain original order if possible
+       const originalIndex = layoutStore.allPossiblePanes.indexOf('terminal');
        let inserted = false;
-       // Try to insert based on original order relative to existing available panes
        for (let i = 0; i < localAvailablePanes.value.length; i++) {
            const currentAvailablePane = localAvailablePanes.value[i];
            const currentOriginalIndex = layoutStore.allPossiblePanes.indexOf(currentAvailablePane);
            if (originalIndex < currentOriginalIndex) {
-               localAvailablePanes.value.splice(i, 0, paneName);
+               localAvailablePanes.value.splice(i, 0, 'terminal');
                inserted = true;
                break;
            }
        }
        if (!inserted) {
-            localAvailablePanes.value.push(paneName); // Add to end if no suitable spot found
+            localAvailablePanes.value.push('terminal'); // Add to end if no suitable spot found
        }
-       console.log(`[LayoutConfigurator] Added '${paneName}' back to available panes.`);
+       console.log(`[LayoutConfigurator] Added 'terminal' back to available panes.`);
    }
 }
 
+// Helper to remove 'terminal' from available list
+function removePaneFromAvailableList(paneName: PaneName) {
+    if (paneName === 'terminal') {
+        const index = localAvailablePanes.value.indexOf('terminal');
+        if (index > -1) {
+            localAvailablePanes.value.splice(index, 1);
+            console.log(`[LayoutConfigurator] Removed 'terminal' from available panes.`);
+        }
+    }
+}
 // --- Computed ---
 // Panel Labels for display
+// Real-time comparison to determine if changes exist
+const isModified = computed(() => {
+  // Compare current local state with the original snapshot
+  const currentLayoutJson = JSON.stringify(localLayoutTree.value);
+  const originalLayoutJson = JSON.stringify(originalLayoutTree.value);
+  const currentSidebarJson = JSON.stringify(localSidebarPanes.value);
+  const originalSidebarJson = JSON.stringify(originalSidebarPanes.value);
+
+  // Return true if either layout or sidebars differ from the original
+  const modified = currentLayoutJson !== originalLayoutJson || currentSidebarJson !== originalSidebarJson;
+  // console.log(`[LayoutConfigurator] isModified computed: ${modified}`); // Debug log
+  return modified;
+});
+
 const paneLabels = computed(() => ({ // Assuming labels might depend on i18n
   connections: t('layout.pane.connections', '连接列表'),
   terminal: t('layout.pane.terminal', '终端'),
@@ -168,7 +161,8 @@ const paneLabels = computed(() => ({ // Assuming labels might depend on i18n
 
 // --- Methods ---
 const closeDialog = () => {
-  if (hasChanges.value) {
+  // Use the computed property for the check
+  if (isModified.value) {
     if (confirm(t('layoutConfigurator.confirmClose', '有未保存的更改，确定要关闭吗？'))) {
       emit('close');
     }
@@ -177,25 +171,28 @@ const closeDialog = () => {
   }
 };
 
-const saveLayout = () => {
-  // Save main layout
-  if (localLayoutTree.value) {
-    layoutStore.updateLayoutTree(localLayoutTree.value);
-    console.log('[LayoutConfigurator] Main layout saved to Store.');
-  } else {
-    // Handle potentially empty layout based on store logic
-     layoutStore.updateLayoutTree(null); // Assuming null is valid for empty
-    console.log('[LayoutConfigurator] Main layout is empty, saved null to Store.');
+const saveLayout = async () => { // Make async
+  console.log('[LayoutConfigurator] Attempting to save layout...');
+  try {
+    // Save main layout and wait for persistence
+    console.log('[LayoutConfigurator] Updating main layout tree in store...');
+    await layoutStore.updateLayoutTree(localLayoutTree.value); // Await the async action
+    console.log('[LayoutConfigurator] Main layout tree update awaited.');
+
+    // Save sidebar config and wait for persistence
+    const sidebarConfigToSave = JSON.parse(JSON.stringify(localSidebarPanes.value));
+    console.log('[LayoutConfigurator] Updating sidebar panes in store:', sidebarConfigToSave);
+    await layoutStore.updateSidebarPanes(sidebarConfigToSave); // Await the async action
+    console.log('[LayoutConfigurator] Sidebar panes update awaited.');
+
+    // isModified will update automatically based on comparison with original state after save
+    emit('close'); // Close dialog *after* save is complete
+    console.log('[LayoutConfigurator] Layout saved successfully, dialog closed.');
+  } catch (error) {
+      console.error('[LayoutConfigurator] Error saving layout:', error);
+      // Optionally notify the user about the error
+      alert(t('layoutConfigurator.saveError', '保存布局时出错，请稍后再试。'));
   }
-
-  // Save sidebar config
-  const sidebarConfigToSave = JSON.parse(JSON.stringify(localSidebarPanes.value));
-  console.log('[LayoutConfigurator] Preparing to save sidebar config:', sidebarConfigToSave); // Log before sending
-  layoutStore.updateSidebarPanes(sidebarConfigToSave);
-  console.log('[LayoutConfigurator] Sidebar config sent to Store.');
-
-  hasChanges.value = false;
-  emit('close');
 };
 
 const resetToDefault = () => {
@@ -208,30 +205,20 @@ const resetToDefault = () => {
     const defaultSidebarPanes = layoutStore.getSystemDefaultSidebarPanes();
     localSidebarPanes.value = JSON.parse(JSON.stringify(defaultSidebarPanes));
 
-    // Reset available panes using the new logic
+    // Reset available panes: Include 'terminal' only if it's not used in the default layout.
     const defaultUsed = getAllLocalUsedPaneNames(localLayoutTree.value, localSidebarPanes.value);
-    const nonTerminalPanesDefault = layoutStore.allPossiblePanes.filter(p => p !== 'terminal');
-    const availableDefault = [...nonTerminalPanesDefault];
-    if (!defaultUsed.has('terminal')) {
-        const terminalOriginalIndex = layoutStore.allPossiblePanes.indexOf('terminal');
-         let inserted = false;
-        for (let i = 0; i < availableDefault.length; i++) {
-             const currentPane = availableDefault[i];
-             const currentOriginalIndex = layoutStore.allPossiblePanes.indexOf(currentPane);
-             if (terminalOriginalIndex < currentOriginalIndex) {
-                 availableDefault.splice(i, 0, 'terminal');
-                 inserted = true;
-                 break;
-             }
-        }
-         if (!inserted) {
-             availableDefault.push('terminal');
-         }
+    if (defaultUsed.has('terminal')) {
+        localAvailablePanes.value = layoutStore.allPossiblePanes.filter(p => p !== 'terminal');
+    } else {
+        localAvailablePanes.value = [...layoutStore.allPossiblePanes];
     }
-     localAvailablePanes.value = availableDefault;
+    // Ensure original order
+    localAvailablePanes.value.sort((a, b) =>
+        layoutStore.allPossiblePanes.indexOf(a) - layoutStore.allPossiblePanes.indexOf(b)
+    );
 
-    console.log('[LayoutConfigurator] Reset to default layout, sidebar panes, and available panes (non-terminals always present).');
-    hasChanges.value = true; // Mark as changed after reset
+    console.log('[LayoutConfigurator] Reset to default layout, sidebar panes, and available panes.');
+    // isModified computed property will detect the change automatically by comparing with original state
   }
 };
 
@@ -251,8 +238,8 @@ const handleNodeUpdate = (updatedNode: LayoutNode) => {
   console.log('[LayoutConfigurator] Received node update from editor:', updatedNode);
   // Assuming the update is for the root node for simplicity
   // v-model on LayoutNodeEditor might handle this, but explicit update is safer
+  // Update the local tree; isModified will react automatically
   localLayoutTree.value = updatedNode;
-  // No need to set hasChanges here, the watcher on localLayoutTree handles it
 };
 
 // Handle remove requests from LayoutNodeEditor (for main layout) - CORRECTED VERSION
@@ -265,24 +252,11 @@ function findAndRemoveNode(node: LayoutNode | null, parentNodeId: string | undef
         const removedNode = updatedChildren.splice(nodeIndex, 1)[0]; // Remove and get the node
         console.log(`[LayoutConfigurator] Removing node at index ${nodeIndex} from parent ${parentNodeId}`);
 
-        // Add the pane back to available list if it was a pane node
-        if (removedNode.type === 'pane' && removedNode.component) {
-            addPaneToAvailableList(removedNode.component);
+        // If the removed node was the terminal pane, add it back to available list
+        if (removedNode.type === 'pane' && removedNode.component === 'terminal') {
+            addPaneToAvailableList('terminal');
         }
-        // If the removed node was a container, recursively add its children back
-        else if (removedNode.type === 'container') { // Check type directly
-             function addPanesFromContainer(containerNode: LayoutNode | null) { // Accept null
-                 if (!containerNode || !containerNode.children) return; // Guard against null/undefined children
-                 containerNode.children.forEach(child => {
-                     if (child.type === 'pane' && child.component) {
-                         addPaneToAvailableList(child.component);
-                     } else if (child.type === 'container') {
-                         addPanesFromContainer(child); // Recurse into nested containers
-                     }
-                 });
-             }
-             addPanesFromContainer(removedNode);
-        }
+        // No need to handle containers specifically for adding back, only terminal matters.
         return { ...node, children: updatedChildren };
     }
 
@@ -304,15 +278,16 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
   console.log('[LayoutConfigurator] Received node remove request:', payload);
   if (payload.parentNodeId === undefined && payload.nodeIndex === 0) {
      if (confirm(t('layoutConfigurator.confirmClearLayout', '确定要清空整个布局吗？所有面板将返回可用列表。'))) {
-       // Add all panes from the tree back to available list before clearing
-       const usedInTree = getMainLayoutUsedPaneNames(localLayoutTree.value); // Single declaration
-       usedInTree.forEach(paneName => addPaneToAvailableList(paneName)); // Correctly call the helper
+       // Add all panes from the tree back to available list before clearing - REMOVED, no longer needed
+       // const usedInTree = getMainLayoutUsedPaneNames(localLayoutTree.value);
+       // usedInTree.forEach(paneName => addPaneToAvailableList(paneName));
        // Clear the tree
+       // Update the local tree; isModified will react automatically
        localLayoutTree.value = null;
      }
   } else if (payload.parentNodeId) {
+     // Update the local tree; isModified will react automatically
      localLayoutTree.value = findAndRemoveNode(localLayoutTree.value, payload.parentNodeId, payload.nodeIndex);
-     // Watcher on localLayoutTree handles hasChanges
   } else {
      console.warn('[LayoutConfigurator] Invalid remove payload:', payload);
   }
@@ -323,10 +298,12 @@ const removeSidebarPane = (side: 'left' | 'right', index: number) => {
    const removedPane = localSidebarPanes.value[side].splice(index, 1)[0]; // Remove and get pane name
    if (removedPane) {
        console.log(`[LayoutConfigurator] Removed pane '${removedPane}' from ${side} sidebar at index ${index}.`);
-       addPaneToAvailableList(removedPane); // Correctly call the helper
+       // If the removed pane was 'terminal', add it back to available list
+       if (removedPane === 'terminal') {
+           addPaneToAvailableList('terminal');
+       }
    }
-   // Explicitly set hasChanges flag (watcher might not catch splice reliably?)
-   hasChanges.value = true;
+   // isModified will react automatically
 };
 
 // Handler for vuedraggable end event to ensure changes flag is set and handle added items
@@ -351,50 +328,27 @@ const onDraggableChange = (event: any, side: 'left' | 'right') => { // Add side 
          console.log(`[LayoutConfigurator] Item moved or removed within/from ${side} sidebar.`);
     }
 
-    // Ensure changes flag is set for any modification (add, remove, move)
-    hasChanges.value = true;
+    // isModified will react automatically
 };
 
 // Handle drag end from the available panes list
 const handleAvailablePaneDragEnd = (event: any) => {
-   // Check if the item was dropped into a different list (main layout or sidebars)
-   if (event.to !== event.from) {
-       // Find the component (Draggable) associated with the source item element
-       // This might rely on internal structure, adjust if needed or find a better way
-       const draggedItemElement = event.item; // The original element in the source list
-       let paneName: PaneName | null = null;
+    // Check if the item was dropped into a different list
+    if (event.to !== event.from) {
+        const paneName = event.oldIndex !== undefined ? localAvailablePanes.value[event.oldIndex] : null;
 
-       // Attempt to get data via Vue's internal context (might be unstable)
-       // Note: __draggable_component__ might not be reliable across versions. Consider data attributes if this fails.
-       if ((draggedItemElement as any)?.__draggable_component__?.context?.element) {
-            paneName = (draggedItemElement as any).__draggable_component__.context.element as PaneName;
-       } else {
-            // Fallback: Try getting from the data array using oldIndex if context fails
-            if (event.oldIndex !== undefined && localAvailablePanes.value[event.oldIndex]) {
-                paneName = localAvailablePanes.value[event.oldIndex];
-                console.warn("[LayoutConfigurator] Using index fallback to get pane name in drag end.");
-            }
-       }
-
-
-       if (paneName === 'terminal') {
-            console.log('[LayoutConfigurator] "terminal" pane dropped elsewhere. Removing from available list.');
-            // Find the precise index in the *current* state of localAvailablePanes, as it might have shifted
-            const currentIndex = localAvailablePanes.value.indexOf('terminal');
-            if (currentIndex > -1) {
-                localAvailablePanes.value.splice(currentIndex, 1);
-            } else {
-                 console.warn('[LayoutConfigurator] Could not find "terminal" in available list to remove after drag.');
-            }
-       } else if (paneName) {
-            console.log(`[LayoutConfigurator] Non-terminal pane "${paneName}" dropped elsewhere. Kept in available list (clone).`);
-            // Do nothing, item remains in localAvailablePanes
-       } else {
-            console.error('[LayoutConfigurator] Could not determine dragged pane name in handleAvailablePaneDragEnd.');
-       }
-   } else {
-        console.log('[LayoutConfigurator] Item dropped back into available list or drag cancelled.');
-   }
+        // If 'terminal' was dragged out, remove it from the available list
+        if (paneName === 'terminal') {
+            removePaneFromAvailableList('terminal');
+        } else if (paneName) {
+             console.log(`[LayoutConfigurator] Non-terminal pane "${paneName}" dropped elsewhere (clone).`);
+             // Other panes are clones, do nothing to the available list
+        } else {
+             console.error('[LayoutConfigurator] Could not determine dragged pane name in handleAvailablePaneDragEnd.');
+        }
+    } else {
+         console.log('[LayoutConfigurator] Item dropped back into available list or drag cancelled.');
+    }
 };
 
 </script>
@@ -404,7 +358,7 @@ const handleAvailablePaneDragEnd = (event: any) => {
     <div ref="dialogRef" class="layout-configurator-dialog">
 
       <header class="dialog-header">
-        <h2>{{ t('layoutConfigurator.title', '配置工作区布局') }}</h2>
+        <h2>{{ t('layoutConfigurator.title', '布局管理器') }}</h2>
         <button class="close-button" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
       </header>
 
@@ -526,8 +480,8 @@ const handleAvailablePaneDragEnd = (event: any) => {
 
       <footer class="dialog-footer">
         <button @click="closeDialog" class="button-secondary">{{ t('common.cancel', '取消') }}</button>
-        <button @click="saveLayout" class="button-primary" :disabled="!hasChanges">
-          {{ t('common.save', '保存') }} {{ hasChanges ? '*' : '' }}
+        <button @click="saveLayout" class="button-primary" :disabled="!isModified">
+          {{ t('common.save', '保存') }}{{ isModified ? '*' : '' }}
         </button>
       </footer>
     </div>

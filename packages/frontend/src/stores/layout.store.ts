@@ -257,35 +257,54 @@ export const useLayoutStore = defineStore('layout', () => {
     }
   }
 
+  // --- Helper for debounced persistence ---
+  // We still might want debounce if updates happen rapidly outside the configurator (e.g., pane resize)
+  let persistLayoutDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  const debouncedPersistLayout = () => {
+      if (persistLayoutDebounceTimer) clearTimeout(persistLayoutDebounceTimer);
+      persistLayoutDebounceTimer = setTimeout(async () => { // Make async
+          await persistLayoutTree(); // Await the async persist function
+      }, 1000);
+  };
+
   // 更新整个布局树（通常由配置器保存时调用）
-  function updateLayoutTree(newTree: LayoutNode | null) { // <-- Allow null
-    // 可选：添加验证逻辑 (如果 newTree 不是 null)
+  async function updateLayoutTree(newTree: LayoutNode | null) { // Make async
+    // 可选：添加验证逻辑
     if (newTree) {
-        // TODO: Add validation for LayoutNode structure if needed
+        // TODO: Add validation
     }
-    layoutTree.value = newTree; // Assign null or the new tree
-    console.log('[Layout Store] 布局树已更新。 New tree:', newTree);
-    // 保存将在 watch 中自动触发
+    // Check if the tree actually changed before updating and persisting
+    if (JSON.stringify(newTree) !== JSON.stringify(layoutTree.value)) {
+        layoutTree.value = newTree;
+        console.log('[Layout Store] 布局树已更新。 New tree:', newTree);
+        // --- Directly call persist ---
+        await persistLayoutTree(); // Await persistence directly
+    } else {
+        console.log('[Layout Store] updateLayoutTree called but tree is unchanged.');
+    }
   }
 
   // 新增：更新侧栏配置
-  function updateSidebarPanes(newPanes: { left: PaneName[], right: PaneName[] }) {
+  async function updateSidebarPanes(newPanes: { left: PaneName[], right: PaneName[] }) { // Make async
     // --- Add Validation ---
     if (newPanes &&
         isValidPaneNameArray(newPanes.left, allPossiblePanes.value) &&
         isValidPaneNameArray(newPanes.right, allPossiblePanes.value))
     {
-        sidebarPanes.value = newPanes as { left: PaneName[], right: PaneName[] }; // Assign validated data
-        // Log the value immediately after update
-        console.log('[Layout Store] 侧栏配置已通过验证并更新。 New sidebarPanes value:', JSON.parse(JSON.stringify(sidebarPanes.value)));
-        // 保存将在 watch 中自动触发
+        // Check if panes actually changed
+        if (JSON.stringify(newPanes) !== JSON.stringify(sidebarPanes.value)) {
+            sidebarPanes.value = newPanes as { left: PaneName[], right: PaneName[] }; // Assign validated data
+            console.log('[Layout Store] 侧栏配置已通过验证并更新。 New sidebarPanes value:', JSON.parse(JSON.stringify(sidebarPanes.value)));
+            // --- Directly call persist ---
+            await persistSidebarPanes(); // Await persistence directly
+        } else {
+             console.log('[Layout Store] updateSidebarPanes called but panes are unchanged.');
+        }
     } else {
         console.error('[Layout Store] updateSidebarPanes 接收到无效的侧栏配置数据，未更新状态:', newPanes);
         // 可选：抛出错误或通知用户
     }
   }
-
-
   // 递归查找并更新节点大小
   function findAndUpdateNodeSize(node: LayoutNode | null, nodeId: string, childrenSizes: { index: number; size: number }[]): LayoutNode | null {
     if (!node) return null;
@@ -313,18 +332,18 @@ export const useLayoutStore = defineStore('layout', () => {
   // 新增 Action: 更新特定容器节点的子节点大小
   function updateNodeSizes(nodeId: string, childrenSizes: { index: number; size: number }[]) {
     console.log(`[Layout Store] 请求更新节点 ${nodeId} 的子节点大小:`, childrenSizes);
+    const originalJson = JSON.stringify(layoutTree.value); // Store original state
     const updatedTree = findAndUpdateNodeSize(layoutTree.value, nodeId, childrenSizes);
-    if (updatedTree && updatedTree !== layoutTree.value) {
-       // 只有在树实际发生变化时才更新 ref 以触发 watch
+
+    if (updatedTree && JSON.stringify(updatedTree) !== originalJson) { // Compare with original JSON
        layoutTree.value = updatedTree;
-       console.log(`[Layout Store] 节点 ${nodeId} 的子节点大小已更新。`);
-    } else if (updatedTree === layoutTree.value) {
-       console.log(`[Layout Store] 未找到节点 ${nodeId} 或大小未改变。`);
+       console.log(`[Layout Store] 节点 ${nodeId} 的子节点大小已更新，触发防抖保存。`);
+       // --- Use debounced persist for resize ---
+       debouncedPersistLayout();
     } else {
-       console.error(`[Layout Store] 更新节点 ${nodeId} 大小后得到无效的树结构。`);
+       console.log(`[Layout Store] 未找到节点 ${nodeId} 或大小未改变。`);
     }
   }
- 
   // 新增 Action: 切换布局（Header/Footer）的可见性
   function toggleLayoutVisibility() {
     isLayoutVisible.value = !isLayoutVisible.value;
@@ -383,27 +402,19 @@ export const useLayoutStore = defineStore('layout', () => {
  }
 
  // 新增 Action: 将当前主布局树持久化到后端和 localStorage
- async function persistLayoutTree() {
-   if (!layoutTree.value) {
-     console.warn('[Layout Store] persistLayoutTree: layoutTree is null, cannot persist.');
-     // TODO: 考虑是否需要删除后端设置或发送空布局
-     // await apiClient.put('/settings/layout', null); // 发送 null 或空对象
-     localStorage.removeItem(LAYOUT_STORAGE_KEY);
-     return;
-   }
-   const layoutToSave = JSON.stringify(layoutTree.value);
-   // 1. 保存到后端
+ async function persistLayoutTree() { // Make async
+   // ... (existing try/catch logic for backend and localStorage) ...
+   // Ensure apiClient calls are awaited if they return promises
    try {
      console.log('[Layout Store] Attempting to save main layout to backend...');
-     // Send the layoutTree value directly (which can be null)
-     await apiClient.put('/settings/layout', layoutTree.value);
+     await apiClient.put('/settings/layout', layoutTree.value); // await
      console.log('[Layout Store] 主布局已成功保存到后端 (sent value):', layoutTree.value);
    } catch (error) {
      console.error('[Layout Store] 保存主布局到后端失败:', error);
    }
-   // 2. 保存到 localStorage
+   // localStorage is synchronous
    try {
-     // If layoutTree.value is null, layoutToSave will be 'null'
+     const layoutToSave = JSON.stringify(layoutTree.value);
      localStorage.setItem(LAYOUT_STORAGE_KEY, layoutToSave);
      console.log('[Layout Store] 主布局已自动保存到 localStorage (saved value):', layoutToSave);
    } catch (error) {
@@ -412,18 +423,18 @@ export const useLayoutStore = defineStore('layout', () => {
  }
 
  // 新增 Action: 将当前侧栏配置持久化到后端和 localStorage
- async function persistSidebarPanes() {
-     const sidebarsToSave = JSON.stringify(sidebarPanes.value);
-     // 1. 保存到后端 (假设 API 端点为 /settings/sidebar)
-     try {
+ async function persistSidebarPanes() { // Make async
+    // ... (existing try/catch logic for backend and localStorage) ...
+    try {
          console.log('[Layout Store] Attempting to save sidebar config to backend...');
-         await apiClient.put('/settings/sidebar', sidebarPanes.value); // 新 API 端点
+         await apiClient.put('/settings/sidebar', sidebarPanes.value); // await
          console.log('[Layout Store] 侧栏配置已成功保存到后端。');
      } catch (error) {
          console.error('[Layout Store] 保存侧栏配置到后端失败:', error);
      }
-     // 2. 保存到 localStorage
+     // localStorage is synchronous
      try {
+         const sidebarsToSave = JSON.stringify(sidebarPanes.value);
          localStorage.setItem(SIDEBAR_STORAGE_KEY, sidebarsToSave);
          console.log('[Layout Store] 侧栏配置已自动保存到 localStorage。');
      } catch (error) {
@@ -432,42 +443,9 @@ export const useLayoutStore = defineStore('layout', () => {
  }
 
 
- // --- 持久化 Watchers ---
- let layoutDebounceTimer: ReturnType<typeof setTimeout> | null = null;
- let sidebarDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-
- // 监听主布局树变化
- watch(
-   layoutTree,
-   (newTree, oldTree) => {
-     if (oldTree === undefined) return; // 避免初始化触发
-     if (JSON.stringify(newTree) !== JSON.stringify(oldTree)) {
-       console.log('[Layout Store] Main layout tree changed, scheduling persistence...');
-       if (layoutDebounceTimer) clearTimeout(layoutDebounceTimer);
-       layoutDebounceTimer = setTimeout(() => {
-         persistLayoutTree();
-       }, 1000); // 1秒防抖
-     }
-   },
-   { deep: true }
- );
-
- // 监听侧栏配置变化
- watch(
-     sidebarPanes,
-     (newPanes, oldPanes) => {
-         if (oldPanes === undefined) return; // 避免初始化触发
-         if (JSON.stringify(newPanes) !== JSON.stringify(oldPanes)) {
-             console.log('[Layout Store] Sidebar panes changed, scheduling persistence...');
-             if (sidebarDebounceTimer) clearTimeout(sidebarDebounceTimer);
-             sidebarDebounceTimer = setTimeout(() => {
-                 persistSidebarPanes();
-             }, 1000); // 1秒防抖
-         }
-     },
-     { deep: true }
- );
-
+ // --- REMOVE the old watchers that called persist ---
+ // watch(layoutTree, ...); // REMOVE THIS
+ // watch(sidebarPanes, ...); // REMOVE THIS
  // --- 初始化 ---
  // Store 创建时自动初始化布局和侧栏
  initializeLayout();

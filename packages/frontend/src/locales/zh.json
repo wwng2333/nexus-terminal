@@ -675,7 +675,7 @@
     "remove": "移除"
   },
   "layoutConfigurator": {
-    "title": "配置工作区布局",
+    "title": "布局管理器",
     "availablePanes": "可用面板",
     "layoutPreview": "主布局预览（拖拽到此处）",
     "resetDefault": "恢复默认",

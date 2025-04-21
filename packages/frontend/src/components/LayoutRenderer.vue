@@ -546,9 +546,9 @@ const getIconClasses = (paneName: PaneName): string[] => {
     <div :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]">
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
-            v-if="currentLeftSidebarComponent && (activeLeftSidebarPane !== 'fileManager' || activeSession)"
+            v-if="currentLeftSidebarComponent && (!['fileManager', 'statusMonitor'].includes(activeLeftSidebarPane) || activeSession)"
             :is="currentLeftSidebarComponent"
-            :key="`left-panel-${activeLeftSidebarPane}`"
+            :key="`left-panel-${activeLeftSidebarPane ?? 'null'}`"
             v-bind="sidebarProps(activeLeftSidebarPane)"
         />
         <!-- Placeholder if FileManager is selected but no active session -->
@@ -559,16 +559,23 @@ const getIconClasses = (paneName: PaneName): string[] => {
             <div class="empty-session-tip">文件管理器需要活动会话</div>
           </div>
         </div>
+        <!-- Placeholder if StatusMonitor is selected but no active session -->
+        <div v-else-if="activeLeftSidebarPane === 'statusMonitor' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
+          <div class="empty-session-content">
+            <i class="fas fa-plug"></i>
+            <span>无活动会话</span>
+            <div class="empty-session-tip">状态监视器需要活动会话</div>
+          </div>
+        </div>
     </div>
 
     <!-- Right Sidebar Panel -->
      <div :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]">
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
-            v-if="currentRightSidebarComponent && (activeRightSidebarPane !== 'fileManager' || activeSession)"
+            v-if="currentRightSidebarComponent && (!['fileManager', 'statusMonitor'].includes(activeRightSidebarPane) || activeSession)"
             :is="currentRightSidebarComponent"
-            :key="`right-panel-${activeRightSidebarPane}`"
-            v-bind="sidebarProps(activeRightSidebarPane)"
+            :key="`right-panel-${activeRightSidebarPane ?? 'null'}`"
         />
         <!-- Placeholder if FileManager is selected but no active session -->
         <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
@@ -576,6 +583,14 @@ const getIconClasses = (paneName: PaneName): string[] => {
             <i class="fas fa-plug"></i>
             <span>无活动会话</span>
             <div class="empty-session-tip">文件管理器需要活动会话</div>
+          </div>
+        </div>
+        <!-- Placeholder if StatusMonitor is selected but no active session -->
+        <div v-else-if="activeRightSidebarPane === 'statusMonitor' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
+          <div class="empty-session-content">
+            <i class="fas fa-plug"></i>
+            <span>无活动会话</span>
+            <div class="empty-session-tip">状态监视器需要活动会话</div>
           </div>
         </div>
     </div>
