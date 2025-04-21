@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute } from 'vue-router';
-import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'; // +++ 添加 onUnmounted +++
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from './stores/auth.store';
 import { useSettingsStore } from './stores/settings.store';
@@ -35,6 +35,7 @@ const underlineRef = ref<HTMLElement | null>(null);
 
 // +++ 新增：存储上一次由切换器聚焦的 ID +++
 const lastFocusedIdBySwitcher = ref<string | null>(null);
+const isAltPressed = ref(false); // +++ 新增：跟踪 Alt 键是否按下 +++
 
 const updateUnderline = async () => {
   await nextTick(); // 等待 DOM 更新
@@ -56,7 +57,8 @@ onMounted(() => {
   setTimeout(updateUnderline, 100);
 
   // +++ 添加全局 Alt 键监听器 +++
-  window.addEventListener('keydown', handleGlobalKeyDown);
+  window.addEventListener('keydown', handleAltKeyDown); // +++ 监听 keydown 设置状态 +++
+  window.addEventListener('keyup', handleGlobalKeyUp);   // +++ 监听 keyup 执行切换 +++
 
   // +++ 加载 Header 可见性状态 +++
   layoutStore.loadHeaderVisibility();
@@ -64,7 +66,8 @@ onMounted(() => {
 
 // +++ 添加卸载钩子以移除监听器 +++
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleGlobalKeyDown);
+  window.removeEventListener('keydown', handleAltKeyDown); // +++ 移除 keydown 监听 +++
+  window.removeEventListener('keyup', handleGlobalKeyUp);   // +++ 移除 keyup 监听 +++
 });
 
 
@@ -90,11 +93,26 @@ const closeStyleCustomizer = () => {
   appearanceStore.toggleStyleCustomizer(false);
 };
 
-// +++ 全局键盘事件处理函数 +++
-const handleGlobalKeyDown = async (event: KeyboardEvent) => { // Make the function async
-  // 仅当 Alt 键被按下且没有其他修饰键 (如 Ctrl, Shift, Meta) 时触发
-  if (event.key === 'Alt' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
-    event.preventDefault(); // 阻止 Alt 键的默认行为 (例如激活菜单栏)
+// +++ 新增：处理 Alt 键按下的事件处理函数 +++
+const handleAltKeyDown = (event: KeyboardEvent) => {
+  // 只在 Alt 键首次按下时设置状态，忽略重复事件
+  if (event.key === 'Alt' && !event.repeat) {
+    isAltPressed.value = true;
+    // console.log('[App] Alt key pressed down.');
+  } else if (isAltPressed.value && event.key !== 'Alt') {
+    // 如果 Alt 正被按住，但按下了其他非 Alt 键，则取消本次 Alt 触发
+    isAltPressed.value = false;
+    // console.log('[App] Alt sequence cancelled by other key press.');
+  }
+};
+
+// +++ 修改：全局键盘事件处理函数，现在监听 keyup +++
+const handleGlobalKeyUp = async (event: KeyboardEvent) => {
+  // 仅当 Alt 键松开，并且之前是被独立按下的状态时触发
+  if (event.key === 'Alt' && isAltPressed.value) {
+    isAltPressed.value = false; // 重置状态
+    event.preventDefault(); // 阻止 Alt 键松开时的默认行为 (如果有的话)
+    console.log('[App] Alt key released, attempting focus switch.');
 
     // +++ Log: 打印当前的配置序列 +++
     console.log('[App] Current configured sequence in store:', JSON.stringify(focusSwitcherStore.configuredSequence));
@@ -102,7 +120,7 @@ const handleGlobalKeyDown = async (event: KeyboardEvent) => { // Make the functi
     // --- 确定当前焦点位置 ---
     // 优先使用上次切换器聚焦的 ID
     let currentFocusId: string | null = lastFocusedIdBySwitcher.value;
-    console.log(`[App] Alt pressed. Last focused by switcher: ${currentFocusId}`);
+    console.log(`[App] Alt released. Last focused by switcher: ${currentFocusId}`);
 
     // 如果上次切换器聚焦的 ID 不存在，尝试从 document.activeElement 获取
     if (!currentFocusId) {
@@ -115,7 +133,7 @@ const handleGlobalKeyDown = async (event: KeyboardEvent) => { // Make the functi
         }
     }
 
-    // --- 重构后的查找和聚焦逻辑 ---
+    // --- 重构后的查找和聚焦逻辑 (保持不变) ---
     const sequence = focusSwitcherStore.configuredSequence;
     if (sequence.length === 0) {
       console.log('[App] No focus sequence configured.');
@@ -126,7 +144,7 @@ const handleGlobalKeyDown = async (event: KeyboardEvent) => { // Make the functi
     let focused = false;
     for (let i = 0; i < sequence.length; i++) {
       const nextFocusId = focusSwitcherStore.getNextFocusTargetId(currentFocusId);
-      if (!nextFocusId) { // 如果序列为空或找不到下一个（理论上不应发生，除非序列在迭代中改变）
+      if (!nextFocusId) {
         console.warn('[App] Could not determine next focus target ID.');
         break;
       }
@@ -136,19 +154,22 @@ const handleGlobalKeyDown = async (event: KeyboardEvent) => { // Make the functi
 
       if (success) {
         console.log(`[App] Successfully focused ${nextFocusId}.`);
-        lastFocusedIdBySwitcher.value = nextFocusId; // 记住成功聚焦的 ID
+        lastFocusedIdBySwitcher.value = nextFocusId;
         focused = true;
-        break; // 成功聚焦，退出循环
+        break;
       } else {
         console.log(`[App] Failed to focus ${nextFocusId}. Trying next in sequence...`);
-        currentFocusId = nextFocusId; // 更新当前 ID，以便 getNextFocusTargetId 找到下一个
+        currentFocusId = nextFocusId;
       }
     }
 
     if (!focused) {
       console.log('[App] Cycled through sequence, no target could be focused.');
-      lastFocusedIdBySwitcher.value = null; // 重置记忆
+      lastFocusedIdBySwitcher.value = null;
     }
+  } else if (event.key === 'Alt') {
+      // 如果 Alt 松开，但 isAltPressed 是 false (例如被其他键取消了)，确保状态被重置
+      isAltPressed.value = false;
   }
 };
 
