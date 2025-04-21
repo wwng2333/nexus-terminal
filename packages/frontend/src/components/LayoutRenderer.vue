@@ -72,7 +72,7 @@ const fileEditorStore = useFileEditorStore(); // <-- Initialize FileEditorStore
 const settingsStore = useSettingsStore(); // +++ Initialize SettingsStore +++
 const { t } = useI18n(); // <-- Get translation function
 const { activeSession } = storeToRefs(sessionStore);
-const { workspaceSidebarPersistentBoolean, leftSidebarWidthPx, rightSidebarWidthPx } = storeToRefs(settingsStore); // +++ Get sidebar setting and width getters +++
+const { workspaceSidebarPersistentBoolean, getSidebarPaneWidth } = storeToRefs(settingsStore); // +++ Get sidebar setting and width getter +++
 const { sidebarPanes } = storeToRefs(layoutStore);
 const { orderedTabs: editorTabsFromStore, activeTabId: activeEditorTabIdFromStore } = storeToRefs(fileEditorStore); // <-- Get editor state
 
@@ -400,7 +400,10 @@ onMounted(() => {
     side: 'left',
     onResizeEnd: (newWidth) => {
       console.log(`Left sidebar resize ended. New width: ${newWidth}px`);
-      settingsStore.updateSetting('leftSidebarWidth', `${newWidth}px`);
+      // +++ Update specific pane width +++
+      if (activeLeftSidebarPane.value) {
+        settingsStore.updateSidebarPaneWidth(activeLeftSidebarPane.value, `${newWidth}px`);
+      }
     },
   });
 
@@ -411,7 +414,10 @@ onMounted(() => {
     side: 'right',
     onResizeEnd: (newWidth) => {
       console.log(`Right sidebar resize ended. New width: ${newWidth}px`);
-      settingsStore.updateSetting('rightSidebarWidth', `${newWidth}px`);
+      // +++ Update specific pane width +++
+      if (activeRightSidebarPane.value) {
+        settingsStore.updateSidebarPaneWidth(activeRightSidebarPane.value, `${newWidth}px`);
+      }
     },
   });
 });
@@ -584,7 +590,7 @@ onMounted(() => {
     ></div>
 
     <!-- Left Sidebar Panel -->
-    <div ref="leftSidebarPanelRef" :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]" :style="{ width: leftSidebarWidthPx }"> <!-- +++ Add ref and bind width +++ -->
+    <div ref="leftSidebarPanelRef" :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]" :style="{ width: getSidebarPaneWidth(activeLeftSidebarPane) }"> <!-- +++ Use getter for width +++ -->
         <div ref="leftResizeHandleRef" class="resize-handle left-handle"></div> <!-- +++ Left Handle +++ -->
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
@@ -612,7 +618,7 @@ onMounted(() => {
     </div>
 
     <!-- Right Sidebar Panel -->
-     <div ref="rightSidebarPanelRef" :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]" :style="{ width: rightSidebarWidthPx }"> <!-- +++ Add ref and bind width +++ -->
+     <div ref="rightSidebarPanelRef" :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]" :style="{ width: getSidebarPaneWidth(activeRightSidebarPane) }"> <!-- +++ Use getter for width +++ -->
         <div ref="rightResizeHandleRef" class="resize-handle right-handle"></div> <!-- +++ Right Handle +++ -->
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component

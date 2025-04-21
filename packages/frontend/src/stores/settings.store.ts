@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue'; // 移除 watch
 import i18n, { setLocale, defaultLng } from '../i18n'; // Import i18n instance and setLocale
+import type { PaneName } from './layout.store'; // +++ Import PaneName type +++
 // 移除 ITheme 和默认主题定义，这些移到 appearance.store.ts
 
 // 定义通用设置状态类型
@@ -18,8 +19,7 @@ interface SettingsState {
   dockerDefaultExpand?: string; // NEW: Docker 默认展开详情 'true' or 'false'
   statusMonitorIntervalSeconds?: string; // NEW: 状态监控轮询间隔 (秒)
   workspaceSidebarPersistent?: string; // NEW: 工作区侧边栏是否固定 'true' or 'false'
-  leftSidebarWidth?: string; // NEW: 左侧边栏宽度 (e.g., '350px')
-  rightSidebarWidth?: string; // NEW: 右侧边栏宽度 (e.g., '350px')
+  sidebarPaneWidths?: string; // NEW: 存储各侧边栏组件宽度的 JSON 字符串
  // Add other general settings keys here as needed
  [key: string]: string | undefined; // Allow other string settings
 }
@@ -28,6 +28,7 @@ interface SettingsState {
 export const useSettingsStore = defineStore('settings', () => {
   // --- State ---
   const settings = ref<Partial<SettingsState>>({}); // 通用设置状态
+  const parsedSidebarPaneWidths = ref<Record<string, string>>({}); // NEW: 解析后的侧边栏宽度对象
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   // 移除外观相关状态: isStyleCustomizerVisible, currentUiTheme, currentXtermTheme
@@ -86,13 +87,33 @@ export const useSettingsStore = defineStore('settings', () => {
       if (settings.value.workspaceSidebarPersistent === undefined) {
           settings.value.workspaceSidebarPersistent = 'false'; // 默认不固定
       }
-      // NEW: Sidebar width defaults
-      if (settings.value.leftSidebarWidth === undefined) {
-          settings.value.leftSidebarWidth = '350px'; // 默认宽度
+      // NEW: Load and parse sidebar pane widths
+      const defaultPaneWidth = '350px';
+      // +++ Ensure PaneName type is available or define it here +++
+      const knownPanes: PaneName[] = ['connections', 'fileManager', 'editor', 'statusMonitor', 'commandHistory', 'quickCommands', 'dockerManager']; // Add all possible sidebar panes
+      let loadedWidths: Record<string, string> = {};
+      try {
+          if (settings.value.sidebarPaneWidths) {
+              loadedWidths = JSON.parse(settings.value.sidebarPaneWidths);
+              if (typeof loadedWidths !== 'object' || loadedWidths === null) {
+                  console.warn('[SettingsStore] Invalid sidebarPaneWidths format loaded, resetting.');
+                  loadedWidths = {};
+              }
+          }
+      } catch (e) {
+          console.error('[SettingsStore] Failed to parse sidebarPaneWidths, resetting.', e);
+          loadedWidths = {};
       }
-      if (settings.value.rightSidebarWidth === undefined) {
-          settings.value.rightSidebarWidth = '350px'; // 默认宽度
-      }
+      // Ensure defaults for all known panes
+      const finalWidths: Record<string, string> = {};
+      knownPanes.forEach(pane => {
+          finalWidths[pane] = loadedWidths[pane] || defaultPaneWidth;
+      });
+      parsedSidebarPaneWidths.value = finalWidths;
+      // Optionally save back if defaults were added (might cause extra write on first load)
+      // if (Object.keys(loadedWidths).length !== Object.keys(finalWidths).length) {
+      //     await updateSetting('sidebarPaneWidths', JSON.stringify(finalWidths));
+      // }
 
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
@@ -145,8 +166,7 @@ export const useSettingsStore = defineStore('settings', () => {
         'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
         'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
         'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
-        'leftSidebarWidth', // +++ 添加左侧栏宽度键 +++
-        'rightSidebarWidth' // +++ 添加右侧栏宽度键 +++
+        'sidebarPaneWidths' // +++ 添加侧边栏宽度对象键 +++
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -182,8 +202,7 @@ export const useSettingsStore = defineStore('settings', () => {
         'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
         'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
         'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
-        'leftSidebarWidth', // +++ 添加左侧栏宽度键 +++
-        'rightSidebarWidth' // +++ 添加右侧栏宽度键 +++
+        'sidebarPaneWidths' // +++ 添加侧边栏宽度对象键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: 'en' | 'zh' | undefined = undefined;
@@ -197,7 +216,7 @@ export const useSettingsStore = defineStore('settings', () => {
         } else {
              console.warn(`[SettingsStore] 尝试批量更新不允许的设置键: ${key}`);
         }
-    }
+      }
 
     if (Object.keys(filteredUpdates).length === 0) {
         console.log('[SettingsStore] 没有有效的通用设置需要更新。');
@@ -218,6 +237,23 @@ export const useSettingsStore = defineStore('settings', () => {
     } catch (err: any) {
       console.error('批量更新设置失败:', err);
       throw new Error(err.response?.data?.message || err.message || '批量更新设置失败');
+    }
+  }
+
+  /**
+   * Updates the width for a specific sidebar pane.
+   * @param paneName The name of the pane (component).
+   * @param width The new width string (e.g., '400px').
+   */
+  async function updateSidebarPaneWidth(paneName: PaneName, width: string) {
+    if (!paneName) return;
+    const newWidths = { ...parsedSidebarPaneWidths.value, [paneName]: width };
+    parsedSidebarPaneWidths.value = newWidths; // Update local reactive state first
+    try {
+      await updateSetting('sidebarPaneWidths', JSON.stringify(newWidths));
+    } catch (error) {
+      console.error(`[SettingsStore] Failed to save sidebarPaneWidths after updating ${paneName}:`, error);
+      // Optionally revert local state or show error to user
     }
   }
 
@@ -250,11 +286,14 @@ export const useSettingsStore = defineStore('settings', () => {
       return settings.value.workspaceSidebarPersistent === 'true';
   });
 
-  // NEW: Getter for left sidebar width
-  const leftSidebarWidthPx = computed(() => settings.value.leftSidebarWidth || '350px');
-
-  // NEW: Getter for right sidebar width
-  const rightSidebarWidthPx = computed(() => settings.value.rightSidebarWidth || '350px');
+  // NEW: Getter to get width for a specific sidebar pane
+  const getSidebarPaneWidth = computed(() => (paneName: PaneName | null): string => {
+    const defaultWidth = '350px';
+    if (!paneName) return defaultWidth;
+    // Ensure parsedSidebarPaneWidths.value is accessed correctly
+    const widths = parsedSidebarPaneWidths.value || {};
+    return widths[paneName] || defaultWidth;
+  });
 
   // NEW: Getter for Docker default expand setting, returning boolean
   const dockerDefaultExpandBoolean = computed(() => {
@@ -279,11 +318,11 @@ export const useSettingsStore = defineStore('settings', () => {
     dockerDefaultExpandBoolean, // +++ 暴露 Docker 默认展开 getter +++
     statusMonitorIntervalSecondsNumber, // +++ 暴露状态监控间隔 getter +++
     workspaceSidebarPersistentBoolean, // +++ 暴露侧边栏固定 getter +++
-    leftSidebarWidthPx, // +++ 暴露左侧栏宽度 getter +++
-    rightSidebarWidthPx, // +++ 暴露右侧栏宽度 getter +++
+    getSidebarPaneWidth, // +++ 暴露获取特定面板宽度的 getter +++
     // 移除外观相关的 getters 和 actions
     loadInitialSettings,
     updateSetting,
     updateMultipleSettings,
+    updateSidebarPaneWidth, // +++ 暴露更新特定面板宽度的 action +++
   };
 });
