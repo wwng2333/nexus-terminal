@@ -145,7 +145,7 @@ const localAvailableInputs = computed(() => {
             <template #item="{ element }: { element: FocusableInput }">
               <li class="draggable-item">
                 <i class="fas fa-grip-vertical drag-handle"></i>
-                {{ element.label }}
+                <span class="item-label">{{ element.label }}</span>
               </li>
             </template>
              <template #footer>
@@ -169,7 +169,7 @@ const localAvailableInputs = computed(() => {
              <template #item="{ element, index }: { element: FocusableInput, index: number }">
                <li class="draggable-item">
                  <i class="fas fa-grip-vertical drag-handle"></i>
-                 {{ element.label }}
+                 <span class="item-label">{{ element.label }}</span>
                  <!-- 添加移除按钮 -->
                  <button @click="localSequence.splice(index, 1)" class="remove-button" :title="t('common.remove', '移除')">&times;</button>
                </li>
@@ -228,6 +228,9 @@ const localAvailableInputs = computed(() => {
 .available-inputs-section, .configured-sequence-section {
   flex: 1; padding: 1rem; border: 1px solid var(--border-color);
   border-radius: 4px; background-color: var(--input-bg-color); /* 区域背景 */
+  display: flex; /* +++ 添加 flex 布局 +++ */
+  flex-direction: column; /* +++ 垂直排列内部元素 +++ */
+  overflow-y: auto; /* +++ 允许垂直滚动 +++ */
 }
 h3 {
   margin-top: 0; margin-bottom: 1rem; font-size: 1rem;
@@ -241,6 +244,8 @@ h3 {
   border-radius: 4px;
   padding: 0.5rem;
   background-color: rgba(0,0,0,0.02); /* 轻微背景 */
+  flex-grow: 1; /* +++ 让列表占据剩余空间 +++ */
+  overflow-y: auto; /* +++ 列表本身也允许滚动 (双保险) +++ */
 }
 .draggable-item {
   padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
@@ -250,6 +255,7 @@ h3 {
   align-items: center; /* 垂直居中 */
   justify-content: space-between; /* 两端对齐 */
   transition: background-color 0.2s ease;
+  overflow: hidden; /* +++ 防止内部元素溢出容器 +++ */
 }
 .draggable-item:hover {
     background-color: var(--header-bg-color); /* 悬停效果 */
@@ -265,6 +271,14 @@ h3 {
 }
 .draggable-item:active .drag-handle {
   cursor: grabbing;
+}
+/* +++ 新增 item-label 样式 +++ */
+.item-label {
+  flex-grow: 1; /* 占据剩余空间 */
+  overflow: hidden; /* 隐藏溢出文本 */
+  text-overflow: ellipsis; /* 显示省略号 */
+  white-space: nowrap; /* 防止换行 */
+  margin-right: 0.5rem; /* 与移除按钮保持间距 */
 }
 .remove-button {
   background: none; border: none; color: var(--text-color-secondary);
