@@ -126,17 +126,17 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     const apiUrl = '/api/v1/settings/focus-switcher-sequence'; // 假设 API 端点不变
     console.log(`[FocusSwitcherStore] Attempting to save configuration (sequence & shortcuts) to backend via PUT: ${apiUrl}`);
     try {
-      // *** 构造后端期望的请求体：{ sequence: string[] } ***
-      const sequenceIds = configuredItems.value.map(item => item.id);
-      const requestBody = { sequence: sequenceIds };
-      console.log('[FocusSwitcherStore] Configuration data to save (backend format):', JSON.stringify(requestBody));
+      // *** 发送 configuredItems 结构到后端 (包含快捷键) ***
+      // !!! 注意：这需要后端 API 支持接收此结构 !!!
+      const configToSave = configuredItems.value;
+      console.log('[FocusSwitcherStore] Configuration data to save (including shortcuts):', JSON.stringify(configToSave));
       const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           // Auth headers if needed
         },
-        body: JSON.stringify(requestBody), // *** 发送符合后端格式的请求体 ***
+        body: JSON.stringify(configToSave), // *** 发送完整的配置对象数组 ***
       });
       console.log(`[FocusSwitcherStore] Received response from PUT ${apiUrl}. Status: ${response.status}`);
 

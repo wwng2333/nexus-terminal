@@ -87,21 +87,27 @@ export const settingsController = {
   async setFocusSwitcherSequence(req: Request, res: Response): Promise<void> {
     console.log('[Controller] Received request to set focus switcher sequence.');
     try {
-      const { sequence } = req.body;
-      console.log('[Controller] Request body sequence:', JSON.stringify(sequence));
+      // +++ 修改：直接获取请求体作为配置数组 +++
+      const focusConfig = req.body;
+      console.log('[Controller] Request body focusConfig:', JSON.stringify(focusConfig));
 
-      if (!Array.isArray(sequence) || !sequence.every(item => typeof item === 'string')) {
-        console.warn('[Controller] Invalid sequence format received:', sequence);
-        res.status(400).json({ message: '无效的请求体，"sequence" 必须是一个字符串数组' });
+      // +++ 修改：验证新的数据结构 (ConfigurableFocusableItem[]) +++
+      if (!Array.isArray(focusConfig) || !focusConfig.every(item =>
+          typeof item === 'object' && item !== null && typeof item.id === 'string' &&
+          (item.shortcut === undefined || typeof item.shortcut === 'string')
+      )) {
+        console.warn('[Controller] Invalid focus config format received:', focusConfig);
+        res.status(400).json({ message: '无效的请求体，必须是包含 id (string) 和可选 shortcut (string) 的对象数组' });
         return;
       }
 
-      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence...');
-      await settingsService.setFocusSwitcherSequence(sequence);
+      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence with new config format...');
+      // +++ 修改：传递完整的配置数组给服务层 +++
+      await settingsService.setFocusSwitcherSequence(focusConfig);
       console.log('[Controller] settingsService.setFocusSwitcherSequence completed successfully.');
 
       console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED');
-      auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { sequence });
+      auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { config: focusConfig }); // +++ 修改审计日志内容 +++
 
       console.log('[Controller] Sending success response.');
       res.status(200).json({ message: '焦点切换顺序已成功更新' });
