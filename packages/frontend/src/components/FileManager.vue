@@ -964,7 +964,7 @@ const handleWheel = (event: WheelEvent) => {
     flex-shrink: 0; /* 防止被压缩 */
 }
 .actions-bar button {
-    padding: 0.4rem 0.8rem; /* 调整按钮内边距 */
+    padding: 0.4rem 0.9rem; /* 调整按钮内边距 */
     cursor: pointer;
     border: 1px solid var(--border-color); /* 添加边框 */
     border-radius: 4px;
@@ -1072,7 +1072,7 @@ const handleWheel = (event: WheelEvent) => {
     overflow-y: auto;
     position: relative; /* Needed for overlay */
     /* 定义基础变量 */
-    --base-font-size: 0.9rem;
+    --base-font-size: 0.8rem; /* --- 减小基础字体大小 --- */
     --base-padding-vertical: 0.4rem; /* 减小基础垂直 padding */
     --base-padding-horizontal: 0.8rem;
     --base-icon-size: 1.1em; /* 相对于 base-font-size */
@@ -1127,6 +1127,8 @@ th, td {
     /* transition: font-size 0.1s ease, padding 0.1s ease; */
 }
 th {
+    padding-top: 0.2rem; /* --- 减小表头顶部内边距 --- */
+    padding-bottom: 0.2rem; /* --- 减小表头底部内边距 --- */
     position: relative;
     font-weight: 500; /* Slightly lighter header weight */
     color: var(--text-color-secondary); /* Use secondary color for header text */
