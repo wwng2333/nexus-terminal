@@ -37,7 +37,7 @@ const underlineRef = ref<HTMLElement | null>(null);
 const lastFocusedIdBySwitcher = ref<string | null>(null);
 const isAltPressed = ref(false); // 跟踪 Alt 键是否按下
 const altShortcutKey = ref<string | null>(null);
-const shortcutTriggeredInKeyDown = ref(false); // +++ 新增：标记快捷键是否在 keydown 中触发 +++
+// --- 移除 shortcutTriggeredInKeyDown 标志 ---
 
 const updateUnderline = async () => {
   await nextTick(); // 等待 DOM 更新
@@ -101,10 +101,9 @@ const handleAltKeyDown = async (event: KeyboardEvent) => { // +++ 改为 async +
   if (event.key === 'Alt' && !event.repeat) {
     isAltPressed.value = true;
     altShortcutKey.value = null;
-    shortcutTriggeredInKeyDown.value = false; // +++ 重置标志位 +++
     // console.log('[App] Alt key pressed down.');
-  } else if (isAltPressed.value && !shortcutTriggeredInKeyDown.value && !['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
-    // 如果 Alt 正被按住，快捷键尚未触发，且按下了非修饰键
+  } else if (isAltPressed.value && !['Control', 'Shift', 'Alt', 'Meta'].includes(event.key)) {
+    // 如果 Alt 正被按住，且按下了非修饰键 (移除 !shortcutTriggeredInKeyDown 检查)
     let key = event.key;
     if (key.length === 1) key = key.toUpperCase();
 
@@ -121,7 +120,7 @@ const handleAltKeyDown = async (event: KeyboardEvent) => { // +++ 改为 async +
             if (success) {
                 console.log(`[App] KeyDown: Successfully focused ${targetId} via shortcut.`);
                 lastFocusedIdBySwitcher.value = targetId;
-                shortcutTriggeredInKeyDown.value = true; // +++ 设置标志位 +++
+                // --- 移除设置标志位 ---
             } else {
                 console.log(`[App] KeyDown: Failed to focus ${targetId} via shortcut action.`);
                 // 聚焦失败，可以选择是否取消 Alt 状态，暂时不处理，让 keyup 重置
@@ -136,14 +135,14 @@ const handleAltKeyDown = async (event: KeyboardEvent) => { // +++ 改为 async +
         // 按下无效键 (非字母数字)，取消 Alt 状态
         isAltPressed.value = false;
         altShortcutKey.value = null;
-        shortcutTriggeredInKeyDown.value = false;
+        // --- 移除重置标志位 ---
         console.log('[App] KeyDown: Alt sequence cancelled by non-alphanumeric key press.');
     }
   } else if (isAltPressed.value && ['Control', 'Shift', 'Meta'].includes(event.key)) {
       // 按下其他修饰键，取消 Alt 状态
       isAltPressed.value = false;
       altShortcutKey.value = null;
-      shortcutTriggeredInKeyDown.value = false;
+      // --- 移除重置标志位 ---
       console.log('[App] KeyDown: Alt sequence cancelled by other modifier key press.');
   }
 };
@@ -151,17 +150,17 @@ const handleAltKeyDown = async (event: KeyboardEvent) => { // +++ 改为 async +
 // +++ 修改：全局键盘事件处理函数，监听 keyup，优先处理快捷键 +++
 const handleGlobalKeyUp = async (event: KeyboardEvent) => {
   if (event.key === 'Alt') {
-    const altWasPressed = isAltPressed.value; // 记录松开前的状态
-    const shortcutHandled = shortcutTriggeredInKeyDown.value; // 记录是否在 keydown 处理
+    const altWasPressed = isAltPressed.value;
+    const triggeredShortcutKey = altShortcutKey.value; // 记录松开时是否有记录的快捷键
 
     // 总是重置状态
     isAltPressed.value = false;
     altShortcutKey.value = null;
-    shortcutTriggeredInKeyDown.value = false;
+    // --- 移除重置标志位 ---
 
-    if (altWasPressed && !shortcutHandled) {
-      // 如果 Alt 之前是按下的，并且没有在 keydown 中处理快捷键，则执行顺序切换
-      console.log('[App] KeyUp: Alt released without a handled shortcut. Attempting sequential focus switch.');
+    if (altWasPressed && triggeredShortcutKey === null) {
+      // 如果 Alt 之前是按下的，并且没有记录到有效的快捷键，则执行顺序切换
+      console.log('[App] KeyUp: Alt released without a valid shortcut key captured. Attempting sequential focus switch.');
       event.preventDefault(); // 仅在执行顺序切换时阻止默认行为
 
       // --- 顺序切换逻辑 (保持不变) ---
@@ -212,9 +211,9 @@ const handleGlobalKeyUp = async (event: KeyboardEvent) => {
       }
       // --- 顺序切换逻辑结束 ---
 
-    } else if (shortcutHandled) {
-      console.log('[App] KeyUp: Alt released, but shortcut was handled in keydown. No further action.');
-      // 如果需要在 keyup 时也阻止默认行为，可以在这里添加 event.preventDefault()
+    } else if (altWasPressed && triggeredShortcutKey !== null) {
+      console.log(`[App] KeyUp: Alt released after capturing key '${triggeredShortcutKey}'. Shortcut logic handled in keydown. No sequential switch.`);
+      // 快捷键逻辑已在 keydown 处理，keyup 时无需操作，也不阻止默认行为（除非特定需要）
     } else {
       // Alt 松开，但 isAltPressed 已经是 false (例如被其他键取消了)
       console.log('[App] KeyUp: Alt released, but sequence was already cancelled or not active.');
