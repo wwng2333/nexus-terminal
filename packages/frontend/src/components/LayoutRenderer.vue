@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, type PropType, type Component, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, type PropType, type Component, ref, watch, onMounted } from 'vue'; // +++ Add onMounted +++
 import { useI18n } from 'vue-i18n'; // <-- Import useI18n
 // 添加依赖 font-awesome
 import '@fortawesome/fontawesome-free/css/all.min.css';
@@ -8,6 +8,7 @@ import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout
 import { useSessionStore } from '../stores/session.store';
 import { useFileEditorStore } from '../stores/fileEditor.store'; // <-- Import FileEditorStore
 import { useSettingsStore } from '../stores/settings.store'; // +++ Import SettingsStore +++
+import { useSidebarResize } from '../composables/useSidebarResize'; // +++ Import useSidebarResize +++
 import { storeToRefs } from 'pinia';
 import { defineEmits } from 'vue';
 
@@ -71,13 +72,17 @@ const fileEditorStore = useFileEditorStore(); // <-- Initialize FileEditorStore
 const settingsStore = useSettingsStore(); // +++ Initialize SettingsStore +++
 const { t } = useI18n(); // <-- Get translation function
 const { activeSession } = storeToRefs(sessionStore);
-const { workspaceSidebarPersistentBoolean } = storeToRefs(settingsStore); // +++ Get sidebar setting +++
+const { workspaceSidebarPersistentBoolean, leftSidebarWidthPx, rightSidebarWidthPx } = storeToRefs(settingsStore); // +++ Get sidebar setting and width getters +++
 const { sidebarPanes } = storeToRefs(layoutStore);
 const { orderedTabs: editorTabsFromStore, activeTabId: activeEditorTabIdFromStore } = storeToRefs(fileEditorStore); // <-- Get editor state
 
 // --- Sidebar State ---
 const activeLeftSidebarPane = ref<PaneName | null>(null);
 const activeRightSidebarPane = ref<PaneName | null>(null);
+const leftSidebarPanelRef = ref<HTMLElement | null>(null); // +++ Ref for left panel +++
+const rightSidebarPanelRef = ref<HTMLElement | null>(null); // +++ Ref for right panel +++
+const leftResizeHandleRef = ref<HTMLElement | null>(null); // +++ Ref for left handle +++
+const rightResizeHandleRef = ref<HTMLElement | null>(null); // +++ Ref for right handle +++
 
 // --- Component Mapping ---
 // 使用 defineAsyncComponent 优化加载，并映射 PaneName 到实际组件
@@ -385,6 +390,32 @@ const getIconClasses = (paneName: PaneName): string[] => {
   }
 };
 
+
+// --- Sidebar Resize Logic ---
+onMounted(() => {
+  // Left Sidebar Resize
+  useSidebarResize({
+    sidebarRef: leftSidebarPanelRef,
+    handleRef: leftResizeHandleRef,
+    side: 'left',
+    onResizeEnd: (newWidth) => {
+      console.log(`Left sidebar resize ended. New width: ${newWidth}px`);
+      settingsStore.updateSetting('leftSidebarWidth', `${newWidth}px`);
+    },
+  });
+
+  // Right Sidebar Resize
+  useSidebarResize({
+    sidebarRef: rightSidebarPanelRef,
+    handleRef: rightResizeHandleRef,
+    side: 'right',
+    onResizeEnd: (newWidth) => {
+      console.log(`Right sidebar resize ended. New width: ${newWidth}px`);
+      settingsStore.updateSetting('rightSidebarWidth', `${newWidth}px`);
+    },
+  });
+});
+
 </script>
 
 <template>
@@ -550,11 +581,11 @@ const getIconClasses = (paneName: PaneName): string[] => {
     <div
         v-if="activeLeftSidebarPane || activeRightSidebarPane"
         class="sidebar-overlay"
-
     ></div>
 
     <!-- Left Sidebar Panel -->
-    <div :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]">
+    <div ref="leftSidebarPanelRef" :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]" :style="{ width: leftSidebarWidthPx }"> <!-- +++ Add ref and bind width +++ -->
+        <div ref="leftResizeHandleRef" class="resize-handle left-handle"></div> <!-- +++ Left Handle +++ -->
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
             v-if="currentLeftSidebarComponent && activeLeftSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeLeftSidebarPane) || activeSession)"
@@ -581,7 +612,8 @@ const getIconClasses = (paneName: PaneName): string[] => {
     </div>
 
     <!-- Right Sidebar Panel -->
-     <div :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]">
+     <div ref="rightSidebarPanelRef" :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]" :style="{ width: rightSidebarWidthPx }"> <!-- +++ Add ref and bind width +++ -->
+        <div ref="rightResizeHandleRef" class="resize-handle right-handle"></div> <!-- +++ Right Handle +++ -->
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
             v-if="currentRightSidebarComponent && activeRightSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeRightSidebarPane) || activeSession)"
@@ -778,9 +810,9 @@ const getIconClasses = (paneName: PaneName): string[] => {
   left: 0;
   width: 100%;
   height: 100%;
-  /* background-color: rgba(0, 0, 0, 0.4); */ /* <-- 移除背景色 */
-  background-color: transparent; /* <-- 确保完全透明 */
-  pointer-events: none; /* <-- 不拦截鼠标事件 */
+  /* background-color: rgba(0, 0, 0, 0.4); */ /* <-- 移除背景色 --> */
+  background-color: transparent; /* <-- 确保完全透明 --> */
+  pointer-events: none; /* <-- 不拦截鼠标事件 --> */
   z-index: 100; /* Below panel, above main content */
   opacity: 0;
   visibility: hidden;
@@ -798,13 +830,13 @@ const getIconClasses = (paneName: PaneName): string[] => {
   position: fixed; /* Use fixed for viewport positioning */
   top: 0; /* Adjust if you have a fixed header */
   bottom: 0; /* Adjust if you have a fixed footer */
-  width: 350px; /* Adjust width as needed */
+  /* width: 350px; */ /* Width is now controlled by style binding */
   max-width: 80vw;
   background-color: var(--app-bg-color, white);
-  /* box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); */ /* <-- 移除阴影以隐藏边缘 */
+  /* box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); */ /* <-- 移除阴影以隐藏边缘 --> */
   z-index: 110; /* Above overlay */
   transform: translateX(-100%); /* Start hidden */
-  transition: transform 0.3s ease-in-out;
+  transition: transform 0.3s ease-in-out; /* Keep transition for sliding */
   display: flex;
   flex-direction: column;
   overflow: hidden; /* Prevent content overflow */
@@ -851,6 +883,27 @@ const getIconClasses = (paneName: PaneName): string[] => {
   overflow-y: auto; /* Allow scrolling within the panel */
   padding: 1rem; /* Add some padding */
   padding-top: 2.5rem; /* Add padding to avoid close button overlap */
+}
+
+/* Resize Handle Styles */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px; /* Increased width for easier interaction */
+  cursor: col-resize;
+  z-index: 120; /* Above panel content */
+  background-color: transparent; /* Make it invisible by default */
+  transition: background-color 0.2s ease;
+}
+.resize-handle:hover {
+   background-color: var(--primary-color-light, #a0cfff); /* Highlight on hover */
+}
+.left-handle {
+  right: -4px; /* Adjusted position for increased width */
+}
+.right-handle {
+  left: -4px; /* Adjusted position for increased width */
 }
 
 </style>

@@ -18,8 +18,10 @@ interface SettingsState {
   dockerDefaultExpand?: string; // NEW: Docker 默认展开详情 'true' or 'false'
   statusMonitorIntervalSeconds?: string; // NEW: 状态监控轮询间隔 (秒)
   workspaceSidebarPersistent?: string; // NEW: 工作区侧边栏是否固定 'true' or 'false'
-  // Add other general settings keys here as needed
-  [key: string]: string | undefined; // Allow other string settings
+  leftSidebarWidth?: string; // NEW: 左侧边栏宽度 (e.g., '350px')
+  rightSidebarWidth?: string; // NEW: 右侧边栏宽度 (e.g., '350px')
+ // Add other general settings keys here as needed
+ [key: string]: string | undefined; // Allow other string settings
 }
 
 
@@ -84,6 +86,13 @@ export const useSettingsStore = defineStore('settings', () => {
       if (settings.value.workspaceSidebarPersistent === undefined) {
           settings.value.workspaceSidebarPersistent = 'false'; // 默认不固定
       }
+      // NEW: Sidebar width defaults
+      if (settings.value.leftSidebarWidth === undefined) {
+          settings.value.leftSidebarWidth = '350px'; // 默认宽度
+      }
+      if (settings.value.rightSidebarWidth === undefined) {
+          settings.value.rightSidebarWidth = '350px'; // 默认宽度
+      }
 
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
@@ -135,7 +144,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
         'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
         'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
-        'workspaceSidebarPersistent' // +++ 添加侧边栏固定键 +++
+        'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
+        'leftSidebarWidth', // +++ 添加左侧栏宽度键 +++
+        'rightSidebarWidth' // +++ 添加右侧栏宽度键 +++
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -170,7 +181,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'showPopupFileEditor', 'shareFileEditorTabs', 'ipWhitelistEnabled',
         'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
         'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
-        'workspaceSidebarPersistent' // +++ 添加侧边栏固定键 +++
+        'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
+        'leftSidebarWidth', // +++ 添加左侧栏宽度键 +++
+        'rightSidebarWidth' // +++ 添加右侧栏宽度键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: 'en' | 'zh' | undefined = undefined;
@@ -237,6 +250,12 @@ export const useSettingsStore = defineStore('settings', () => {
       return settings.value.workspaceSidebarPersistent === 'true';
   });
 
+  // NEW: Getter for left sidebar width
+  const leftSidebarWidthPx = computed(() => settings.value.leftSidebarWidth || '350px');
+
+  // NEW: Getter for right sidebar width
+  const rightSidebarWidthPx = computed(() => settings.value.rightSidebarWidth || '350px');
+
   // NEW: Getter for Docker default expand setting, returning boolean
   const dockerDefaultExpandBoolean = computed(() => {
       return settings.value.dockerDefaultExpand === 'true';
@@ -260,6 +279,8 @@ export const useSettingsStore = defineStore('settings', () => {
     dockerDefaultExpandBoolean, // +++ 暴露 Docker 默认展开 getter +++
     statusMonitorIntervalSecondsNumber, // +++ 暴露状态监控间隔 getter +++
     workspaceSidebarPersistentBoolean, // +++ 暴露侧边栏固定 getter +++
+    leftSidebarWidthPx, // +++ 暴露左侧栏宽度 getter +++
+    rightSidebarWidthPx, // +++ 暴露右侧栏宽度 getter +++
     // 移除外观相关的 getters 和 actions
     loadInitialSettings,
     updateSetting,
