@@ -268,8 +268,25 @@ const sidebarProps = computed(() => (paneName: PaneName | null) => {
        // We might not need 'request-add-connection' from the sidebar context
        // onRequestAddConnection: () => emit('request-add-connection')
      };
+   case 'fileManager':
+     // Only provide props if there's an active session
+     if (activeSession.value) {
+       return {
+         ...baseProps,
+         sessionId: activeSession.value.sessionId, // Corrected: Use sessionId
+         dbConnectionId: activeSession.value.connectionId,
+         sftpManager: activeSession.value.sftpManager,
+         wsDeps: {
+           sendMessage: activeSession.value.wsManager.sendMessage,
+           onMessage: activeSession.value.wsManager.onMessage,
+           isConnected: activeSession.value.wsManager.isConnected,
+           isSftpReady: activeSession.value.wsManager.isSftpReady
+         },
+       };
+     } else {
+       return baseProps; // Return only base props if no active session
+     }
    // Add cases for other components if they need specific props or event forwarding in the sidebar
-   // case 'fileManager': return { ...baseProps, ... };
    // case 'commandHistory': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
    // case 'quickCommands': return { ...baseProps, onExecuteCommand: (cmd: string) => emit('sendCommand', cmd) };
    default:
@@ -517,22 +534,38 @@ const getIconClasses = (paneName: PaneName): string[] => {
     <div :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]">
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
-            v-if="currentLeftSidebarComponent"
+            v-if="currentLeftSidebarComponent && (activeLeftSidebarPane !== 'fileManager' || activeSession)"
             :is="currentLeftSidebarComponent"
             :key="`left-panel-${activeLeftSidebarPane}`"
             v-bind="sidebarProps(activeLeftSidebarPane)"
         />
+        <!-- Placeholder if FileManager is selected but no active session -->
+        <div v-else-if="activeLeftSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
+          <div class="empty-session-content">
+            <i class="fas fa-plug"></i>
+            <span>无活动会话</span>
+            <div class="empty-session-tip">文件管理器需要活动会话</div>
+          </div>
+        </div>
     </div>
 
     <!-- Right Sidebar Panel -->
      <div :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]">
         <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <component
-            v-if="currentRightSidebarComponent"
+            v-if="currentRightSidebarComponent && (activeRightSidebarPane !== 'fileManager' || activeSession)"
             :is="currentRightSidebarComponent"
             :key="`right-panel-${activeRightSidebarPane}`"
             v-bind="sidebarProps(activeRightSidebarPane)"
         />
+        <!-- Placeholder if FileManager is selected but no active session -->
+        <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
+          <div class="empty-session-content">
+            <i class="fas fa-plug"></i>
+            <span>无活动会话</span>
+            <div class="empty-session-tip">文件管理器需要活动会话</div>
+          </div>
+        </div>
     </div>
 
      <!-- Right Sidebar Buttons (Only render if root) -->

@@ -61,6 +61,7 @@ export function createSftpActionsManager(
 
     // const fileList = ref<FileListItem[]>([]); // 不再直接使用 fileList ref
     const isLoading = ref<boolean>(false);
+    const loadingRequestId = ref<string | null>(null); // 新增：跟踪当前加载请求 ID
     // const error = ref<string | null>(null); // 不再使用本地 error ref
     const instanceSessionId = sessionId; // 保存会话 ID 用于日志
     const uiNotificationsStore = useUiNotificationsStore(); // 初始化 UI 通知 store
@@ -232,6 +233,7 @@ export function createSftpActionsManager(
         // error.value = null; // 不再需要
         currentPathRef.value = path; // 更新外部 ref
         const requestId = generateRequestId();
+        loadingRequestId.value = requestId; // 记录当前加载请求 ID
         sendMessage({ type: 'sftp:readdir', requestId: requestId, payload: { path } });
     };
 
@@ -412,8 +414,18 @@ export function createSftpActionsManager(
 
         if (!path) {
             console.error(`[SFTP ${instanceSessionId}] Received readdir success without path!`);
-            isLoading.value = false;
+            // 如果收到的消息没有路径，但请求 ID 匹配，仍然需要重置加载状态
+            if (message.requestId === loadingRequestId.value) {
+                isLoading.value = false;
+                loadingRequestId.value = null;
+            }
             return;
+        }
+
+        // 检查请求 ID 是否匹配当前加载请求
+        if (message.requestId !== loadingRequestId.value) {
+            console.log(`[SFTP ${instanceSessionId}] Received stale readdir success for ${path} (ID: ${message.requestId}, expected: ${loadingRequestId.value}). Ignoring.`);
+            return; // 忽略过时的响应
         }
 
         console.log(`[SFTP ${instanceSessionId}] Received file list for directory ${path}`);
@@ -482,21 +494,31 @@ export function createSftpActionsManager(
         targetNode.childrenLoaded = true;
         console.log(`[SFTP ${instanceSessionId}] File tree node ${path}'s children updated after merge.`);
 
-        // If the updated path is the currently viewed path, stop loading
-        if (path === currentPathRef.value) {
-            isLoading.value = false;
-        }
+        // 重置加载状态，因为这是匹配的响应
+        isLoading.value = false;
+        loadingRequestId.value = null;
+        console.log(`[SFTP ${instanceSessionId}] isLoading reset after successful readdir for ${path}.`);
     };
 
     const onSftpReaddirError = (payload: MessagePayload, message: WebSocketMessage) => {
         // 类型断言，因为我们知道 readdir:error 的 payload 是 string
         const errorPayload = payload as string;
-        if (message.path === currentPathRef.value) {
-            console.error(`[SFTP ${instanceSessionId}] 加载目录 ${message.path} 出错:`, errorPayload); // 日志改为中文
-            // error.value = errorPayload; // 使用通知
-            uiNotificationsStore.showError(`${t('fileManager.errors.loadDirectoryFailed')}: ${errorPayload}`, { timeout: 5000 }); // 使用 uiNotificationsStore, 添加 i18n key
-            isLoading.value = false;
+        const errorPath = message.path;
+
+        // 检查请求 ID 是否匹配当前加载请求
+        if (message.requestId !== loadingRequestId.value) {
+             console.log(`[SFTP ${instanceSessionId}] Received stale readdir error for ${errorPath} (ID: ${message.requestId}, expected: ${loadingRequestId.value}). Ignoring.`);
+             return; // 忽略过时的错误响应
         }
+
+        console.error(`[SFTP ${instanceSessionId}] 加载目录 ${errorPath} 出错:`, errorPayload); // 日志改为中文
+        // error.value = errorPayload; // 使用通知
+        uiNotificationsStore.showError(`${t('fileManager.errors.loadDirectoryFailed')}: ${errorPayload}`, { timeout: 5000 }); // 使用 uiNotificationsStore, 添加 i18n key
+
+        // 重置加载状态，因为这是匹配的响应
+        isLoading.value = false;
+        loadingRequestId.value = null;
+        console.log(`[SFTP ${instanceSessionId}] isLoading reset after failed readdir for ${errorPath}.`);
     };
 
     // 移除通用的 onActionSuccessRefresh
