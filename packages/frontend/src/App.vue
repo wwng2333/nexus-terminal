@@ -33,6 +33,9 @@ const route = useRoute();
 const navRef = ref<HTMLElement | null>(null);
 const underlineRef = ref<HTMLElement | null>(null);
 
+// +++ 新增：存储上一次由切换器聚焦的 ID +++
+const lastFocusedIdBySwitcher = ref<string | null>(null);
+
 const updateUnderline = async () => {
   await nextTick(); // 等待 DOM 更新
   if (navRef.value && underlineRef.value) {
@@ -88,7 +91,7 @@ const closeStyleCustomizer = () => {
 };
 
 // +++ 全局键盘事件处理函数 +++
-const handleGlobalKeyDown = (event: KeyboardEvent) => {
+const handleGlobalKeyDown = async (event: KeyboardEvent) => { // Make the function async
   // 仅当 Alt 键被按下且没有其他修饰键 (如 Ctrl, Shift, Meta) 时触发
   if (event.key === 'Alt' && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
     event.preventDefault(); // 阻止 Alt 键的默认行为 (例如激活菜单栏)
@@ -96,108 +99,55 @@ const handleGlobalKeyDown = (event: KeyboardEvent) => {
     // +++ Log: 打印当前的配置序列 +++
     console.log('[App] Current configured sequence in store:', JSON.stringify(focusSwitcherStore.configuredSequence));
 
-    const activeElement = document.activeElement as HTMLElement;
-    let currentFocusId: string | null = null;
+    // --- 确定当前焦点位置 ---
+    // 优先使用上次切换器聚焦的 ID
+    let currentFocusId: string | null = lastFocusedIdBySwitcher.value;
+    console.log(`[App] Alt pressed. Last focused by switcher: ${currentFocusId}`);
 
-    // 检查当前焦点元素是否有我们设置的 data-focus-id
-    if (activeElement && activeElement.hasAttribute('data-focus-id')) {
-      currentFocusId = activeElement.getAttribute('data-focus-id');
+    // 如果上次切换器聚焦的 ID 不存在，尝试从 document.activeElement 获取
+    if (!currentFocusId) {
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && activeElement.hasAttribute('data-focus-id')) {
+            currentFocusId = activeElement.getAttribute('data-focus-id');
+            console.log(`[App] Found focus ID from activeElement: ${currentFocusId}`);
+        } else {
+            console.log(`[App] Could not determine current focus ID from activeElement either.`);
+        }
     }
 
-    console.log(`[App] Alt pressed. Current focus ID: ${currentFocusId}`);
-
-    // --- 新的查找逻辑 ---
-    const sequence = focusSwitcherStore.configuredSequence; // 获取完整的配置顺序
+    // --- 重构后的查找和聚焦逻辑 ---
+    const sequence = focusSwitcherStore.configuredSequence;
     if (sequence.length === 0) {
       console.log('[App] No focus sequence configured.');
-      return; // 没有配置，直接返回
+      return;
     }
 
-    let startIndex = 0;
-    if (currentFocusId) {
-      const currentIndex = sequence.indexOf(currentFocusId);
-      if (currentIndex !== -1) {
-        startIndex = (currentIndex + 1) % sequence.length; // 从当前焦点的下一个开始查找
-      } else {
-         console.log(`[App] Current focus ID ${currentFocusId} not found in sequence, starting search from beginning.`);
-      }
-    } else {
-        console.log('[App] No current focus ID found, starting search from beginning.');
-    }
-
-
-    // 循环查找下一个可聚焦的目标 (最多循环一次完整的序列)
-    let foundFocusable = false;
+    // 尝试聚焦下一个目标，循环最多一次
+    let focused = false;
     for (let i = 0; i < sequence.length; i++) {
-      const nextIndex = (startIndex + i) % sequence.length;
-      const nextFocusId = sequence[nextIndex];
-      console.log(`[App] Trying to find element with ID: ${nextFocusId}`);
+      const nextFocusId = focusSwitcherStore.getNextFocusTargetId(currentFocusId);
+      if (!nextFocusId) { // 如果序列为空或找不到下一个（理论上不应发生，除非序列在迭代中改变）
+        console.warn('[App] Could not determine next focus target ID.');
+        break;
+      }
 
-      const nextElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null;
+      console.log(`[App] Trying to focus target ID: ${nextFocusId}`);
+      const success = await focusSwitcherStore.focusTarget(nextFocusId);
 
-      if (nextElement && isElementVisibleAndFocusable(nextElement)) {
-        // --- 目标元素找到且可聚焦 ---
-        console.log(`[App] Found focusable element:`, nextElement);
-        nextElement.focus();
-        if (nextElement instanceof HTMLInputElement || nextElement instanceof HTMLTextAreaElement) {
-           nextElement.select();
-        }
-        foundFocusable = true;
-        break; // 找到并聚焦，跳出循环
-
-      } else if (nextFocusId === 'fileManagerSearch' || nextFocusId === 'terminalSearch') {
-        // --- 特殊处理：目标是文件管理器或终端搜索框 ---
-        const targetElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null; // 先尝试查找
-
-        if (!targetElement || !isElementVisibleAndFocusable(targetElement)) {
-             // --- 如果元素不存在或不可聚焦，尝试激活 ---
-             console.log(`[App] Target ${nextFocusId} not found or not focusable. Triggering activation via store...`);
-             if (nextFocusId === 'fileManagerSearch') {
-                 focusSwitcherStore.triggerFileManagerSearchActivation();
-             } else { // terminalSearch
-                 focusSwitcherStore.triggerTerminalSearchActivation();
-             }
-             // --- 关键：触发激活后，不设置 foundFocusable，也不 break，让循环继续查找下一个 ---
-             console.log(`[App] Activation triggered for ${nextFocusId}. Continuing search...`);
-        } else {
-             // --- 如果元素存在且可聚焦 (理论上不应该进入这里，因为前面的 if 会处理，但作为防御性代码保留) ---
-             console.log(`[App] Found focusable element after all:`, targetElement);
-             targetElement.focus();
-             if (targetElement instanceof HTMLInputElement || targetElement instanceof HTMLTextAreaElement) {
-                targetElement.select();
-             }
-             foundFocusable = true;
-             break;
-        }
-
-
-        // --- 旧的逻辑移除 ---
-        /*
-        // 使用 setTimeout 等待 DOM 更新后再尝试聚焦
-        setTimeout(() => {
-          const targetElement = document.querySelector(`[data-focus-id="${nextFocusId}"]`) as HTMLElement | null;
-          if (targetElement && isElementVisibleAndFocusable(targetElement)) {
-            console.log(`[App] Focusing ${nextFocusId} after activation attempt.`);
-            targetElement.focus();
-            if (targetElement instanceof HTMLInputElement || targetElement instanceof HTMLTextAreaElement) {
-               targetElement.select();
-            }
-          } else {
-            console.warn(`[App] Failed to focus ${nextFocusId} even after activation attempt.`);
-          }
-        }, 150); // 稍微增加延迟，确保组件有足够时间响应和渲染
-
-        foundFocusable = true; // 无论是否成功聚焦，都认为这个目标已被尝试处理
-        break; // 处理完文件管理器，跳出循环
-        */
+      if (success) {
+        console.log(`[App] Successfully focused ${nextFocusId}.`);
+        lastFocusedIdBySwitcher.value = nextFocusId; // 记住成功聚焦的 ID
+        focused = true;
+        break; // 成功聚焦，退出循环
       } else {
-        // --- 其他元素未找到或不可聚焦 ---
-        console.log(`[App] Element with ID ${nextFocusId} not found or not focusable. Skipping.`);
+        console.log(`[App] Failed to focus ${nextFocusId}. Trying next in sequence...`);
+        currentFocusId = nextFocusId; // 更新当前 ID，以便 getNextFocusTargetId 找到下一个
       }
     }
 
-    if (!foundFocusable) {
-        console.log('[App] Cycled through sequence, no focusable element found.');
+    if (!focused) {
+      console.log('[App] Cycled through sequence, no target could be focused.');
+      lastFocusedIdBySwitcher.value = null; // 重置记忆
     }
   }
 };

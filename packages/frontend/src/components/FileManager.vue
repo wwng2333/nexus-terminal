@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly } from 'vue'; // 恢复导入, 添加 watch
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly, defineExpose } from 'vue'; // 恢复导入, 添加 watch, defineExpose
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
@@ -536,6 +536,14 @@ onBeforeUnmount(() => {
     cleanupSftpHandlers();
 });
 
+// +++ 注册/注销自定义聚焦动作 +++
+onMounted(() => {
+  focusSwitcherStore.registerFocusAction('fileManagerSearch', focusSearchInput);
+});
+onBeforeUnmount(() => {
+  focusSwitcherStore.unregisterFocusAction('fileManagerSearch');
+});
+
 // --- 列宽调整逻辑 (保持不变) ---
 const getColumnKeyByIndex = (index: number): keyof typeof colWidths.value | null => {
     const keys = Object.keys(colWidths.value) as Array<keyof typeof colWidths.value>;
@@ -652,6 +660,25 @@ const handleWheel = (event: WheelEvent) => {
         // console.log(`Row size multiplier: ${rowSizeMultiplier.value}`); // 调试日志
     }
 };
+
+// +++ 新增：聚焦搜索框的方法 +++
+const focusSearchInput = (): boolean => {
+  if (!isSearchActive.value) {
+    activateSearch(); // Activate search first
+    nextTick(() => { // Wait for DOM update
+        if (searchInputRef.value) {
+            searchInputRef.value.focus();
+        }
+    });
+    // Assume activation and focus will likely succeed
+    return true;
+  } else if (searchInputRef.value) {
+    searchInputRef.value.focus();
+    return true;
+  }
+  return false;
+};
+defineExpose({ focusSearchInput });
 
 </script>
 

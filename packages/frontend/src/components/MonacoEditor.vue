@@ -3,7 +3,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, defineExpose } from 'vue';
 import * as monaco from 'monaco-editor';
 import { useAppearanceStore } from '../stores/appearance.store'; // <-- 导入 Store
 import { storeToRefs } from 'pinia'; // <-- 导入 storeToRefs
@@ -226,6 +226,11 @@ onBeforeUnmount(() => {
 // defineExpose({
 //   getValue: () => editorInstance?.getValue()
 // });
+
+// Expose the focus method
+defineExpose({
+  focus: () => editorInstance?.focus()
+});
 
 </script>
 

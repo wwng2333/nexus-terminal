@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // 导入 Store
 // 假设你有一个图标库，例如 unplugin-icons 或类似库
@@ -63,6 +63,7 @@ watch(searchTerm, (newValue) => {
 
 // 可以在这里添加一个 ref 用于聚焦搜索框
 const searchInputRef = ref<HTMLInputElement | null>(null);
+const commandInputRef = ref<HTMLInputElement | null>(null); // Ref for command input
 
 // Removed debug computed property
 
@@ -84,6 +85,46 @@ watch(() => focusSwitcherStore.activateTerminalSearchTrigger, () => {
     }
 });
 
+// --- Focus Actions ---
+const focusCommandInput = (): boolean => {
+  if (commandInputRef.value) {
+    commandInputRef.value.focus();
+    return true;
+  }
+  return false;
+};
+
+const focusSearchInput = (): boolean => {
+  if (!isSearching.value) {
+    // If search is not active, activate it first
+    toggleSearch(); // This might need nextTick if toggleSearch is async
+    nextTick(() => { // Ensure DOM is updated after toggleSearch
+        if (searchInputRef.value) {
+            searchInputRef.value.focus();
+        }
+    });
+    // Since focusing might be async after toggle, we optimistically return true
+    // or adjust based on toggleSearch's behavior. For simplicity, assume it works.
+    return true;
+  } else if (searchInputRef.value) {
+    searchInputRef.value.focus();
+    return true;
+  }
+  return false;
+};
+
+defineExpose({ focusCommandInput, focusSearchInput });
+
+// --- Register/Unregister Focus Actions ---
+onMounted(() => {
+  focusSwitcherStore.registerFocusAction('commandInput', focusCommandInput);
+  focusSwitcherStore.registerFocusAction('terminalSearch', focusSearchInput);
+});
+
+onBeforeUnmount(() => {
+  focusSwitcherStore.unregisterFocusAction('commandInput');
+  focusSwitcherStore.unregisterFocusAction('terminalSearch');
+});
 </script>
 
 <template>
@@ -99,6 +140,7 @@ watch(() => focusSwitcherStore.activateTerminalSearchTrigger, () => {
         v-model="commandInput"
         :placeholder="t('commandInputBar.placeholder')"
         class="command-input"
+        ref="commandInputRef"
         data-focus-id="commandInput"
         @keydown.enter="sendCommand"
         @keydown="handleCommandInputKeydown"

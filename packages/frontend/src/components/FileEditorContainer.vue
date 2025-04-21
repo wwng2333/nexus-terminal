@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, type PropType, ref, watch } from 'vue'; // 添加 ref 和 watch
+import { computed, type PropType, ref, watch, defineExpose, onMounted, onBeforeUnmount } from 'vue'; // 添加 ref, watch, defineExpose, onMounted, onBeforeUnmount
 import { useI18n } from 'vue-i18n';
 // import { storeToRefs } from 'pinia'; // 移除 storeToRefs
 import MonacoEditor from './MonacoEditor.vue'; // 导入 Monaco Editor 组件
 import FileEditorTabs from './FileEditorTabs.vue'; // 导入标签栏组件 (路径确认无误)
 // import { useFileEditorStore } from '../stores/fileEditor.store'; // 移除 Store 导入
 import type { FileTab } from '../stores/fileEditor.store'; // 保留类型导入
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 
 const { t } = useI18n();
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 
 // --- Props ---
 const props = defineProps({
@@ -92,6 +94,28 @@ const handleSaveRequest = () => {
 // const handleCloseContainer = () => { ... };
 // const handleMinimizeContainer = () => { ... };
 
+// 新增：Monaco Editor 组件的引用
+const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
+
+// 新增：聚焦活动编辑器的方法
+const focusActiveEditor = (): boolean => {
+  if (monacoEditorRef.value) {
+    monacoEditorRef.value.focus();
+    return true; // 聚焦成功
+  }
+  return false; // 聚焦失败
+};
+
+// 新增：暴露聚焦方法
+defineExpose({ focusActiveEditor });
+
+// +++ 注册/注销自定义聚焦动作 +++
+onMounted(() => {
+  focusSwitcherStore.registerFocusAction('fileEditorActive', focusActiveEditor);
+});
+onBeforeUnmount(() => {
+  focusSwitcherStore.unregisterFocusAction('fileEditorActive');
+});
 </script>
 
 <template>
@@ -135,6 +159,7 @@ const handleSaveRequest = () => {
         <div v-else-if="currentTabLoadingError" class="editor-error">{{ currentTabLoadingError }}</div>
         <MonacoEditor
           v-else-if="activeTab"
+          ref="monacoEditorRef"
           :key="activeTab.id"
           v-model="localEditorContent" 
           :language="currentTabLanguage"

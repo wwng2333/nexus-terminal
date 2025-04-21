@@ -11,6 +11,7 @@
           data-focus-id="quickCommandsSearch"
           @input="updateSearchTerm($event)"
           @keydown="handleKeydown"
+          ref="searchInputRef"
           class="search-input"
         />
         <button @click="toggleSortBy" class="sort-toggle-button" :title="sortButtonTitle">
@@ -63,21 +64,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, defineExpose } from 'vue';
 import { useQuickCommandsStore, type QuickCommandFE, type QuickCommandSortByType } from '../stores/quickCommands.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
 import AddEditQuickCommandForm from '../components/AddEditQuickCommandForm.vue'; // 导入表单组件
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 
 const quickCommandsStore = useQuickCommandsStore();
 const uiNotificationsStore = useUiNotificationsStore(); // 如果需要显示通知
 const { t } = useI18n();
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 
 const hoveredItemId = ref<number | null>(null);
 const isFormVisible = ref(false);
 const commandToEdit = ref<QuickCommandFE | null>(null);
 const selectedIndex = ref<number>(-1); // -1 表示没有选中
 const commandListRef = ref<HTMLUListElement | null>(null); // Ref for the command list UL
+const searchInputRef = ref<HTMLInputElement | null>(null); // +++ Ref for the search input +++
 
 // --- 从 Store 获取状态和 Getter ---
 const searchTerm = computed(() => quickCommandsStore.searchTerm);
@@ -93,6 +97,14 @@ const emit = defineEmits<{
 // --- 生命周期钩子 ---
 onMounted(() => {
   quickCommandsStore.fetchQuickCommands(); // 组件挂载时获取数据
+});
+
+// +++ 注册/注销自定义聚焦动作 +++
+onMounted(() => {
+  focusSwitcherStore.registerFocusAction('quickCommandsSearch', focusSearchInput);
+});
+onBeforeUnmount(() => {
+  focusSwitcherStore.unregisterFocusAction('quickCommandsSearch');
 });
 
 // --- 事件处理 ---
@@ -203,6 +215,16 @@ const executeCommand = (command: QuickCommandFE) => {
   // Optionally reset selection after execution
   // selectedIndex.value = -1;
 };
+
+// +++ 新增：聚焦搜索框的方法 +++
+const focusSearchInput = (): boolean => {
+  if (searchInputRef.value) {
+    searchInputRef.value.focus();
+    return true;
+  }
+  return false;
+};
+defineExpose({ focusSearchInput });
 
 </script>
 

@@ -12,6 +12,7 @@
           data-focus-id="commandHistorySearch"
           @input="updateSearchTerm($event)"
           @keydown="handleKeydown"
+          ref="searchInputRef"
           class="search-input"
         />
         <button @click="confirmClearAll" class="clear-button" :title="$t('commandHistory.clear', '清空')">
@@ -50,18 +51,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, nextTick } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, defineExpose } from 'vue';
 import { useCommandHistoryStore, CommandHistoryEntryFE } from '../stores/commandHistory.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
 import PaneTitleBar from '../components/PaneTitleBar.vue'; // 导入标题栏
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 
 const commandHistoryStore = useCommandHistoryStore();
 const uiNotificationsStore = useUiNotificationsStore();
 const { t } = useI18n();
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 const hoveredItemId = ref<number | null>(null);
 const selectedIndex = ref<number>(-1); // -1 表示没有选中
 const historyListRef = ref<HTMLUListElement | null>(null); // Ref for the history list UL
+const searchInputRef = ref<HTMLInputElement | null>(null); // +++ Ref for the search input +++
 
 // --- 从 Store 获取状态和 Getter ---
 const searchTerm = computed(() => commandHistoryStore.searchTerm);
@@ -81,6 +85,14 @@ onMounted(() => {
   if (commandHistoryStore.historyList.length === 0) {
       commandHistoryStore.fetchHistory();
   }
+});
+
+// +++ 注册/注销自定义聚焦动作 +++
+onMounted(() => {
+  focusSwitcherStore.registerFocusAction('commandHistorySearch', focusSearchInput);
+});
+onBeforeUnmount(() => {
+  focusSwitcherStore.unregisterFocusAction('commandHistorySearch');
 });
 
 // --- 事件处理 ---
@@ -169,6 +181,16 @@ const executeCommand = (command: string) => {
   // Optionally reset selection after execution
   // selectedIndex.value = -1;
 };
+
+// +++ 新增：聚焦搜索框的方法 +++
+const focusSearchInput = (): boolean => {
+  if (searchInputRef.value) {
+    searchInputRef.value.focus();
+    return true;
+  }
+  return false;
+};
+defineExpose({ focusSearchInput });
 
 </script>
 

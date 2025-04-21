@@ -8,8 +8,8 @@ import { useI18n } from 'vue-i18n';
 export interface FocusableInput {
   id: string; // 唯一标识符
   label: string; // 用户友好的名称
-  componentPath?: string;
-  selector?: string;
+  // componentPath 和 selector 不再需要，聚焦完全依赖 focusAction
+  focusAction: () => boolean | Promise<boolean>; // 改为必需
 }
 
 // 定义 Store 的 State 接口 (可选但推荐)
@@ -29,16 +29,22 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
   // --- State ---
   const availableInputs = ref<FocusableInput[]>([
-    { id: 'commandHistorySearch', label: t('focusSwitcher.input.commandHistorySearch', '命令历史搜索'), componentPath: 'CommandHistoryView.vue', selector: 'input[placeholder*="搜索历史记录"]' },
-    { id: 'quickCommandsSearch', label: t('focusSwitcher.input.quickCommandsSearch', '快捷指令搜索'), componentPath: 'QuickCommandsView.vue', selector: 'input[placeholder*="搜索名称或指令"]' },
-    { id: 'fileManagerSearch', label: t('focusSwitcher.input.fileManagerSearch', '文件管理器搜索'), componentPath: 'FileManager.vue', selector: '.search-input' },
-    { id: 'commandInput', label: t('focusSwitcher.input.commandInput', '命令输入'), componentPath: 'CommandInputBar.vue', selector: '.command-input' },
-    { id: 'terminalSearch', label: t('focusSwitcher.input.terminalSearch', '终端内搜索'), componentPath: 'CommandInputBar.vue', selector: '.search-input' },
+    // 简化定义，移除 componentPath 和 selector，focusAction 将由组件注册
+    { id: 'commandHistorySearch', label: t('focusSwitcher.input.commandHistorySearch', '命令历史搜索'), focusAction: () => false },
+    { id: 'quickCommandsSearch', label: t('focusSwitcher.input.quickCommandsSearch', '快捷指令搜索'), focusAction: () => false },
+    { id: 'fileManagerSearch', label: t('focusSwitcher.input.fileManagerSearch', '文件管理器搜索'), focusAction: () => false },
+    { id: 'commandInput', label: t('focusSwitcher.input.commandInput', '命令输入'), focusAction: () => false },
+    { id: 'terminalSearch', label: t('focusSwitcher.input.terminalSearch', '终端内搜索'), focusAction: () => false },
+    { id: 'connectionListSearch', label: t('focusSwitcher.input.connectionListSearch', '连接列表搜索'), focusAction: () => false },
+    { id: 'fileEditorActive', label: t('focusSwitcher.input.fileEditorActive', '文件编辑器'), focusAction: () => false },
   ]);
   const configuredSequence = ref<string[]>([]);
   const isConfiguratorVisible = ref(false);
   const activateFileManagerSearchTrigger = ref(0);
   const activateTerminalSearchTrigger = ref(0);
+
+  // 新增：存储自定义聚焦动作
+  const focusActions = ref<Record<string, () => boolean | Promise<boolean>>>({});
 
   // --- Actions ---
 
@@ -163,6 +169,57 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     saveSequenceToBackend();
   }
 
+  // 注册聚焦动作 (现在更新 availableInputs 中的 focusAction)
+  function registerFocusAction(id: string, action: () => boolean | Promise<boolean>) {
+    const targetInput = availableInputs.value.find(input => input.id === id);
+    if (targetInput) {
+      targetInput.focusAction = action;
+      console.log(`[FocusSwitcherStore] Registered focus action for ID: ${id}`);
+    } else {
+      console.warn(`[FocusSwitcherStore] Attempted to register focus action for unknown ID: ${id}`);
+    }
+  }
+
+  // 注销聚焦动作 (重置为默认返回 false 的函数)
+  function unregisterFocusAction(id: string) {
+     const targetInput = availableInputs.value.find(input => input.id === id);
+     if (targetInput) {
+       targetInput.focusAction = () => false; // Reset to default non-functional action
+       console.log(`[FocusSwitcherStore] Unregistered focus action for ID: ${id}`);
+     }
+  }
+
+  // 新增：统一的聚焦目标 Action
+  async function focusTarget(id: string): Promise<boolean> {
+    console.log(`[FocusSwitcherStore] Attempting to focus target ID: ${id}`);
+    const targetInput = availableInputs.value.find(input => input.id === id);
+    if (targetInput?.focusAction) {
+      try {
+        const result = await targetInput.focusAction();
+        if (result) {
+          console.log(`[FocusSwitcherStore] Successfully focused ${id} via action.`);
+          return true;
+        } else {
+          console.log(`[FocusSwitcherStore] Focus action for ${id} returned false.`);
+          // 尝试激活搜索框（如果适用）
+          if (id === 'fileManagerSearch') {
+            triggerFileManagerSearchActivation();
+            // 激活后可能需要短暂延迟再尝试聚焦，但这部分逻辑移到 App.vue 或组件内部更合适
+          } else if (id === 'terminalSearch') {
+            triggerTerminalSearchActivation();
+          }
+          return false;
+        }
+      } catch (error) {
+        console.error(`[FocusSwitcherStore] Error executing focus action for ${id}:`, error);
+        return false;
+      }
+    } else {
+      console.warn(`[FocusSwitcherStore] No focus action registered for ID: ${id}`);
+      return false;
+    }
+  }
+
   // --- Getters ---
   const getConfiguredInputs = computed((): FocusableInput[] => {
     return configuredSequence.value
@@ -217,5 +274,9 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     getConfiguredInputs,
     getAvailableInputsForConfigurator,
     getNextFocusTargetId,
+    registerFocusAction, // 暴露注册方法
+    unregisterFocusAction, // 暴露注销方法
+    // focusActions 不再需要暴露
+    focusTarget, // 暴露新的统一聚焦方法
   };
 });

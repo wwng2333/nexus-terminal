@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'; // 确保 ref 已导入
+import { ref, computed, onMounted, onBeforeUnmount, defineExpose } from 'vue'; // 确保 ref, defineExpose, onBeforeUnmount 已导入
 import { storeToRefs } from 'pinia';
 // import { useRouter } from 'vue-router'; // 不再需要 router
 import { useI18n } from 'vue-i18n';
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useTagsStore, TagInfo } from '../stores/tags.store';
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
 
 // 定义事件
 const emit = defineEmits([
@@ -20,12 +21,14 @@ const { t } = useI18n();
 const connectionsStore = useConnectionsStore();
 const tagsStore = useTagsStore();
 const sessionStore = useSessionStore(); // 获取 session store 实例
+const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 
 const { connections, isLoading: connectionsLoading, error: connectionsError } = storeToRefs(connectionsStore);
 const { tags, isLoading: tagsLoading, error: tagsError } = storeToRefs(tagsStore);
 
 // 搜索词
 const searchTerm = ref('');
+const searchInputRef = ref<HTMLInputElement | null>(null); // 新增：搜索输入框的 ref
 
 // 右键菜单状态
 const contextMenuVisible = ref(false);
@@ -168,6 +171,14 @@ onMounted(() => {
   tagsStore.fetchTags();
 });
 
+// +++ 注册/注销自定义聚焦动作 +++
+onMounted(() => {
+  focusSwitcherStore.registerFocusAction('connectionListSearch', focusSearchInput);
+});
+onBeforeUnmount(() => {
+  focusSwitcherStore.unregisterFocusAction('connectionListSearch');
+});
+
 // 处理中键点击（在新标签页打开）
 const handleOpenInNewTab = (connectionId: number) => {
   console.log(`[WkspConnList] handleOpenInNewTab (中键/辅助键) called for ID: ${connectionId}`);
@@ -176,6 +187,16 @@ const handleOpenInNewTab = (connectionId: number) => {
   closeContextMenu(); // 如果右键菜单是打开的，也关闭它
   return false; // 尝试显式阻止进一步处理
 };
+
+// 新增：暴露聚焦搜索框的方法
+const focusSearchInput = (): boolean => {
+  if (searchInputRef.value) {
+    searchInputRef.value.focus();
+    return true; // 聚焦成功
+  }
+  return false; // 聚焦失败
+};
+defineExpose({ focusSearchInput });
 </script>
 
 <template>
@@ -193,7 +214,9 @@ const handleOpenInNewTab = (connectionId: number) => {
         type="text"
         v-model="searchTerm"
         :placeholder="t('workspaceConnectionList.searchPlaceholder')"
+        ref="searchInputRef"
         class="search-input"
+        data-focus-id="connectionListSearch"
       />
       <button
         class="add-button"
