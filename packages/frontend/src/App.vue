@@ -242,6 +242,17 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
 </script>
 
 <template>
+    <div class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-sm w-full">
+      <h2 class="text-2xl font-bold mb-4 text-gray-800">欢迎使用 Tailwind CSS (Vite + Vue)</h2>
+      <p class="text-gray-600 mb-6">这是一个使用 Tailwind CSS 构建的简单卡片示例。</p>
+      <div class="flex justify-end">
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+          了解更多
+        </button>
+      </div>
+    </div>
+  </div>
   <div id="app-container">
     <!-- *** 修改 v-if 条件以使用 isHeaderVisible *** -->
     <header v-if="!isWorkspaceRoute || isHeaderVisible">
