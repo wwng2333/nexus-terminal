@@ -5,11 +5,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, defineExpose } from 'vue';
 import * as monaco from 'monaco-editor';
-import { useAppearanceStore } from '../stores/appearance.store'; // <-- 导入 Store
-import { storeToRefs } from 'pinia'; // <-- 导入 storeToRefs
+// import { useAppearanceStore } from '../stores/appearance.store'; // <-- 移除 Store 导入
+// import { storeToRefs } from 'pinia'; // <-- 移除 storeToRefs 导入
 
 // Props for the component (will be expanded later)
-// const fontSize = ref(14); // <-- 移除本地 fontSize ref
+const localFontSize = ref(14); // <-- 添加本地字体大小状态，默认 14
 
 const props = defineProps({
   modelValue: { // Use modelValue for v-model support
@@ -36,29 +36,14 @@ const emit = defineEmits(['update:modelValue', 'request-save']);
 const editorContainer = ref<HTMLElement | null>(null);
 let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
 
-// --- Appearance Store ---
-const appearanceStore = useAppearanceStore();
-const { currentEditorFontSize } = storeToRefs(appearanceStore); // <-- 获取编辑器字体大小
+// --- 移除 Appearance Store 相关代码 ---
+// const appearanceStore = useAppearanceStore();
+// const { currentEditorFontSize } = storeToRefs(appearanceStore);
 
-// --- Debounce function ---
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-const debounce = (func: Function, delay: number) => {
-  return (...args: any[]) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-    debounceTimer = setTimeout(() => {
-      func(...args);
-      debounceTimer = null;
-    }, delay);
-  };
-};
-
-// Debounced function to save font size setting
-const debouncedSetEditorFontSize = debounce((size: number) => {
-    console.log(`[MonacoEditor] Debounced save triggered. Saving font size: ${size}`);
-    appearanceStore.setEditorFontSize(size);
-}, 500); // 500ms delay
+// --- 移除防抖函数和相关调用 ---
+// let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+// const debounce = (func: Function, delay: number) => { ... };
+// const debouncedSetEditorFontSize = debounce((size: number) => { ... });
 
 onMounted(() => {
   if (editorContainer.value) {
@@ -66,7 +51,7 @@ onMounted(() => {
       value: props.modelValue,
       language: props.language,
       theme: props.theme,
-      fontSize: currentEditorFontSize.value, // <-- 使用 Store 的字体大小
+      fontSize: localFontSize.value, // <-- 使用本地字体大小
       automaticLayout: true, // Auto resize editor on container resize
       readOnly: props.readOnly,
       // Add more options as needed
@@ -137,8 +122,8 @@ onMounted(() => {
             if (event.ctrlKey) {
                 event.preventDefault();
 
-                // Calculate new font size immediately
-                const currentSize = editorInstance?.getOption(monaco.editor.EditorOption.fontSize) ?? currentEditorFontSize.value;
+                // Calculate new font size immediately based on local state
+                const currentSize = localFontSize.value; // 使用本地状态
                 let newSize: number;
                 if (event.deltaY < 0) {
                     newSize = Math.min(currentSize + 1, 40); // Increase size, max 40
@@ -146,13 +131,14 @@ onMounted(() => {
                     newSize = Math.max(currentSize - 1, 8); // Decrease size, min 8
                 }
 
-                // Update visual font size immediately
+                // Update visual font size and local state immediately
                 if (editorInstance && newSize !== currentSize) {
-                    console.log(`[MonacoEditor] Immediate visual update to font size: ${newSize}`);
-                    editorInstance.updateOptions({ fontSize: newSize });
+                    console.log(`[MonacoEditor] Updating local font size to: ${newSize}`);
+                    localFontSize.value = newSize; // 更新本地状态
+                    editorInstance.updateOptions({ fontSize: newSize }); // 更新编辑器视觉效果
 
-                    // Trigger debounced save
-                    debouncedSetEditorFontSize(newSize);
+                    // --- 移除触发防抖保存的逻辑 ---
+                    // debouncedSetEditorFontSize(newSize);
                 }
             }
         }, { passive: false }); // passive: false allows preventDefault
@@ -207,13 +193,8 @@ watch(() => props.readOnly, (newReadOnly) => {
 });
 
 
-// Watch for changes in the global editor font size setting
-watch(currentEditorFontSize, (newSize) => {
-  if (editorInstance) {
-    console.log(`[MonacoEditor] Global font size changed to: ${newSize}. Updating editor.`);
-    editorInstance.updateOptions({ fontSize: newSize });
-  }
-});
+// --- 移除对全局字体大小的监听 ---
+// watch(currentEditorFontSize, (newSize) => { ... });
 
 onBeforeUnmount(() => {
   if (editorInstance) {
