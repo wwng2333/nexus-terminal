@@ -1,55 +1,19 @@
 import * as ConnectionRepository from '../repositories/connection.repository';
 import { encrypt, decrypt } from '../utils/crypto';
+import { AuditLogService } from '../services/audit.service'; // 导入 AuditLogService
+import {
+    ConnectionBase,
+    ConnectionWithTags,
+    CreateConnectionInput,
+    UpdateConnectionInput,
+    FullConnectionData // Import FullConnectionData if needed internally or by repo
+} from '../types/connection.types'; // 从集中类型文件导入
 
-// Re-export or define types needed by the controller/service
-// Ideally, these would be in a shared types file, e.g., packages/backend/src/types/connection.types.ts
-// For now, let's reuse the interfaces from the repository (adjust as needed)
-export interface ConnectionBase {
-    id: number;
-    name: string | null; // Allow name to be null
-    host: string;
-    port: number;
-    username: string;
-    auth_method: 'password' | 'key';
-    proxy_id: number | null;
-    created_at: number;
-    updated_at: number;
-    last_connected_at: number | null;
-}
+// Re-export types if they need to be available via this service module
+export type { ConnectionBase, ConnectionWithTags, CreateConnectionInput, UpdateConnectionInput };
 
-export interface ConnectionWithTags extends ConnectionBase {
-    tag_ids: number[];
-}
 
-// Input type for creating a connection (from controller)
-export interface CreateConnectionInput {
-    name?: string; // Name is now optional
-    host: string;
-    port?: number; // Optional, defaults in service/repo
-    username: string;
-    auth_method: 'password' | 'key';
-    password?: string; // Optional depending on auth_method
-    private_key?: string; // Optional depending on auth_method
-    passphrase?: string; // Optional for key auth
-    proxy_id?: number | null;
-    tag_ids?: number[];
-}
-
-// Input type for updating a connection (from controller)
-// All fields are optional except potentially auth_method related ones
-export interface UpdateConnectionInput {
-    name?: string;
-    host?: string;
-    port?: number;
-    username?: string;
-    auth_method?: 'password' | 'key';
-    password?: string;
-    private_key?: string;
-    passphrase?: string; // Use undefined to signal no change, null/empty string to clear
-    proxy_id?: number | null;
-    tag_ids?: number[];
-}
-
+const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
 /**
  * 获取所有连接（包含标签）
@@ -118,12 +82,17 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
         await ConnectionRepository.updateConnectionTags(newConnectionId, tagIds);
     }
 
-    // 6. Fetch and return the newly created connection with tags
+    // 6. Log audit action
+    // Fetch the created connection to get necessary details for logging
     const newConnection = await getConnectionById(newConnectionId);
     if (!newConnection) {
         // This should ideally not happen if creation was successful
+        console.error(`[Audit Log Error] Failed to retrieve connection ${newConnectionId} after creation.`);
         throw new Error('创建连接后无法检索到该连接。');
     }
+    auditLogService.logAction('CONNECTION_CREATED', { connectionId: newConnection.id, name: newConnection.name, host: newConnection.host });
+
+    // 7. Return the newly created connection with tags
     return newConnection;
 };
 
@@ -194,7 +163,9 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
 
     // 3. Update connection record if there are changes
     const hasNonTagChanges = Object.keys(dataToUpdate).length > 0;
+    let updatedFieldsForAudit: string[] = []; // Track fields for audit log
     if (hasNonTagChanges) {
+        updatedFieldsForAudit = Object.keys(dataToUpdate); // Get fields before update call
         const updated = await ConnectionRepository.updateConnection(id, dataToUpdate);
         if (!updated) {
             // Should not happen if findFullConnectionById succeeded, but good practice
@@ -207,8 +178,18 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
         const validTagIds = input.tag_ids.filter(tagId => typeof tagId === 'number' && tagId > 0);
         await ConnectionRepository.updateConnectionTags(id, validTagIds);
     }
+    // Add 'tag_ids' to audit log if they were updated
+    if (input.tag_ids !== undefined) {
+        updatedFieldsForAudit.push('tag_ids');
+    }
 
-    // 5. Fetch and return the updated connection
+
+    // 5. Log audit action if any changes were made
+    if (hasNonTagChanges || input.tag_ids !== undefined) {
+         auditLogService.logAction('CONNECTION_UPDATED', { connectionId: id, updatedFields: updatedFieldsForAudit });
+    }
+
+    // 6. Fetch and return the updated connection
     return getConnectionById(id);
 };
 
@@ -217,7 +198,12 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
  * 删除连接
  */
 export const deleteConnection = async (id: number): Promise<boolean> => {
-    return ConnectionRepository.deleteConnection(id);
+    const deleted = await ConnectionRepository.deleteConnection(id);
+    if (deleted) {
+        // Log audit action after successful deletion
+        auditLogService.logAction('CONNECTION_DELETED', { connectionId: id });
+    }
+    return deleted;
 };
 
 // Note: testConnection, importConnections, exportConnections logic

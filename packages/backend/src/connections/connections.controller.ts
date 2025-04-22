@@ -3,9 +3,7 @@ import { Request, Response } from 'express';
 import * as ConnectionService from '../services/connection.service';
 import * as SshService from '../services/ssh.service'; // 引入 SshService
 import * as ImportExportService from '../services/import-export.service'; // 引入 ImportExportService
-import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
-
-const auditLogService = new AuditLogService(); // 实例化 AuditLogService
+// Removed AuditLogService import and instantiation
 
 // --- 移除所有不再需要的导入和变量 ---
 // import { Statement } from 'sqlite3';
@@ -19,26 +17,9 @@ const auditLogService = new AuditLogService(); // 实例化 AuditLogService
  */
 export const createConnection = async (req: Request, res: Response): Promise<void> => {
     try {
-        // 基本输入验证（更复杂的验证可以在服务层或使用中间件）
-        // 移除控制器层对 name 的验证，服务层会处理
-        const { host, username, auth_method, password, private_key } = req.body;
-        if (!host || !username || !auth_method) { // 移除 !name 检查
-            res.status(400).json({ message: '缺少必要的连接信息 (host, username, auth_method)。' }); // 更新错误消息
-            return;
-        }
-        if (auth_method === 'password' && !password) {
-            res.status(400).json({ message: '密码认证方式需要提供 password。' });
-            return;
-        }
-        if (auth_method === 'key' && !private_key) {
-            res.status(400).json({ message: '密钥认证方式需要提供 private_key。' });
-            return;
-        }
-
-        // 将请求体传递给服务层处理
+        // Controller performs minimal validation, Service layer handles detailed business logic validation.
+        // 将请求体传递给服务层处理 (Service layer now handles validation and audit logging)
         const newConnection = await ConnectionService.createConnection(req.body);
-        // 记录审计日志
-        auditLogService.logAction('CONNECTION_CREATED', { connectionId: newConnection.id, name: newConnection.name, host: newConnection.host });
         res.status(201).json({ message: '连接创建成功。', connection: newConnection });
 
     } catch (error: any) {
@@ -100,12 +81,7 @@ export const updateConnection = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // 基本验证（可选，服务层也会验证）
-        const { auth_method, password, private_key } = req.body;
-        if (auth_method && auth_method !== 'password' && auth_method !== 'key') {
-             res.status(400).json({ message: '无效的认证方式 (auth_method)，必须是 "password" 或 "key"。' });
-             return;
-        }
+        // Controller performs minimal validation, Service layer handles detailed business logic validation.
         // 注意：服务层会处理更复杂的验证，比如切换认证方式时凭证是否提供
 
         const updatedConnection = await ConnectionService.updateConnection(connectionId, req.body);
@@ -113,8 +89,7 @@ export const updateConnection = async (req: Request, res: Response): Promise<voi
         if (!updatedConnection) {
             res.status(404).json({ message: '连接未找到。' });
         } else {
-            // 记录审计日志
-            auditLogService.logAction('CONNECTION_UPDATED', { connectionId, updatedFields: Object.keys(req.body) });
+            // Audit logging is now handled by the service layer
             res.status(200).json({ message: '连接更新成功。', connection: updatedConnection });
         }
     } catch (error: any) {
@@ -144,8 +119,7 @@ export const deleteConnection = async (req: Request, res: Response): Promise<voi
         if (!deleted) {
             res.status(404).json({ message: '连接未找到。' });
         } else {
-            // 记录审计日志
-            auditLogService.logAction('CONNECTION_DELETED', { connectionId });
+            // Audit logging is now handled by the service layer
             res.status(200).json({ message: '连接删除成功。' }); // 或使用 204 No Content
         }
     } catch (error: any) {
@@ -260,8 +234,9 @@ export const exportConnections = async (req: Request, res: Response): Promise<vo
         const filename = `nexus-terminal-connections-${timestamp}.json`;
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Type', 'application/json');
-        // 记录审计日志 - 使用数组长度
-        auditLogService.logAction('CONNECTIONS_EXPORTED', { count: exportedData.length });
+        // Audit logging for export/import might still be relevant here or in the service
+        // For now, let's assume ImportExportService handles its own logging if needed
+        // auditLogService.logAction('CONNECTIONS_EXPORTED', { count: exportedData.length }); // Removed from controller
         res.status(200).json(exportedData);
 
     } catch (error: any) {
@@ -293,8 +268,9 @@ export const importConnections = async (req: Request, res: Response): Promise<vo
              });
         } else {
             // Complete success
-            // 记录审计日志
-            auditLogService.logAction('CONNECTIONS_IMPORTED', { successCount: result.successCount, failureCount: result.failureCount });
+            // Audit logging for export/import might still be relevant here or in the service
+            // For now, let's assume ImportExportService handles its own logging if needed
+            // auditLogService.logAction('CONNECTIONS_IMPORTED', { successCount: result.successCount, failureCount: result.failureCount }); // Removed from controller
             res.status(200).json({
                 message: `导入成功完成。共导入 ${result.successCount} 条连接。`,
                 successCount: result.successCount,

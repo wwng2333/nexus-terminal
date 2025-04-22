@@ -5,7 +5,7 @@ import { useAppearanceStore } from '../stores/appearance.store'; // 使用新的
 import { storeToRefs } from 'pinia';
 import type { ITheme } from 'xterm';
 import type { TerminalTheme } from '../../../backend/src/types/terminal-theme.types'; // 引入类型
-import { defaultXtermTheme } from '../stores/default-themes'; // 引入默认主题
+import { defaultXtermTheme } from '../features/appearance/config/default-themes'; // 引入默认主题
 
 const { t } = useI18n();
 const appearanceStore = useAppearanceStore();
@@ -73,7 +73,7 @@ brightCyan: #55ffff
 brightWhite: #ffffff`; // 终端主题编辑器的 placeholder (key: value 格式)
 
 // 初始化本地编辑状态
-import { defaultUiTheme } from '../stores/default-themes'; // 确保导入默认主题
+import { defaultUiTheme } from '../features/appearance/config/default-themes'; // 确保导入默认主题
 import { safeJsonParse } from '../stores/appearance.store'; // 导入辅助函数
 
 const initializeEditableState = () => {
