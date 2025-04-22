@@ -59,15 +59,55 @@ const showLayoutConfigurator = ref(false); // 控制布局配置器可见性
 // --- 搜索状态 ---
 const currentSearchTerm = ref(''); // 当前搜索的关键词
 
+// --- 新增：处理全局键盘事件 ---
+const handleGlobalKeyDown = (event: KeyboardEvent) => {
+  // 检查是否按下了 Alt 键以及上/下箭头键
+  if (event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+    event.preventDefault(); // 阻止默认行为 (例如页面滚动)
+
+    const tabs = sessionTabsWithStatus.value;
+    const currentId = activeSessionId.value;
+
+    if (!tabs || tabs.length <= 1 || !currentId) {
+      // 如果没有标签页、只有一个标签页或没有活动标签页，则不执行任何操作
+      return;
+    }
+
+    const currentIndex = tabs.findIndex(tab => tab.sessionId === currentId);
+    if (currentIndex === -1) {
+      // 如果找不到当前活动标签页 (理论上不应发生)，则不执行任何操作
+      return;
+    }
+
+    let nextIndex: number;
+    if (event.key === 'ArrowDown') {
+      // Alt + 下箭头：切换到下一个标签页
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else {
+      // Alt + 上箭头：切换到上一个标签页
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    }
+
+    const nextSessionId = tabs[nextIndex].sessionId;
+    if (nextSessionId !== currentId) {
+      console.log(`[WorkspaceView] Alt+${event.key} detected. Switching to session: ${nextSessionId}`);
+      sessionStore.activateSession(nextSessionId);
+    }
+  }
+};
+
 // --- 生命周期钩子 ---
 onMounted(() => {
   console.log('[工作区视图] 组件已挂载。');
-  // 确保布局已初始化 (layoutStore 内部会处理)
+  // 添加键盘事件监听器
+  window.addEventListener('keydown', handleGlobalKeyDown);
   // 确保布局已初始化 (layoutStore 内部会处理)
 });
 
 onBeforeUnmount(() => {
   console.log('[工作区视图] 组件即将卸载，清理所有会话...');
+  // 移除键盘事件监听器
+  window.removeEventListener('keydown', handleGlobalKeyDown);
   sessionStore.cleanupAllSessions();
 });
 
