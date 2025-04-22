@@ -521,27 +521,51 @@ watchEffect((onCleanup) => {
 });
 
 // +++ 监听 Store 中的触发器以激活搜索 +++
-watch(() => focusSwitcherStore.activateFileManagerSearchTrigger, () => {
-    // 确保只在触发器值大于 0 时执行（避免初始加载时触发）
-    if (focusSwitcherStore.activateFileManagerSearchTrigger > 0) {
-        console.log('[FileManager] Received search activation trigger from store.');
+watch(() => focusSwitcherStore.activateFileManagerSearchTrigger, (newValue, oldValue) => { // 修改监听器
+    // 确保只在触发器值增加时执行（避免初始加载或重置时触发）
+    // 并且当前组件的 sessionId 与活动 sessionId 匹配
+    // 检查 newValue > oldValue 确保是递增触发，避免重复执行
+    if (newValue > (oldValue ?? 0) && props.sessionId === sessionStore.activeSessionId) {
+        console.log(`[FileManager ${props.sessionId}] Received search activation trigger for active session.`);
         activateSearch(); // 调用组件内部的激活搜索方法
     }
-});
+}, { immediate: false }); // 添加 immediate: false 避免初始值为 0 时触发
 
 
-onBeforeUnmount(() => {
-    console.log(`[FileManager ${props.sessionId}] 组件即将卸载。`);
-    // 调用注入的 SFTP 管理器提供的清理函数
-    cleanupSftpHandlers();
-});
+// onBeforeUnmount 中 cleanupSftpHandlers 的调用已移至新的 onBeforeUnmount 逻辑中
 
 // +++ 注册/注销自定义聚焦动作 +++
+let unregisterFocusAction: (() => void) | null = null; // 用于存储注销函数
+
 onMounted(() => {
-  focusSwitcherStore.registerFocusAction('fileManagerSearch', focusSearchInput);
+  // 注册一个包装函数，而不是直接注册 focusSearchInput
+  // 使其成为 async 函数以兼容 Promise 返回类型
+  const focusActionWrapper = async (): Promise<boolean | undefined> => {
+    if (props.sessionId === sessionStore.activeSessionId) {
+      // 如果是活动会话，调用原始聚焦函数并返回其结果
+      // 由于 focusSearchInput 是同步的，我们直接返回它的 boolean 结果
+      // async 函数会自动将其包装在 Promise 中（如果需要，但这里不需要）
+      return focusSearchInput();
+    }
+    // 如果不是活动会话，返回 undefined，表示跳过
+    // async 函数返回 undefined 会被包装成 Promise<undefined>
+    console.log(`[FileManager ${props.sessionId}] Focus action skipped (async undefined) for inactive session.`);
+    return undefined; // 返回 undefined 表示跳过
+  };
+  // 调用新的 registerFocusAction 并存储返回的注销函数
+  unregisterFocusAction = focusSwitcherStore.registerFocusAction('fileManagerSearch', focusActionWrapper);
 });
+
 onBeforeUnmount(() => {
-  focusSwitcherStore.unregisterFocusAction('fileManagerSearch');
+  // 调用存储的注销函数
+  if (unregisterFocusAction) {
+    unregisterFocusAction();
+    console.log(`[FileManager ${props.sessionId}] Unregistered focus action on unmount.`);
+  }
+  // 清理对函数的引用
+  unregisterFocusAction = null;
+  // 调用注入的 SFTP 管理器提供的清理函数 (移到这里确保注销后清理)
+  cleanupSftpHandlers();
 });
 
 // --- 列宽调整逻辑 (保持不变) ---
@@ -663,19 +687,30 @@ const handleWheel = (event: WheelEvent) => {
 
 // +++ 新增：聚焦搜索框的方法 +++
 const focusSearchInput = (): boolean => {
+  // 检查当前会话是否激活，防止后台实例响应
+  if (props.sessionId !== sessionStore.activeSessionId) {
+      console.log(`[FileManager ${props.sessionId}] Ignoring focus request for inactive session.`);
+      return false;
+  }
+
   if (!isSearchActive.value) {
     activateSearch(); // Activate search first
-    nextTick(() => { // Wait for DOM update
+    // nextTick 确保 DOM 更新后再聚焦
+    nextTick(() => {
         if (searchInputRef.value) {
             searchInputRef.value.focus();
+            console.log(`[FileManager ${props.sessionId}] Search activated and input focused.`);
+        } else {
+            console.warn(`[FileManager ${props.sessionId}] Search activated but input ref not found after nextTick.`);
         }
     });
-    // Assume activation and focus will likely succeed
-    return true;
+    return true; // 假设会成功
   } else if (searchInputRef.value) {
     searchInputRef.value.focus();
+    console.log(`[FileManager ${props.sessionId}] Search already active, input focused.`);
     return true;
   }
+  console.warn(`[FileManager ${props.sessionId}] Could not focus search input.`);
   return false;
 };
 defineExpose({ focusSearchInput });

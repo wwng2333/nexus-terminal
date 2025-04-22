@@ -221,18 +221,26 @@ const handleBlur = () => {
   }, 150); // 150ms 延迟可能更稳妥
 };
 
-// 获取数据
-onMounted(() => {
-  connectionsStore.fetchConnections();
-  tagsStore.fetchTags();
-});
+// 获取数据的 onMounted 调用已移至新的 onMounted 逻辑中
 
 // +++ 注册/注销自定义聚焦动作 +++
+let unregisterFocusAction: (() => void) | null = null; // 用于存储注销函数
+
 onMounted(() => {
-  focusSwitcherStore.registerFocusAction('connectionListSearch', focusSearchInput);
+  // 调用新的 registerFocusAction 并存储返回的注销函数
+  // focusSearchInput 返回 boolean，符合 () => boolean | Promise<boolean | undefined> 类型
+  unregisterFocusAction = focusSwitcherStore.registerFocusAction('connectionListSearch', focusSearchInput);
+  connectionsStore.fetchConnections(); // 移到 onMounted
+  tagsStore.fetchTags(); // 移到 onMounted
 });
+
 onBeforeUnmount(() => {
-  focusSwitcherStore.unregisterFocusAction('connectionListSearch');
+  // 调用存储的注销函数
+  if (unregisterFocusAction) {
+    unregisterFocusAction();
+    console.log(`[WkspConnList] Unregistered focus action on unmount.`);
+  }
+  unregisterFocusAction = null;
 });
 
 // 处理中键点击（在新标签页打开）

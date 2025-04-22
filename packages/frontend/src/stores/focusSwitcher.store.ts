@@ -4,11 +4,11 @@ import { useI18n } from 'vue-i18n';
 // 假设有一个 API 客户端或辅助函数，这里我们直接使用 fetch
 // import apiClient from '@/services/api';
 
-// 基础输入框接口 (保持不变)
+// 基础输入框接口 (移除 focusAction)
 export interface FocusableInput {
   id: string;
   label: string;
-  focusAction: () => boolean | Promise<boolean>;
+  // focusAction: () => boolean | Promise<boolean>; // 移除，动作将单独管理
 }
 
 // --- 移除 ConfiguredFocusableInput ---
@@ -28,12 +28,14 @@ export interface FocusSwitcherFullConfig {
 
 // Store State 接口
 interface FocusSwitcherState {
-  availableInputs: FocusableInput[]; // 所有可用项的基础信息
+  availableInputs: FocusableInput[]; // 所有可用项的基础信息 (无 focusAction)
   sequenceOrder: string[]; // 顺序切换的 ID 列表
   itemConfigs: Record<string, FocusItemConfig>; // 所有项目的配置 (id -> config)
   isConfiguratorVisible: boolean;
   activateFileManagerSearchTrigger: number;
   activateTerminalSearchTrigger: number;
+  // 新增：存储注册的聚焦动作
+  registeredActions: Map<string, Array<() => boolean | Promise<boolean | undefined>>>;
 }
 
 // --- 移除 localStorage Key ---
@@ -44,14 +46,14 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
 
   // --- State ---
   const availableInputs = ref<FocusableInput[]>([
-    // 简化定义，移除 componentPath 和 selector，focusAction 将由组件注册
-    { id: 'commandHistorySearch', label: t('focusSwitcher.input.commandHistorySearch', '命令历史搜索'), focusAction: () => false },
-    { id: 'quickCommandsSearch', label: t('focusSwitcher.input.quickCommandsSearch', '快捷指令搜索'), focusAction: () => false },
-    { id: 'fileManagerSearch', label: t('focusSwitcher.input.fileManagerSearch', '文件管理器搜索'), focusAction: () => false },
-    { id: 'commandInput', label: t('focusSwitcher.input.commandInput', '命令输入'), focusAction: () => false },
-    { id: 'terminalSearch', label: t('focusSwitcher.input.terminalSearch', '终端内搜索'), focusAction: () => false },
-    { id: 'connectionListSearch', label: t('focusSwitcher.input.connectionListSearch', '连接列表搜索'), focusAction: () => false },
-    { id: 'fileEditorActive', label: t('focusSwitcher.input.fileEditorActive', '文件编辑器'), focusAction: () => false },
+    // 移除 focusAction 初始化
+    { id: 'commandHistorySearch', label: t('focusSwitcher.input.commandHistorySearch', '命令历史搜索') },
+    { id: 'quickCommandsSearch', label: t('focusSwitcher.input.quickCommandsSearch', '快捷指令搜索') },
+    { id: 'fileManagerSearch', label: t('focusSwitcher.input.fileManagerSearch', '文件管理器搜索') },
+    { id: 'commandInput', label: t('focusSwitcher.input.commandInput', '命令输入') },
+    { id: 'terminalSearch', label: t('focusSwitcher.input.terminalSearch', '终端内搜索') },
+    { id: 'connectionListSearch', label: t('focusSwitcher.input.connectionListSearch', '连接列表搜索') },
+    { id: 'fileEditorActive', label: t('focusSwitcher.input.fileEditorActive', '文件编辑器') },
   ]);
   const sequenceOrder = ref<string[]>([]); // +++ 新增：存储顺序 +++
   const itemConfigs = ref<Record<string, FocusItemConfig>>({}); // +++ 新增：存储所有配置 +++
@@ -59,8 +61,8 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
   const activateFileManagerSearchTrigger = ref(0);
   const activateTerminalSearchTrigger = ref(0);
 
-  // 新增：存储自定义聚焦动作
-  const focusActions = ref<Record<string, () => boolean | Promise<boolean>>>({});
+  // 新增：存储注册的聚焦动作 (Map: id -> Array of actions)
+  const registeredActions = ref<Map<string, Array<() => boolean | Promise<boolean | undefined>>>>(new Map());
 
   // --- Actions ---
 
@@ -224,55 +226,92 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     saveConfigurationToBackend();
   }
 
-  // 注册聚焦动作 (现在更新 availableInputs 中的 focusAction)
-  function registerFocusAction(id: string, action: () => boolean | Promise<boolean>) {
-    const targetInput = availableInputs.value.find(input => input.id === id);
-    if (targetInput) {
-      targetInput.focusAction = action;
-      console.log(`[FocusSwitcherStore] Registered focus action for ID: ${id}`);
-    } else {
+  // 注册聚焦动作 (添加到 Map 中)
+  // 返回一个注销函数，以便组件可以方便地注销自己添加的动作
+  function registerFocusAction(id: string, action: () => boolean | Promise<boolean | undefined>): () => void {
+    if (!availableInputs.value.some(input => input.id === id)) {
       console.warn(`[FocusSwitcherStore] Attempted to register focus action for unknown ID: ${id}`);
+      return () => {}; // 返回一个无操作的注销函数
     }
+
+    const actions = registeredActions.value.get(id) || [];
+    actions.push(action);
+    registeredActions.value.set(id, actions);
+    console.log(`[FocusSwitcherStore] Registered focus action for ID: ${id}. Total actions for this ID: ${actions.length}`);
+
+    // 返回一个用于注销此特定动作的函数
+    const unregister = () => {
+      const currentActions = registeredActions.value.get(id);
+      if (currentActions) {
+        const index = currentActions.indexOf(action);
+        if (index > -1) {
+          currentActions.splice(index, 1);
+          console.log(`[FocusSwitcherStore] Unregistered a focus action for ID: ${id}. Remaining actions: ${currentActions.length}`);
+          // 如果数组为空，可以从 Map 中移除该 ID
+          if (currentActions.length === 0) {
+            registeredActions.value.delete(id);
+            console.log(`[FocusSwitcherStore] Removed ID ${id} from registeredActions map as it has no more actions.`);
+          }
+        } else {
+           console.warn(`[FocusSwitcherStore] Attempted to unregister an action for ID ${id} that was not found.`);
+        }
+      }
+    };
+    return unregister;
   }
 
-  // 注销聚焦动作 (重置为默认返回 false 的函数)
-  function unregisterFocusAction(id: string) {
-     const targetInput = availableInputs.value.find(input => input.id === id);
-     if (targetInput) {
-       targetInput.focusAction = () => false; // Reset to default non-functional action
-       console.log(`[FocusSwitcherStore] Unregistered focus action for ID: ${id}`);
-     }
-  }
+  // 注销聚焦动作 (现在由 registerFocusAction 返回的函数处理)
+  // 保留一个空的 unregisterFocusAction 以防万一旧代码调用，但标记为废弃或移除
+  // function unregisterFocusAction(id: string) {
+  //    console.warn("[FocusSwitcherStore] unregisterFocusAction(id) is deprecated. Use the function returned by registerFocusAction instead.");
+  // }
 
-  // 新增：统一的聚焦目标 Action
+  // 修改：统一的聚焦目标 Action，现在迭代 Map 中的动作数组
   async function focusTarget(id: string): Promise<boolean> {
     console.log(`[FocusSwitcherStore] Attempting to focus target ID: ${id}`);
-    const targetInput = availableInputs.value.find(input => input.id === id);
-    if (targetInput?.focusAction) {
-      try {
-        const result = await targetInput.focusAction();
-        if (result) {
-          console.log(`[FocusSwitcherStore] Successfully focused ${id} via action.`);
-          return true;
-        } else {
-          console.log(`[FocusSwitcherStore] Focus action for ${id} returned false.`);
-          // 尝试激活搜索框（如果适用）
-          if (id === 'fileManagerSearch') {
-            triggerFileManagerSearchActivation();
-            // 激活后可能需要短暂延迟再尝试聚焦，但这部分逻辑移到 App.vue 或组件内部更合适
-          } else if (id === 'terminalSearch') {
-            triggerTerminalSearchActivation();
-          }
-          return false;
-        }
-      } catch (error) {
-        console.error(`[FocusSwitcherStore] Error executing focus action for ${id}:`, error);
-        return false;
-      }
-    } else {
-      console.warn(`[FocusSwitcherStore] No focus action registered for ID: ${id}`);
+    const actions = registeredActions.value.get(id);
+
+    if (!actions || actions.length === 0) {
+      console.warn(`[FocusSwitcherStore] No focus actions registered for ID: ${id}`);
       return false;
     }
+
+    console.log(`[FocusSwitcherStore] Found ${actions.length} action(s) for ID: ${id}. Iterating...`);
+
+    for (const action of actions) {
+      try {
+        // 执行动作，可能是同步或异步的
+        const result = await action();
+
+        if (result === true) {
+          // 如果动作返回 true，表示成功聚焦，停止迭代并返回 true
+          console.log(`[FocusSwitcherStore] Successfully focused ${id} via one of its actions.`);
+          return true;
+        } else if (result === false) {
+          // 如果动作返回 false，表示尝试但失败，记录日志并继续下一个动作
+          console.log(`[FocusSwitcherStore] An action for ${id} returned false (failed). Trying next action if available.`);
+        } else if (result === undefined) {
+          // 如果动作返回 undefined，表示跳过（例如非活动实例），记录日志并继续下一个动作
+          console.log(`[FocusSwitcherStore] An action for ${id} returned undefined (skipped). Trying next action if available.`);
+        }
+        // 如果 result 是其他值，也视为跳过或未处理
+
+      } catch (error) {
+        console.error(`[FocusSwitcherStore] Error executing a focus action for ${id}:`, error);
+        // 即使出错，也继续尝试下一个动作
+      }
+    }
+
+    // 如果遍历完所有动作都没有成功聚焦 (没有返回 true)
+    console.log(`[FocusSwitcherStore] All actions for ${id} executed, but none returned true. Focus failed.`);
+    // 尝试激活搜索框（如果适用），这里的逻辑可能需要重新审视，
+    // 因为激活应该由返回 false 的动作内部触发，或者由调用 focusTarget 的地方处理
+    if (id === 'fileManagerSearch') {
+      // triggerFileManagerSearchActivation(); // 考虑移除这里的触发，让组件内部处理失败后的激活
+    } else if (id === 'terminalSearch') {
+      // triggerTerminalSearchActivation(); // 同上
+    }
+    return false; // 返回聚焦失败
   }
 
   // --- 修改 Getters ---
@@ -378,8 +417,8 @@ export const useFocusSwitcherStore = defineStore('focusSwitcher', () => {
     getAvailableInputsForConfigurator, // 已修改
     getNextFocusTargetId, // 已修改
     getFocusTargetIdByShortcut, // 已修改
-    registerFocusAction,
-    unregisterFocusAction,
-    focusTarget,
+    registerFocusAction, // 返回注销函数
+    // unregisterFocusAction, // 废弃旧的注销函数
+    focusTarget, // 已更新
   };
 });
