@@ -353,7 +353,6 @@ const scrollToHighlighted = async () => {
               :data-conn-id="conn.id"
               @click.left="handleConnect(conn.id)"
               @contextmenu.prevent="showContextMenu($event, conn)"
-              @mouseenter="highlightedIndex = flatVisibleConnections.findIndex(c => c.id === conn.id)"
             >
               <i class="fas fa-server connection-icon"></i>
               <span class="connection-name" :title="conn.name || conn.host">
