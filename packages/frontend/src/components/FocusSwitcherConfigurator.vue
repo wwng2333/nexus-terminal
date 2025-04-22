@@ -100,28 +100,45 @@ watch(() => props.isVisible, async (newValue) => { // ++ Make async for potentia
 
 // 监听本地序列（包括快捷键）变化，标记未保存更改
 // --- 修改：监听 localSequence 和 localItemConfigs 的变化 ---
-watch([localSequence, localItemConfigs], ([currentSequence, currentConfigs]) => {
-  if (!originalConfig.value) return; // 尚未加载完成
+watch([localSequence, localItemConfigs], () => {
+  if (!originalConfig.value) return; // Not initialized yet
 
-  // 比较序列顺序
-  const sequenceChanged = JSON.stringify(currentSequence.map(item => item.id)) !== JSON.stringify(originalConfig.value.sequence);
+  // 1. Construct the current configuration based on local state
+  const currentFullConfig: FocusSwitcherFullConfig = {
+    sequence: localSequence.value.map(item => item.id),
+    shortcuts: {},
+  };
+  // Populate shortcuts, only including those with a defined and non-empty string value
+  focusSwitcherStore.availableInputs.forEach(input => {
+      const localConfig = localItemConfigs.value[input.id];
+      // Only include if shortcut is defined, is a string, and is not empty
+      if (localConfig?.shortcut && typeof localConfig.shortcut === 'string' && localConfig.shortcut.trim() !== '') {
+          currentFullConfig.shortcuts[input.id] = { shortcut: localConfig.shortcut };
+      }
+  });
 
-  // 比较快捷键配置 (需要过滤掉原始配置中不存在的键，以防初始化时加入)
-  const currentShortcuts: Record<string, FocusItemConfig> = {};
-  for(const id in currentConfigs) {
-      // 只比较原始配置中存在的 ID 或当前序列中的 ID 的快捷键是否有变化
-      if (originalConfig.value.shortcuts[id] !== undefined || currentSequence.some(item => item.id === id)) {
-          currentShortcuts[id] = { shortcut: currentConfigs[id].shortcut };
+  // 2. Construct a comparable version of the original config
+  // Ensure original shortcuts only contain defined and non-empty string values for fair comparison
+  const comparableOriginalConfig: FocusSwitcherFullConfig = {
+      sequence: originalConfig.value.sequence,
+      shortcuts: {},
+  };
+  for (const id in originalConfig.value.shortcuts) {
+      const originalShortcut = originalConfig.value.shortcuts[id]?.shortcut;
+      // Only include if shortcut was defined, is a string, and is not empty
+      if (originalShortcut && typeof originalShortcut === 'string' && originalShortcut.trim() !== '') {
+          comparableOriginalConfig.shortcuts[id] = { shortcut: originalShortcut };
       }
   }
-  const originalShortcuts: Record<string, FocusItemConfig> = {};
-   for(const id in originalConfig.value.shortcuts) {
-       originalShortcuts[id] = { shortcut: originalConfig.value.shortcuts[id].shortcut };
-   }
-  const shortcutsChanged = JSON.stringify(currentShortcuts) !== JSON.stringify(originalShortcuts);
 
-  hasChanges.value = sequenceChanged || shortcutsChanged;
-  // console.log(`[FocusSwitcherConfigurator] Changes detected: sequence=${sequenceChanged}, shortcuts=${shortcutsChanged}, hasChanges=${hasChanges.value}`);
+  // 3. Compare the stringified versions
+  const changed = JSON.stringify(currentFullConfig) !== JSON.stringify(comparableOriginalConfig);
+
+  hasChanges.value = changed;
+  // console.log(`[FocusSwitcherConfigurator] Comparing:`);
+  // console.log("Current:", JSON.stringify(currentFullConfig));
+  // console.log("Original:", JSON.stringify(comparableOriginalConfig));
+  // console.log(`[FocusSwitcherConfigurator] Changes detected: ${changed}`);
 
 }, { deep: true });
 
