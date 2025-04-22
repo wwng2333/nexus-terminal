@@ -910,12 +910,23 @@ onMounted(() => {
   color: var(--text-color-primary, #333);
 }
 
-/* Style for the content inside the sidebar panel */
+/* Style for the wrapper holding the dynamic sidebar component */
+.sidebar-content-wrapper {
+  flex-grow: 1; /* Allow this wrapper to fill the panel */
+  display: flex; /* Make it a flex container for its child */
+  flex-direction: column; /* Stack child vertically */
+  overflow: hidden; /* Prevent content overflow */
+  position: relative; /* For potential absolute children */
+}
+
+/* Style for the content inside the sidebar panel (the actual component) */
 :deep(.sidebar-pane-content) {
-  flex-grow: 1;
-  overflow-y: auto; /* Allow scrolling within the panel */
-  padding: 1rem; /* Add some padding */
-  padding-top: 2.5rem; /* Add padding to avoid close button overlap */
+  flex-grow: 1; /* Allow the component to fill the wrapper */
+  /* overflow-y: auto; */ /* Let the component manage its own scroll if needed */
+  /* padding: 1rem; */ /* Padding might interfere with component layout, apply inside component if needed */
+  /* padding-top: 2.5rem; */ /* Padding might interfere, handle spacing differently if needed */
+  display: flex; /* Ensure the component itself is a flex container if it needs internal growing elements */
+  flex-direction: column; /* Assume column layout for the component */
 }
 
 /* Resize Handle Styles */

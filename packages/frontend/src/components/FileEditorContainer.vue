@@ -110,13 +110,20 @@ const focusActiveEditor = (): boolean => {
 defineExpose({ focusActiveEditor });
 
 // +++ 注册/注销自定义聚焦动作 +++
+let unregisterFocusFn: (() => void) | null = null; // 保存注销函数
+
 onMounted(() => {
-  focusSwitcherStore.registerFocusAction('fileEditorActive', focusActiveEditor);
+  // 注册动作并保存返回的注销函数
+  unregisterFocusFn = focusSwitcherStore.registerFocusAction('fileEditorActive', focusActiveEditor);
   // +++ 添加键盘事件监听器 +++
   window.addEventListener('keydown', handleKeyDown);
 });
+
 onBeforeUnmount(() => {
-  focusSwitcherStore.unregisterFocusAction('fileEditorActive');
+  // 调用保存的注销函数（如果存在）
+  if (unregisterFocusFn) {
+    unregisterFocusFn();
+  }
   // +++ 移除键盘事件监听器 +++
   window.removeEventListener('keydown', handleKeyDown);
 });
