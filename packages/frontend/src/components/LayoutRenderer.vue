@@ -523,7 +523,7 @@ onMounted(() => {
                         <template v-if="activeSession">
                             <component
                               :is="currentMainComponent"
-                              :key="`${activeSessionId}-${layoutNode.id}`"
+                              :key="layoutNode.id"
                               v-bind="componentProps">
                             </component>
                         </template>

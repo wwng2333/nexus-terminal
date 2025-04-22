@@ -107,22 +107,19 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         popupTrigger.value++; // 增加触发器值以通知监听者
     };
 
-    // 获取指定会话的 SFTP 管理器 (保持不变)
-    const getSftpManager = (sessionId: string | null) => {
-        if (!sessionId) return null;
-        const session = sessionStore.sessions.get(sessionId);
-        return session?.sftpManager ?? null;
-    };
+    // 移除内部的 getSftpManager 辅助函数，将直接使用 sessionStore.getOrCreateSftpManager
+    // const getSftpManager = (sessionId: string | null) => { ... };
 
     // 移除 setEditorVisibility 方法
     // const setEditorVisibility = ...
 
     // 打开或切换到文件标签页
-    const openFile = async (targetFilePath: string, sessionId: string) => {
+    // 修改：添加 instanceId 参数
+    const openFile = async (targetFilePath: string, sessionId: string, instanceId: string) => {
         // 在共享模式下，我们仍然需要 sessionId 来构建唯一的 tabId
         // 并与 SFTP 管理器关联
-        const tabId = `${sessionId}:${targetFilePath}`;
-        console.log(`[文件编辑器 Store - 共享模式] 尝试打开文件: ${targetFilePath} (会话: ${sessionId}, Tab ID: ${tabId})`);
+        const tabId = `${sessionId}:${targetFilePath}`; // Tab ID 仍然基于 sessionId 和 filePath 保持唯一性
+        console.log(`[文件编辑器 Store - 共享模式] 尝试打开文件: ${targetFilePath} (会话: ${sessionId}, 实例: ${instanceId}, Tab ID: ${tabId})`);
 
         // 移除确保编辑器可见的逻辑
         // if (editorVisibleState.value === 'closed') {
@@ -167,14 +164,15 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         // 不再在这里触发弹窗
         // popupTrigger.value++;
 
-        // 获取 SFTP 管理器
-        const sftpManager = getSftpManager(sessionId);
+        // 获取 SFTP 管理器 - 修改：使用 sessionStore.getOrCreateSftpManager 并传入 instanceId
+        const sftpManager = sessionStore.getOrCreateSftpManager(sessionId, instanceId);
         if (!sftpManager) {
-            console.error(`[文件编辑器 Store] 无法找到会话 ${sessionId} 的 SFTP 管理器。`);
+            // 错误消息保持不变，但现在知道是哪个实例找不到管理器
+            console.error(`[文件编辑器 Store] 无法找到会话 ${sessionId} (实例 ${instanceId}) 的 SFTP 管理器。`);
             const tabToUpdate = tabs.value.get(tabId);
             if (tabToUpdate) {
                 tabToUpdate.isLoading = false;
-                tabToUpdate.loadingError = t('fileManager.errors.sftpManagerNotFound');
+                tabToUpdate.loadingError = t('fileManager.errors.sftpManagerNotFound'); // 可以考虑添加 instanceId 到错误消息
             }
             return;
         }
@@ -274,9 +272,26 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
             return;
         }
 
-        const sftpManager = session.sftpManager; // 直接从有效会话获取
+        // 修改：从 sftpManagers Map 获取第一个可用的管理器
+        const sftpManagersMap = session.sftpManagers;
+        if (!sftpManagersMap || sftpManagersMap.size === 0) {
+             console.error(`[文件编辑器 Store] 保存失败：会话 ${tab.sessionId} 没有可用的 SFTP 管理器实例。`);
+             tab.saveStatus = 'error';
+             tab.saveError = t('fileManager.errors.sftpManagerNotFound'); // 复用错误消息
+             // 添加短暂错误提示
+             setTimeout(() => {
+                 if (tab.saveStatus === 'error') {
+                     tab.saveStatus = 'idle';
+                     tab.saveError = null;
+                 }
+             }, 5000);
+             return;
+        }
+        // 获取 Map 中的第一个管理器实例
+        const sftpManager = sftpManagersMap.values().next().value;
 
-        console.log(`[文件编辑器 Store] 开始保存文件: ${tab.filePath} (Tab ID: ${tab.id})`);
+
+        console.log(`[文件编辑器 Store] 开始保存文件: ${tab.filePath} (Tab ID: ${tab.id}) 使用实例 ${sftpManager.instanceId}`); // 添加实例 ID 日志
         tab.isSaving = true;
         tab.saveStatus = 'saving';
         tab.saveError = null;
