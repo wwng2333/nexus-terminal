@@ -66,6 +66,7 @@ const hoveredItemId = ref<number | null>(null);
 const selectedIndex = ref<number>(-1); // -1 表示没有选中
 const historyListRef = ref<HTMLUListElement | null>(null); // Ref for the history list UL
 const searchInputRef = ref<HTMLInputElement | null>(null); // +++ Ref for the search input +++
+let unregisterFocus: (() => void) | null = null; // +++ 保存注销函数 +++
 
 // --- 从 Store 获取状态和 Getter ---
 const searchTerm = computed(() => commandHistoryStore.searchTerm);
@@ -89,10 +90,14 @@ onMounted(() => {
 
 // +++ 注册/注销自定义聚焦动作 +++
 onMounted(() => {
-  focusSwitcherStore.registerFocusAction('commandHistorySearch', focusSearchInput);
+  // +++ 保存返回的注销函数 +++
+  unregisterFocus = focusSwitcherStore.registerFocusAction('commandHistorySearch', focusSearchInput);
 });
 onBeforeUnmount(() => {
-  focusSwitcherStore.unregisterFocusAction('commandHistorySearch');
+  // +++ 调用保存的注销函数 +++
+  if (unregisterFocus) {
+    unregisterFocus();
+  }
 });
 
 // --- 事件处理 ---

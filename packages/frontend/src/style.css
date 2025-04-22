@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* 全局样式和 CSS 变量定义 */
 :root {
   /* 基础颜色 */
@@ -21,6 +25,8 @@
   --split-line-hover-color: var(--border-color); /* 分割线悬停颜色 */
   --input-focus-border-color: var(--link-active-color); /* 输入框聚焦边框颜色 */
   --input-focus-glow: var(--link-active-color); /* 输入框聚焦光晕值 */
+  --ssh-tab-active: none；/* ssh标签激活状态颜色 */
+  --ssh-tab-background: none；/* ssh标签背景颜色 */
 
   /* 字体 */
   --font-family-sans-serif: sans-serif; /* 默认字体 */
@@ -74,7 +80,7 @@ hr {
 /* 为 xterm 终端添加内边距 */
 
 .xterm{
-  padding: 10px 10px 10px 10px; 
+  padding: 10px 10px 10px 10px;
 
 }
 

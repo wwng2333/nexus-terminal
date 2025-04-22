@@ -116,14 +116,21 @@ const focusSearchInput = (): boolean => {
 defineExpose({ focusCommandInput, focusSearchInput });
 
 // --- Register/Unregister Focus Actions ---
+let unregisterCommandInputFocus: (() => void) | null = null;
+let unregisterTerminalSearchFocus: (() => void) | null = null;
+
 onMounted(() => {
-  focusSwitcherStore.registerFocusAction('commandInput', focusCommandInput);
-  focusSwitcherStore.registerFocusAction('terminalSearch', focusSearchInput);
+  unregisterCommandInputFocus = focusSwitcherStore.registerFocusAction('commandInput', focusCommandInput);
+  unregisterTerminalSearchFocus = focusSwitcherStore.registerFocusAction('terminalSearch', focusSearchInput);
 });
 
 onBeforeUnmount(() => {
-  focusSwitcherStore.unregisterFocusAction('commandInput');
-  focusSwitcherStore.unregisterFocusAction('terminalSearch');
+  if (unregisterCommandInputFocus) {
+    unregisterCommandInputFocus();
+  }
+  if (unregisterTerminalSearchFocus) {
+    unregisterTerminalSearchFocus();
+  }
 });
 </script>
 
