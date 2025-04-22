@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, defineExpose } from 'vue'; // 确保 ref, defineExpose, onBeforeUnmount 已导入
+import { ref, computed, onMounted, onBeforeUnmount, defineExpose, watch, nextTick } from 'vue'; // 确保 ref, defineExpose, onBeforeUnmount, watch, nextTick 已导入
 import { storeToRefs } from 'pinia';
 // import { useRouter } from 'vue-router'; // 不再需要 router
 import { useI18n } from 'vue-i18n';
@@ -37,6 +37,31 @@ const contextTargetConnection = ref<ConnectionInfo | null>(null);
 
 // 分组展开状态
 const expandedGroups = ref<Record<string, boolean>>({}); // 使用 Record<string, boolean>
+
+// 键盘导航状态
+const highlightedIndex = ref(-1); // -1 表示没有高亮项
+const listAreaRef = ref<HTMLElement | null>(null); // 列表容器的 ref
+
+// 计算属性：扁平化的、当前可见的连接列表（用于键盘导航）
+const flatVisibleConnections = computed(() => {
+  const flatList: ConnectionInfo[] = [];
+  filteredAndGroupedConnections.value.forEach(group => {
+    // 只添加展开分组中的连接
+    if (expandedGroups.value[group.groupName]) {
+      flatList.push(...group.connections);
+    }
+  });
+  return flatList;
+});
+
+// 计算属性：当前高亮连接的 ID
+const highlightedConnectionId = computed(() => {
+  if (highlightedIndex.value >= 0 && highlightedIndex.value < flatVisibleConnections.value.length) {
+    return flatVisibleConnections.value[highlightedIndex.value].id;
+  }
+  return null;
+});
+
 
 // 计算属性：过滤并按标签分组连接
 const filteredAndGroupedConnections = computed(() => {
@@ -106,9 +131,20 @@ const filteredAndGroupedConnections = computed(() => {
   }
 
   return result;
-});
-
-// 切换分组展开/折叠
+  });
+  
+  // 监听搜索词变化，重置高亮索引
+  watch(searchTerm, () => {
+    highlightedIndex.value = -1;
+  });
+  
+  // 监听分组展开状态变化，重置高亮索引
+  watch(expandedGroups, () => {
+      highlightedIndex.value = -1;
+  }, { deep: true });
+  
+  
+  // 切换分组展开/折叠
 const toggleGroup = (groupName: string) => {
   expandedGroups.value[groupName] = !expandedGroups.value[groupName];
 };
@@ -165,6 +201,26 @@ const handleMenuAction = (action: 'add' | 'edit' | 'delete') => {
   }
 };
 
+ // 稍微延迟一下重置，以防是点击列表项导致的失焦
+ // 如果用户点击了列表项，handleConnect 会先触发
+ setTimeout(() => {
+     // 检查此时是否仍然没有焦点在输入框上（避免误清除）
+     if (document.activeElement !== searchInputRef.value) {
+         highlightedIndex.value = -1;
+     }
+ }, 150); // 150ms 延迟可能更稳妥
+// 处理失焦事件，清除高亮
+const handleBlur = () => {
+  // 稍微延迟一下重置，以防是点击列表项导致的失焦
+  // 如果用户点击了列表项，handleConnect 会先触发
+  setTimeout(() => {
+      // 检查此时是否仍然没有焦点在输入框上（避免误清除）
+      if (document.activeElement !== searchInputRef.value) {
+          highlightedIndex.value = -1;
+      }
+  }, 150); // 150ms 延迟可能更稳妥
+};
+
 // 获取数据
 onMounted(() => {
   connectionsStore.fetchConnections();
@@ -197,6 +253,43 @@ const focusSearchInput = (): boolean => {
   return false; // 聚焦失败
 };
 defineExpose({ focusSearchInput });
+
+// --- 键盘导航和确认 ---
+
+const handleKeyDown = (event: KeyboardEvent) => {
+  const list = flatVisibleConnections.value;
+  if (!list.length) return;
+
+  switch (event.key) {
+    case 'ArrowDown':
+      event.preventDefault(); // 阻止光标移动
+      highlightedIndex.value = (highlightedIndex.value + 1) % list.length;
+      scrollToHighlighted();
+      break;
+    case 'ArrowUp':
+      event.preventDefault(); // 阻止光标移动
+      highlightedIndex.value = (highlightedIndex.value - 1 + list.length) % list.length;
+      scrollToHighlighted();
+      break;
+    case 'Enter':
+      event.preventDefault(); // 阻止可能的表单提交
+      if (highlightedConnectionId.value !== null) {
+        handleConnect(highlightedConnectionId.value);
+      }
+      break;
+  }
+};
+
+// 滚动到高亮项
+const scrollToHighlighted = async () => {
+  await nextTick(); // 等待 DOM 更新
+  if (!listAreaRef.value || highlightedConnectionId.value === null) return;
+
+  const highlightedElement = listAreaRef.value.querySelector(`.connection-item[data-conn-id="${highlightedConnectionId.value}"]`);
+  if (highlightedElement) {
+    highlightedElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+};
 </script>
 
 <template>
@@ -217,6 +310,8 @@ defineExpose({ focusSearchInput });
         ref="searchInputRef"
         class="search-input"
         data-focus-id="connectionListSearch"
+        @keydown="handleKeyDown"
+        @blur="handleBlur"
       />
       <button
         class="add-button"
@@ -228,7 +323,7 @@ defineExpose({ focusSearchInput });
     </div>
 
     <!-- 连接列表区域 -->
-    <div class="connection-list-area">
+    <div class="connection-list-area" ref="listAreaRef">
       <div v-if="connectionsLoading || tagsLoading" class="loading">
         {{ t('common.loading') }}
       </div>
@@ -254,8 +349,11 @@ defineExpose({ focusSearchInput });
               v-for="conn in groupData.connections"
               :key="conn.id"
               class="connection-item"
+              :class="{ 'highlighted': conn.id === highlightedConnectionId }"
+              :data-conn-id="conn.id"
               @click.left="handleConnect(conn.id)"
               @contextmenu.prevent="showContextMenu($event, conn)"
+              @mouseenter="highlightedIndex = flatVisibleConnections.findIndex(c => c.id === conn.id)"
             >
               <i class="fas fa-server connection-icon"></i>
               <span class="connection-name" :title="conn.name || conn.host">
@@ -425,6 +523,16 @@ defineExpose({ focusSearchInput });
 .connection-item:hover {
   background-color: var(--header-bg-color); /* Use theme variable */
 }
+
+/* 新增高亮样式 */
+.connection-item.highlighted {
+  background-color: var(--button-hover-bg-color); /* Use theme variable */
+  color: var(--button-text-color); /* Use theme variable */
+}
+.connection-item.highlighted .connection-icon {
+    color: var(--button-text-color); /* Use theme variable */
+}
+
 
 .connection-icon {
   margin-right: 0.6rem;
