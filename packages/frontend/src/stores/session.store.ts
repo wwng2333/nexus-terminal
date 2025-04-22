@@ -61,10 +61,11 @@ export interface SessionState {
   connectionId: string; // 数据库中的连接 ID
   connectionName: string; // 用于显示
   wsManager: WsManagerInstance;
-  sftpManager: SftpManagerInstance;
+  // sftpManager: SftpManagerInstance; // 移除单个实例
+  sftpManagers: Map<string, SftpManagerInstance>; // 使用 Map 管理多个实例
   terminalManager: SshTerminalInstance;
   statusMonitorManager: StatusMonitorInstance;
-  currentSftpPath: Ref<string>; // SFTP 当前路径
+  // currentSftpPath: Ref<string>; // 移除，由每个 sftpManager 内部管理
   // --- 新增：独立编辑器状态 ---
   editorTabs: Ref<FileTab[]>; // 编辑器标签页列表
   activeEditorTabId: Ref<string | null>; // 当前活动的编辑器标签页 ID
@@ -137,14 +138,9 @@ export const useSessionStore = defineStore('session', () => {
 
     // 1. 创建管理器实例 (从 WorkspaceView 迁移)
     const wsManager = createWebSocketConnectionManager(newSessionId, dbConnId, t);
-    const currentSftpPath = ref<string>('.'); // SFTP 路径状态
-    const wsDeps: WebSocketDependencies = {
-        sendMessage: wsManager.sendMessage,
-        onMessage: wsManager.onMessage,
-        isConnected: wsManager.isConnected,
-        isSftpReady: wsManager.isSftpReady,
-    };
-    const sftpManager = createSftpActionsManager(newSessionId, currentSftpPath, wsDeps, t);
+    // const currentSftpPath = ref<string>('.'); // 移除单个 SFTP 路径状态
+    // const wsDeps: WebSocketDependencies = { ... }; // wsDeps 将在 getOrCreateSftpManager 中创建
+    // const sftpManager = createSftpActionsManager(newSessionId, currentSftpPath, wsDeps, t); // 移除单个 sftpManager 创建
     const sshTerminalDeps: SshTerminalDependencies = {
         sendMessage: wsManager.sendMessage,
         onMessage: wsManager.onMessage,
@@ -163,10 +159,11 @@ export const useSessionStore = defineStore('session', () => {
         connectionId: dbConnId,
         connectionName: connInfo.name || connInfo.host,
         wsManager: wsManager,
-        sftpManager: sftpManager,
+        // sftpManager: sftpManager, // 移除
+        sftpManagers: new Map<string, SftpManagerInstance>(), // 初始化 Map
         terminalManager: terminalManager,
         statusMonitorManager: statusMonitorManager,
-        currentSftpPath: currentSftpPath,
+        // currentSftpPath: currentSftpPath, // 移除
         // --- 初始化编辑器状态 ---
         editorTabs: ref([]), // 初始化为空数组
         activeEditorTabId: ref(null), // 初始化为 null
@@ -257,8 +254,17 @@ export const useSessionStore = defineStore('session', () => {
       return;
     }
 
-    const sftpManager = session.sftpManager;
-    console.log(`[SessionStore] 开始保存文件: ${tab.filePath} (会话 ${sessionId}, Tab ID: ${tab.id})`);
+    // 获取默认的 sftpManager 实例来执行保存操作
+    const sftpManager = getOrCreateSftpManager(sessionId, 'primary');
+    if (!sftpManager) {
+        console.error(`[SessionStore] 保存失败：无法获取会话 ${sessionId} 的 primary sftpManager。`);
+        tab.saveStatus = 'error';
+        tab.saveError = t('fileManager.errors.sftpManagerNotFound');
+        setTimeout(() => { if (tab.saveStatus === 'error') { tab.saveStatus = 'idle'; tab.saveError = null; } }, 5000);
+        return;
+    }
+
+    console.log(`[SessionStore] 开始保存文件: ${tab.filePath} (会话 ${sessionId}, Tab ID: ${tab.id}) using primary sftpManager`);
     tab.isSaving = true;
     tab.saveStatus = 'saving';
     tab.saveError = null;
@@ -298,8 +304,14 @@ export const useSessionStore = defineStore('session', () => {
     // 1. 调用实例上的清理和断开方法 (从 WorkspaceView 迁移)
     sessionToClose.wsManager.disconnect();
     console.log(`[SessionStore] 已为会话 ${sessionId} 调用 wsManager.disconnect()`);
-    sessionToClose.sftpManager.cleanup();
-    console.log(`[SessionStore] 已为会话 ${sessionId} 调用 sftpManager.cleanup()`);
+    // 清理该会话下的所有 sftpManager 实例
+    sessionToClose.sftpManagers.forEach((manager, instanceId) => {
+        manager.cleanup();
+        console.log(`[SessionStore] 已为会话 ${sessionId} 的 sftpManager (实例 ${instanceId}) 调用 cleanup()`);
+    });
+    sessionToClose.sftpManagers.clear();
+    // sessionToClose.sftpManager.cleanup(); // 移除旧的调用
+    // console.log(`[SessionStore] 已为会话 ${sessionId} 调用 sftpManager.cleanup()`); // 移除旧的日志
     sessionToClose.terminalManager.cleanup();
     console.log(`[SessionStore] 已为会话 ${sessionId} 调用 terminalManager.cleanup()`);
     sessionToClose.statusMonitorManager.cleanup();
@@ -428,7 +440,12 @@ export const useSessionStore = defineStore('session', () => {
         tabToLoad.loadingError = null;
 
         try {
-          const sftpManager = session.sftpManager; // 获取当前会话的 sftpManager
+          // 获取默认的 sftpManager 实例来执行读取操作
+          const sftpManager = getOrCreateSftpManager(sessionId, 'primary');
+          if (!sftpManager) {
+              throw new Error(t('fileManager.errors.sftpManagerNotFound'));
+          }
+          console.log(`[SessionStore ${sessionId}] 使用 primary sftpManager 读取文件 ${fileInfo.fullPath}`);
           const fileData = await sftpManager.readFile(fileInfo.fullPath);
           console.log(`[SessionStore ${sessionId}] 文件 ${fileInfo.fullPath} 读取成功。编码: ${fileData.encoding}`);
 
@@ -531,6 +548,52 @@ export const useSessionStore = defineStore('session', () => {
   };
 
 
+  /**
+   * 获取或创建指定会话和实例 ID 的 SFTP 管理器。
+   * @param sessionId 会话 ID
+   * @param instanceId 文件管理器实例 ID (e.g., 'sidebar', 'panel-xyz')
+   * @returns SftpManagerInstance 或 null (如果会话不存在)
+   */
+  const getOrCreateSftpManager = (sessionId: string, instanceId: string): SftpManagerInstance | null => {
+      const session = sessions.value.get(sessionId);
+      if (!session) {
+          console.error(`[SessionStore] 尝试为不存在的会话 ${sessionId} 获取 SFTP 管理器`);
+          return null;
+      }
+
+      let manager = session.sftpManagers.get(instanceId);
+      if (!manager) {
+          console.log(`[SessionStore] 为会话 ${sessionId} 创建新的 SFTP 管理器实例: ${instanceId}`);
+          const currentSftpPath = ref<string>('.'); // 每个实例有自己的路径
+          const wsDeps: WebSocketDependencies = {
+              sendMessage: session.wsManager.sendMessage,
+              onMessage: session.wsManager.onMessage,
+              isConnected: session.wsManager.isConnected,
+              isSftpReady: session.wsManager.isSftpReady,
+          };
+          manager = createSftpActionsManager(sessionId, currentSftpPath, wsDeps, t);
+          session.sftpManagers.set(instanceId, manager);
+      }
+      return manager;
+  };
+
+  /**
+   * 移除并清理指定会话和实例 ID 的 SFTP 管理器。
+   * @param sessionId 会话 ID
+   * @param instanceId 文件管理器实例 ID
+   */
+  const removeSftpManager = (sessionId: string, instanceId: string) => {
+      const session = sessions.value.get(sessionId);
+      if (session) {
+          const manager = session.sftpManagers.get(instanceId);
+          if (manager) {
+              manager.cleanup();
+              session.sftpManagers.delete(instanceId);
+              console.log(`[SessionStore] 已移除并清理会话 ${sessionId} 的 SFTP 管理器实例: ${instanceId}`);
+          }
+      }
+  };
+
   return {
     // State
     sessions,
@@ -546,6 +609,8 @@ export const useSessionStore = defineStore('session', () => {
     handleConnectRequest,
     handleOpenNewSession,
     cleanupAllSessions,
+    getOrCreateSftpManager, // 导出新的 Action
+    removeSftpManager,      // 导出新的 Action
     // --- 新增：导出编辑器相关 Actions ---
     openFileInSession,
     closeEditorTabInSession,

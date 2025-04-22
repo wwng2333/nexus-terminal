@@ -161,15 +161,18 @@ const componentProps = computed(() => {
     case 'fileManager':
       // 仅当有活动会话时才返回实际 props，否则返回空对象
       if (!currentActiveSession) return {};
+      // 传递 instanceId (使用布局节点的 ID), sessionId, dbConnectionId
+      // 移除 sftpManager 和 wsDeps
       return {
          sessionId: props.activeSessionId ?? '', // 确保 sessionId 不为 null
+         instanceId: props.layoutNode.id, // 使用布局节点 ID 作为实例 ID
          dbConnectionId: currentActiveSession.connectionId,
-         sftpManager: currentActiveSession.sftpManager, // 此时 currentActiveSession 必不为 null
-         wsDeps: { // 确保传递 wsDeps
+         // sftpManager: currentActiveSession.sftpManager, // 移除 sftpManager，因为它现在由 FileManager 内部管理
+         wsDeps: { // 恢复 wsDeps
            sendMessage: currentActiveSession.wsManager.sendMessage,
            onMessage: currentActiveSession.wsManager.onMessage,
-           isConnected: currentActiveSession.wsManager.isConnected,
-           isSftpReady: currentActiveSession.wsManager.isSftpReady
+           isConnected: currentActiveSession.wsManager.isConnected, // 恢复 isConnected
+           isSftpReady: currentActiveSession.wsManager.isSftpReady // 恢复 isSftpReady
          },
          class: 'pane-content', // class 可以保留，或者在模板中处理
          // FileManager 可能也需要转发事件，例如文件操作相关的，暂时省略
@@ -239,7 +242,8 @@ const componentProps = computed(() => {
 });
 
 // --- New computed property for sidebar component props and events ---
-const sidebarProps = computed(() => (paneName: PaneName | null) => {
+// 修改以接收 side 参数，用于确定 instanceId
+const sidebarProps = computed(() => (paneName: PaneName | null, side: 'left' | 'right') => {
  if (!paneName) return {};
 
  const baseProps = { class: 'sidebar-pane-content' }; // Base props for all sidebar components
@@ -279,16 +283,20 @@ const sidebarProps = computed(() => (paneName: PaneName | null) => {
    case 'fileManager':
      // Only provide props if there's an active session
      if (activeSession.value) {
+       // 传递 instanceId (根据 side), sessionId, dbConnectionId
+       // 移除 sftpManager 和 wsDeps
+       const instanceId = side === 'left' ? 'sidebar-left' : 'sidebar-right';
        return {
          ...baseProps,
-         sessionId: activeSession.value.sessionId, // Corrected: Use sessionId
+         sessionId: activeSession.value.sessionId,
+         instanceId: instanceId, // 使用 'sidebar-left' 或 'sidebar-right'
          dbConnectionId: activeSession.value.connectionId,
-         sftpManager: activeSession.value.sftpManager,
-         wsDeps: {
+         // sftpManager: activeSession.value.sftpManager, // 移除 sftpManager
+         wsDeps: { // 恢复 wsDeps
            sendMessage: activeSession.value.wsManager.sendMessage,
            onMessage: activeSession.value.wsManager.onMessage,
-           isConnected: activeSession.value.wsManager.isConnected,
-           isSftpReady: activeSession.value.wsManager.isSftpReady
+           isConnected: activeSession.value.wsManager.isConnected, // 直接传递 ref
+           isSftpReady: activeSession.value.wsManager.isSftpReady  // 直接传递 ref
          },
        };
      } else {
@@ -511,14 +519,15 @@ onMounted(() => {
                 </template>
                 <!-- FileManager 需要 keep-alive 处理 -->
                 <template v-else-if="layoutNode.component === 'fileManager'">
-                    <keep-alive>
-                        <component
-                          v-if="activeSession"
-                          :is="currentMainComponent"
-                          :key="activeSessionId"
-                          v-bind="componentProps"
-                        />
-                    </keep-alive>
+                    <!-- <keep-alive> Temporarily removed for debugging InvalidCharacterError -->
+                        <template v-if="activeSession">
+                            <component
+                              :is="currentMainComponent"
+                              :key="`${activeSessionId}-${layoutNode.id}`"
+                              v-bind="componentProps">
+                            </component>
+                        </template>
+                    <!-- </keep-alive> -->
                     <div v-if="!activeSession" class="pane-placeholder empty-session">
                       <div class="empty-session-content">
                         <i class="fas fa-plug"></i>
@@ -597,8 +606,8 @@ onMounted(() => {
             v-if="currentLeftSidebarComponent && activeLeftSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeLeftSidebarPane) || activeSession)"
             :is="currentLeftSidebarComponent"
             :key="`left-panel-${activeLeftSidebarPane ?? 'null'}`"
-            v-bind="sidebarProps(activeLeftSidebarPane)"
-        />
+            v-bind="sidebarProps(activeLeftSidebarPane, 'left')">
+        </component>
         <!-- Placeholder if FileManager is selected but no active session -->
         <div v-else-if="activeLeftSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
           <div class="empty-session-content">
@@ -625,8 +634,8 @@ onMounted(() => {
             v-if="currentRightSidebarComponent && activeRightSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeRightSidebarPane) || activeSession)"
             :is="currentRightSidebarComponent"
             :key="`right-panel-${activeRightSidebarPane ?? 'null'}`"
-            v-bind="sidebarProps(activeRightSidebarPane)"
-        />
+            v-bind="sidebarProps(activeRightSidebarPane, 'right')">
+        </component>
         <!-- Placeholder if FileManager is selected but no active session -->
         <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
           <div class="empty-session-content">
@@ -943,3 +952,4 @@ onMounted(() => {
    border-bottom: 1px solid var(--border-color-lighter, #f1f3f5);
 }
 </style>
+

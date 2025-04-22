@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly, defineExpose } from 'vue'; // 恢复导入, 添加 watch, defineExpose
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly, defineExpose, shallowRef } from 'vue'; // 添加 shallowRef
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
@@ -34,11 +34,16 @@ const props = defineProps({
     type: String,
     required: true,
   },
-  // 注入此会话特定的 SFTP 管理器实例
-  sftpManager: {
-    type: Object as PropType<SftpManagerInstance>,
+  // 新增：文件管理器实例 ID
+  instanceId: {
+    type: String,
     required: true,
   },
+  // // 注入此会话特定的 SFTP 管理器实例 (移除)
+  // sftpManager: {
+  //   type: Object as PropType<SftpManagerInstance>,
+  //   required: true,
+  // },
   // 注入数据库连接 ID
   dbConnectionId: {
     type: String,
@@ -54,10 +59,23 @@ const props = defineProps({
 // --- 核心 Composables ---
 const { t } = useI18n();
 const route = useRoute(); // Keep for download URL generation for now
-// 移除本地 currentPath ref
-// const currentPath = ref<string>('.');
+const sessionStore = useSessionStore(); // 实例化 Session Store
 
+// --- 获取此实例的 SFTP 管理器 ---
+const sftpManagerInstance = sessionStore.getOrCreateSftpManager(props.sessionId, props.instanceId);
 
+// --- 错误处理：如果无法获取管理器 ---
+if (!sftpManagerInstance) {
+    // 抛出错误或显示错误消息，阻止组件进一步渲染
+    // 这里我们简单地抛出一个错误
+    throw new Error(`[FileManager ${props.sessionId}-${props.instanceId}] Failed to get or create SFTP manager instance.`);
+    // 或者可以设置一个错误状态 ref，并在模板中显示错误信息
+    // const managerError = ref(`Failed to get SFTP manager for instance ${props.instanceId}`);
+}
+
+// --- 从获取到的管理器实例中解构状态和方法 ---
+// 使用 shallowRef 包装 manager 实例本身可能不是最佳选择，因为 manager 不是响应式对象
+// 直接解构其内部的 ref 和函数
 const {
     fileList,
     isLoading,
@@ -68,12 +86,12 @@ const {
     deleteItems,
     renameItem,
     changePermissions,
-    readFile, // Provided by the manager
-    writeFile, // Provided by the manager
+    readFile, // Provided by the manager instance
+    writeFile, // Provided by the manager instance
     joinPath,
-    currentPath, // 从 sftpManager 获取 currentPath
-    cleanup: cleanupSftpHandlers, // Get the cleanup function from the manager
-} = props.sftpManager; // 直接从 props 获取
+    currentPath, // 从 manager instance 获取 currentPath
+    // cleanup: cleanupSftpHandlers, // cleanup 由 store 在 onBeforeUnmount 中处理
+} = sftpManagerInstance; // 从获取的实例解构
 
 // 文件上传模块 - Needs WebSocket dependencies and session context
 const {
@@ -82,14 +100,14 @@ const {
     cancelUpload,
     // cleanup: cleanupUploader, // 假设 uploader 也提供 cleanup
 } = useFileUploader(
-    currentPath, // 使用从 sftpManager 获取的 currentPath
-    fileList, // 传递来自 sftpManager 的 fileList ref
-    props.wsDeps // 传递注入的 WebSocket 依赖项
+    currentPath, // 使用从 manager instance 解构的 currentPath
+    fileList, // 使用从 manager instance 解构的 fileList
+    props.wsDeps // 仍然传递注入的 WebSocket 依赖项
 );
 
-// 实例化 Stores
+// 实例化其他 Stores
 const fileEditorStore = useFileEditorStore(); // 用于共享模式
-const sessionStore = useSessionStore();
+// const sessionStore = useSessionStore(); // 已在上面实例化
 const settingsStore = useSettingsStore();
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 
@@ -210,29 +228,33 @@ const handleSort = (key: keyof FileListItem | 'type' | 'size' | 'mtime') => {
 // 定义单击时的动作回调 (移到 Selection 实例化之前)
 const handleItemAction = (item: FileListItem) => {
     if (item.attrs.isDirectory) {
+        // 使用从 manager instance 解构的 isLoading
         if (isLoading.value) {
-            console.log(`[FileManager ${props.sessionId}] Ignoring directory click, already loading...`);
+            console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Ignoring directory click, already loading...`);
             return;
         }
         const newPath = item.filename === '..'
+            // 使用从 manager instance 解构的 currentPath 和 joinPath
             ? currentPath.value.substring(0, currentPath.value.lastIndexOf('/')) || '/'
             : joinPath(currentPath.value, item.filename);
+        // 使用从 manager instance 解构的 loadDirectory
         loadDirectory(newPath);
     } else if (item.attrs.isFile) {
+        // 使用从 manager instance 解构的 currentPath 和 joinPath
         const filePath = joinPath(currentPath.value, item.filename);
         const fileInfo: FileInfo = { name: item.filename, fullPath: filePath };
 
         if (settingsStore.showPopupFileEditorBoolean) {
-            console.log(`[FileManager ${props.sessionId}] Triggering popup for: ${filePath}`);
-            fileEditorStore.triggerPopup(filePath, props.sessionId);
+            console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering popup for: ${filePath}`);
+            fileEditorStore.triggerPopup(filePath, props.sessionId); // Popup 仍然关联 sessionId
         }
 
         if (shareFileEditorTabsBoolean.value) {
-            console.log(`[FileManager ${props.sessionId}] Opening file in shared mode (store handles loading): ${filePath}`);
-            fileEditorStore.openFile(filePath, props.sessionId);
+            console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Opening file in shared mode (store handles loading): ${filePath}`);
+            fileEditorStore.openFile(filePath, props.sessionId); // Shared mode 关联 sessionId
         } else {
-            console.log(`[FileManager ${props.sessionId}] Opening file in independent mode (store handles loading): ${filePath}`);
-            sessionStore.openFileInSession(props.sessionId, fileInfo);
+            console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Opening file in independent mode (store handles loading): ${filePath}`);
+            sessionStore.openFileInSession(props.sessionId, fileInfo); // Independent mode 关联 sessionId
         }
     }
 };
@@ -253,6 +275,7 @@ const {
 // --- SFTP 操作处理函数 (定义在此处，供 Composable 使用) ---
 const handleDeleteSelectedClick = () => {
     // 现在 selectedItems 来自 useFileManagerSelection
+    // 使用 props.wsDeps 和从 manager instance 解构的 fileList
     if (!props.wsDeps.isConnected.value || selectedItems.value.size === 0) return;
     const itemsToDelete = Array.from(selectedItems.value)
                                .map(filename => fileList.value.find((f: FileListItem) => f.filename === filename)) // f 已有类型
@@ -267,7 +290,8 @@ const handleDeleteSelectedClick = () => {
             : t('fileManager.prompts.confirmDeleteFile', { name: itemsToDelete[0].filename });
 
     if (confirm(confirmMsg)) {
-        deleteItems(itemsToDelete); // Use deleteItems from props
+        // 使用从 manager instance 解构的 deleteItems
+        deleteItems(itemsToDelete);
         selectedItems.value.clear();
     }
 };
@@ -276,7 +300,8 @@ const handleRenameContextMenuClick = (item: FileListItem) => { // item 已有类
     if (!props.wsDeps.isConnected.value || !item) return; // 恢复使用 props.wsDeps
     const newName = prompt(t('fileManager.prompts.enterNewName', { oldName: item.filename }), item.filename);
     if (newName && newName !== item.filename) {
-        renameItem(item, newName); // Use renameItem from props.sftpManager
+        // 使用从 manager instance 解构的 renameItem
+        renameItem(item, newName);
     }
 };
 
@@ -290,7 +315,8 @@ const handleChangePermissionsContextMenuClick = (item: FileListItem) => { // ite
             return;
         }
         const newMode = parseInt(newModeStr, 8);
-        changePermissions(item, newMode); // Use changePermissions from props.sftpManager
+        // 使用从 manager instance 解构的 changePermissions
+        changePermissions(item, newMode);
     }
 };
 
@@ -298,11 +324,13 @@ const handleNewFolderContextMenuClick = () => {
     if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
     const folderName = prompt(t('fileManager.prompts.enterFolderName'));
     if (folderName) {
+        // 使用从 manager instance 解构的 fileList
         if (fileList.value.some((item: FileListItem) => item.filename === folderName)) { // item 已有类型
              alert(t('fileManager.errors.folderExists', { name: folderName }));
              return;
         }
-        createDirectory(folderName); // Use createDirectory from props.sftpManager
+        // 使用从 manager instance 解构的 createDirectory
+        createDirectory(folderName);
     }
 };
 
@@ -310,11 +338,13 @@ const handleNewFileContextMenuClick = () => {
     if (!props.wsDeps.isConnected.value) return; // 恢复使用 props.wsDeps
     const fileName = prompt(t('fileManager.prompts.enterFileName'));
     if (fileName) {
+        // 使用从 manager instance 解构的 fileList
         if (fileList.value.some((item: FileListItem) => item.filename === fileName)) { // item 已有类型
             alert(t('fileManager.errors.fileExists', { name: fileName }));
             return;
         }
-        createFile(fileName); // Use createFile from props.sftpManager
+        // 使用从 manager instance 解构的 createFile
+        createFile(fileName);
     }
 };
 
@@ -328,17 +358,17 @@ const triggerDownload = (item: FileListItem) => { // item 已有类型
         alert(t('fileManager.errors.notConnected'));
         return;
     }
-    // connectionId might need to be passed differently, maybe via sftpManager or wsDeps
-    // 使用 props 传入的 dbConnectionId
-    const currentConnectionId = props.dbConnectionId; // <-- 使用 Prop
+    // connectionId 仍然从 props 获取
+    const currentConnectionId = props.dbConnectionId;
     if (!currentConnectionId) {
-        console.error(`[FileManager ${props.sessionId}] Cannot download: Missing connection ID.`);
+        console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Cannot download: Missing connection ID.`);
         alert(t('fileManager.errors.missingConnectionId'));
         return;
     }
-    const downloadPath = joinPath(currentPath.value, item.filename); // Use joinPath from props
+    // 使用从 manager instance 解构的 joinPath 和 currentPath
+    const downloadPath = joinPath(currentPath.value, item.filename);
     const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
-    console.log(`[FileManager ${props.sessionId}] Triggering download: ${downloadUrl}`);
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering download: ${downloadUrl}`);
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.setAttribute('download', item.filename);
@@ -359,13 +389,13 @@ const {
 } = useFileManagerContextMenu({
   selectedItems, // 传递来自 useFileManagerSelection 的 selectedItems
   lastClickedIndex, // 传递来自 useFileManagerSelection 的 lastClickedIndex
-  fileList, // 传递 sftpManager 的 fileList
-  currentPath, // 传递 sftpManager 的 currentPath
-  isConnected: props.wsDeps.isConnected, // 传递响应式引用
-  isSftpReady: props.wsDeps.isSftpReady, // 传递响应式引用
+  fileList, // 传递从 manager instance 解构的 fileList
+  currentPath, // 传递从 manager instance 解构的 currentPath
+  isConnected: props.wsDeps.isConnected, // 仍然传递 props.wsDeps
+  isSftpReady: props.wsDeps.isSftpReady, // 仍然传递 props.wsDeps
   t, // 传递 i18n 的 t 函数
   // --- 传递回调函数 ---
-  onRefresh: () => loadDirectory(currentPath.value),
+  onRefresh: () => loadDirectory(currentPath.value), // 使用解构的 loadDirectory 和 currentPath
   onUpload: triggerFileUpload,
   onDownload: triggerDownload,
   onDelete: handleDeleteSelectedClick,
@@ -394,14 +424,14 @@ const {
   handleDragLeaveRow,
   handleDropOnRow,
 } = useFileManagerDragAndDrop({
-  isConnected: props.wsDeps.isConnected,
-  currentPath: currentPath, // 从 sftpManager 获取
+  isConnected: props.wsDeps.isConnected, // 仍然传递 props.wsDeps
+  currentPath: currentPath, // 使用从 manager instance 解构的 currentPath
   fileListContainerRef: fileListContainerRef, // 传递容器 ref
-  joinPath: joinPath, // 从 sftpManager 获取
+  joinPath: joinPath, // 使用从 manager instance 解构的 joinPath
   onFileUpload: startFileUpload, // 从 useFileUploader 获取
-  onItemMove: renameItem, // 从 sftpManager 获取
+  onItemMove: renameItem, // 使用从 manager instance 解构的 renameItem
   selectedItems: selectedItems, // 从 useFileManagerSelection 获取
-  fileList: fileList, // 从 sftpManager 获取
+  fileList: fileList, // 使用从 manager instance 解构的 fileList
 });
 
 
@@ -420,7 +450,7 @@ const {
   handleKeydown, // 使用 Composable 返回的 handleKeydown
 } = useFileManagerKeyboardNavigation({
   filteredFileList: filteredFileList, // 传递过滤后的列表
-  currentPath: currentPath, // 传递当前路径
+  currentPath: currentPath, // 使用从 manager instance 解构的 currentPath
   fileListContainerRef: fileListContainerRef, // 传递容器引用
   // 当 Enter 键按下时，模拟鼠标单击
   onEnterPress: (item) => handleItemClick(new MouseEvent('click'), item),
@@ -449,7 +479,7 @@ watch(sortDirection, () => {
 
 // --- 生命周期钩子 ---
 onMounted(() => {
-    console.log(`[FileManager ${props.sessionId}] Component mounted.`);
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Component mounted.`);
     // Initial load logic is handled by watchEffect
 });
 
@@ -471,13 +501,12 @@ watchEffect((onCleanup) => {
 
     onCleanup(cleanupListeners);
 
-    // 恢复使用 props.wsDeps.isConnected 和 props.wsDeps.isSftpReady
-    // 恢复使用 props.sftpManager.isLoading
+    // 使用 props.wsDeps 和从 manager instance 解构的 isLoading
     if (props.wsDeps.isConnected.value && props.wsDeps.isSftpReady.value && !isLoading.value && !initialLoadDone.value && !isFetchingInitialPath.value) {
-        console.log(`[FileManager ${props.sessionId}] Connection ready, fetching initial path.`);
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Connection ready, fetching initial path.`);
         isFetchingInitialPath.value = true;
 
-        // 恢复使用 props.wsDeps 中的 sendMessage 和 onMessage
+        // 仍然使用 props.wsDeps 中的 sendMessage 和 onMessage
         const { sendMessage: wsSend, onMessage: wsOnMessage } = props.wsDeps;
         const requestId = generateRequestId(); // 使用本地辅助函数
         const requestedPath = '.';
@@ -485,9 +514,9 @@ watchEffect((onCleanup) => {
         unregisterSuccess = wsOnMessage('sftp:realpath:success', (payload: any, message: WebSocketMessage) => { // message 已有类型
             if (message.requestId === requestId && payload.requestedPath === requestedPath) {
                 const absolutePath = payload.absolutePath;
-                console.log(`[FileManager ${props.sessionId}] 收到 '.' 的绝对路径: ${absolutePath}。开始加载目录。`);
-                // 不再直接修改 currentPath.value，而是调用 loadDirectory，它内部会更新路径
-                loadDirectory(absolutePath); // 使用 props 中的 loadDirectory
+                console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 收到 '.' 的绝对路径: ${absolutePath}。开始加载目录。`);
+                // 使用从 manager instance 解构的 loadDirectory
+                loadDirectory(absolutePath);
                 initialLoadDone.value = true;
                 cleanupListeners();
             }
@@ -495,23 +524,23 @@ watchEffect((onCleanup) => {
 
         unregisterError = wsOnMessage('sftp:realpath:error', (payload: any, message: WebSocketMessage) => { // message 已有类型
             if (message.requestId === requestId && message.path === requestedPath) {
-                console.error(`[FileManager ${props.sessionId}] 获取 '.' 的 realpath 失败:`, payload);
-                // 适当地显示错误，也许设置 props.sftpManager.error?
+                console.error(`[FileManager ${props.sessionId}-${props.instanceId}] 获取 '.' 的 realpath 失败:`, payload);
+                // TODO: 可以考虑通过 manager instance 暴露错误状态
                 // 目前仅记录日志。
                 cleanupListeners();
             }
         });
 
-        console.log(`[FileManager ${props.sessionId}] 发送 sftp:realpath 请求 (ID: ${requestId}) for path: ${requestedPath}`);
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 发送 sftp:realpath 请求 (ID: ${requestId}) for path: ${requestedPath}`);
         wsSend({ type: 'sftp:realpath', requestId: requestId, payload: { path: requestedPath } });
 
         timeoutId = setTimeout(() => {
-            console.error(`[FileManager ${props.sessionId}] 获取 '.' 的 realpath 超时 (ID: ${requestId})。`);
+            console.error(`[FileManager ${props.sessionId}-${props.instanceId}] 获取 '.' 的 realpath 超时 (ID: ${requestId})。`);
             cleanupListeners();
         }, 10000); // 10 秒超时
 
-    } else if (!props.wsDeps.isConnected.value && initialLoadDone.value) { // 恢复使用 props.wsDeps.isConnected
-        console.log(`[FileManager ${props.sessionId}] 连接丢失 (之前已加载)，重置状态。`);
+    } else if (!props.wsDeps.isConnected.value && initialLoadDone.value) { // 仍然使用 props.wsDeps.isConnected
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 连接丢失 (之前已加载)，重置状态。`);
         clearSelection(); // 清空选择
         initialLoadDone.value = false; // 重置初始加载状态
         // lastClickedIndex.value = -1; // 由 clearSelection 处理
@@ -525,8 +554,10 @@ watch(() => focusSwitcherStore.activateFileManagerSearchTrigger, (newValue, oldV
     // 确保只在触发器值增加时执行（避免初始加载或重置时触发）
     // 并且当前组件的 sessionId 与活动 sessionId 匹配
     // 检查 newValue > oldValue 确保是递增触发，避免重复执行
+    // 检查是否是当前活动会话的此实例（如果需要区分实例）
+    // 目前假设搜索触发器对会话内的所有 FileManager 生效
     if (newValue > (oldValue ?? 0) && props.sessionId === sessionStore.activeSessionId) {
-        console.log(`[FileManager ${props.sessionId}] Received search activation trigger for active session.`);
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Received search activation trigger for active session.`);
         activateSearch(); // 调用组件内部的激活搜索方法
     }
 }, { immediate: false }); // 添加 immediate: false 避免初始值为 0 时触发
@@ -549,7 +580,7 @@ onMounted(() => {
     }
     // 如果不是活动会话，返回 undefined，表示跳过
     // async 函数返回 undefined 会被包装成 Promise<undefined>
-    console.log(`[FileManager ${props.sessionId}] Focus action skipped (async undefined) for inactive session.`);
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Focus action skipped (async undefined) for inactive session.`);
     return undefined; // 返回 undefined 表示跳过
   };
   // 调用新的 registerFocusAction 并存储返回的注销函数
@@ -560,12 +591,14 @@ onBeforeUnmount(() => {
   // 调用存储的注销函数
   if (unregisterFocusAction) {
     unregisterFocusAction();
-    console.log(`[FileManager ${props.sessionId}] Unregistered focus action on unmount.`);
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Unregistered focus action on unmount.`);
   }
   // 清理对函数的引用
   unregisterFocusAction = null;
-  // 调用注入的 SFTP 管理器提供的清理函数 (移到这里确保注销后清理)
-  cleanupSftpHandlers();
+  // // 调用注入的 SFTP 管理器提供的清理函数 (移除，由 store 处理)
+  // cleanupSftpHandlers();
+  // 调用 store 的清理方法
+  sessionStore.removeSftpManager(props.sessionId, props.instanceId);
 });
 
 // --- 列宽调整逻辑 (保持不变) ---
@@ -617,10 +650,10 @@ const stopResize = () => {
 
 // --- 路径编辑逻辑 ---
 const startPathEdit = () => {
-    // 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected
-    // 注意：这里仍然使用从 sftpManager 解构的 isLoading
+    // 使用从 manager instance 解构的 isLoading 和 props.wsDeps.isConnected
     if (isLoading.value || !props.wsDeps.isConnected.value) return;
-    editablePath.value = currentPath.value; // 使用 sftpManager 的 currentPath 初始化编辑框
+    // 使用从 manager instance 解构的 currentPath 初始化编辑框
+    editablePath.value = currentPath.value;
     isEditingPath.value = true;
     nextTick(() => {
         pathInputRef.value?.focus();
@@ -634,11 +667,12 @@ const handlePathInput = async (event?: Event) => {
     }
     const newPath = editablePath.value.trim();
     isEditingPath.value = false;
-    if (newPath === currentPath.value || !newPath) { // 与 sftpManager 的 currentPath 比较
+    // 使用从 manager instance 解构的 currentPath 比较
+    if (newPath === currentPath.value || !newPath) {
         return;
     }
-    console.log(`[FileManager ${props.sessionId}] 尝试导航到新路径: ${newPath}`);
-    // 调用 props 中的 loadDirectory
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 尝试导航到新路径: ${newPath}`);
+    // 使用从 manager instance 解构的 loadDirectory
     await loadDirectory(newPath);
 };
 
@@ -689,7 +723,7 @@ const handleWheel = (event: WheelEvent) => {
 const focusSearchInput = (): boolean => {
   // 检查当前会话是否激活，防止后台实例响应
   if (props.sessionId !== sessionStore.activeSessionId) {
-      console.log(`[FileManager ${props.sessionId}] Ignoring focus request for inactive session.`);
+      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Ignoring focus request for inactive session.`);
       return false;
   }
 
@@ -699,18 +733,18 @@ const focusSearchInput = (): boolean => {
     nextTick(() => {
         if (searchInputRef.value) {
             searchInputRef.value.focus();
-            console.log(`[FileManager ${props.sessionId}] Search activated and input focused.`);
+            console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Search activated and input focused.`);
         } else {
-            console.warn(`[FileManager ${props.sessionId}] Search activated but input ref not found after nextTick.`);
+            console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Search activated but input ref not found after nextTick.`);
         }
     });
     return true; // 假设会成功
   } else if (searchInputRef.value) {
     searchInputRef.value.focus();
-    console.log(`[FileManager ${props.sessionId}] Search already active, input focused.`);
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Search already active, input focused.`);
     return true;
   }
-  console.warn(`[FileManager ${props.sessionId}] Could not focus search input.`);
+  console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Could not focus search input.`);
   return false;
 };
 defineExpose({ focusSearchInput });
@@ -722,7 +756,7 @@ defineExpose({ focusSearchInput });
     <div class="toolbar">
         <div class="path-bar">
           <span v-show="!isEditingPath">
-            <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected -->
+            <!-- 使用从 manager instance 解构的 isLoading 和 currentPath, 以及 props.wsDeps -->
             {{ t('fileManager.currentPath') }}: <strong @click="startPathEdit" :title="t('fileManager.editPathTooltip')" class="editable-path" :class="{ 'disabled': isLoading || !props.wsDeps.isConnected.value }">{{ currentPath }}</strong>
           </span>
           <input
@@ -738,9 +772,9 @@ defineExpose({ focusSearchInput });
         </div>
         <!-- 按钮移到 path-bar 外面 -->
         <div class="path-actions"> <!-- 新增包裹容器 -->
-          <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+          <!-- 使用从 manager instance 解构的 isLoading, loadDirectory, currentPath 和 props.wsDeps -->
           <button class="toolbar-button" @click.stop="loadDirectory(currentPath, true)" :disabled="isLoading || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button> <!-- 添加 true 参数以强制刷新 -->
-          <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+          <!-- 使用从 manager instance 解构的 isLoading, currentPath 和 props.wsDeps -->
           <button class="toolbar-button" @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="isLoading || !props.wsDeps.isConnected.value || currentPath === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
          <!-- 修改后的搜索区域 -->
          <div class="search-container">
@@ -775,11 +809,11 @@ defineExpose({ focusSearchInput });
         </div> <!-- 结束包裹容器 -->
        <div class="actions-bar">
             <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
-            <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+            <!-- 使用从 manager instance 解构的 isLoading 和 props.wsDeps -->
              <button @click="triggerFileUpload" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')"><i class="fas fa-upload"></i> {{ t('fileManager.actions.upload') }}</button>
-             <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+             <!-- 使用从 manager instance 解构的 isLoading 和 props.wsDeps -->
               <button @click="handleNewFolderContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')"><i class="fas fa-folder-plus"></i> {{ t('fileManager.actions.newFolder') }}</button>
-              <!-- 恢复使用 props.sftpManager.isLoading 和 props.wsDeps.isConnected.value -->
+              <!-- 使用从 manager instance 解构的 isLoading 和 props.wsDeps -->
               <button @click="handleNewFileContextMenuClick" :disabled="isLoading || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')"><i class="far fa-file-alt"></i> {{ t('fileManager.actions.newFile') }}</button>
          </div>
      </div>
@@ -840,6 +874,7 @@ defineExpose({ focusSearchInput });
           </thead>
 
           <!-- Loading State -->
+          <!-- 使用从 manager instance 解构的 isLoading -->
           <tbody v-if="isLoading">
               <tr>
                   <td :colspan="5" class="loading">{{ t('fileManager.loading') }}</td> <!-- Span across all columns -->
@@ -847,6 +882,7 @@ defineExpose({ focusSearchInput });
           </tbody>
 
           <!-- Empty Directory State (Root Only) -->
+          <!-- 使用从 manager instance 解构的 currentPath -->
           <tbody v-else-if="sortedFileList.length === 0 && currentPath === '/'">
                <tr>
                    <td :colspan="5" class="no-files">{{ t('fileManager.emptyDirectory') }}</td> <!-- Span across all columns -->
@@ -856,6 +892,7 @@ defineExpose({ focusSearchInput });
           <!-- File List State -->
           <tbody v-else @contextmenu.prevent="showContextMenu($event)"> <!-- 使用 Composable 的 showContextMenu -->
             <!-- '..' 条目 -->
+            <!-- 使用从 manager instance 解构的 currentPath -->
             <tr v-if="currentPath !== '/'"
                 class="clickable file-row folder-row"
                 :class="{
@@ -882,7 +919,8 @@ defineExpose({ focusSearchInput });
                 :class="[
                     'file-row',
                     { clickable: item.attrs.isDirectory || item.attrs.isFile },
-                    { selected: selectedItems.has(item.filename) || (index + (currentPath !== '/' ? 1 : 0) === selectedIndex) }, /* 使用 Composable 的 selectedIndex */
+                    /* 使用 Composable 的 selectedIndex 和从 manager instance 解构的 currentPath */
+                    { selected: selectedItems.has(item.filename) || (index + (currentPath !== '/' ? 1 : 0) === selectedIndex) },
                     // { selected: index + (currentPath !== '/' ? 1 : 0) === selectedIndex }, /* 保持注释 */
                     { 'folder-row': item.attrs.isDirectory }, // 添加文件夹标识类
                     { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename } // 使用 Composable 的 dragOverTarget
