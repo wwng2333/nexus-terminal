@@ -287,11 +287,37 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
              }, 5000);
              return;
         }
-        // 获取 Map 中的第一个管理器实例
-        const sftpManager = sftpManagersMap.values().next().value;
+        // 获取 Map 中的第一个条目 [instanceId, sftpManager]
+        const firstEntry = sftpManagersMap.entries().next().value;
 
+        // +++ 检查是否成功获取到条目 +++
+        if (!firstEntry || firstEntry.length < 2) {
+            console.error(`[文件编辑器 Store] 保存失败：无法从会话 ${tab.sessionId} 的 sftpManagers Map 中获取任何 SFTP 管理器条目。`);
+            tab.saveStatus = 'error';
+            tab.saveError = t('fileManager.errors.sftpManagerNotFound'); // 复用错误消息
+            // 添加短暂错误提示
+            setTimeout(() => {
+                if (tab.saveStatus === 'error') {
+                    tab.saveStatus = 'idle';
+                    tab.saveError = null;
+                }
+            }, 5000);
+            return;
+        }
 
-        console.log(`[文件编辑器 Store] 开始保存文件: ${tab.filePath} (Tab ID: ${tab.id}) 使用实例 ${sftpManager.instanceId}`); // 添加实例 ID 日志
+        const [instanceId, sftpManager] = firstEntry; // 解构获取 instanceId 和 sftpManager
+
+        // +++ 再次检查 sftpManager 是否有效 (虽然理论上 Map 不应存储 undefined 值) +++
+        if (!sftpManager) {
+             console.error(`[文件编辑器 Store] 保存失败：从会话 ${tab.sessionId} 的 sftpManagers Map 获取到的 SFTP 管理器实例无效 (instanceId: ${instanceId})。`);
+             tab.saveStatus = 'error';
+             tab.saveError = t('fileManager.errors.sftpManagerNotFound');
+             setTimeout(() => { if (tab.saveStatus === 'error') { tab.saveStatus = 'idle'; tab.saveError = null; } }, 5000);
+             return;
+        }
+        // --- 检查结束 ---
+
+        console.log(`[文件编辑器 Store] 开始保存文件: ${tab.filePath} (Tab ID: ${tab.id}) 使用实例 ${instanceId}`); // 使用解构出的 instanceId
         tab.isSaving = true;
         tab.saveStatus = 'saving';
         tab.saveError = null;
