@@ -4,8 +4,8 @@ import { ref, computed, watch, nextTick } from 'vue'; // 导入 nextTick
 import type { ITheme } from 'xterm';
 import type { TerminalTheme } from '../../../backend/src/types/terminal-theme.types'; // 引用后端类型
 import type { AppearanceSettings, UpdateAppearanceDto } from '../../../backend/src/types/appearance.types'; // 引用后端类型
-import { defaultXtermTheme, defaultUiTheme } from './default-themes'; // 保持 .ts
-import { presetTerminalThemes } from './iterm-themes'; // <-- 导入预设主题
+import { defaultXtermTheme, defaultUiTheme } from '../features/appearance/config/default-themes'; // 保持 .ts
+import { presetTerminalThemes } from '../features/appearance/config/iterm-themes'; // <-- 导入预设主题
 
 // Helper function to safely parse JSON
 export const safeJsonParse = <T>(jsonString: string | undefined | null, defaultValue: T): T => { // Add export
