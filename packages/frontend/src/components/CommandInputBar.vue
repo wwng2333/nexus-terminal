@@ -135,30 +135,36 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="command-input-bar">
-    <div class="input-wrapper" :class="{ 'searching': isSearching }">
-      <!-- 新增：焦点切换配置按钮 -->
-      <button @click="focusSwitcherStore.toggleConfigurator(true)" class="icon-button focus-switcher-button" :title="t('commandInputBar.configureFocusSwitch', '配置焦点切换')">
-        <i class="fas fa-keyboard"></i> <!-- 或者其他合适的图标 -->
+  <div class="flex items-center px-2.5 py-1.5 bg-background min-h-[30px] gap-1.5">
+    <div class="flex-grow flex items-center bg-transparent relative gap-1.5">
+      <!-- Focus Switcher Config Button -->
+      <button
+        @click="focusSwitcherStore.toggleConfigurator(true)"
+        class="flex-shrink-0 flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+        :title="t('commandInputBar.configureFocusSwitch', '配置焦点切换')"
+      >
+        <i class="fas fa-keyboard text-base text-primary transition-colors duration-200"></i>
       </button>
-      <!-- 命令输入框 (始终渲染) -->
+      <!-- Command Input -->
       <input
         type="text"
         v-model="commandInput"
         :placeholder="t('commandInputBar.placeholder')"
-        class="command-input"
+        class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out"
+        :class="{ 'flex-basis-3/4': isSearching, 'flex-basis-full': !isSearching }"
         ref="commandInputRef"
         data-focus-id="commandInput"
         @keydown.enter="sendCommand"
         @keydown="handleCommandInputKeydown"
       />
 
-      <!-- 搜索输入框 (始终渲染, 通过 CSS 控制显示/隐藏和宽度) -->
+      <!-- Search Input (Conditional rendering with v-show for transition) -->
       <input
+        v-show="isSearching"
         type="text"
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
-        class="search-input"
+        class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out flex-basis-1/4 ml-1.5"
         data-focus-id="terminalSearch"
         @keydown.enter.prevent="findNext"
         @keydown.shift.enter.prevent="findPrevious"
@@ -167,21 +173,32 @@ onBeforeUnmount(() => {
         ref="searchInputRef"
       />
 
-      <!-- 搜索控制按钮 -->
-      <div class="search-controls">
-        <button @click="toggleSearch" class="icon-button" :title="isSearching ? t('commandInputBar.closeSearch') : t('commandInputBar.openSearch')">
-          <i v-if="!isSearching" class="fas fa-search"></i>
-          <i v-else class="fas fa-times"></i>
+      <!-- Search Controls -->
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <button
+          @click="toggleSearch"
+          class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+          :title="isSearching ? t('commandInputBar.closeSearch') : t('commandInputBar.openSearch')"
+        >
+          <i v-if="!isSearching" class="fas fa-search text-base text-primary transition-colors duration-200"></i>
+          <i v-else class="fas fa-times text-base text-primary transition-colors duration-200"></i>
         </button>
 
         <template v-if="isSearching">
-          <button @click="findPrevious" class="icon-button" :title="t('commandInputBar.findPrevious')">
-            <i class="fas fa-arrow-up"></i>
+          <button
+            @click="findPrevious"
+            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+            :title="t('commandInputBar.findPrevious')"
+          >
+            <i class="fas fa-arrow-up text-base text-primary transition-colors duration-200"></i>
           </button>
-          <button @click="findNext" class="icon-button" :title="t('commandInputBar.findNext')">
-            <i class="fas fa-arrow-down"></i>
+          <button
+            @click="findNext"
+            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+            :title="t('commandInputBar.findNext')"
+          >
+            <i class="fas fa-arrow-down text-base text-primary transition-colors duration-200"></i>
           </button>
-
         </template>
       </div>
     </div>
@@ -190,138 +207,5 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.command-input-bar {
-  display: flex;
-  align-items: center;
-  padding: 5px 10px; /* 增加左右 padding */
-  background-color: var(--app-bg-color);
-  min-height: 30px;
-  gap: 5px; /* 减小整体间隙 */
-}
-
-.input-wrapper {
-  flex-grow: 1;
-  display: flex;
-  align-items: center; /* 垂直居中对齐 */
-  background-color: transparent;
-  position: relative; /* 为了按钮定位 */
-  gap: 5px; /* 在按钮和输入框之间添加间隙 */
-}
-
-/* 焦点切换按钮样式 (复用 icon-button) */
-.focus-switcher-button {
-  /* 可以添加特定样式，如果需要的话 */
-  flex-shrink: 0; /* 防止按钮被压缩 */
-}
-
-
-.command-input {
-  padding: 6px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 0.9em;
-  background-color: var(--input-bg-color, var(--app-bg-color));
-  color: var(--text-color);
-  outline: none;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, flex-basis 0.3s ease-in-out; /* Add flex-basis transition */
-  margin-right: 5px;
-  flex: 1 1 100%; /* Default: command input takes full width */
-}
-
-.search-input {
-  /* Default styles */
-  padding: 6px 10px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  font-size: 0.9em;
-  background-color: var(--input-bg-color, var(--app-bg-color));
-  color: var(--text-color);
-  outline: none;
-  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, flex-basis 0.3s ease-in-out, opacity 0.3s ease-in-out; /* Adjusted transitions */
-  margin-right: 5px;
-  /* Default state: hidden */
-  display: none;
-  flex: 0 1 0%; /* Allow shrinking, basis 0 */
-  opacity: 0; /* Fade out */
-}
-
-/* Styles when searching is active */
-.input-wrapper.searching .command-input {
-  flex: 3 1 75%; /* Command input takes 3 parts */
-}
-
-.input-wrapper.searching .search-input {
-  display: block; /* Make it visible */
-  flex: 1 1 25%; /* Search input takes 1 part */
-  margin-left: 5px; /* Add margin between inputs */
-  opacity: 1; /* Fade in */
-  /* Padding, border, etc. are already defined in the base .search-input rule */
-}
-
-
-.command-input:focus,
-.search-input:focus {
-  border-color: var(--button-bg-color);
-  box-shadow: 0 0 5px var(--button-bg-color, #007bff);
-}
-
-.search-controls {
-  display: flex;
-  align-items: center;
-  gap: 5px; /* 控件之间的间隙 */
-  background-color: var(--app-bg-color); /* 确保背景色一致 */
-}
-
-.icon-button {
-  background: none;
-  border: none;
-  padding: 0.2rem 0.4rem; /* Match FileManager padding */
-  cursor: pointer;
-  color: var(--text-color-secondary); /* Match FileManager default color */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  vertical-align: middle; /* Match FileManager */
-  border-radius: 3px; /* Match FileManager */
-  transition: background-color 0.2s ease, color 0.2s ease; /* Match FileManager transition */
-}
-
-.icon-button:hover:not(:disabled) { /* Match FileManager hover */
-  background-color: rgba(0, 0, 0, 0.08);
-  color: var(--text-color);
-}
-
-.icon-button:disabled { /* Add disabled state */
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-/* Style the icon inside the button like FileManager */
-.icon-button i {
-    font-size: 1.1em; /* Match FileManager icon size */
-    color: var(--button-bg-color); /* Match FileManager icon color */
-    transition: color 0.2s ease;
-}
-
-.icon-button:hover:not(:disabled) i { /* Match FileManager icon hover */
-    color: var(--button-hover-bg-color, var(--button-bg-color));
-}
-
-/* 实际使用图标库时可以这样设置大小 */
-/*
-.icon-button svg {
-  width: 18px;
-  height: 18px;
-}
-*/
-
-.search-results {
-  font-size: 0.8em;
-  color: var(--text-secondary-color, #666); /* Use theme variable */
-  margin-left: 5px;
-  white-space: nowrap; /* 防止换行 */
-}
-.search-results.no-results {
-  color: var(--warning-color, #ffc107); /* Use theme variable */
-}
+/* Scoped styles removed for Tailwind CSS refactoring */
 </style>
