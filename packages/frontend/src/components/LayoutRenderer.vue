@@ -709,10 +709,12 @@ onMounted(() => {
 }
 /* Vertical splitter width */
 .splitpanes--vertical > .splitpanes__splitter {
+  border-color: var(--border-color) !important;
   width: 1px !important;
 }
 /* Horizontal splitter height */
 .splitpanes--horizontal > .splitpanes__splitter {
+  border-color: var(--border-color) !important;
   height: 1px !important;
 }
 
