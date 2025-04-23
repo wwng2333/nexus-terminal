@@ -29,35 +29,43 @@ const formatTimestamp = (timestamp: number | null): string => {
 </script>
 
 <template>
-  <div class="proxy-list">
-    <div v-if="isLoading" class="loading">{{ t('proxies.loading') }}</div>
-    <div v-else-if="error" class="error">{{ t('proxies.error', { error: error }) }}</div>
-    <div v-else-if="proxies.length === 0" class="no-proxies">
+  <div class="mt-4"> <!-- Container with top margin -->
+    <div v-if="isLoading" class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50"> <!-- Loading state with Tailwind -->
+      {{ t('proxies.loading') }}
+    </div>
+    <div v-else-if="error" class="p-4 border border-red-300 bg-red-100 text-red-700 rounded-md mb-4"> <!-- Error state with Tailwind -->
+      {{ t('proxies.error', { error: error }) }}
+    </div>
+    <div v-else-if="proxies.length === 0" class="p-4 border border-border rounded-md mb-4 text-text-secondary"> <!-- No proxies state with Tailwind -->
       {{ t('proxies.noProxies') }}
     </div>
-    <table v-else>
+    <table v-else class="w-full border-collapse mt-4 text-sm"> <!-- Table with Tailwind -->
       <thead>
-        <tr>
-          <th>{{ t('proxies.table.name') }}</th>
-          <th>{{ t('proxies.table.type') }}</th>
-          <th>{{ t('proxies.table.host') }}</th>
-          <th>{{ t('proxies.table.port') }}</th>
-          <th>{{ t('proxies.table.user') }}</th>
-          <th>{{ t('proxies.table.updatedAt') }}</th>
-          <th>{{ t('proxies.table.actions') }}</th>
+        <tr class="bg-header"> <!-- Table header row -->
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.name') }}</th>
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.type') }}</th>
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.host') }}</th>
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.port') }}</th>
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.user') }}</th>
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.updatedAt') }}</th>
+          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.actions') }}</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="proxy in proxies" :key="proxy.id">
-          <td>{{ proxy.name }}</td>
-          <td>{{ proxy.type }}</td>
-          <td>{{ proxy.host }}</td>
-          <td>{{ proxy.port }}</td>
-          <td>{{ proxy.username || '-' }}</td>
-          <td>{{ formatTimestamp(proxy.updated_at) }}</td>
-          <td>
-            <button @click="emit('edit-proxy', proxy)">{{ t('proxies.actions.edit') }}</button>
-            <button @click="handleDelete(proxy)">{{ t('proxies.actions.delete') }}</button>
+        <tr v-for="proxy in proxies" :key="proxy.id" class="odd:bg-background even:bg-header/50 hover:bg-link-active-bg/50"> <!-- Table body rows with alternating background and hover -->
+          <td class="px-4 py-2 border border-border">{{ proxy.name }}</td>
+          <td class="px-4 py-2 border border-border">{{ proxy.type }}</td>
+          <td class="px-4 py-2 border border-border">{{ proxy.host }}</td>
+          <td class="px-4 py-2 border border-border">{{ proxy.port }}</td>
+          <td class="px-4 py-2 border border-border">{{ proxy.username || '-' }}</td>
+          <td class="px-4 py-2 border border-border whitespace-nowrap">{{ formatTimestamp(proxy.updated_at) }}</td>
+          <td class="px-4 py-2 border border-border space-x-2 whitespace-nowrap"> <!-- Actions cell with spacing -->
+            <button @click="emit('edit-proxy', proxy)" class="text-link hover:text-link-hover hover:underline text-xs font-medium"> <!-- Edit button with link style -->
+              {{ t('proxies.actions.edit') }}
+            </button>
+            <button @click="handleDelete(proxy)" class="text-red-600 hover:text-red-800 hover:underline text-xs font-medium"> <!-- Delete button with danger style -->
+              {{ t('proxies.actions.delete') }}
+            </button>
           </td>
         </tr>
       </tbody>
@@ -66,45 +74,5 @@ const formatTimestamp = (timestamp: number | null): string => {
 </template>
 
 <style scoped>
-.proxy-list {
-  margin-top: 1rem;
-}
-
-.loading, .error, .no-proxies {
-  padding: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-}
-
-.error {
-  color: red;
-  border-color: red;
-}
-
-.no-proxies {
-  color: #666;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
-}
-
-th, td {
-  border: 1px solid #ddd;
-  padding: 0.5rem;
-  text-align: left;
-}
-
-th {
-  background-color: #f2f2f2;
-}
-
-button {
-  margin-right: 0.5rem;
-  padding: 0.2rem 0.5rem;
-  cursor: pointer;
-}
+/* Remove all scoped styles as they are now handled by Tailwind utility classes */
 </style>

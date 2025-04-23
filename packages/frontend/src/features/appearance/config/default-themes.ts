@@ -51,6 +51,7 @@ export const defaultUiTheme: Record<string, string> = {
   '--input-focus-glow': 'var(--link-active-color)', /* 输入框聚焦光晕值 */
   '--ssh-tab-active': 'transparent', /* Added SSH Tab Active */
   '--ssh-tab-background': 'transparent', /* Added SSH Tab Background */
+  '--overlay-bg-color': 'rgba(0, 0, 0, 0.6)', /* Added Overlay Background */
   // End added variables
   '--font-family-sans-serif': 'sans-serif',
   '--base-padding': '1rem',

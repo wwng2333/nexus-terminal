@@ -42,10 +42,16 @@ const closeForm = () => {
 </script>
 
 <template>
-  <div class="proxies-view">
-    <h2>{{ t('proxies.title') }}</h2>
+  <div class="p-4 bg-background text-foreground"> <!-- Ensure Tailwind padding, background, and text color -->
+    <h2 class="text-xl font-semibold mb-4">{{ t('proxies.title') }}</h2> <!-- Ensure Tailwind typography -->
 
-    <button @click="openAddForm" v-if="!showForm">{{ t('proxies.addProxy') }}</button>
+    <button
+      @click="openAddForm"
+      v-if="!showForm"
+      class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 transition duration-150 ease-in-out"
+    > <!-- Ensure Tailwind button styles -->
+      {{ t('proxies.addProxy') }}
+    </button>
 
     <!-- 添加/编辑代理表单 -->
     <AddProxyForm
@@ -62,37 +68,6 @@ const closeForm = () => {
 </template>
 
 <style scoped>
-.proxies-view {
-  padding: var(--base-padding, 1rem); /* 使用变量 */
-  color: var(--text-color);
-  background-color: var(--app-bg-color);
-}
-
-button {
-  margin-bottom: var(--base-margin, 1rem); /* 使用变量 */
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  background-color: var(--button-bg-color, #007bff); /* 使用变量 */
-  color: var(--button-text-color, #ffffff); /* 使用变量 */
-  border: none; /* 移除默认边框 */
-  border-radius: 4px;
-}
-
-button:hover:not(:disabled) {
-  background-color: var(--button-hover-bg-color, #0056b3); /* 使用变量 */
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-/* 保持 placeholder 样式，但使用变量 */
-.placeholder-form, .placeholder-list {
-    border: 1px dashed var(--border-color, #ccc); /* 使用变量 */
-    padding: var(--base-padding, 1rem); /* 使用变量 */
-    margin-top: var(--base-margin, 1rem); /* 使用变量 */
-    background-color: var(--header-bg-color, #f9f9f9); /* 使用变量，选择一个合适的背景色 */
-    color: var(--text-color-secondary); /* 使用次要文本颜色 */
-}
+/* Remove scoped styles previously handled by Tailwind */
+/* .proxies-view, button, button:hover, button:disabled, .placeholder-form, .placeholder-list rules are removed */
 </style>
