@@ -1,4 +1,34 @@
 @import "tailwindcss";
+
+/* Tailwind Theme Variables Mapping */
+@theme inline {
+  /* Base Colors */
+  --color-app: var(--app-bg-color);
+  --color-text-default: var(--text-color);
+  --color-text-secondary: var(--text-color-secondary);
+  --color-border-default: var(--border-color);
+  --color-link: var(--link-color);
+  --color-link-hover: var(--link-hover-color);
+  --color-link-active: var(--link-active-color); /* Also used as primary/theme color */
+  --color-primary: var(--link-active-color); /* Map primary to active link color */
+  --color-link-active-bg: var(--link-active-bg-color); /* Map active link background */
+
+  /* Component Colors */
+  --color-header: var(--header-bg-color);
+  --color-footer: var(--footer-bg-color);
+  --color-button: var(--button-bg-color);
+  --color-button-text: var(--button-text-color);
+  --color-button-hover: var(--button-hover-bg-color);
+  --color-icon: var(--icon-color);
+  --color-icon-hover: var(--icon-hover-color);
+  --color-split-line: var(--split-line-color);
+  --color-split-line-hover: var(--split-line-hover-color);
+  --color-input-focus-border: var(--input-focus-border-color);
+  /* --color-input-focus-glow: var(--input-focus-glow); /* Glow might need direct var() use in shadow utilities */
+  --color-ssh-tab-active: var(--ssh-tab-active);
+  --color-ssh-tab-background: var(--ssh-tab-background);
+}
+
 /* 全局样式和 CSS 变量定义 */
 :root {
   /* 基础颜色 */
@@ -9,6 +39,7 @@
   --link-color: #333;            /* 链接颜色 */
   --link-hover-color: #0056b3;   /* 链接悬停颜色 */
   --link-active-color: #007bff;   /* 激活链接/主题色 */
+  --link-active-bg-color: #e0e0ff; /* 激活链接背景色 (类似 indigo-50) */
 
   /* 组件颜色 */
   --header-bg-color: #f0f0f0;     /* 头部背景色 */

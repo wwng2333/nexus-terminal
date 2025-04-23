@@ -242,36 +242,30 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
 </script>
 
 <template>
-    <div class="bg-gray-100 flex items-center justify-center min-h-screen">
-    <div class="bg-white rounded-lg shadow-lg p-8 max-w-sm w-full">
-      <h2 class="text-2xl font-bold mb-4 text-gray-800">欢迎使用 Tailwind CSS (Vite + Vue)</h2>
-      <p class="text-gray-600 mb-6">这是一个使用 Tailwind CSS 构建的简单卡片示例。</p>
-      <div class="flex justify-end">
-        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-          了解更多
-        </button>
-      </div>
-    </div>
-  </div>
+  
   <div id="app-container">
     <!-- *** 修改 v-if 条件以使用 isHeaderVisible *** -->
-    <header v-if="!isWorkspaceRoute || isHeaderVisible">
-      <nav ref="navRef">
-        <div class="nav-left"> <!-- Group left-aligned links -->
+    <!-- Header with Tailwind classes using theme variables -->
+    <header v-if="!isWorkspaceRoute || isHeaderVisible" class="sticky top-0 z-10 flex items-center h-14 px-6 bg-header border-b border-default shadow-sm">
+      <!-- Nav with Tailwind classes -->
+      <nav ref="navRef" class="flex items-center justify-between w-full relative"> <!-- Added relative positioning for underline -->
+        <!-- Left navigation links with Tailwind classes using theme variables -->
+        <div class="flex items-center space-x-1">
             <!-- <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> --> <!-- 隐藏仪表盘链接 -->
-            <RouterLink to="/workspace">{{ t('nav.terminal') }}</RouterLink>
-            <RouterLink to="/proxies">{{ t('nav.proxies') }}</RouterLink>
-            <RouterLink to="/notifications">{{ t('nav.notifications') }}</RouterLink>
-            <RouterLink to="/audit-logs">{{ t('nav.auditLogs') }}</RouterLink>
-            <RouterLink to="/settings">{{ t('nav.settings') }}</RouterLink>
+            <RouterLink to="/workspace" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-link-active-bg">{{ t('nav.terminal') }}</RouterLink>
+            <RouterLink to="/proxies" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-link-active-bg">{{ t('nav.proxies') }}</RouterLink>
+            <RouterLink to="/notifications" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-link-active-bg">{{ t('nav.notifications') }}</RouterLink>
+            <RouterLink to="/audit-logs" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-link-active-bg">{{ t('nav.auditLogs') }}</RouterLink>
+            <RouterLink to="/settings" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-link-active-bg">{{ t('nav.settings') }}</RouterLink>
         </div>
-        <div class="nav-right"> <!-- Group right-aligned links -->
-            <a href="#" @click.prevent="openStyleCustomizer" :title="t('nav.customizeStyle')">🎨</a>
-            <RouterLink v-if="!isAuthenticated" to="/login">{{ t('nav.login') }}</RouterLink>
-            <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout">{{ t('nav.logout') }}</a>
+        <!-- Right navigation links with Tailwind classes using theme variables -->
+        <div class="flex items-center space-x-1">
+            <a href="#" @click.prevent="openStyleCustomizer" :title="t('nav.customizeStyle')" class="px-2 py-2 rounded-md text-lg text-icon hover:text-icon-hover hover:bg-link-active-bg transition duration-150 ease-in-out">🎨</a>
+            <RouterLink v-if="!isAuthenticated" to="/login" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap">{{ t('nav.login') }}</RouterLink>
+            <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-link-active-bg transition duration-150 ease-in-out whitespace-nowrap">{{ t('nav.logout') }}</a>
         </div>
-        <!-- Sliding underline element -->
-        <div ref="underlineRef" class="nav-underline"></div>
+        <!-- Sliding underline element with Tailwind classes using theme variables (JS still controls positioning) -->
+        <div ref="underlineRef" class="absolute bottom-0 h-0.5 bg-link-active rounded transition-all duration-300 ease-in-out pointer-events-none opacity-0"></div> <!-- Added opacity-0 -->
       </nav>
     </header>
 
@@ -307,91 +301,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
   /* background-color: var(--app-bg-color); */ /* 移除容器背景色，让 body 背景透出来 */
 }
 
-header {
-  background-color: var(--header-bg-color); /* 使用头部背景色变量 */
-  padding: 0 calc(var(--base-padding) * 1.5); /* Adjust padding: 0 top/bottom, more left/right */
-  border-bottom: 1px solid var(--border-color); /* 使用边框颜色变量 */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Enhanced shadow for more depth */
-  height: 55px; /* Slightly taller header */
-  display: flex; /* Use flexbox for alignment */
-  align-items: center; /* Center items vertically */
-  position: sticky; /* Make header sticky */
-  top: 0;
-  z-index: 10; /* Ensure header stays on top */
-}
-
-nav {
-  display: flex;
-  align-items: center; /* Align nav items vertically */
-  width: 100%; /* Make nav take full width */
-  justify-content: space-between; /* Space out left and right groups */
-}
-
-.nav-left, .nav-right {
-    display: flex;
-    align-items: center;
-    gap: calc(var(--base-margin) / 3); /* Add small gap between items */
-}
-
-nav a {
-  text-decoration: none;
-  color: var(--text-color-secondary); /* Use secondary text color for inactive links */
-  padding: 0.6rem 0.9rem; /* Adjust padding */
-  border-radius: 6px; /* Slightly more rounded */
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease; /* Smooth transition */
-  font-size: 0.9rem;
-  line-height: 1;
-  white-space: nowrap;
-  position: relative; /* For potential pseudo-elements */
-  border: 1px solid transparent; /* Add transparent border for layout consistency */
-}
-
-nav a:hover {
-  color: var(--link-hover-color); /* Use specific hover color */
-  background-color: rgba(128, 128, 128, 0.1); /* Subtle grey background on hover */
-}
-
-nav a.router-link-exact-active {
-  font-weight: 500; /* Medium weight */
-  color: var(--link-active-color); /* Use active link color */
-  background-color: transparent; /* Remove background for active link */
-  /* The underline is now handled by a separate element */
-}
-
-/* Style for the sliding underline */
-.nav-underline {
-  position: absolute;
-  bottom: 0px; /* Position at the very bottom of the nav */
-  height: 2px; /* Thickness of the indicator */
-  background-color: var(--link-active-color); /* Color of the indicator */
-  border-radius: 1px;
-  transition: left 0.3s ease-in-out, width 0.3s ease-in-out; /* Smooth transition for sliding */
-  opacity: 0; /* Initially hidden */
-  pointer-events: none; /* Prevent interaction */
-}
-
-
-/* Style the theme icon link */
-nav a[title*="t('nav.customizeStyle')"] {
-    padding: 0.5rem 0.7rem; /* Adjust padding for icon */
-    font-size: 1.1rem; /* Make icon slightly larger */
-    color: var(--text-color-secondary); /* Match other inactive links */
-}
-nav a[title*="t('nav.customizeStyle')"]:hover {
-    color: var(--link-hover-color);
-    background-color: rgba(128, 128, 128, 0.1);
-}
-
-/* Style logout/login link */
-.nav-right a {
-    /* Specific styles if needed, e.g., slightly different color */
-    color: var(--text-color-secondary);
-}
-.nav-right a:hover {
-    color: var(--link-hover-color);
-    background-color: rgba(128, 128, 128, 0.1);
-}
-
+/* Removed header, nav, nav-left, nav-right, nav a, nav a:hover, nav a.router-link-exact-active, .nav-underline, and specific icon/login/logout link styles as they are now handled by Tailwind classes */
 
 main {
   flex-grow: 1;
