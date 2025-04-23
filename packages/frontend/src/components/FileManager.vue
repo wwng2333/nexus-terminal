@@ -818,49 +818,72 @@ defineExpose({ focusSearchInput });
 </script>
 
 <template>
-  <div class="file-manager">
-    <div class="toolbar">
-        <div class="path-bar">
-          <span v-show="!isEditingPath">
-            <!-- 修改：简化 disabled 条件 -->
-            {{ t('fileManager.currentPath') }}: <strong @click="startPathEdit" :title="t('fileManager.editPathTooltip')" class="editable-path" :class="{ 'disabled': !currentSftpManager || !props.wsDeps.isConnected.value }">{{ currentSftpManager?.currentPath?.value ?? '/' }}</strong>
+  <div class="flex flex-col h-full overflow-hidden bg-background text-foreground text-sm font-sans">
+    <div class="flex items-center justify-between flex-wrap gap-2 p-2 bg-header border-b border-border flex-shrink-0">
+        <!-- Path Bar -->
+        <div class="flex items-center bg-background border border-border rounded px-1.5 py-0.5 overflow-hidden min-w-[100px] flex-shrink">
+          <span v-show="!isEditingPath" class="text-text-secondary whitespace-nowrap overflow-x-auto pr-2">
+            {{ t('fileManager.currentPath') }}:
+            <strong
+              @click="startPathEdit"
+              :title="t('fileManager.editPathTooltip')"
+              class="font-medium text-link ml-1 px-1 rounded cursor-text transition-colors duration-200"
+              :class="{
+                'hover:bg-black/5': currentSftpManager && props.wsDeps.isConnected.value,
+                'opacity-60 cursor-not-allowed': !currentSftpManager || !props.wsDeps.isConnected.value
+              }"
+            >
+              {{ currentSftpManager?.currentPath?.value ?? '/' }}
+            </strong>
           </span>
           <input
             v-show="isEditingPath"
             ref="pathInputRef"
             type="text"
             v-model="editablePath"
-            class="path-input"
+            class="flex-grow bg-transparent text-foreground p-0.5 outline-none min-w-[100px]"
             @keyup.enter="handlePathInput"
             @blur="handlePathInput"
             @keyup.esc="cancelPathEdit"
           />
         </div>
-        <!-- 按钮移到 path-bar 外面 -->
-        <div class="path-actions"> <!-- 新增包裹容器 -->
-          <!-- 修改：简化 disabled 条件 -->
-          <button class="toolbar-button" @click.stop="currentSftpManager?.loadDirectory(currentSftpManager?.currentPath?.value ?? '/', true)" :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath" :title="t('fileManager.actions.refresh')"><i class="fas fa-sync-alt"></i></button>
-          <!-- 修改：简化 disabled 条件 -->
-          <button class="toolbar-button" @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })" :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || currentSftpManager?.currentPath?.value === '/' || isEditingPath" :title="t('fileManager.actions.parentDirectory')"><i class="fas fa-arrow-up"></i></button>
-         <!-- 修改后的搜索区域 -->
-         <div class="search-container">
+        <!-- Path Actions -->
+        <div class="flex items-center flex-shrink-0 mr-auto">
+          <button
+            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+            @click.stop="currentSftpManager?.loadDirectory(currentSftpManager?.currentPath?.value ?? '/', true)"
+            :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath"
+            :title="t('fileManager.actions.refresh')"
+          >
+            <i class="fas fa-sync-alt text-base"></i>
+          </button>
+          <button
+            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+            @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
+            :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || currentSftpManager?.currentPath?.value === '/' || isEditingPath"
+            :title="t('fileManager.actions.parentDirectory')"
+          >
+            <i class="fas fa-arrow-up text-base"></i>
+          </button>
+         <!-- Search Area -->
+         <div class="flex items-center flex-shrink-0">
              <button
                  v-if="!isSearchActive"
-                 class="toolbar-button search-activate-button"
+                 class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
                  @click.stop="activateSearch"
                  :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
                  :title="t('fileManager.searchPlaceholder')"
              >
-                 <i class="fas fa-search"></i>
+                 <i class="fas fa-search text-base"></i>
              </button>
-             <div v-else class="search-bar active">
-                 <i class="fas fa-search search-icon"></i>
+             <div v-else class="relative flex items-center min-w-[150px] flex-shrink">
+                 <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"></i>
                  <input
                      ref="searchInputRef"
                      type="text"
                      v-model="searchQuery"
                      :placeholder="t('fileManager.searchPlaceholder')"
-                     class="search-input"
+                     class="flex-grow bg-background border border-border rounded pl-7 pr-2 py-1 text-foreground text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary min-w-[10px] transition-colors duration-200"
                      data-focus-id="fileManagerSearch"
                      @blur="deactivateSearch"
                      @keyup.esc="cancelSearch"
@@ -868,29 +891,54 @@ defineExpose({ focusSearchInput });
                      @keydown.down.prevent="handleKeydown"
                      @keydown.enter.prevent="handleKeydown"
                  />
-                 <!-- 可选：添加清除按钮 -->
-                 <!-- <button @click="searchQuery = ''; searchInputRef?.focus()" v-if="searchQuery" class="clear-search-button">&times;</button> -->
+                 <!-- Optional: Clear button -->
+                 <!-- <button @click="searchQuery = ''; searchInputRef?.focus()" v-if="searchQuery" class="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-foreground">&times;</button> -->
              </div>
          </div>
-        </div> <!-- 结束包裹容器 -->
-       <div class="actions-bar">
-            <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple style="display: none;" />
-            <!-- 修改：简化 disabled 条件 -->
-             <button @click="triggerFileUpload" :disabled="!currentSftpManager || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.uploadFile')"><i class="fas fa-upload"></i> {{ t('fileManager.actions.upload') }}</button>
-             <!-- 修改：简化 disabled 条件 -->
-              <button @click="handleNewFolderContextMenuClick" :disabled="!currentSftpManager || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFolder')"><i class="fas fa-folder-plus"></i> {{ t('fileManager.actions.newFolder') }}</button>
-              <!-- 修改：简化 disabled 条件 -->
-              <button @click="handleNewFileContextMenuClick" :disabled="!currentSftpManager || !props.wsDeps.isConnected.value" :title="t('fileManager.actions.newFile')"><i class="far fa-file-alt"></i> {{ t('fileManager.actions.newFile') }}</button>
+        </div> <!-- End Path Actions -->
+       <!-- Main Actions Bar -->
+       <div class="flex items-center gap-2 flex-shrink-0">
+            <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple class="hidden" />
+            <button
+              @click="triggerFileUpload"
+              :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
+              :title="t('fileManager.actions.uploadFile')"
+              class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+            >
+              <i class="fas fa-upload text-sm"></i>
+              <span>{{ t('fileManager.actions.upload') }}</span>
+            </button>
+            <button
+              @click="handleNewFolderContextMenuClick"
+              :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
+              :title="t('fileManager.actions.newFolder')"
+              class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+            >
+              <i class="fas fa-folder-plus text-sm"></i>
+              <span>{{ t('fileManager.actions.newFolder') }}</span>
+            </button>
+            <button
+              @click="handleNewFileContextMenuClick"
+              :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
+              :title="t('fileManager.actions.newFile')"
+              class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+            >
+              <i class="far fa-file-alt text-sm"></i>
+              <span>{{ t('fileManager.actions.newFile') }}</span>
+            </button>
          </div>
      </div>
 
-    <!-- 文件列表容器 -->
+
+    <!-- File List Container -->
     <div
       ref="fileListContainerRef"
-      class="file-list-container"
-      :class="{ 'drag-over': isDraggingOver }" 
+      class="flex-grow overflow-y-auto relative outline-none"
+      :class="{
+        'outline-dashed outline-2 outline-offset-[-2px] outline-primary bg-primary/5': isDraggingOver
+      }"
       @dragenter.prevent="handleDragEnter"
-      @dragover.prevent="handleDragOver" 
+      @dragover.prevent="handleDragOver"
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
       @click="fileListContainerRef?.focus()"
@@ -899,10 +947,13 @@ defineExpose({ focusSearchInput });
       tabindex="0"
       :style="{ '--row-size-multiplier': rowSizeMultiplier }"
     >
-        <!-- Error display is handled globally by UINotificationDisplay -->
+        <!-- Drag over overlay text (optional) -->
+        <div v-if="isDraggingOver" class="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-lg font-medium rounded pointer-events-none z-10">
+          {{ t('fileManager.dropFilesHere', 'Drop files here to upload') }}
+        </div>
 
         <!-- File Table -->
-        <table ref="tableRef" class="resizable-table" @contextmenu.prevent>
+        <table ref="tableRef" class="w-full border-collapse table-fixed border border-border rounded" @contextmenu.prevent>
             <colgroup>
                  <col :style="{ width: `${colWidths.type}px` }">
                 <col :style="{ width: `${colWidths.name}px` }">
@@ -910,60 +961,81 @@ defineExpose({ focusSearchInput });
                 <col :style="{ width: `${colWidths.permissions}px` }">
                 <col :style="{ width: `${colWidths.modified}px` }">
            </colgroup>
-          <thead> <!-- Header is always visible -->
+          <thead class="sticky top-0 z-10 bg-header">
             <tr>
-              <!-- Remove width style from th, controlled by colgroup -->
-              <th @click="handleSort('type')" class="sortable">
+              <th
+                @click="handleSort('type')"
+                class="relative px-2 py-1 border-b-2 border-border text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer select-none hover:bg-black/5"
+                :style="{ paddingLeft: `calc(1rem * var(--row-size-multiplier))`, paddingRight: `calc(0.5rem * var(--row-size-multiplier))` }"
+              >
                 {{ t('fileManager.headers.type') }}
-                <span v-if="sortKey === 'type'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                <span class="resizer" @mousedown.prevent="startResize($event, 0)" @click.stop></span>
+                <span v-if="sortKey === 'type'" class="ml-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span class="absolute top-0 right-[-3px] w-1.5 h-full cursor-col-resize z-20 hover:bg-primary/20" @mousedown.prevent="startResize($event, 0)" @click.stop></span>
               </th>
-              <th @click="handleSort('filename')" class="sortable">
+              <th
+                @click="handleSort('filename')"
+                class="relative px-2 py-1 border-b-2 border-border text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer select-none hover:bg-black/5"
+                :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))` }"
+              >
                 {{ t('fileManager.headers.name') }}
-                <span v-if="sortKey === 'filename'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                <span class="resizer" @mousedown.prevent="startResize($event, 1)" @click.stop></span>
+                <span v-if="sortKey === 'filename'" class="ml-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span class="absolute top-0 right-[-3px] w-1.5 h-full cursor-col-resize z-20 hover:bg-primary/20" @mousedown.prevent="startResize($event, 1)" @click.stop></span>
               </th>
-              <th @click="handleSort('size')" class="sortable">
+              <th
+                @click="handleSort('size')"
+                class="relative px-2 py-1 border-b-2 border-border text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer select-none hover:bg-black/5"
+                :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))` }"
+              >
                 {{ t('fileManager.headers.size') }}
-                <span v-if="sortKey === 'size'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
-                <span class="resizer" @mousedown.prevent="startResize($event, 2)" @click.stop></span>
+                <span v-if="sortKey === 'size'" class="ml-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span class="absolute top-0 right-[-3px] w-1.5 h-full cursor-col-resize z-20 hover:bg-primary/20" @mousedown.prevent="startResize($event, 2)" @click.stop></span>
               </th>
-              <th>
+              <th
+                class="relative px-2 py-1 border-b-2 border-border text-left text-xs font-medium text-text-secondary uppercase tracking-wider select-none"
+                :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))` }"
+              >
                 {{ t('fileManager.headers.permissions') }}
-                <span class="resizer" @mousedown.prevent="startResize($event, 3)" @click.stop></span>
+                <span class="absolute top-0 right-[-3px] w-1.5 h-full cursor-col-resize z-20 hover:bg-primary/20" @mousedown.prevent="startResize($event, 3)" @click.stop></span>
               </th>
-              <th @click="handleSort('mtime')" class="sortable">
+              <th
+                @click="handleSort('mtime')"
+                class="relative px-2 py-1 border-b-2 border-border text-left text-xs font-medium text-text-secondary uppercase tracking-wider cursor-pointer select-none hover:bg-black/5"
+                :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))` }"
+              >
                 {{ t('fileManager.headers.modified') }}
-                <span v-if="sortKey === 'mtime'">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <span v-if="sortKey === 'mtime'" class="ml-1">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+                <!-- No resizer on the last column -->
               </th>
             </tr>
           </thead>
 
           <!-- Loading State -->
-          <!-- 修改：简化 v-if 条件 -->
           <tbody v-if="!currentSftpManager || currentSftpManager.isLoading.value">
               <tr>
-                  <td :colspan="5" class="loading">{{ t('fileManager.loading') }}</td>
+                  <td :colspan="5" class="px-4 py-6 text-center text-text-secondary italic">
+                    {{ t('fileManager.loading') }}
+                  </td>
               </tr>
           </tbody>
 
-          <!-- Empty Directory State (Root Only) -->
-          <!-- 修改：使用 currentSftpManager.value -->
-          <tbody v-else-if="sortedFileList.length === 0 && currentSftpManager?.currentPath.value === '/'">
+          <!-- Empty Directory State -->
+          <tbody v-else-if="filteredFileList.length === 0">
                <tr>
-                   <td :colspan="5" class="no-files">{{ t('fileManager.emptyDirectory') }}</td>
+                   <td :colspan="5" class="px-4 py-6 text-center text-text-secondary italic">
+                     {{ searchQuery ? t('fileManager.noSearchResults') : t('fileManager.emptyDirectory') }}
+                   </td>
                </tr>
           </tbody>
 
           <!-- File List State -->
           <tbody v-else @contextmenu.prevent="showContextMenu($event)">
-            <!-- '..' 条目 -->
-            <!-- 修改：使用 currentSftpManager.value -->
+            <!-- '..' Entry -->
             <tr v-if="currentSftpManager?.currentPath.value !== '/'"
-                class="clickable file-row folder-row"
+                class="transition-colors duration-150 cursor-pointer select-none"
                 :class="{
-                    selected: selectedIndex === 0,
-                    'drop-target': dragOverTarget === '..'
+                    'bg-primary/10': selectedIndex === 0,
+                    'outline-dashed outline-2 outline-offset-[-1px] outline-primary': dragOverTarget === '..',
+                    'hover:bg-header/50': dragOverTarget !== '..'
                 }"
                 @click="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
                 @contextmenu.prevent.stop="showContextMenu($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
@@ -972,36 +1044,38 @@ defineExpose({ focusSearchInput });
                 @drop.prevent="handleDropOnRow({ filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } }, $event)"
                 :data-filename="'..'"
                 >
-              <td><i class="fas fa-level-up-alt file-icon"></i></td>
-              <td>..</td>
-              <td></td><td></td><td></td>
+              <td class="text-center border-b border-border align-middle" :style="{ paddingLeft: `calc(1rem * var(--row-size-multiplier))`, paddingRight: `calc(0.5rem * var(--row-size-multiplier))` }">
+                <i class="fas fa-level-up-alt text-primary" :style="{ fontSize: `calc(1.1em * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }"></i>
+              </td>
+              <td class="border-b border-border align-middle" :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`, fontSize: `calc(0.8rem * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }">..</td>
+              <td class="border-b border-border align-middle"></td>
+              <td class="border-b border-border align-middle"></td>
+              <td class="border-b border-border align-middle"></td>
             </tr>
             <!-- File Entries -->
-            <!-- 修改 v-for 以使用 filteredFileList -->
             <tr v-for="(item, index) in filteredFileList"
                 :key="item.filename"
                 :draggable="item.filename !== '..'" @dragstart="handleDragStart(item)" @dragend="handleDragEnd"
                 @click="handleItemClick($event, item)"
+                class="transition-colors duration-150 select-none"
                 :class="[
-                    'file-row',
-                    { clickable: item.attrs.isDirectory || item.attrs.isFile },
-                    /* 修改：使用 currentSftpManager.value */
-                    { selected: selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex) },
-                    { 'folder-row': item.attrs.isDirectory },
-                    { 'drop-target': item.attrs.isDirectory && dragOverTarget === item.filename }
+                    { 'cursor-pointer': item.attrs.isDirectory || item.attrs.isFile },
+                    { 'bg-primary text-white': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex) },
+                    { 'hover:bg-header/50': !(selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex)) },
+                    { 'outline-dashed outline-2 outline-offset-[-1px] outline-primary': item.attrs.isDirectory && dragOverTarget === item.filename }
                 ]"
                :data-filename="item.filename"
                @contextmenu.prevent.stop="showContextMenu($event, item)"
-               @dragover.prevent="handleDragOverRow(item, $event)" 
+               @dragover.prevent="handleDragOverRow(item, $event)"
                @dragleave="handleDragLeaveRow(item)"
-                @drop.prevent="handleDropOnRow(item, $event)"> <!-- 使用 Composable 的 handleDropOnRow -->
-              <td>
-                <i :class="['file-icon', item.attrs.isDirectory ? 'fas fa-folder' : (item.attrs.isSymbolicLink ? 'fas fa-link' : 'far fa-file')]"></i>
+               @drop.prevent="handleDropOnRow(item, $event)">
+              <td class="text-center border-b border-border align-middle" :class="{'border-b-transparent': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex)}" :style="{ paddingLeft: `calc(1rem * var(--row-size-multiplier))`, paddingRight: `calc(0.5rem * var(--row-size-multiplier))` }">
+                <i :class="['transition-colors duration-150', item.attrs.isDirectory ? 'fas fa-folder text-primary' : (item.attrs.isSymbolicLink ? 'fas fa-link text-cyan-500' : 'far fa-file text-text-secondary'), {'text-white': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex)}]" :style="{ fontSize: `calc(1.1em * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }"></i>
               </td>
-              <td>{{ item.filename }}</td>
-              <td>{{ item.attrs.isFile ? formatSize(item.attrs.size) : '' }}</td>
-              <td>{{ formatMode(item.attrs.mode) }}</td>
-              <td>{{ new Date(item.attrs.mtime).toLocaleString() }}</td>
+              <td class="border-b border-border truncate align-middle" :class="{'border-b-transparent': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex), 'font-medium': item.attrs.isDirectory}" :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`, fontSize: `calc(0.8rem * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }">{{ item.filename }}</td>
+              <td class="border-b border-border text-text-secondary truncate align-middle" :class="{'border-b-transparent': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex)}" :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`, fontSize: `calc(0.72rem * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }">{{ item.attrs.isFile ? formatSize(item.attrs.size) : '' }}</td>
+              <td class="border-b border-border text-text-secondary truncate font-mono align-middle" :class="{'border-b-transparent': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex)}" :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`, fontSize: `calc(0.72rem * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }">{{ formatMode(item.attrs.mode) }}</td>
+              <td class="border-b border-border text-text-secondary truncate align-middle" :class="{'border-b-transparent': selectedItems.has(item.filename) || (index + (currentSftpManager?.currentPath.value !== '/' ? 1 : 0) === selectedIndex)}" :style="{ padding: `calc(0.4rem * var(--row-size-multiplier)) calc(0.8rem * var(--row-size-multiplier))`, fontSize: `calc(0.72rem * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5))` }">{{ new Date(item.attrs.mtime).toLocaleString() }}</td>
             </tr>
           </tbody>
         </table>
@@ -1024,456 +1098,7 @@ defineExpose({ focusSearchInput });
 </template>
 
 <style scoped>
-/* Enhanced Styles */
-.file-manager { height: 100%; display: flex; flex-direction: column; font-family: var(--font-family-sans-serif); font-size: 0.9rem; overflow: hidden; background-color: var(--app-bg-color); color: var(--text-color); }
-
-/* Toolbar美化 */
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: calc(var(--base-padding, 1rem) * 0.5) var(--base-padding, 1rem); /* 调整内边距 */
-  background-color: var(--header-bg-color);
-  border-bottom: 1px solid var(--border-color);
-  flex-wrap: wrap; /* 允许换行 */
-  align-content: flex-start; /* 让换行后的行靠上（或靠左，取决于flex-direction）对齐 */
-  gap: var(--base-margin, 0.5rem); /* 添加元素间距 */
-}
-
-/* Path Bar美化 */
-.path-bar {
-  display: flex; /* 使用flex布局 */
-  align-items: center; /* 垂直居中 */
-  background-color: var(--app-bg-color); /* 使用主背景色 */
-  border: 1px solid var(--border-color); /* 添加边框 */
-  border-radius: 4px; /* 圆角 */
-  padding: 0.2rem 0.4rem; /* 内边距 */
-  /* flex-grow: 1; /* 不再占据可用空间 */
-  overflow: hidden; /* 防止内部溢出 */
-  min-width: 100px; /* 最小宽度 */
-}
-.path-bar span { /* 路径文本容器 */
-    white-space: nowrap;
-    overflow-x: auto; /* 允许路径横向滚动 */
-    padding-right: 0.5rem; /* 给滚动条留空间 */
-    color: var(--text-color-secondary); /* 次要文本颜色 */
-}
-.path-bar strong.editable-path {
-    font-weight: 500; /* 稍加粗 */
-    color: var(--link-color); /* 使用链接颜色 */
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    margin-left: 0.3rem;
-    cursor: text;
-    transition: background-color 0.2s ease;
-}
-.path-bar strong.editable-path:hover {
-    background-color: rgba(0, 0, 0, 0.05); /* 悬停背景 */
-}
-.path-bar strong.editable-path.disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-.path-input {
-    font-family: inherit;
-    font-size: inherit;
-    border: none; /* 移除边框，依赖外部容器 */
-    background-color: transparent; /* 透明背景 */
-    color: var(--text-color);
-    padding: 0.1rem 0.4rem;
-    flex-grow: 1; /* 占据空间 */
-    outline: none; /* 移除默认outline */
-    min-width: 100px; /* 最小宽度 */
-}
-/* 移出 path-bar 的按钮样式 (可以根据需要调整或合并到 .actions-bar button) */
-.toolbar-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1.1em;
-    padding: 0.2rem 0.4rem; /* 调整内边距 */
-    vertical-align: middle;
-    color: var(--text-color-secondary); /* 次要颜色 */
-    border-radius: 3px;
-    transition: background-color 0.2s ease, color 0.2s ease;
-    margin-left: 0; /* 移除与 path-bar 或其他元素保持间距 */
-}
-.toolbar-button:hover:not(:disabled) {
-    background-color: rgba(0, 0, 0, 0.08); /* 悬停背景 */
-    color: var(--text-color); /* 悬停时主颜色 */
-}
-.toolbar-button:disabled { opacity: 0.5; cursor: not-allowed; }
-.toolbar-button i {
-    color: var(--button-bg-color); /* 默认状态图标颜色改为按钮背景色 */
-    transition: color 0.2s ease;
-}
-.toolbar-button:hover:not(:disabled) i {
-    color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
-}
-
-/* 新增 path-actions 容器样式 */
-.path-actions {
-  display: flex;
-  align-items: center;
-  /* gap: 0.1rem; */ /* 可以根据需要添加微小的间距，但之前已将按钮 margin 设为 0 */
-  flex-shrink: 0; /* 防止被压缩 */
-  margin-right: auto; /* 将剩余空间推到右侧，实现左对齐 */
-}
-
-
-/* Actions Bar美化 */
-.actions-bar {
-    display: flex;
-    align-items: center;
-    gap: var(--base-margin, 0.5rem); /* 按钮间距 */
-    flex-shrink: 0; /* 防止被压缩 */
-}
-.actions-bar button {
-    padding: 0.4rem 0.9rem; /* 调整按钮内边距 */
-    cursor: pointer;
-    border: 1px solid var(--border-color); /* 添加边框 */
-    border-radius: 4px;
-    background-color: var(--app-bg-color); /* 按钮背景 */
-    color: var(--text-color); /* 按钮文字颜色 */
-    font-size: 0.9em;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-    display: flex; /* 用于图标和文字对齐 */
-    align-items: center;
-    gap: 0.3rem; /* 图标和文字间距 */
-}
-.actions-bar button:hover:not(:disabled) {
-    background-color: var(--header-bg-color); /* 悬停背景 */
-    border-color: var(--button-bg-color); /* 悬停时边框变色 */
-    color: var(--button-bg-color); /* 悬停时文字变色 */
-}
-.actions-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
-/* 明确设置图标颜色 */
-.actions-bar button i {
-    font-size: 1em;
-    color: var(--button-bg-color); /* 默认状态图标颜色改为按钮背景色 */
-    transition: color 0.2s ease;
-}
-.actions-bar button:hover:not(:disabled) i {
-    /* 悬停时可以保持按钮背景色，或者根据需要调整 */
-    color: var(--button-hover-bg-color, var(--button-bg-color)); /* 悬停时使用按钮悬停色 */
-}
-/* .path-bar button i 的样式不再需要，因为按钮已移出 */
-/*
-.path-bar button i {
-    color: var(--button-bg-color);
-    transition: color 0.2s ease;
-}
-.path-bar button:hover:not(:disabled) i {
-    color: var(--button-hover-bg-color, var(--button-bg-color));
-}
-*/
-
-/* 新增搜索容器样式 */
-.search-container {
-   display: flex;
-   align-items: center;
-   /* margin-left: auto; /* 移除，让其自然流动 */
-   margin-right: 0; /* 移除与操作按钮保持间距 */
-}
-
-/* 搜索激活按钮样式 (复用 toolbar-button) */
-.search-activate-button {
-   /* 继承 .toolbar-button 样式 */
-}
-
-/* 修改后的搜索框样式 */
-.search-bar.active { /* 添加 .active 类 */
-   min-width: 150px; /* 激活时给一个最小宽度 */
-    display: flex;
-    align-items: center;
-    position: relative; /* 为了定位图标 */
-    /* margin-left: auto; /* 移除这个规则，防止换行后不靠左 */
-    margin-right: var(--base-margin, 0.5rem); /* 与操作按钮保持间距 */
-    flex-shrink: 1; /* 允许收缩 */
-    display: flex; /* 保持内部 flex 布局 */
-    align-items: center; /* 保持内部垂直居中 */
-    position: relative; /* 保持图标定位 */
-}
-.search-input {
-    /* 保持原有样式，但可能需要调整宽度或 flex 属性 */
-    flex-grow: 1; /* 让输入框填充 .search-bar.active */
-    padding: 0.4rem 0.8rem 0.4rem 2rem; /* 左侧留出图标空间 */
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    background-color: var(--app-bg-color);
-    color: var(--text-color);
-    font-size: 0.9em;
-    min-width: 10px; /* 最小宽度 */
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.search-input:focus {
-    outline: none;
-    border-color: var(--button-bg-color);
-    box-shadow: 0 0 0 2px rgba(var(--button-rgb), 0.2); /* 模拟焦点环 */
-}
-.search-icon {
-    position: absolute;
-    left: 0.8rem; /* 定位在输入框内左侧 */
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-color-secondary);
-    pointer-events: none; /* 防止图标干扰点击 */
-}
-
-
-.upload-popup { position: fixed; bottom: var(--base-padding); right: var(--base-padding); background-color: var(--app-bg-color); border: 1px solid var(--border-color); border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); padding: 0.8rem; max-width: 300px; max-height: 200px; overflow-y: auto; z-index: 1001; color: var(--text-color); }
-.upload-popup h4 { margin: 0 0 var(--base-margin) 0; font-size: 0.9em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3rem; }
-.upload-popup ul { list-style: none; padding: 0; margin: 0; }
-.upload-popup li { margin-bottom: var(--base-margin); font-size: 0.85em; display: flex; align-items: center; flex-wrap: wrap; } /* Use theme variable */
-.upload-popup progress { margin: 0 0.5rem; width: 80px; height: 0.8em; }
-.upload-popup .error { color: red; margin-left: 0.5rem; flex-basis: 100%; font-size: 0.8em; } /* Keep error color */
-.upload-popup .cancel-btn { margin-left: auto; padding: 0.1rem 0.4rem; font-size: 0.8em; background-color: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; cursor: pointer; } /* Keep specific cancel button style */
-.loading, .no-files { padding: var(--base-padding); text-align: center; color: var(--text-color-secondary); } /* Use theme variable */
-/* 移除 .error-alert 和 .close-error-btn 样式 */
-/* .error-alert { ... } */
-/* .close-error-btn { ... } */
-.file-list-container {
-    flex-grow: 1;
-    overflow-y: auto;
-    position: relative; /* Needed for overlay */
-    /* 定义基础变量 */
-    --base-font-size: 0.8rem; /* --- 减小基础字体大小 --- */
-    --base-padding-vertical: 0.4rem; /* 减小基础垂直 padding */
-    --base-padding-horizontal: 0.8rem;
-    --base-icon-size: 1.1em; /* 相对于 base-font-size */
-}
-.file-list-container.drag-over {
-  outline: 2px dashed #007bff; /* Blue dashed outline */
-  outline-offset: -2px; /* Offset inside */
-  background-color: rgba(0, 123, 255, 0.05); /* Light blue background tint */
-}
-.file-list-container.drag-over::before { /* Optional: Add text overlay */
-    content: 'Drop files here to upload';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(0, 0, 0, 0.6);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 5px;
-    font-size: 1.1em;
-    pointer-events: none; /* Allow drop event to pass through */
-    z-index: 2; /* Above table */
-}
-table.resizable-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  overflow: hidden;
-  border-spacing: 0; /* Remove default spacing */
-  border: 1px solid var(--border-color); /* Add border to table */
-  border-radius: 5px; /* Add subtle rounding */
-}
-thead {
-  background-color: var(--header-bg-color);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-th, td {
-    /* border: 1px solid var(--border-color); */ /* Remove individual cell borders */
-    border-bottom: 1px solid var(--border-color); /* Use bottom border for separation */
-    padding: calc(var(--base-padding-vertical) * var(--row-size-multiplier)) calc(var(--base-padding-horizontal) * var(--row-size-multiplier)); /* 使用变量调整 padding */
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    vertical-align: middle; /* Align content vertically */
-    /* 调整字体大小缩放，使其变化不那么剧烈，并设置下限 (例如 0.85 * base) */
-    font-size: calc(var(--base-font-size) * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5)); /* 示例：缩放幅度减半，最低 85% */
-    padding: calc(var(--base-padding-vertical) * var(--row-size-multiplier)) calc(var(--base-padding-horizontal) * var(--row-size-multiplier)); /* padding 正常缩放 */
-    /* 移除过渡效果以优化性能 */
-    /* transition: font-size 0.1s ease, padding 0.1s ease; */
-}
-th {
-    padding-top: 0.2rem; /* --- 减小表头顶部内边距 --- */
-    padding-bottom: 0.2rem; /* --- 减小表头底部内边距 --- */
-    position: relative;
-    font-weight: 500; /* Slightly lighter header weight */
-    color: var(--text-color-secondary); /* Use secondary color for header text */
-    text-transform: uppercase; /* Uppercase headers */
-    /* font-size 继承自 th, td */
-    border-bottom-width: 2px; /* Thicker bottom border for header */
-}
-th.sortable { cursor: pointer; }
-th.sortable:hover { background-color: var(--header-bg-color); filter: brightness(0.95); }
-td:first-child {
-  text-align: center;
-  /* font-size 继承自 th, td */
-  padding-left: calc(1rem * var(--row-size-multiplier)); /* 使用变量调整 padding */
-  padding-right: calc(0.5rem * var(--row-size-multiplier)); /* 使用变量调整 padding */
-}
-td:first-child .file-icon { /* 文件类型图标颜色 */
-    /* 图标大小与字体大小保持类似缩放逻辑 */
-    font-size: calc(var(--base-icon-size) * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5));
-    color: var(--button-bg-color); /* 默认使用按钮背景色 */
-    /* 移除字体大小过渡 */
-    transition: color 0.15s ease; /* 只保留颜色过渡 */
-}
-tbody tr.selected td:first-child .file-icon { /* 选中行图标颜色 */
-    color: var(--button-text-color); /* 选中时使用按钮文字颜色 */
-}
-
-tbody tr {
-    transition: background-color 0.15s ease; /* Smooth hover transition */
-}
-tbody tr:last-child td {
-    border-bottom: none; /* Remove border from last row */
-}
-tbody tr:hover {
-    background-color: var(--header-bg-color); /* Subtle hover */
-    filter: brightness(0.98);
-}
-tbody tr.clickable { cursor: pointer; user-select: none; }
-/* 应用内拖拽目标高亮 */
-tbody tr.folder-row.drop-target {
-   background-color: var(--button-hover-bg-color); /* 使用悬停背景色或更明显的颜色 */
-   outline: 2px dashed var(--button-bg-color);
-   outline-offset: -2px;
-}
-tbody tr.selected {
-    background-color: var(--button-bg-color);
-    color: var(--button-text-color);
-}
-tbody tr.selected td {
-    border-bottom-color: transparent; /* Hide border when selected */
-}
-tbody tr.selected:hover {
-    background-color: var(--button-hover-bg-color);
-    color: var(--button-text-color);
-}
-/* Style specific columns if needed */
-td:nth-child(2) { /* Name column */
-    font-weight: 500; /* Slightly bolder name */
-}
-td:nth-child(3), /* Size */
-td:nth-child(4), /* Permissions */
-td:nth-child(5) { /* Modified */
-    color: var(--text-color-secondary); /* Dim metadata */
-    /* 元数据字体大小也应用类似缩放逻辑 */
-    font-size: calc(var(--base-font-size) * 0.9 * max(0.85, var(--row-size-multiplier) * 0.5 + 0.5));
-}
-
-/* 移除旧的上下文菜单样式 */
-/* .context-menu { ... } */
-/* .context-menu ul { ... } */
-/* .context-menu li { ... } */
-/* .context-menu li:hover { ... } */
-/* .context-menu li.disabled { ... } */
-
-/* Resizer Handle Styles */
-.resizer {
-  position: absolute;
-  top: 0;
-  right: -3px; /* Position slightly outside the cell border */
-  width: 6px; /* Hit area width */
-  height: 100%;
-  cursor: col-resize;
-  z-index: 2; /* Above cell content */
-  /* background-color: rgba(0, 0, 255, 0.1); */ /* Optional: Make handle visible for debugging */
-}
-.resizer:hover {
-    background-color: rgba(0, 100, 255, 0.2); /* Visual feedback on hover */
-}
-
-
-/* Editor Styles */
-.editor-overlay {
-  position: absolute; /* Position over the file list */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(40, 40, 40, 0.95); /* Keep dark background for overlay */
-  z-index: 1000; /* Ensure it's above the file list but below popups */
-  display: flex;
-  flex-direction: column;
-  color: #f0f0f0; /* Keep light text for dark overlay */
-}
-
-.editor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--base-margin) var(--base-padding); /* Use theme variables */
-  background-color: #333; /* Keep dark header for overlay */
-  border-bottom: 1px solid #555; /* Keep dark border for overlay */
-  font-size: 0.9em;
-}
-
-.close-editor-btn {
-  background: none;
-  border: none;
-  color: #ccc; /* Keep light color for dark header */
-  font-size: 1.2em;
-  cursor: pointer;
-  padding: 0.2rem 0.5rem;
-}
-.close-editor-btn:hover {
-  color: white; /* Keep light hover color */
-}
-
-.editor-loading, .editor-error {
-  padding: calc(var(--base-padding) * 2); /* Use theme variable */
-  text-align: center;
-  font-size: 1.1em;
-}
-.editor-error {
-    color: #ff8a8a; /* Keep specific error color */
-}
-
-.editor-actions {
-    display: flex;
-    align-items: center;
-}
-
-.save-btn {
-    background-color: var(--button-bg-color); /* Use theme variable */
-    color: var(--button-text-color); /* Use theme variable */
-    border: none;
-    padding: 0.4rem 0.8rem;
-    margin-left: var(--base-padding); /* Use theme variable */
-    cursor: pointer;
-    border-radius: 3px;
-    font-size: 0.9em;
-}
-.save-btn:disabled {
-    background-color: #aaa;
-    cursor: not-allowed;
-}
-.save-btn:hover:not(:disabled) {
-    background-color: var(--button-hover-bg-color); /* Use theme variable */
-}
-
-.save-status {
-    margin-left: var(--base-padding); /* Use theme variable */
-    font-size: 0.9em;
-    padding: 0.2rem 0.5rem;
-    border-radius: 3px;
-}
-.save-status.saving {
-    color: var(--text-color-secondary); /* Use theme variable */
-}
-.save-status.success {
-    color: #4CAF50; /* Keep specific success color */
-    background-color: #e8f5e9; /* Keep specific success background */
-}
-.save-status.error {
-    color: #f44336; /* Keep specific error color */
-    background-color: #ffebee; /* Keep specific error background */
-}
-
-.editor-instance {
-  flex-grow: 1; /* Make editor take remaining space */
-  min-height: 0; /* Important for flex-grow in flex column */
-}
-
+/* Scoped styles removed for Tailwind CSS refactoring */
 </style>
 
 
