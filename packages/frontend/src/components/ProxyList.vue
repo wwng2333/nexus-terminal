@@ -33,7 +33,7 @@ const formatTimestamp = (timestamp: number | null): string => {
     <div v-if="isLoading" class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50"> <!-- Loading state with Tailwind -->
       {{ t('proxies.loading') }}
     </div>
-    <div v-else-if="error" class="p-4 border border-red-300 bg-red-100 text-red-700 rounded-md mb-4"> <!-- Error state with Tailwind -->
+    <div v-else-if="error" class="p-4 border border-error/30 bg-error/10 text-error rounded-md mb-4"> <!-- Use semantic error colors -->
       {{ t('proxies.error', { error: error }) }}
     </div>
     <div v-else-if="proxies.length === 0" class="p-4 border border-border rounded-md mb-4 text-text-secondary"> <!-- No proxies state with Tailwind -->
@@ -63,7 +63,7 @@ const formatTimestamp = (timestamp: number | null): string => {
             <button @click="emit('edit-proxy', proxy)" class="text-link hover:text-link-hover hover:underline text-xs font-medium"> <!-- Edit button with link style -->
               {{ t('proxies.actions.edit') }}
             </button>
-            <button @click="handleDelete(proxy)" class="text-red-600 hover:text-red-800 hover:underline text-xs font-medium"> <!-- Delete button with danger style -->
+            <button @click="handleDelete(proxy)" class="text-error hover:text-error/80 hover:underline text-xs font-medium"> <!-- Use semantic error color for delete -->
               {{ t('proxies.actions.delete') }}
             </button>
           </td>

@@ -163,7 +163,7 @@ const handleSubmit = async () => {
             <small v-if="isEditMode" class="block mt-1 text-xs text-text-secondary">{{ t('proxies.form.passwordUpdateNote') }}</small>
          </div>
 
-         <div v-if="formError || combinedStoreError" class="text-red-600 bg-red-100 border border-red-300 rounded-md p-3 text-sm text-center font-medium"> <!-- Error Message with Tailwind -->
+         <div v-if="formError || combinedStoreError" class="text-error bg-error/10 border border-error/30 rounded-md p-3 text-sm text-center font-medium"> <!-- Use semantic error colors -->
            {{ formError || combinedStoreError }}
          </div>
 
