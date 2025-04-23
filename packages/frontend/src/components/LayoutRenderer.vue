@@ -433,73 +433,69 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="layout-renderer-wrapper">
-    <!-- Left Sidebar Buttons (Only render if root) -->
-    <div class="sidebar-buttons left-sidebar-buttons" v-if="isRootRenderer && sidebarPanes.left.length > 0">
+  <div class="relative flex h-full w-full overflow-hidden">
+    <!-- Left Sidebar Buttons -->
+    <div class="flex flex-col bg-sidebar py-1 z-10 flex-shrink-0 border-r border-border" v-if="isRootRenderer && sidebarPanes.left.length > 0">
         <button
             v-for="pane in sidebarPanes.left"
             :key="`left-${pane}`"
             @click="toggleSidebarPane('left', pane)"
-            :class="{ active: activeLeftSidebarPane === pane }"
+            :class="['flex items-center justify-center w-10 h-10 mb-1 text-text-secondary hover:bg-hover hover:text-foreground transition-colors duration-150 cursor-pointer text-lg',
+                     { 'bg-primary text-white hover:bg-primary-dark': activeLeftSidebarPane === pane }]"
             :title="paneLabels[pane] || pane"
         >
-            <!-- Use helper function for icons -->
             <i :class="getIconClasses(pane)"></i>
         </button>
     </div>
 
     <!-- Main Layout Area -->
-    <div class="main-layout-area" @click="handleMainAreaClick"> <!-- --- 移除 .self 修饰符 --- -->
-        <div class="layout-renderer" :data-node-id="layoutNode.id">
-            <!-- 如果是容器节点 -->
+    <div class="relative flex-grow h-full overflow-hidden" @click="handleMainAreaClick">
+        <div class="flex flex-col h-full w-full overflow-hidden" :data-node-id="layoutNode.id">
+            <!-- Container Node -->
             <template v-if="layoutNode.type === 'container' && layoutNode.children && layoutNode.children.length > 0">
-            <splitpanes
-                :horizontal="layoutNode.direction === 'vertical'"
-                class="default-theme"
-                style="height: 100%; width: 100%;"
-                @resized="handlePaneResize"
-            >
-                <pane
-                v-for="childNode in layoutNode.children"
-                :key="childNode.id"
-                :size="childNode.size ?? (100 / layoutNode.children.length)"
-                :min-size="5"
-                class="layout-pane-wrapper"
-                >
-                <!-- 递归调用自身来渲染子节点，并转发所有必要的事件 -->
-                <LayoutRenderer
-                    :layout-node="childNode"
-                    :is-root-renderer="false"
-                    :active-session-id="activeSessionId"
-                    :editor-tabs="editorTabs"
-                    :active-editor-tab-id="activeEditorTabId"
-                    @send-command="emit('sendCommand', $event)"
-                    @terminal-input="emit('terminalInput', $event)"
-                    @terminal-resize="emit('terminalResize', $event)"
-                    @terminal-ready="emit('terminal-ready', $event)"
-                    @close-editor-tab="emit('closeEditorTab', $event)"
-                    @activate-editor-tab="emit('activateEditorTab', $event)"
-                    @update-editor-content="emit('updateEditorContent', $event)"
-                    @save-editor-tab="emit('saveEditorTab', $event)"
-                    @connect-request="emit('connect-request', $event)"
-                    @open-new-session="emit('open-new-session', $event)"
-                    @request-add-connection="() => { // 添加日志
-                        console.log(`[LayoutRenderer ${props.layoutNode.id}] Received recursive 'request-add-connection', emitting upwards.`);
-                        emit('request-add-connection');
-                    }"
-                    @request-edit-connection="emit('request-edit-connection', $event)"
-                    @search="emit('search', $event)"
-                    @find-next="emit('find-next')"
-                    @find-previous="emit('find-previous')"
-                    @close-search="emit('close-search')"
-                />
-                </pane>
-            </splitpanes>
+              <splitpanes
+                  :horizontal="layoutNode.direction === 'vertical'"
+                  class="default-theme flex-grow"
+                  @resized="handlePaneResize"
+              >
+                  <pane
+                    v-for="childNode in layoutNode.children"
+                    :key="childNode.id"
+                    :size="childNode.size ?? (100 / layoutNode.children.length)"
+                    :min-size="5"
+                    class="flex flex-col overflow-hidden bg-background"
+                  >
+                    <LayoutRenderer
+                        :layout-node="childNode"
+                        :is-root-renderer="false"
+                        :active-session-id="activeSessionId"
+                        :editor-tabs="editorTabs"
+                        :active-editor-tab-id="activeEditorTabId"
+                        @send-command="emit('sendCommand', $event)"
+                        @terminal-input="emit('terminalInput', $event)"
+                        @terminal-resize="emit('terminalResize', $event)"
+                        @terminal-ready="emit('terminal-ready', $event)"
+                        @close-editor-tab="emit('closeEditorTab', $event)"
+                        @activate-editor-tab="emit('activateEditorTab', $event)"
+                        @update-editor-content="emit('updateEditorContent', $event)"
+                        @save-editor-tab="emit('saveEditorTab', $event)"
+                        @connect-request="emit('connect-request', $event)"
+                        @open-new-session="emit('open-new-session', $event)"
+                        @request-add-connection="() => emit('request-add-connection')"
+                        @request-edit-connection="emit('request-edit-connection', $event)"
+                        @search="emit('search', $event)"
+                        @find-next="emit('find-next')"
+                        @find-previous="emit('find-previous')"
+                        @close-search="emit('close-search')"
+                        class="flex-grow overflow-auto"
+                    />
+                  </pane>
+              </splitpanes>
             </template>
 
-            <!-- 如果是面板节点 -->
+            <!-- Pane Node -->
             <template v-else-if="layoutNode.type === 'pane'">
-                <!-- Terminal 需要 keep-alive 处理 -->
+                <!-- Terminal -->
                 <template v-if="layoutNode.component === 'terminal'">
                     <keep-alive>
                         <component
@@ -507,181 +503,177 @@ onMounted(() => {
                           :is="currentMainComponent"
                           :key="activeSessionId"
                           v-bind="componentProps"
+                          class="flex-grow overflow-auto"
                         />
                     </keep-alive>
-                    <div v-if="!activeSession" class="pane-placeholder empty-session">
-                      <div class="empty-session-content">
-                        <i class="fas fa-plug"></i>
-                        <span>无活动会话</span>
-                        <div class="empty-session-tip">请先连接一个会话</div>
+                    <div v-if="!activeSession" class="flex-grow flex justify-center items-center text-center text-text-secondary bg-header text-sm p-4">
+                      <div class="flex flex-col items-center justify-center p-8 w-full h-full">
+                        <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                        <span class="text-lg font-medium text-text-secondary mb-2">无活动会话</span>
+                        <div class="text-xs text-text-secondary mt-2">请先连接一个会话</div>
                       </div>
                     </div>
                 </template>
-                <!-- FileManager 需要 keep-alive 处理 -->
+                <!-- FileManager -->
                 <template v-else-if="layoutNode.component === 'fileManager'">
-                    <!-- <keep-alive> Temporarily removed for debugging InvalidCharacterError -->
-                        <template v-if="activeSession">
-                            <component
-                              :is="currentMainComponent"
-                              :key="layoutNode.id"
-                              v-bind="componentProps">
-                            </component>
-                        </template>
-                    <!-- </keep-alive> -->
-                    <div v-if="!activeSession" class="pane-placeholder empty-session">
-                      <div class="empty-session-content">
-                        <i class="fas fa-plug"></i>
-                        <span>无活动会话</span>
-                        <div class="empty-session-tip">请先连接一个会话</div>
+                    <template v-if="activeSession">
+                        <component
+                          :is="currentMainComponent"
+                          :key="layoutNode.id"
+                          v-bind="componentProps"
+                          class="flex-grow overflow-auto">
+                        </component>
+                    </template>
+                    <div v-if="!activeSession" class="flex-grow flex justify-center items-center text-center text-text-secondary bg-header text-sm p-4">
+                      <div class="flex flex-col items-center justify-center p-8 w-full h-full">
+                        <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                        <span class="text-lg font-medium text-text-secondary mb-2">无活动会话</span>
+                        <div class="text-xs text-text-secondary mt-2">请先连接一个会话</div>
                       </div>
                     </div>
                 </template>
-                <!-- StatusMonitor 仅在有活动会话时渲染，并添加 key (无 keep-alive) -->
+                <!-- StatusMonitor -->
                 <template v-else-if="layoutNode.component === 'statusMonitor'">
                      <component
                        v-if="activeSession"
                        :is="currentMainComponent"
                        :key="activeSessionId"
                        v-bind="componentProps"
+                       class="flex-grow overflow-auto"
                      />
-                     <div v-else class="pane-placeholder empty-session">
-                      <div class="empty-session-content">
-                        <i class="fas fa-plug"></i>
-                        <span>无活动会话</span>
-                        <div class="empty-session-tip">请先连接一个会话</div>
+                     <div v-else class="flex-grow flex justify-center items-center text-center text-text-secondary bg-header text-sm p-4">
+                      <div class="flex flex-col items-center justify-center p-8 w-full h-full">
+                        <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                        <span class="text-lg font-medium text-text-secondary mb-2">无活动会话</span>
+                        <div class="text-xs text-text-secondary mt-2">请先连接一个会话</div>
                       </div>
                     </div>
                 </template>
-                <!-- 其他面板正常渲染 (不依赖 activeSession 的) -->
+                <!-- Other Panes -->
                 <template v-else-if="currentMainComponent">
-                    <!-- 特别处理 connections 组件以添加事件监听器 -->
                     <component
                       v-if="layoutNode.component === 'connections'"
                       :is="currentMainComponent"
                       v-bind="componentProps"
-                      @request-add-connection="() => {
-                          console.log(`[LayoutRenderer ${props.layoutNode.id}] Template received 'request-add-connection', emitting upwards.`);
-                          emit('request-add-connection');
-                      }"
+                      @request-add-connection="() => emit('request-add-connection')"
+                      class="flex-grow overflow-auto"
                     />
-                    <!-- 渲染 CommandInputBar -->
                     <component
                       v-else-if="layoutNode.component === 'commandBar'"
                       :is="currentMainComponent"
                       v-bind="componentProps"
+                      class="flex-grow overflow-auto"
                     />
-                    <!-- 渲染其他组件 -->
                     <component
                       v-else
                       :is="currentMainComponent"
                       v-bind="componentProps"
+                      class="flex-grow overflow-auto"
                     />
                 </template>
-                <!-- 如果找不到主布局组件 -->
-                <div v-else class="pane-placeholder error">
+                <!-- Invalid Pane Component -->
+                <div v-else class="flex-grow flex justify-center items-center text-center text-red-600 bg-red-100 text-sm p-4">
                     无效面板组件: {{ layoutNode.component || '未指定' }} (ID: {{ layoutNode.id }})
                 </div>
             </template>
 
-             <!-- 如果节点类型未知或无效 -->
+             <!-- Invalid Node Type -->
              <template v-else>
-               <div class="pane-placeholder error">
+               <div class="flex-grow flex justify-center items-center text-center text-red-600 bg-red-100 text-sm p-4">
                  无效布局节点 (ID: {{ layoutNode.id }})
                </div>
              </template>
         </div>
     </div>
 
-    <!-- Sidebar Panels Overlay -->
+    <!-- Sidebar Overlay -->
     <div
-        v-if="activeLeftSidebarPane || activeRightSidebarPane"
-        class="sidebar-overlay"
+        :class="['fixed inset-0 bg-transparent pointer-events-none z-[100] transition-opacity duration-300 ease-in-out',
+                 {'opacity-100 visible': activeLeftSidebarPane || activeRightSidebarPane, 'opacity-0 invisible': !(activeLeftSidebarPane || activeRightSidebarPane)}]"
     ></div>
 
     <!-- Left Sidebar Panel -->
-    <div ref="leftSidebarPanelRef" :class="['sidebar-panel', 'left-sidebar-panel', { active: !!activeLeftSidebarPane }]" :style="{ width: getSidebarPaneWidth(activeLeftSidebarPane) }"> <!-- +++ Use getter for width +++ -->
-        <div ref="leftResizeHandleRef" class="resize-handle left-handle"></div> <!-- +++ Left Handle +++ -->
-        <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
+    <div ref="leftSidebarPanelRef"
+         :class="['fixed top-0 bottom-0 left-0 max-w-[80vw] bg-background z-[110] transition-transform duration-300 ease-in-out flex flex-col overflow-hidden border-r border-border',
+                  {'translate-x-0': !!activeLeftSidebarPane, '-translate-x-full': !activeLeftSidebarPane}]"
+         :style="{ width: getSidebarPaneWidth(activeLeftSidebarPane) }">
+        <div ref="leftResizeHandleRef" class="absolute top-0 bottom-0 w-2 cursor-col-resize z-[120] bg-transparent transition-colors duration-200 ease-in-out hover:bg-primary-light right-[-4px]"></div>
+        <button class="absolute top-1 right-2 p-1 text-text-secondary hover:text-foreground cursor-pointer text-2xl leading-none z-10" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <KeepAlive>
-            <div :key="`left-sidebar-content-${activeLeftSidebarPane ?? 'none'}`" class="sidebar-content-wrapper">
-                <!-- Component rendering -->
+            <div :key="`left-sidebar-content-${activeLeftSidebarPane ?? 'none'}`" class="relative flex flex-col flex-grow overflow-hidden">
                 <component
                     v-if="currentLeftSidebarComponent && activeLeftSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeLeftSidebarPane) || activeSession)"
                     :is="currentLeftSidebarComponent"
                     :key="`left-comp-${activeLeftSidebarPane}`"
-                    v-bind="sidebarProps(activeLeftSidebarPane, 'left')">
+                    v-bind="sidebarProps(activeLeftSidebarPane, 'left')"
+                    class="flex flex-col flex-grow">
                 </component>
-                <!-- Placeholder for FileManager -->
-                <div v-else-if="activeLeftSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
-                  <div class="empty-session-content">
-                    <i class="fas fa-plug"></i>
-                    <span>无活动会话</span>
-                    <div class="empty-session-tip">文件管理器需要活动会话</div>
+                <div v-else-if="activeLeftSidebarPane === 'fileManager' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
+                  <div class="flex flex-col items-center justify-center p-8">
+                    <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                    <span class="text-lg font-medium mb-2">无活动会话</span>
+                    <div class="text-xs mt-2">文件管理器需要活动会话</div>
                   </div>
                 </div>
-                <!-- Placeholder for StatusMonitor -->
-                <div v-else-if="activeLeftSidebarPane === 'statusMonitor' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
-                  <div class="empty-session-content">
-                    <i class="fas fa-plug"></i>
-                    <span>无活动会话</span>
-                    <div class="empty-session-tip">状态监视器需要活动会话</div>
+                <div v-else-if="activeLeftSidebarPane === 'statusMonitor' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
+                  <div class="flex flex-col items-center justify-center p-8">
+                    <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                    <span class="text-lg font-medium mb-2">无活动会话</span>
+                    <div class="text-xs mt-2">状态监视器需要活动会话</div>
                   </div>
                 </div>
-                 <!-- Placeholder for when no pane is active or other conditions fail -->
-                 <div v-else class="sidebar-pane-content">
-                    <!-- Optional: Add a generic placeholder message -->
+                 <div v-else class="flex flex-col flex-grow">
                  </div>
             </div>
         </KeepAlive>
     </div>
 
     <!-- Right Sidebar Panel -->
-     <div ref="rightSidebarPanelRef" :class="['sidebar-panel', 'right-sidebar-panel', { active: !!activeRightSidebarPane }]" :style="{ width: getSidebarPaneWidth(activeRightSidebarPane) }"> <!-- +++ Use getter for width +++ -->
-        <div ref="rightResizeHandleRef" class="resize-handle right-handle"></div> <!-- +++ Right Handle +++ -->
-        <button class="close-sidebar-btn" @click="closeSidebars" title="Close Sidebar">&times;</button>
+     <div ref="rightSidebarPanelRef"
+          :class="['fixed top-0 bottom-0 right-0 max-w-[80vw] bg-background z-[110] transition-transform duration-300 ease-in-out flex flex-col overflow-hidden border-l border-border',
+                   {'translate-x-0': !!activeRightSidebarPane, 'translate-x-full': !activeRightSidebarPane}]"
+          :style="{ width: getSidebarPaneWidth(activeRightSidebarPane) }">
+        <div ref="rightResizeHandleRef" class="absolute top-0 bottom-0 w-2 cursor-col-resize z-[120] bg-transparent transition-colors duration-200 ease-in-out hover:bg-primary-light left-[-4px]"></div>
+        <button class="absolute top-1 right-2 p-1 text-text-secondary hover:text-foreground cursor-pointer text-2xl leading-none z-10" @click="closeSidebars" title="Close Sidebar">&times;</button>
         <KeepAlive>
-            <div :key="`right-sidebar-content-${activeRightSidebarPane ?? 'none'}`" class="sidebar-content-wrapper">
-                <!-- Component rendering -->
+            <div :key="`right-sidebar-content-${activeRightSidebarPane ?? 'none'}`" class="relative flex flex-col flex-grow overflow-hidden">
                 <component
                     v-if="currentRightSidebarComponent && activeRightSidebarPane && (!['fileManager', 'statusMonitor'].includes(activeRightSidebarPane) || activeSession)"
                     :is="currentRightSidebarComponent"
                     :key="`right-comp-${activeRightSidebarPane}`"
-                    v-bind="sidebarProps(activeRightSidebarPane, 'right')">
+                    v-bind="sidebarProps(activeRightSidebarPane, 'right')"
+                    class="flex flex-col flex-grow">
                 </component>
-                <!-- Placeholder for FileManager -->
-                <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
-                  <div class="empty-session-content">
-                    <i class="fas fa-plug"></i>
-                    <span>无活动会话</span>
-                    <div class="empty-session-tip">文件管理器需要活动会话</div>
+                <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
+                  <div class="flex flex-col items-center justify-center p-8">
+                    <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                    <span class="text-lg font-medium mb-2">无活动会话</span>
+                    <div class="text-xs mt-2">文件管理器需要活动会话</div>
                   </div>
                 </div>
-                <!-- Placeholder for StatusMonitor -->
-                <div v-else-if="activeRightSidebarPane === 'statusMonitor' && !activeSession" class="sidebar-pane-content pane-placeholder empty-session">
-                  <div class="empty-session-content">
-                    <i class="fas fa-plug"></i>
-                    <span>无活动会话</span>
-                    <div class="empty-session-tip">状态监视器需要活动会话</div>
+                <div v-else-if="activeRightSidebarPane === 'statusMonitor' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
+                  <div class="flex flex-col items-center justify-center p-8">
+                    <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
+                    <span class="text-lg font-medium mb-2">无活动会话</span>
+                    <div class="text-xs mt-2">状态监视器需要活动会话</div>
                   </div>
                 </div>
-                 <!-- Placeholder for when no pane is active or other conditions fail -->
-                 <div v-else class="sidebar-pane-content">
-                    <!-- Optional: Add a generic placeholder message -->
+                 <div v-else class="flex flex-col flex-grow">
                  </div>
             </div>
         </KeepAlive>
     </div>
 
-     <!-- Right Sidebar Buttons (Only render if root) -->
-    <div class="sidebar-buttons right-sidebar-buttons" v-if="isRootRenderer && sidebarPanes.right.length > 0">
+     <!-- Right Sidebar Buttons -->
+    <div class="flex flex-col bg-sidebar py-1 z-10 flex-shrink-0 border-l border-border" v-if="isRootRenderer && sidebarPanes.right.length > 0">
          <button
              v-for="pane in sidebarPanes.right"
             :key="`right-${pane}`"
             @click="toggleSidebarPane('right', pane)"
-            :class="{ active: activeRightSidebarPane === pane }"
+            :class="['flex items-center justify-center w-10 h-10 mb-1 text-text-secondary hover:bg-hover hover:text-foreground transition-colors duration-150 cursor-pointer text-lg',
+                     { 'bg-primary text-white hover:bg-primary-dark': activeRightSidebarPane === pane }]"
             :title="paneLabels[pane] || pane"
         >
-             <!-- Use helper function for icons -->
              <i :class="getIconClasses(pane)"></i>
         </button>
     </div>
@@ -689,296 +681,41 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
-.layout-renderer-wrapper {
-  position: relative; /* Needed for absolute positioning of sidebars */
-  display: flex;
-  height: 100%;
-  width: 100%;
-  overflow: hidden;
-}
-
-.sidebar-buttons {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--sidebar-bg-color, #f8f9fa); /* Use theme variable or default */
-  padding: 5px 0;
-  z-index: 10; /* Above main layout but below panels */
-  flex-shrink: 0; /* Prevent buttons from shrinking */
-}
-
-.left-sidebar-buttons {
-  border-right: 1px solid var(--border-color, #dee2e6);
-}
-
-.right-sidebar-buttons {
-  border-left: 1px solid var(--border-color, #dee2e6);
-}
-
-.sidebar-buttons button {
-  background: none;
-  border: none;
-  color: var(--text-color-secondary, #6c757d);
-  padding: 10px 8px;
-  cursor: pointer;
-  font-size: 1.1rem; /* Slightly smaller icons */
-  line-height: 1;
-  transition: background-color 0.2s, color 0.2s;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 40px; /* Fixed width for buttons */
-  height: 40px; /* Fixed height for buttons */
-  margin-bottom: 4px; /* Space between buttons */
-}
-
-.sidebar-buttons button:hover {
-  background-color: var(--hover-bg-color, #e9ecef);
-  color: var(--text-color-primary, #343a40);
-}
-
-.sidebar-buttons button.active {
-  background-color: var(--primary-color, #007bff);
-  color: white;
-}
-.sidebar-buttons button.active:hover {
-   background-color: var(--primary-color-dark, #0056b3); /* Darker primary on hover when active */
-}
 
 
-.main-layout-area {
-  flex-grow: 1;
-  height: 100%;
-  overflow: hidden; /* Prevent main layout from overflowing */
-  position: relative; /* Needed for potential internal absolute elements */
-}
-
-.layout-renderer {
-  height: 100%;
-  width: 100%;
-  overflow: hidden; /* 防止内部内容溢出渲染器边界 */
-  display: flex; /* 确保子元素能正确填充 */
-  flex-direction: column; /* 默认列方向 */
-}
-
-/* 为 splitpanes 包裹的 pane 添加样式，确保内容填充 */
-.layout-pane-wrapper {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* 隐藏内部滚动条，由子组件处理 */
-  background-color: var(--app-bg-color); /* Use app background */
-}
-
-/* 确保动态加载的组件能正确应用 pane-content 样式 */
-/* 如果组件内部没有根元素应用 pane-content，可能需要在这里强制 */
-:deep(.layout-pane-wrapper > *) {
-  flex-grow: 1;
-  overflow: auto; /* 或者 hidden */
-  display: flex;
-  flex-direction: column;
-}
-/* 特别是对于没有明确设置 class 的组件 */
-:deep(.layout-pane-wrapper > .pane-placeholder) {
-   flex-grow: 1;
-   display: flex;
-   justify-content: center;
-   align-items: center;
-   text-align: center;
-   color: var(--text-color-secondary); /* Use secondary text color */
-   background-color: var(--header-bg-color); /* Use header background */
-   font-size: 0.9em;
-   padding: var(--base-padding); /* Use base padding */
-}
-
-/* 增强空会话显示样式 */
-:deep(.empty-session) {
-  background-color: var(--app-bg-color); /* Use app background */
-  border-radius: 8px;
-  /* box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.03); */ /* Optional: Consider removing or using theme variables */
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-:deep(.empty-session-content) {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  width: 100%;
-  height: 100%;
-}
-
-:deep(.empty-session-content i) {
-  font-size: 2.5rem;
-  margin-bottom: 0.75rem;
-  color: var(--text-color-secondary); /* Use secondary text color */
-}
-
-:deep(.empty-session-content span) {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: var(--text-color-secondary); /* Use secondary text color */
-  margin-bottom: 0.5rem;
-}
-
-:deep(.empty-session-tip) {
-  font-size: 0.85rem;
-  color: var(--text-color-secondary); /* Use secondary text color */
-  margin-top: 0.5rem;
-}
-:deep(.layout-pane-wrapper > .pane-placeholder.error) {
-  color: #dc3545; /* Keep hardcoded error color for now */
-  background-color: #fdd; /* Keep hardcoded error background for now */
-}
-
-
-/* Sidebar Panel Styles */
-.sidebar-overlay {
-  position: fixed; /* Use fixed to cover the whole viewport */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* background-color: rgba(0, 0, 0, 0.4); */ /* <-- 移除背景色 --> */
-  background-color: transparent; /* <-- 确保完全透明 --> */
-  pointer-events: none; /* <-- 不拦截鼠标事件 --> */
-  z-index: 100; /* Below panel, above main content */
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0s linear 0.3s;
-}
-/* Show overlay when either panel is active */
-.layout-renderer-wrapper:has(.sidebar-panel.active) .sidebar-overlay {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity 0.3s ease, visibility 0s linear 0s;
-}
-
-
-.sidebar-panel {
-  position: fixed; /* Use fixed for viewport positioning */
-  top: 0; /* Adjust if you have a fixed header */
-  bottom: 0; /* Adjust if you have a fixed footer */
-  /* width: 350px; */ /* Width is now controlled by style binding */
-  max-width: 80vw;
-  background-color: var(--app-bg-color, white);
-  /* box-shadow: 0 0 15px rgba(0, 0, 0, 0.2); */ /* <-- 移除阴影以隐藏边缘 --> */
-  z-index: 110; /* Above overlay */
-  transform: translateX(-100%); /* Start hidden */
-  transition: transform 0.3s ease-in-out; /* Keep transition for sliding */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* Prevent content overflow */
-}
-
-.left-sidebar-panel {
-  left: 0;
-  transform: translateX(-100%);
-  border-right: 1px solid var(--border-color, #dee2e6);
-}
-.left-sidebar-panel.active {
-  transform: translateX(0);
-}
-
-.right-sidebar-panel {
-  right: 0;
-  transform: translateX(100%);
-   border-left: 1px solid var(--border-color, #dee2e6);
-}
-.right-sidebar-panel.active {
-  transform: translateX(0);
-}
-
-.close-sidebar-btn {
-  position: absolute;
-  top: 5px;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 1.8rem;
-  color: var(--text-color-secondary, #aaa);
-  cursor: pointer;
-  padding: 0;
-  line-height: 1;
-  z-index: 1; /* Above panel content */
-}
-.close-sidebar-btn:hover {
-  color: var(--text-color-primary, #333);
-}
-
-/* Style for the wrapper holding the dynamic sidebar component */
-.sidebar-content-wrapper {
-  flex-grow: 1; /* Allow this wrapper to fill the panel */
-  display: flex; /* Make it a flex container for its child */
-  flex-direction: column; /* Stack child vertically */
-  overflow: hidden; /* Prevent content overflow */
-  position: relative; /* For potential absolute children */
-}
-
-/* Style for the content inside the sidebar panel (the actual component) */
-:deep(.sidebar-pane-content) {
-  flex-grow: 1; /* Allow the component to fill the wrapper */
-  /* overflow-y: auto; */ /* Let the component manage its own scroll if needed */
-  /* padding: 1rem; */ /* Padding might interfere with component layout, apply inside component if needed */
-  /* padding-top: 2.5rem; */ /* Padding might interfere, handle spacing differently if needed */
-  display: flex; /* Ensure the component itself is a flex container if it needs internal growing elements */
-  flex-direction: column; /* Assume column layout for the component */
-}
-
-/* Resize Handle Styles */
-.resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 8px; /* Increased width for easier interaction */
-  cursor: col-resize;
-  z-index: 120; /* Above panel content */
-  background-color: transparent; /* Make it invisible by default */
-  transition: background-color 0.2s ease;
-}
-.resize-handle:hover {
-   background-color: var(--primary-color-light, #a0cfff); /* Highlight on hover */
-}
-.left-handle {
-  right: -4px; /* Adjusted position for increased width */
-}
-.right-handle {
-  left: -4px; /* Adjusted position for increased width */
-}
-
-</style>
-
-<style> /* Global styles for splitpanes if needed, or scoped with :deep() */
-.splitpanes.default-theme .splitpanes__pane {
-  background-color: var(--app-bg-color); /* Ensure panes match app background */
-}
-.splitpanes.default-theme .splitpanes__splitter {
-  background-color: var(--border-color, #dee2e6);
-  border-left: 1px solid var(--border-color-lighter, #f1f3f5); /* Example lighter border */
-  border-right: 1px solid var(--border-color-darker, #ced4da); /* Example darker border */
+<style>
+/* Override splitpanes default theme for VSCode-like dividers */
+/* .splitpanes.default-theme .splitpanes__splitter::before,
+.splitpanes.default-theme .splitpanes__splitter::after { */
+  /* Ensure handle lines remain hidden */
+  /* background-color: transparent !important; */
+/* } */
+.splitpanes.default-theme .splitpanes__splitter:hover { /* Apply hover style to the pseudo-element */
+  background-color: var(--primary-color-light); /* Highlight on hover */
+    border: none !important; /* Ensure no extra borders */
+  /* Ensure it still occupies space and has cursor */
+  position: relative;
   box-sizing: border-box;
-  transition: background-color 0.2s ease-out;
+  transition: background-color 0.1s ease-in-out;
 }
-.splitpanes.default-theme .splitpanes__splitter:hover {
-  background-color: var(--primary-color-light, #a0cfff); /* Lighter primary on hover */
+
+.splitpanes__splitter:before {
+  /* Use background color as the visible line */
+  background-color: var(--border-color); /* Set background to border color */
+  border: none !important; /* Ensure no extra borders */
+  /* Ensure it still occupies space and has cursor */
+  position: relative;
+  box-sizing: border-box;
+  transition: background-color 0.1s ease-in-out;
 }
-.splitpanes.default-theme .splitpanes__splitter::before,
-.splitpanes.default-theme .splitpanes__splitter::after {
-    background-color: var(--text-color-secondary, #6c757d); /* Adjust handle color */
-}
+/* Vertical splitter width */
 .splitpanes--vertical > .splitpanes__splitter {
-  width: 6px; /* Adjust width */
-  border-left: 1px solid var(--border-color-darker, #ced4da);
-  border-right: 1px solid var(--border-color-lighter, #f1f3f5);
+  width: 1px !important;
 }
+/* Horizontal splitter height */
 .splitpanes--horizontal > .splitpanes__splitter {
-  height: 6px; /* Adjust height */
-   border-top: 1px solid var(--border-color-darker, #ced4da);
-   border-bottom: 1px solid var(--border-color-lighter, #f1f3f5);
+  height: 1px !important;
 }
+
 </style>
 
