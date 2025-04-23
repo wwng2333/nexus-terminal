@@ -56,7 +56,7 @@ export type WsManagerInstance = ReturnType<typeof createWebSocketConnectionManag
 export type SftpManagerInstance = ReturnType<typeof createSftpActionsManager>;
 export type SshTerminalInstance = ReturnType<typeof createSshTerminalManager>;
 export type StatusMonitorInstance = ReturnType<typeof createStatusMonitorManager>;
-export type DockerManagerInstance = ReturnType<typeof createDockerManager>; // +++ Add Docker Manager Instance Type +++
+// Removed conflicting local declaration of DockerManagerInstance, it's imported above.
 
 export interface SessionState {
   sessionId: string;
