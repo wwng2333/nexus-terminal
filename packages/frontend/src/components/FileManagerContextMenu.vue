@@ -33,55 +33,24 @@ const handleItemClick = (item: ContextMenuItem) => {
 <template>
   <div
     v-if="isVisible"
-    class="context-menu"
+    class="fixed bg-background border border-border shadow-lg rounded-md z-[1002] min-w-[150px]"
     :style="{ top: `${position.y}px`, left: `${position.x}px` }"
     @click.stop
   >
-    <ul>
+    <ul class="list-none p-1 m-0">
       <li
         v-for="(menuItem, index) in items"
         :key="index"
         @click.stop="handleItemClick(menuItem)"
-        :class="{ disabled: menuItem.disabled }"
+        :class="[
+          'px-4 py-1.5 cursor-pointer text-foreground text-sm flex items-center transition-colors duration-150 rounded',
+          menuItem.disabled
+            ? 'text-text-secondary cursor-not-allowed opacity-60 bg-background'
+            : 'hover:bg-hover'
+        ]"
       >
         {{ menuItem.label }}
       </li>
     </ul>
   </div>
 </template>
-
-<style scoped>
-/* 从 FileManager.vue 移动过来的样式 */
-.context-menu {
-  position: fixed;
-  background-color: var(--app-bg-color);
-  border: 1px solid var(--border-color);
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-  z-index: 1002;
-  min-width: 150px;
-  border-radius: 4px;
-}
-.context-menu ul {
-  list-style: none;
-  padding: var(--base-margin, 0.5rem) 0; /* 使用 CSS 变量 */
-  margin: 0;
-}
-.context-menu li {
-  padding: 0.6rem var(--base-padding, 1rem); /* 使用 CSS 变量 */
-  cursor: pointer;
-  color: var(--text-color);
-  font-size: 0.9em;
-  display: flex;
-  align-items: center;
-  transition: background-color 0.15s ease; /* 添加过渡效果 */
-}
-.context-menu li:hover:not(.disabled) { /* 仅在非禁用时应用悬停效果 */
-  background-color: var(--header-bg-color);
-}
-.context-menu li.disabled {
-  color: var(--text-color-secondary);
-  cursor: not-allowed;
-  background-color: var(--app-bg-color); /* 确保禁用项背景与菜单一致 */
-  opacity: 0.6;
-}
-</style>
