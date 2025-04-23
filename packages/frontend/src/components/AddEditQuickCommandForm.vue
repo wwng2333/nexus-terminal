@@ -1,6 +1,6 @@
 <template>
   <div class="fixed inset-0 bg-overlay flex justify-center items-center z-[1050]" @click.self="closeForm">
-    <div class="bg-dialog text-dialog-text p-6 rounded-lg border border-border shadow-xl w-[90%] max-w-lg">
+    <div class="bg-background text-foreground p-6 rounded-lg border border-border shadow-xl w-[90%] max-w-lg"> <!-- Changed bg-dialog to bg-background, text-dialog-text to text-foreground -->
       <h2 class="m-0 mb-6 text-center text-xl font-medium">{{ isEditing ? t('quickCommands.form.titleEdit', '编辑快捷指令') : t('quickCommands.form.titleAdd', '添加快捷指令') }}</h2>
       <form @submit.prevent="handleSubmit">
         <div class="mb-4">
