@@ -1,31 +1,33 @@
 <template>
-  <div class="modal-overlay" @click.self="closeForm">
-    <div class="modal-content">
-      <h2>{{ isEditing ? t('quickCommands.form.titleEdit', '编辑快捷指令') : t('quickCommands.form.titleAdd', '添加快捷指令') }}</h2>
+  <div class="fixed inset-0 bg-overlay flex justify-center items-center z-[1050]" @click.self="closeForm">
+    <div class="bg-dialog text-dialog-text p-6 rounded-lg border border-border shadow-xl w-[90%] max-w-lg">
+      <h2 class="m-0 mb-6 text-center text-xl font-medium">{{ isEditing ? t('quickCommands.form.titleEdit', '编辑快捷指令') : t('quickCommands.form.titleAdd', '添加快捷指令') }}</h2>
       <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label for="qc-name">{{ t('quickCommands.form.name', '名称:') }}</label>
+        <div class="mb-4">
+          <label for="qc-name" class="block mb-2 font-bold text-text-secondary text-sm">{{ t('quickCommands.form.name', '名称:') }}</label>
           <input
             id="qc-name"
             type="text"
             v-model="formData.name"
             :placeholder="t('quickCommands.form.namePlaceholder', '可选，用于快速识别')"
+            class="w-full px-3 py-2 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150"
           />
         </div>
-        <div class="form-group">
-          <label for="qc-command">{{ t('quickCommands.form.command', '指令:') }} <span class="required">*</span></label>
+        <div class="mb-4">
+          <label for="qc-command" class="block mb-2 font-bold text-text-secondary text-sm">{{ t('quickCommands.form.command', '指令:') }} <span class="text-error">*</span></label>
           <textarea
             id="qc-command"
             v-model="formData.command"
             required
             rows="3"
             :placeholder="t('quickCommands.form.commandPlaceholder', '例如：ls -alh /home/user')"
+            class="w-full px-3 py-2 border border-border rounded bg-input text-foreground text-base resize-vertical min-h-[80px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150"
           ></textarea>
-          <small v-if="commandError" class="error-message">{{ commandError }}</small>
+          <small v-if="commandError" class="text-error text-xs mt-1 block">{{ commandError }}</small>
         </div>
-        <div class="form-actions">
-          <button type="button" @click="closeForm" class="cancel-btn">{{ t('common.cancel', '取消') }}</button>
-          <button type="submit" :disabled="isSubmitting || !!commandError" class="confirm-btn">
+        <div class="flex justify-end mt-6 pt-2 border-t border-border">
+          <button type="button" @click="closeForm" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-button text-button-text hover:bg-button-hover border border-border mr-2">{{ t('common.cancel', '取消') }}</button>
+          <button type="submit" :disabled="isSubmitting || !!commandError" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-primary text-white hover:bg-primary-dark disabled:bg-gray-400 disabled:opacity-70 disabled:cursor-not-allowed">
             {{ isSubmitting ? t('common.saving', '保存中...') : (isEditing ? t('common.save', '保存') : t('quickCommands.form.add', '添加')) }}
           </button>
         </div>
@@ -101,134 +103,3 @@ const closeForm = () => {
 };
 </script>
 
-<style scoped>
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); /* 半透明背景保持不变 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1050;
-}
-
-.modal-content {
-  background-color: var(--app-bg-color); /* 使用应用背景色 */
-  padding: calc(var(--base-padding, 1rem) * 1.5); /* 使用基础内边距 */
-  border-radius: 8px;
-  border: 1px solid var(--border-color); /* 添加边框 */
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* 调整阴影 */
-  width: 90%;
-  max-width: 500px;
-  color: var(--text-color); /* 默认文字颜色 */
-}
-
-h2 {
-  margin: 0 0 calc(var(--base-margin, 0.5rem) * 3) 0; /* 使用基础外边距 */
-  color: var(--text-color); /* 使用主要文字颜色 */
-  text-align: center;
-  font-size: 1.4rem;
-  font-weight: 500;
-}
-
-.form-group {
-  margin-bottom: var(--base-margin, 0.5rem) * 2; /* 使用基础外边距 */
-}
-
-label {
-  display: block;
-  margin-bottom: var(--base-margin, 0.5rem); /* 使用基础外边距 */
-  font-weight: bold;
-  color: var(--text-color-secondary); /* 使用次要文字颜色 */
-  font-size: 0.95rem;
-}
-
-input[type="text"],
-textarea {
-  width: 100%;
-  padding: calc(var(--base-padding, 1rem) * 0.75); /* 使用基础内边距 */
-  border: 1px solid var(--border-color); /* 使用边框颜色 */
-  border-radius: 4px;
-  background-color: var(--app-bg-color); /* 输入框背景与应用背景一致 */
-  color: var(--text-color); /* 使用主要文字颜色 */
-  box-sizing: border-box;
-  font-family: inherit;
-  font-size: 1rem;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-input[type="text"]:focus,
-textarea:focus {
-    outline: none;
-    border-color: var(--button-bg-color); /* 聚焦时边框使用按钮背景色 */
-    /* 使用按钮背景色变量创建光晕效果，移除 rgba 回退 */
-    box-shadow: 0 0 0 3px rgba(from var(--button-bg-color) r g b / 0.25);
-}
-
-
-textarea {
-  resize: vertical;
-  min-height: 80px;
-}
-
-.required {
-  color: var(--bs-danger, red); /* 使用 Bootstrap 危险色或备用色 */
-  margin-left: 0.2rem;
-}
-
-.error-message {
-  color: var(--bs-danger, red); /* 使用 Bootstrap 危险色或备用色 */
-  font-size: 0.85em;
-  margin-top: calc(var(--base-margin, 0.5rem) * 0.6); /* 使用基础外边距 */
-  display: block;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: calc(var(--base-margin, 0.5rem) * 3); /* 使用基础外边距 */
-  padding-top: calc(var(--base-padding, 1rem) * 0.5); /* 添加顶部内边距 */
-  border-top: 1px solid var(--border-color); /* 添加分隔线 */
-}
-
-.cancel-btn,
-.confirm-btn {
-  padding: calc(var(--base-padding, 1rem) * 0.6) calc(var(--base-padding, 1rem) * 1.2); /* 使用基础内边距 */
-  border: 1px solid transparent; /* 添加透明边框以便悬停时改变 */
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.95rem; /* 调整字体大小 */
-  font-weight: 500; /* 调整字重 */
-  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-
-.cancel-btn {
-  background-color: var(--header-bg-color); /* 使用头部背景色作为次要按钮背景 */
-  color: var(--text-color); /* 使用主要文字颜色 */
-  border-color: var(--border-color); /* 使用边框颜色 */
-  margin-right: var(--base-margin, 0.5rem); /* 使用基础外边距 */
-}
-.cancel-btn:hover {
-  background-color: darken(var(--header-bg-color, #f0f0f0), 5%); /* 悬停时稍微变暗 */
-  border-color: darken(var(--border-color, #cccccc), 10%);
-}
-
-.confirm-btn {
-  background-color: var(--button-bg-color); /* 使用按钮背景色 */
-  color: var(--button-text-color); /* 使用按钮文字颜色 */
-  border-color: var(--button-bg-color); /* 边框与背景同色 */
-}
-.confirm-btn:hover:not(:disabled) {
-  background-color: var(--button-hover-bg-color); /* 使用按钮悬停背景色 */
-  border-color: var(--button-hover-bg-color);
-}
-.confirm-btn:disabled {
-  background-color: var(--text-color-secondary); /* 禁用时使用次要文字颜色作为背景 */
-  border-color: var(--text-color-secondary);
-  color: var(--app-bg-color); /* 禁用时文字颜色反转 */
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-</style>

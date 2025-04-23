@@ -149,66 +149,61 @@ const handleDelete = async (conn: ConnectionInfo) => {
  </script>
 
 <template>
-  <div class="connection-list">
-    <!-- 移除顶部的加载/错误/无数据状态，这些由父组件处理 -->
-    <!-- <div v-if="isLoading" class="loading">{{ t('connections.loading') }}</div> -->
-    <!-- <div v-else-if="error" class="error">{{ t('connections.error', { error: error }) }}</div> -->
-    <!-- <div v-else-if="connections.length === 0" class="no-connections"> -->
-    <!--   {{ t('connections.noConnections') }} -->
-    <!-- </div> -->
-    <div v-if="tagsError" class="error">{{ t('tags.error', { error: tagsError }) }}</div> <!-- 显示标签加载错误 -->
+  <div class="mt-2 font-sans">
+    <div v-if="tagsError" class="p-4 border border-red-300 bg-red-100 text-red-700 rounded m-2">
+      {{ t('tags.error', { error: tagsError }) }}
+    </div>
 
     <!-- 遍历分组 -->
-    <div v-for="(groupConnections, groupName) in groupedConnections" :key="groupName" class="connection-group">
-        <h4 class="group-title">
+    <div v-for="(groupConnections, groupName) in groupedConnections" :key="groupName" class="mb-6 border border-border rounded-md overflow-hidden bg-background">
+        <h4 class="m-0 px-4 py-2 text-base font-semibold bg-header text-foreground border-b border-border">
             {{ groupName === '_untagged_' ? t('connections.untaggedGroup') : groupName }}
             ({{ groupConnections.length }})
         </h4>
-        <table v-if="groupConnections.length > 0">
-            <thead>
-                <tr>
-                    <th>{{ t('connections.table.name') }}</th>
-          <th>{{ t('connections.table.host') }}</th>
-          <th>{{ t('connections.table.port') }}</th>
-          <th>{{ t('connections.table.user') }}</th>
-          <th>{{ t('connections.table.authMethod') }}</th>
-          <th>{{ t('connections.table.tags') }}</th> <!-- 新增标签列 -->
-          <th>{{ t('connections.table.lastConnected') }}</th>
-                    <th>{{ t('connections.table.actions') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-
-                <tr v-for="conn in groupConnections" :key="conn.id">
-                    <td>{{ conn.name }}</td>
-                    <td>{{ conn.host }}</td>
-          <td>{{ conn.port }}</td>
-          <td>{{ conn.username }}</td>
-          <td>{{ conn.auth_method }}</td>
-          <td> 
-            <span v-if="getConnectionTagNames(conn).length > 0" class="tag-list">
-                <span v-for="tagName in getConnectionTagNames(conn)" :key="tagName" class="tag-item">
-                    {{ tagName }}
-                </span>
-            </span>
-            <span v-else class="no-tags">-</span>
-          </td>
-          <td>{{ formatTimestamp(conn.last_connected_at) }}</td>
-          <td>
-            <button @click="connectToServer(conn.id)" class="action-button connect-button">{{ t('connections.actions.connect') }}</button>
-            <button @click="emit('edit-connection', conn)" class="action-button edit-button">{{ t('connections.actions.edit') }}</button>
-            <button @click="handleTestConnection(conn.id)" class="action-button test-button" :disabled="testingState[conn.id]">{{ testingState[conn.id] ? t('connections.actions.testing') : t('connections.actions.test') }}</button> <!-- 新增测试按钮 -->
-            <button @click="handleDelete(conn)" class="action-button delete-button">{{ t('connections.actions.delete') }}</button>
-          </td>
-        </tr>
-            </tbody>
-        </table>
-        <!-- 如果未标记组为空，可以显示提示 -->
-        <div v-else-if="groupName === '_untagged_'" class="no-connections-in-group">
-              {{ t('connections.noUntaggedConnections') }}
-         </div>
+        <div class="overflow-x-auto">
+            <table v-if="groupConnections.length > 0" class="w-full">
+                <thead class="bg-header">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.name') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.host') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.port') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.user') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.authMethod') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.tags') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.lastConnected') }}</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-text-secondary uppercase tracking-wider border-b-2 border-border">{{ t('connections.table.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                    <tr v-for="conn in groupConnections" :key="conn.id" class="hover:bg-hover transition-colors duration-150">
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.name }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.host }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.port }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.username }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.auth_method }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground">
+                          <div v-if="getConnectionTagNames(conn).length > 0" class="flex flex-wrap gap-1">
+                              <span v-for="tagName in getConnectionTagNames(conn)" :key="tagName" class="px-2 py-0.5 text-xs rounded bg-background-alt border border-border text-text-secondary">
+                                  {{ tagName }}
+                              </span>
+                          </div>
+                          <span v-else class="text-text-alt italic">-</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ formatTimestamp(conn.last_connected_at) }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">
+                          <button @click="connectToServer(conn.id)" class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-green-600 text-white border-green-600 hover:bg-green-700 hover:border-green-700">{{ t('connections.actions.connect') }}</button>
+                          <button @click="emit('edit-connection', conn)" class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-yellow-500 text-gray-800 border-yellow-500 hover:bg-yellow-600 hover:border-yellow-600">{{ t('connections.actions.edit') }}</button>
+                          <button @click="handleTestConnection(conn.id)" class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 mr-1.5 bg-blue-600 text-white border-blue-600 hover:bg-blue-700 hover:border-blue-700 disabled:opacity-60 disabled:cursor-not-allowed disabled:bg-gray-500 disabled:border-gray-500" :disabled="testingState[conn.id]">{{ testingState[conn.id] ? t('connections.actions.testing') : t('connections.actions.test') }}</button>
+                          <button @click="handleDelete(conn)" class="px-2.5 py-1 text-xs rounded border transition-colors duration-150 bg-red-600 text-white border-red-600 hover:bg-red-700 hover:border-red-700">{{ t('connections.actions.delete') }}</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <div v-else-if="groupName === '_untagged_'" class="p-4 text-sm text-text-secondary italic">
+                  {{ t('connections.noUntaggedConnections') }}
+             </div>
+        </div>
      </div>
-
    </div>
  </template>
 
@@ -226,178 +221,5 @@ export default {
 </script>
 
 <style scoped>
-.connection-list {
-  margin-top: var(--base-margin, 0.5rem); /* Use theme variable */
-  font-family: var(--font-family-sans-serif, sans-serif); /* Apply base font */
-}
 
-.connection-group {
-    margin-bottom: calc(var(--base-padding, 1rem) * 1.5); /* Increase spacing */
-    border: 1px solid var(--border-color, #eee); /* Add border to group */
-    border-radius: 6px; /* Add rounding */
-    overflow: hidden; /* Ensure child elements respect border radius */
-    background-color: var(--app-bg-color); /* Ensure background */
-}
-
-.group-title {
-    margin: 0; /* Remove default margin */
-    padding: 0.6rem var(--base-padding, 1rem); /* Adjust padding */
-    font-size: 1.05em; /* Adjust font size */
-    font-weight: 600; /* Slightly bolder */
-    background-color: var(--header-bg-color, #f8f9fa); /* Use header background */
-    color: var(--text-color, #333); /* Use text color */
-    border-bottom: 1px solid var(--border-color, #eee); /* Use theme border color */
-}
-
-.loading, .error, .no-connections, .no-connections-in-group {
-  padding: var(--base-padding, 1rem); /* Use theme variable */
-  border: 1px solid var(--border-color, #ccc); /* Use theme variable */
-  border-radius: 4px;
-  margin: var(--base-margin, 0.5rem); /* Add margin */
-  color: var(--text-color-secondary, #666); /* Use theme variable */
-  background-color: var(--app-bg-color); /* Use theme variable */
-}
-
-.error {
-  color: #dc3545; /* Keep error color distinct */
-  border-color: #f5c6cb;
-  background-color: #f8d7da;
-}
-
-.no-connections {
-  /* Style remains largely the same, but uses theme variables */
-  color: var(--text-color-secondary, #666);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse; /* Keep collapsed */
-  margin-top: 0; /* Remove margin, handled by group */
-  border: none; /* Remove table border, handled by group */
-}
-
-th, td {
-  /* border: 1px solid #ddd; */ /* Remove individual cell borders */
-  border-bottom: 1px solid var(--border-color, #eee); /* Use bottom border */
-  padding: 0.75rem var(--base-padding, 1rem); /* Increase padding */
-  text-align: left;
-  vertical-align: middle; /* Align vertically */
-  font-size: 0.9em; /* Adjust base font size */
-}
-tbody tr:last-child td {
-    border-bottom: none; /* Remove border from last row */
-}
-
-th {
-  background-color: var(--header-bg-color, #f8f9fa); /* Use header background */
-  color: var(--text-color-secondary, #666); /* Use secondary text color */
-  font-weight: 500; /* Adjust weight */
-  text-transform: uppercase; /* Uppercase headers */
-  font-size: 0.8em; /* Smaller header font */
-  border-bottom-width: 2px; /* Thicker bottom border */
-}
-
-tbody tr:hover {
-    background-color: var(--header-bg-color); /* Use header bg for hover */
-    filter: brightness(0.98); /* Subtle hover effect */
-}
-
-td {
-    color: var(--text-color, #333); /* Ensure text color */
-}
-td:last-child { /* Actions column */
-    white-space: nowrap; /* Prevent buttons wrapping */
-}
-
-/* General Button Reset (if needed, or rely on global styles) */
-button {
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, border-color 0.2s ease;
-  font-family: var(--font-family-sans-serif, sans-serif);
-  font-size: 0.85em; /* Slightly smaller button text */
-  padding: 0.3rem 0.7rem; /* Adjust padding */
-  margin-right: 0.4rem; /* Adjust margin */
-  border: 1px solid transparent; /* Start with transparent border */
-  line-height: 1.4; /* Adjust line height */
-}
-button:last-child {
-    margin-right: 0;
-}
-
-.action-button { /* Base style for action buttons */
-    /* Inherits general button styles */
-    min-width: 60px; /* Adjust min-width */
-    text-align: center;
-}
-
-/* Specific button colors using theme variables where possible */
-.connect-button {
-    background-color: #28a745; /* Keep specific green */
-    color: white;
-    border-color: #28a745;
-}
-.connect-button:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
-}
-
-.edit-button {
-    background-color: #ffc107; /* Keep specific amber */
-    color: #212529; /* Darker text for better contrast */
-    border-color: #ffc107;
-}
-.edit-button:hover {
-    background-color: #e0a800;
-    border-color: #d39e00;
-}
-
-.test-button {
-    background-color: #17a2b8; /* Keep specific teal */
-    color: white;
-    border-color: #17a2b8;
-}
-.test-button:hover {
-    background-color: #138496;
-    border-color: #117a8b;
-}
-
-.delete-button {
-    background-color: #dc3545; /* Keep specific red */
-    color: white;
-    border-color: #dc3545;
-}
-.delete-button:hover {
-    background-color: #c82333;
-    border-color: #bd2130;
-}
-
-.action-button:disabled {
-    opacity: 0.65; /* Slightly adjust opacity */
-    cursor: not-allowed;
-    background-color: var(--text-color-secondary, #6c757d); /* Use secondary text color for disabled bg */
-    border-color: var(--text-color-secondary, #6c757d);
-    color: #fff;
-}
-
-
-/* Tag Styles */
-.tag-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem; /* Increase gap */
-}
-.tag-item {
-    background-color: var(--header-bg-color, #e9ecef); /* Use header bg or similar */
-    color: var(--text-color-secondary, #495057); /* Use secondary text color */
-    padding: 0.2rem 0.5rem; /* Adjust padding */
-    border-radius: 4px; /* Match button radius */
-    font-size: 0.8em; /* Adjust font size */
-    white-space: nowrap;
-    border: 1px solid var(--border-color, #dee2e6); /* Add subtle border */
-}
-.no-tags {
-    color: var(--text-color-secondary, #999); /* Use theme variable */
-    font-style: italic;
-}
 </style>
