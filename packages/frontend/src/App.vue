@@ -246,7 +246,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
   <div id="app-container">
     <!-- *** 修改 v-if 条件以使用 isHeaderVisible *** -->
     <!-- Header with Tailwind classes using theme variables -->
-    <header v-if="!isWorkspaceRoute || isHeaderVisible" class="sticky top-0 z-10 flex items-center h-14 px-6 bg-header border-b border-default shadow-sm">
+    <header v-if="!isWorkspaceRoute || isHeaderVisible" class="sticky top-0 z-10 flex items-center h-14 px-6 bg-header border-b border-border shadow-sm"> <!-- Use border-b with explicit border-border color -->
       <!-- Nav with Tailwind classes -->
       <nav ref="navRef" class="flex items-center justify-between w-full relative"> <!-- Added relative positioning for underline -->
         <!-- Left navigation links with Tailwind classes using theme variables -->
