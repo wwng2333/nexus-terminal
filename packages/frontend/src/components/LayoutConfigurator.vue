@@ -354,24 +354,24 @@ const handleAvailablePaneDragEnd = (event: any) => {
 </script>
 
 <template>
-  <div v-if="isVisible" class="layout-configurator-overlay" @click.self="closeDialog">
-    <div ref="dialogRef" class="layout-configurator-dialog">
+  <div v-if="isVisible" class="fixed inset-0 bg-overlay flex justify-center items-center z-[1000]" @click.self="closeDialog">
+    <div ref="dialogRef" class="bg-background text-foreground rounded-lg shadow-xl w-auto h-auto min-w-[800px] min-h-[600px] max-w-[95vw] max-h-[90vh] flex flex-col overflow-auto relative pointer-events-auto cursor-default">
 
-      <header class="dialog-header">
-        <h2>{{ t('layoutConfigurator.title', '布局管理器') }}</h2>
-        <button class="close-button" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
+      <header class="flex justify-between items-center p-4 border-b border-border bg-header">
+        <h2 class="text-lg font-semibold">{{ t('layoutConfigurator.title', '布局管理器') }}</h2>
+        <button class="bg-transparent border-none text-2xl cursor-pointer text-text-secondary hover:text-foreground leading-none p-0" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
       </header>
 
       <!-- Grid Layout -->
-      <main class="dialog-content-grid">
+      <main class="flex-grow p-6 overflow-y-auto grid grid-cols-[220px_1fr] gap-6 min-h-[450px]">
 
         <!-- Available Panes -->
-        <section class="available-panes-section">
-          <h3>{{ t('layoutConfigurator.availablePanes', '可用面板') }}</h3>
+        <section class="flex flex-col overflow-y-auto border-r border-border pr-6 min-w-[200px]">
+          <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary">{{ t('layoutConfigurator.availablePanes', '可用面板') }}</h3>
           <draggable
             :list="localAvailablePanes"
             tag="ul"
-            class="available-panes-list"
+            class="list-none p-0 m-0 flex-grow"
             @end="handleAvailablePaneDragEnd"
             :item-key="(element: PaneName) => element"
             :group="{ name: 'layout-items', pull: 'clone', put: false }"
@@ -379,108 +379,114 @@ const handleAvailablePaneDragEnd = (event: any) => {
             :clone="clonePane"
           >
             <template #item="{ element }: { element: PaneName }">
-              <li class="available-pane-item">
-                <i class="fas fa-grip-vertical drag-handle"></i>
+              <li class="flex items-center p-2 mb-2 bg-background-alt border border-border rounded cursor-grab transition-colors duration-150 hover:bg-hover active:cursor-grabbing active:bg-border text-sm">
+                <i class="fas fa-grip-vertical mr-2 text-text-alt cursor-grab active:cursor-grabbing"></i>
                 {{ paneLabels[element] || element }}
               </li>
             </template>
             <template #footer>
-              <li v-if="localAvailablePanes.length === 0" class="no-available-panes">
+              <li v-if="localAvailablePanes.length === 0" class="text-text-alt italic p-2 text-sm">
                 {{ t('layoutConfigurator.noAvailablePanes', '所有面板都已在布局中') }}
               </li>
             </template>
           </draggable>
         </section>
 
-        <!-- Main Layout Preview -->
-        <section class="layout-preview-section">
-          <h3>{{ t('layoutConfigurator.layoutPreview', '主布局预览（拖拽到此处）') }}</h3>
-          <div class="preview-area main-layout-area">
-            <LayoutNodeEditor
-              v-if="localLayoutTree"
-              :node="localLayoutTree"
-              :parent-node="null"
-              :node-index="0"
-              :pane-labels="paneLabels"
-              @update:node="handleNodeUpdate"
-              @removeNode="handleNodeRemove"
-              :group="'layout-items'"
-            />
-            <p v-else class="empty-placeholder">
-              {{ t('layoutConfigurator.emptyLayout', '布局为空，请从左侧拖拽面板或添加容器。') }}
-            </p>
-          </div>
-          <div class="preview-actions">
-             <button @click="resetToDefault" class="button-secondary">
-               {{ t('layoutConfigurator.resetDefault', '恢复默认') }}
-             </button>
-           </div>
-        </section>
-
-        <!-- Sidebar Configuration Container -->
-        <div class="sidebar-container">
-            <!-- Left Sidebar Config -->
-            <section class="sidebar-config-section left-sidebar-section">
-                <h3>{{ t('layoutConfigurator.leftSidebar', '左侧栏面板') }}</h3>
-                <draggable
-                    :list="localSidebarPanes.left"
-                    tag="ul"
-                    class="sidebar-panes-list"
-                    :item-key="(element: PaneName) => `left-${element}`"
-                    group="layout-items"
-                    :sort="true"
-                    @change="(event) => onDraggableChange(event, 'left')"
-                >
-                    <template #item="{ element, index }: { element: PaneName, index: number }">
-                        <li class="sidebar-pane-item">
-                            <i class="fas fa-grip-vertical drag-handle"></i>
-                            <!-- Correctly display translated label -->
-                            <span>{{ paneLabels[element] || element }}</span>
-                            <button @click="removeSidebarPane('left', index)" class="remove-sidebar-btn" :title="t('common.remove', '移除')">&times;</button>
-                        </li>
-                    </template>
-                    <template #footer>
-                        <li v-if="localSidebarPanes.left.length === 0" class="empty-placeholder sidebar-empty">
-                            {{ t('layoutConfigurator.dropHere', '从可用面板拖拽到此处') }}
-                        </li>
-                    </template>
-                </draggable>
+        <!-- Main Layout Preview & Sidebar Config -->
+        <div class="flex flex-col">
+            <!-- Main Layout Preview -->
+            <section class="flex flex-col min-w-[350px] flex-grow">
+              <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary">{{ t('layoutConfigurator.layoutPreview', '主布局预览（拖拽到此处）') }}</h3>
+              <div class="flex-grow border-2 border-dashed border-border-alt rounded p-4 bg-background-alt flex flex-col overflow-auto min-h-[250px]">
+                <LayoutNodeEditor
+                  v-if="localLayoutTree"
+                  :node="localLayoutTree"
+                  :parent-node="null"
+                  :node-index="0"
+                  :pane-labels="paneLabels"
+                  @update:node="handleNodeUpdate"
+                  @removeNode="handleNodeRemove"
+                  :group="'layout-items'"
+                  class="flex-grow"
+                />
+                <p v-else class="text-center text-text-alt p-8 italic text-sm w-full">
+                  {{ t('layoutConfigurator.emptyLayout', '布局为空，请从左侧拖拽面板或添加容器。') }}
+                </p>
+              </div>
+              <div class="mt-4 flex gap-2">
+                 <button @click="resetToDefault" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-button text-button-text hover:bg-button-hover border border-border">
+                   {{ t('layoutConfigurator.resetDefault', '恢复默认') }}
+                 </button>
+               </div>
             </section>
 
-            <!-- Right Sidebar Config -->
-            <section class="sidebar-config-section right-sidebar-section">
-                <h3>{{ t('layoutConfigurator.rightSidebar', '右侧栏面板') }}</h3>
-                 <draggable
-                    :list="localSidebarPanes.right"
-                    tag="ul"
-                    class="sidebar-panes-list"
-                    :item-key="(element: PaneName) => `right-${element}`"
-                    group="layout-items"
-                    :sort="true"
-                    @change="(event) => onDraggableChange(event, 'right')"
-                >
-                    <template #item="{ element, index }: { element: PaneName, index: number }">
-                         <li class="sidebar-pane-item">
-                            <i class="fas fa-grip-vertical drag-handle"></i>
-                            <!-- Correctly display translated label -->
-                            <span>{{ paneLabels[element] || element }}</span>
-                            <button @click="removeSidebarPane('right', index)" class="remove-sidebar-btn" :title="t('common.remove', '移除')">&times;</button>
-                        </li>
-                    </template>
-                     <template #footer>
-                        <li v-if="localSidebarPanes.right.length === 0" class="empty-placeholder sidebar-empty">
-                             {{ t('layoutConfigurator.dropHere', '从可用面板拖拽到此处') }}
-                        </li>
-                    </template>
-                </draggable>
-            </section>
+            <!-- Sidebar Configuration Container -->
+            <div class="grid grid-cols-2 gap-6 border-t border-border pt-4 mt-4 min-h-[150px]">
+                <!-- Left Sidebar Config -->
+                <section class="flex flex-col">
+                    <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary">{{ t('layoutConfigurator.leftSidebar', '左侧栏面板') }}</h3>
+                    <draggable
+                        :list="localSidebarPanes.left"
+                        tag="ul"
+                        class="list-none p-0 m-0 min-h-[120px] bg-background-alt border border-dashed border-border-alt rounded p-2 flex-grow overflow-y-auto"
+                        :item-key="(element: PaneName) => `left-${element}`"
+                        group="layout-items"
+                        :sort="true"
+                        @change="(event) => onDraggableChange(event, 'left')"
+                    >
+                        <template #item="{ element, index }: { element: PaneName, index: number }">
+                            <li class="flex items-center justify-between p-2 mb-2 bg-hover border border-border rounded cursor-grab transition-colors duration-150 hover:bg-border active:cursor-grabbing active:bg-border-alt text-sm">
+                                <div class="flex items-center overflow-hidden">
+                                    <i class="fas fa-grip-vertical mr-2 text-text-alt cursor-grab active:cursor-grabbing flex-shrink-0"></i>
+                                    <span class="flex-grow mr-2 overflow-hidden text-ellipsis whitespace-nowrap">{{ paneLabels[element] || element }}</span>
+                                </div>
+                                <button @click="removeSidebarPane('left', index)" class="bg-transparent border-none text-text-alt text-lg cursor-pointer p-1 leading-none flex-shrink-0 hover:text-error" :title="t('common.remove', '移除')">&times;</button>
+                            </li>
+                        </template>
+                        <template #footer>
+                            <li v-if="localSidebarPanes.left.length === 0" class="text-center text-text-alt p-4 italic text-sm w-full min-h-[50px] flex items-center justify-center">
+                                {{ t('layoutConfigurator.dropHere', '从可用面板拖拽到此处') }}
+                            </li>
+                        </template>
+                    </draggable>
+                </section>
+
+                <!-- Right Sidebar Config -->
+                <section class="flex flex-col">
+                    <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary">{{ t('layoutConfigurator.rightSidebar', '右侧栏面板') }}</h3>
+                     <draggable
+                        :list="localSidebarPanes.right"
+                        tag="ul"
+                        class="list-none p-0 m-0 min-h-[120px] bg-background-alt border border-dashed border-border-alt rounded p-2 flex-grow overflow-y-auto"
+                        :item-key="(element: PaneName) => `right-${element}`"
+                        group="layout-items"
+                        :sort="true"
+                        @change="(event) => onDraggableChange(event, 'right')"
+                    >
+                        <template #item="{ element, index }: { element: PaneName, index: number }">
+                             <li class="flex items-center justify-between p-2 mb-2 bg-hover border border-border rounded cursor-grab transition-colors duration-150 hover:bg-border active:cursor-grabbing active:bg-border-alt text-sm">
+                                <div class="flex items-center overflow-hidden">
+                                    <i class="fas fa-grip-vertical mr-2 text-text-alt cursor-grab active:cursor-grabbing flex-shrink-0"></i>
+                                    <span class="flex-grow mr-2 overflow-hidden text-ellipsis whitespace-nowrap">{{ paneLabels[element] || element }}</span>
+                                </div>
+                                <button @click="removeSidebarPane('right', index)" class="bg-transparent border-none text-text-alt text-lg cursor-pointer p-1 leading-none flex-shrink-0 hover:text-error" :title="t('common.remove', '移除')">&times;</button>
+                            </li>
+                        </template>
+                         <template #footer>
+                            <li v-if="localSidebarPanes.right.length === 0" class="text-center text-text-alt p-4 italic text-sm w-full min-h-[50px] flex items-center justify-center">
+                                 {{ t('layoutConfigurator.dropHere', '从可用面板拖拽到此处') }}
+                            </li>
+                        </template>
+                    </draggable>
+                </section>
+            </div>
         </div>
 
       </main>
 
-      <footer class="dialog-footer">
-        <button @click="closeDialog" class="button-secondary">{{ t('common.cancel', '取消') }}</button>
-        <button @click="saveLayout" class="button-primary" :disabled="!isModified">
+      <footer class="p-4 border-t border-border flex justify-end gap-3 bg-header">
+        <button @click="closeDialog" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-button text-button-text hover:bg-button-hover border border-border">{{ t('common.cancel', '取消') }}</button>
+        <button @click="saveLayout" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-primary text-white hover:bg-primary-dark disabled:bg-gray-400 disabled:opacity-70 disabled:cursor-not-allowed" :disabled="!isModified">
           {{ t('common.save', '保存') }}{{ isModified ? '*' : '' }}
         </button>
       </footer>
@@ -488,303 +494,7 @@ const handleAvailablePaneDragEnd = (event: any) => {
   </div>
 </template>
 
-<style scoped>
-.layout-configurator-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
+<style>
 
-.layout-configurator-dialog {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-  width: auto;
-  height: auto;
-  min-width: 800px; /* Adjusted min-width */
-  min-height: 600px; /* Adjusted min-height */
-  max-width: 95vw;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-  position: relative;
-  pointer-events: auto;
-  cursor: default;
-}
-
-.dialog-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #eee;
-  background-color: #f8f9fa;
-}
-
-.dialog-header h2 {
-  margin: 0;
-  font-size: 1.2rem;
-  font-weight: 600;
-}
-
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.8rem;
-  cursor: pointer;
-  color: #aaa;
-  line-height: 1;
-  padding: 0;
-}
-.close-button:hover {
-  color: #333;
-}
-
-/* Grid Layout for Dialog Content */
-.dialog-content-grid {
-  flex-grow: 1;
-  padding: 1.5rem;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  grid-template-rows: auto 1fr;
-  grid-template-areas:
-    "available main"
-    "available sidebars";
-  gap: 1.5rem;
-  min-height: 450px;
-}
-
-.available-panes-section {
-  grid-area: available;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  border-right: 1px solid #eee;
-  padding-right: 1.5rem;
-  min-width: 200px; /* Ensure minimum width */
-}
-
-.layout-preview-section {
-  grid-area: main;
-  display: flex;
-  flex-direction: column;
-  min-width: 350px;
-  min-height: 250px;
-}
-
-.sidebar-container {
-   grid-area: sidebars;
-   display: grid;
-   grid-template-columns: 1fr 1fr;
-   gap: 1.5rem;
-   border-top: 1px solid #eee;
-   padding-top: 1rem;
-   margin-top: 1rem;
-   min-height: 150px;
-}
-
-.sidebar-config-section {
-  display: flex;
-  flex-direction: column;
-}
-
-h3 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #495057;
-}
-
-.available-panes-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  flex-grow: 1; /* Allow list to take available space */
-}
-
-.available-pane-item {
-  padding: 0.6rem 0.8rem;
-  margin-bottom: 0.5rem;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  cursor: grab;
-  display: flex;
-  align-items: center;
-  transition: background-color 0.2s ease;
-}
-.available-pane-item:hover {
-  background-color: #e9ecef;
-}
-.available-pane-item:active {
-  cursor: grabbing;
-  background-color: #ced4da;
-}
-
-.drag-handle {
-  margin-right: 0.5rem;
-  color: #adb5bd;
-  cursor: grab;
-}
-.available-pane-item:active .drag-handle {
-  cursor: grabbing;
-}
-
-.no-available-panes {
-  color: #6c757d;
-  font-style: italic;
-  padding: 0.5rem 0;
-}
-
-.preview-area.main-layout-area {
-  flex-grow: 1;
-  border: 2px dashed #ced4da;
-  border-radius: 4px;
-  padding: 1rem;
-  background-color: #f8f9fa;
-  display: flex;
-  flex-direction: column;
-  overflow: auto;
-}
-
-.preview-actions {
-  margin-top: 1rem;
-  display: flex;
-  gap: 0.5rem;
-}
-
-.dialog-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #eee;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.8rem;
-  background-color: #f8f9fa;
-}
-
-/* Button Styles */
-.button-primary,
-.button-secondary {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
-}
-
-.button-primary {
-  background-color: #007bff;
-  color: white;
-}
-.button-primary:hover {
-  background-color: #0056b3;
-}
-.button-primary:disabled {
-  background-color: #6c757d;
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-
-.button-secondary {
-  background-color: #e9ecef;
-  color: #343a40;
-  border: 1px solid #ced4da;
-}
-.button-secondary:hover {
-  background-color: #dee2e6;
-}
-
-/* Sidebar List Styles */
-.sidebar-panes-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    min-height: 120px;
-    background-color: #f8f9fa;
-    border: 1px dashed #ced4da;
-    border-radius: 4px;
-    padding: 0.5rem;
-    flex-grow: 1;
-    overflow-y: auto;
-}
-
-.sidebar-pane-item {
-    padding: 0.5rem 0.8rem;
-    margin-bottom: 0.5rem;
-    background-color: #e9ecef;
-    border: 1px solid #dee2e6;
-    border-radius: 4px;
-    cursor: grab;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: background-color 0.2s ease;
-}
-.sidebar-pane-item:hover {
-    background-color: #d8dde2;
-}
-.sidebar-pane-item:active {
-    cursor: grabbing;
-    background-color: #ced4da;
-}
-
-.sidebar-pane-item .drag-handle {
-    margin-right: 0.5rem;
-    color: #6c757d;
-    cursor: grab;
-}
-.sidebar-pane-item:active .drag-handle {
-    cursor: grabbing;
-}
-/* Ensure text span takes available space */
-.sidebar-pane-item span {
-    flex-grow: 1; /* Allow text to take space */
-    margin-right: 0.5rem; /* Space before remove button */
-    overflow: hidden; /* Prevent long text overflow */
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-
-.remove-sidebar-btn {
-    background: none;
-    border: none;
-    color: #adb5bd;
-    font-size: 1.2rem;
-    cursor: pointer;
-    padding: 0 0.3rem;
-    line-height: 1;
-    flex-shrink: 0; /* Prevent button from shrinking */
-}
-.remove-sidebar-btn:hover {
-    color: #dc3545; /* Red on hover */
-}
-
-.empty-placeholder {
-    text-align: center;
-    color: #aaa;
-    padding: 2rem 1rem;
-    font-style: italic;
-    font-size: 0.9em;
-    width: 100%;
-}
-.sidebar-empty {
-    padding: 1rem;
-    min-height: 50px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
 </style>
