@@ -205,100 +205,100 @@ const localAvailableInputs = computed(() => {
 </script>
 
 <template>
-  <div v-if="isVisible" class="focus-switcher-overlay" @click.self="closeDialog">
-    <div ref="dialogRef" class="focus-switcher-dialog" :style="dialogStyle">
-      <header class="dialog-header">
-        <h2>{{ t('focusSwitcher.configTitle', '配置 Alt 焦点切换') }}</h2>
-        <button class="close-button" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
+  <div v-if="isVisible" class="fixed inset-0 bg-overlay flex justify-center items-start z-[1000] pointer-events-none" @click.self="closeDialog">
+    <div ref="dialogRef" class="bg-dialog text-dialog-text rounded-lg shadow-xl flex flex-col overflow-hidden absolute pointer-events-auto cursor-default" :style="dialogStyle">
+      <header class="flex justify-between items-center p-4 border-b border-border bg-header">
+        <h2 class="text-lg font-semibold">{{ t('focusSwitcher.configTitle', '配置 Alt 焦点切换') }}</h2>
+        <button class="bg-transparent border-none text-2xl cursor-pointer text-text-secondary hover:text-foreground leading-none p-0" @click="closeDialog" :title="t('common.close', '关闭')">&times;</button>
       </header>
 
-      <!-- 将原 main 内容包裹，并改用新 class -->
-      <div class="dialog-main-content">
-        <!-- +++ 创建第一行容器 +++ -->
-        <div class="top-row">
-          <section class="available-inputs-section">
-            <h3>{{ t('focusSwitcher.availableInputs', '可用输入框') }}</h3>
+      <div class="flex-grow p-6 flex flex-col gap-6 bg-background overflow-y-auto">
+        <!-- Top Row: Available & Configured -->
+        <div class="flex gap-6 flex-shrink-0 min-h-[300px]">
+          <!-- Available Inputs -->
+          <section class="flex-1 p-4 border border-border rounded bg-input flex flex-col overflow-y-auto">
+            <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary border-b border-border-light pb-2">{{ t('focusSwitcher.availableInputs', '可用输入框') }}</h3>
             <draggable
               :list="localAvailableInputs"
               tag="ul"
-              class="draggable-list available-list"
+              class="list-none p-0 m-0 min-h-[100px] border border-dashed border-border-light rounded p-2 bg-background-alt/50 flex-grow overflow-y-auto"
               item-key="id"
               :group="{ name: 'focus-inputs', pull: true, put: false }"
               :sort="false"
             >
               <template #item="{ element }: { element: FocusableInput & FocusItemConfig }">
-                <li class="draggable-item">
-                  <i class="fas fa-grip-vertical drag-handle"></i>
-                  <span class="item-label">{{ element.label }}</span>
-                  <!-- 快捷键设置在下方 -->
+                <li class="flex items-center justify-between p-2 mb-2 bg-background border border-border rounded cursor-grab transition-colors duration-150 hover:bg-header active:cursor-grabbing active:bg-border overflow-hidden">
+                  <div class="flex items-center overflow-hidden">
+                    <i class="fas fa-grip-vertical mr-2 text-text-secondary cursor-grab active:cursor-grabbing flex-shrink-0"></i>
+                    <span class="flex-grow overflow-hidden text-ellipsis whitespace-nowrap mr-2 text-sm">{{ element.label }}</span>
+                  </div>
                 </li>
               </template>
                <template #footer>
-                 <li v-if="localAvailableInputs.length === 0" class="no-items-placeholder">
+                 <li v-if="localAvailableInputs.length === 0" class="text-center text-text-secondary italic p-4 border-none bg-transparent cursor-default text-sm">
                    <span>{{ t('focusSwitcher.allInputsConfigured', '所有输入框都已配置') }}</span>
                  </li>
                </template>
             </draggable>
           </section>
 
-          <section class="configured-sequence-section">
-            <h3>{{ t('focusSwitcher.configuredSequence', '切换顺序 (拖拽排序)') }}</h3>
+          <!-- Configured Sequence -->
+          <section class="flex-1 p-4 border border-border rounded bg-input flex flex-col overflow-y-auto">
+            <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary border-b border-border-light pb-2">{{ t('focusSwitcher.configuredSequence', '切换顺序 (拖拽排序)') }}</h3>
              <draggable
                :list="localSequence"
                tag="ul"
-               class="draggable-list configured-list"
+               class="list-none p-0 m-0 min-h-[100px] border border-dashed border-border-light rounded p-2 bg-background-alt/50 flex-grow overflow-y-auto"
                item-key="id"
                :group="{ name: 'focus-inputs', put: true }"
                handle=".drag-handle"
              >
                <template #item="{ element, index }: { element: SequenceDisplayItem, index: number }">
-                 <li class="draggable-item">
-                   <i class="fas fa-grip-vertical drag-handle"></i>
-                   <span class="item-label">{{ element.label }}</span>
-                   <!-- 快捷键设置在下方 -->
+                 <li class="flex items-center justify-between p-2 mb-2 bg-background border border-border rounded cursor-grab transition-colors duration-150 hover:bg-header active:cursor-grabbing active:bg-border overflow-hidden">
+                   <div class="flex items-center overflow-hidden">
+                     <i class="fas fa-grip-vertical drag-handle mr-2 text-text-secondary cursor-grab active:cursor-grabbing flex-shrink-0"></i>
+                     <span class="item-label flex-grow overflow-hidden text-ellipsis whitespace-nowrap mr-2 text-sm">{{ element.label }}</span>
+                   </div>
                    <button
-                     class="remove-button"
+                     class="remove-button bg-transparent border-none text-text-secondary text-lg cursor-pointer p-1 leading-none flex-shrink-0 ml-auto hover:text-error"
                      @click="removeFromSequence(index)"
                      :title="t('common.remove', '移除')"
                    >&times;</button>
                  </li>
                </template>
                 <template #footer>
-                  <li v-if="localSequence.length === 0" class="no-items-placeholder">
+                  <li v-if="localSequence.length === 0" class="text-center text-text-secondary italic p-4 border-none bg-transparent cursor-default text-sm">
                     {{ t('focusSwitcher.dragHere', '从左侧拖拽输入框到此处') }}
                   </li>
                 </template>
              </draggable>
           </section>
         </div>
-        <!-- +++ 第一行容器结束 +++ -->
 
-        <!-- +++ 第二行：快捷键配置区域 +++ -->
-        <section class="shortcut-config-section">
-          <h3>{{ t('focusSwitcher.shortcutSettings', '快捷键设置') }}</h3>
-          <div class="shortcut-list">
-            <!-- 遍历所有可用输入项来设置快捷键 -->
-            <div v-for="input in focusSwitcherStore.availableInputs" :key="input.id" class="shortcut-item">
-              <span class="item-label">{{ input.label }}</span>
+        <!-- Shortcut Configuration -->
+        <section class="p-4 border border-border rounded bg-input flex flex-col overflow-y-auto max-h-64 flex-shrink-0">
+          <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary border-b border-border-light pb-2">{{ t('focusSwitcher.shortcutSettings', '快捷键设置') }}</h3>
+          <div class="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
+            <div v-for="input in focusSwitcherStore.availableInputs" :key="input.id" class="flex items-center justify-between bg-input p-2 rounded border border-border-light">
+              <span class="item-label flex-grow mr-3 overflow-hidden text-ellipsis whitespace-nowrap text-sm">{{ input.label }}</span>
               <input
                 type="text"
                 v-model="localItemConfigs[input.id].shortcut"
-                class="shortcut-input"
+                class="shortcut-input w-24 px-2 py-1 border border-border rounded bg-background text-foreground text-xs text-center flex-shrink-0 placeholder-text-alt italic"
                 :placeholder="t('focusSwitcher.shortcutPlaceholder')"
                 @keydown.prevent="captureShortcut($event, localItemConfigs[input.id])"
               />
             </div>
-             <div v-if="!focusSwitcherStore.availableInputs || focusSwitcherStore.availableInputs.length === 0" class="no-items-placeholder">
+             <div v-if="!focusSwitcherStore.availableInputs || focusSwitcherStore.availableInputs.length === 0" class="text-center text-text-secondary italic p-4 border-none bg-transparent cursor-default text-sm col-span-full">
                {{ t('focusSwitcher.noInputsAvailable', '没有可配置的输入项') }}
              </div>
           </div>
         </section>
-        <!-- +++ 快捷键配置区域结束 +++ -->
       </div>
 
-      <footer class="dialog-footer">
-        <button @click="closeDialog" class="button-secondary">{{ t('common.cancel', '取消') }}</button>
-        <button @click="saveConfiguration" class="button-primary" :disabled="!hasChanges">
+      <footer class="p-4 border-t border-border flex justify-end gap-3 bg-header">
+        <button @click="closeDialog" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-button text-button-text hover:bg-button-hover border border-border">{{ t('common.cancel', '取消') }}</button>
+        <button @click="saveConfiguration" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-primary text-white hover:bg-primary-dark disabled:bg-gray-400 disabled:opacity-70 disabled:cursor-not-allowed" :disabled="!hasChanges">
           {{ t('common.save', '保存') }} {{ hasChanges ? '*' : '' }}
         </button>
       </footer>
@@ -342,205 +342,3 @@ const captureShortcut = (event: KeyboardEvent, itemConfig: FocusItemConfig) => {
 };
 </script>
 
-<style scoped>
-/* 样式很大程度上复用 LayoutConfigurator，但使用不同的类名以避免冲突 */
-.focus-switcher-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); display: flex;
-  justify-content: center; align-items: flex-start; /* 改为 flex-start */
-  z-index: 1000; pointer-events: none;
-}
-.focus-switcher-dialog {
-  background-color: var(--dialog-bg-color, #fff); border-radius: 8px;
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
-  display: flex; flex-direction: column; overflow: hidden;
-  position: absolute; pointer-events: auto; cursor: default;
-  color: var(--text-color);
-}
-.dialog-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 1rem 1.5rem; border-bottom: 1px solid var(--border-color);
-  background-color: var(--header-bg-color);
-}
-.dialog-header h2 { margin: 0; font-size: 1.2rem; font-weight: 600; }
-.close-button {
-  background: none; border: none; font-size: 1.8rem; cursor: pointer;
-  color: var(--text-color-secondary); line-height: 1; padding: 0;
-}
-.close-button:hover { color: var(--text-color); }
-
-/* 修改：原 dialog-content 现在是 dialog-main-content */
-.dialog-main-content {
-  flex-grow: 1; /* 占据主要垂直空间 */
-  padding: 1.5rem;
-  display: flex;
-  flex-direction: column; /* 改为上下两行布局 */
-  align-items: stretch; /* 默认拉伸，让快捷键区域横跨 */
-  gap: 1.5rem;
-  background-color: var(--app-bg-color); /* 内容区背景 */
-  overflow-y: auto; /* 如果内容过多允许滚动 */
-}
-/* +++ 第一行容器样式 +++ */
-.top-row {
-  display: flex;
-  gap: 1.5rem;
-  flex-shrink: 0; /* 防止第一行被压缩 */
-  min-height: 300px; /* 给第一行一个最小高度 */
-}
-/* +++ 第一行内部左右列样式 +++ */
-.available-inputs-section, .configured-sequence-section {
-  flex: 1; /* 平分第一行的宽度 */
-  padding: 1rem; border: 1px solid var(--border-color);
-  border-radius: 4px; background-color: var(--input-bg-color); /* 区域背景 */
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto; /* 允许内部列表滚动 */
-}
-/* +++ 第二行（快捷键配置区域）样式 +++ */
-.shortcut-config-section {
-  padding: 1rem; border: 1px solid var(--border-color);
-  border-radius: 4px; background-color: var(--input-bg-color); /* 区域背景 */
-  display: flex; /* 确保内部元素正确布局 */
-  flex-direction: column;
-  overflow-y: auto; /* 允许滚动 */
-  max-height: 250px; /* 限制最大高度 */
-  flex-shrink: 0; /* 防止被压缩 */
-}
-.shortcut-config-section h3 {
-  margin-top: 0;
-  margin-bottom: 1rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text-color-secondary);
-  border-bottom: 1px solid var(--border-color-light);
-  padding-bottom: 0.5rem;
-}
-.shortcut-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); /* 自动填充列 */
-  gap: 0.8rem; /* 项目间距 */
-}
-.shortcut-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--input-bg-color); /* 使用输入框背景色 */
-  padding: 0.5rem 0.8rem;
-  border-radius: 4px;
-  border: 1px solid var(--border-color-light);
-}
-.shortcut-item .item-label {
-  flex-grow: 1;
-  margin-right: 0.8rem; /* 增加与输入框间距 */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.9rem;
-}
-.shortcut-item .shortcut-input {
-  /* 样式继承自全局 .shortcut-input */
-  margin-left: 0.5rem; /* 确保左边有间距 */
-  margin-right: 0; /* 右侧不需要额外间距 */
-}
-/* --- 原有样式继续 --- */
-h3 {
-  margin-top: 0; margin-bottom: 1rem; font-size: 1rem;
-  font-weight: 600; color: var(--text-color-secondary);
-  border-bottom: 1px solid var(--border-color-light); padding-bottom: 0.5rem;
-}
-.draggable-list {
-  list-style: none; padding: 0; margin: 0;
-  min-height: 100px; /* 给拖放区域一个最小高度 */
-  border: 1px dashed var(--border-color-light); /* 虚线边框 */
-  border-radius: 4px;
-  padding: 0.5rem;
-  background-color: rgba(0,0,0,0.02); /* 轻微背景 */
-  flex-grow: 1; /* +++ 让列表占据剩余空间 +++ */
-  overflow-y: auto; /* +++ 列表本身也允许滚动 (双保险) +++ */
-}
-.draggable-item {
-  padding: 0.6rem 0.8rem; margin-bottom: 0.5rem;
-  background-color: var(--app-bg-color); border: 1px solid var(--border-color);
-  border-radius: 4px; cursor: grab;
-  display: flex; /* 使用 flex 布局 */
-  align-items: center; /* 垂直居中 */
-  justify-content: space-between; /* 两端对齐 */
-  transition: background-color 0.2s ease;
-  overflow: hidden; /* +++ 防止内部元素溢出容器 +++ */
-}
-.draggable-item:hover {
-    background-color: var(--header-bg-color); /* 悬停效果 */
-}
-.draggable-item.sortable-ghost { /* 拖拽时的占位符样式 */
-  opacity: 0.4;
-  background: #c8ebfb;
-}
-.drag-handle {
-  margin-right: 0.5rem;
-  color: var(--text-color-secondary);
-  cursor: grab;
-}
-.draggable-item:active .drag-handle {
-  cursor: grabbing;
-}
-/* +++ 新增 item-label 样式 +++ */
-.item-label {
-  flex-grow: 1; /* 占据剩余空间 */
-  overflow: hidden; /* 隐藏溢出文本 */
-  text-overflow: ellipsis; /* 显示省略号 */
-  white-space: nowrap;
-  margin-right: 0.5rem; /* 与快捷键输入框保持间距 */
-}
-/* +++ 新增快捷键输入框样式 +++ */
-.shortcut-input {
-  width: 100px; /* 固定宽度 */
-  padding: 0.3rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  background-color: var(--input-bg-color);
-  color: var(--text-color);
-  font-size: 0.85rem;
-  text-align: center;
-  /* margin-left: auto; */ /* 不再需要自动推 */
-  /* margin-right: 0.5rem; */ /* 间距由父元素 gap 或 .shortcut-item .item-label 控制 */
-  flex-shrink: 0; /* 防止被压缩 */
-}
-.shortcut-input::placeholder {
-    color: #888;
-    font-style: italic;
-}
-.remove-button {
-  background: none; border: none; color: var(--text-color-secondary);
-  font-size: 1.2rem; cursor: pointer; padding: 0 0.3rem; line-height: 1;
-  flex-shrink: 0; /* 防止被压缩 */
-  margin-left: auto; /* 将移除按钮推到最右侧 */
-}
-.remove-button:hover { color: var(--danger-color, red); }
-.no-items-placeholder {
-  text-align: center; color: var(--text-color-secondary); font-style: italic;
-  padding: 1rem; border: none; background: none; cursor: default;
-}
-
-.dialog-footer {
-  padding: 1rem 1.5rem; border-top: 1px solid var(--border-color);
-  display: flex; justify-content: flex-end; gap: 0.8rem;
-  background-color: var(--header-bg-color);
-}
-/* 通用按钮样式 (复用 LayoutConfigurator 或全局样式) */
-.button-primary, .button-secondary {
-  padding: 0.5rem 1rem; border: none; border-radius: 4px;
-  cursor: pointer; font-size: 0.9rem;
-  transition: background-color 0.2s ease, opacity 0.2s ease;
-}
-.button-primary {
-  background-color: var(--button-bg-color); color: var(--button-text-color);
-}
-.button-primary:hover:not(:disabled) { background-color: var(--button-hover-bg-color); }
-.button-primary:disabled { background-color: #6c757d; opacity: 0.7; cursor: not-allowed; }
-.button-secondary {
-  background-color: var(--secondary-button-bg-color, #e9ecef);
-  color: var(--secondary-button-text-color, #343a40);
-  border: 1px solid var(--border-color);
-}
-.button-secondary:hover { background-color: var(--secondary-button-hover-bg-color, #dee2e6); }
-</style>
