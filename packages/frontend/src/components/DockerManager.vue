@@ -341,158 +341,168 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="docker-manager pane-content">
+  <div class="docker-manager flex flex-col h-full overflow-hidden bg-background text-foreground">
      <!-- Case 1: No active session -->
-     <div v-if="!currentSessionId" class="unavailable-placeholder">
-        <i class="fas fa-plug"></i>
-        <p>{{ t('dockerManager.error.noActiveSession') }}</p>
-        <small>{{ t('dockerManager.error.connectFirst') }}</small>
+     <div v-if="!currentSessionId" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+        <i class="fas fa-plug text-4xl mb-3"></i>
+        <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.error.noActiveSession') }}</p>
+        <small class="text-xs max-w-[80%] text-text-disabled">{{ t('dockerManager.error.connectFirst') }}</small>
     </div>
     <!-- Case 2: Active session, SSH connecting -->
-    <div v-else-if="sshConnectionStatus === 'connecting'" class="loading-placeholder"> <!-- <--- Removed 'initializing' check -->
-        <i class="fas fa-spinner fa-spin"></i>
-        <p>{{ t('dockerManager.waitingForSsh') }}</p>
-        <small>{{ activeSession?.wsManager.statusMessage.value || '...' }}</small>
+    <div v-else-if="sshConnectionStatus === 'connecting'" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+        <i class="fas fa-spinner fa-spin text-4xl mb-3"></i>
+        <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.waitingForSsh') }}</p>
+        <small class="text-xs max-w-[80%] text-text-disabled">{{ activeSession?.wsManager.statusMessage.value || '...' }}</small>
      </div>
      <!-- Case 3: Active session, SSH disconnected -->
-      <div v-else-if="sshConnectionStatus === 'disconnected'" class="unavailable-placeholder">
-         <i class="fas fa-unlink"></i>
-         <p>{{ t('dockerManager.error.sshDisconnected') }}</p>
-         <small>{{ activeSession?.wsManager.statusMessage.value || '...' }}</small>
+      <div v-else-if="sshConnectionStatus === 'disconnected'" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+         <i class="fas fa-unlink text-4xl mb-3"></i>
+         <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.error.sshDisconnected') }}</p>
+         <small class="text-xs max-w-[80%] text-text-disabled">{{ activeSession?.wsManager.statusMessage.value || '...' }}</small>
       </div>
      <!-- Case 4: Active session, SSH error -->
-      <div v-else-if="sshConnectionStatus === 'error'" class="error-placeholder">
-         <i class="fas fa-exclamation-circle error-icon"></i>
-         <p>{{ t('dockerManager.error.sshError') }}</p>
-         <small>{{ activeSession?.wsManager.statusMessage.value || 'Unknown SSH error' }}</small>
+      <div v-else-if="sshConnectionStatus === 'error'" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+         <i class="fas fa-exclamation-circle text-3xl text-red-500 mb-2"></i>
+         <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.error.sshError') }}</p>
+         <small class="text-xs max-w-[80%]">{{ activeSession?.wsManager.statusMessage.value || 'Unknown SSH error' }}</small>
       </div>
      <!-- Case 5: Active session, SSH connected, Docker loading -->
-    <div v-else-if="isLoading && containers.length === 0" class="loading-placeholder">
-        <i class="fas fa-spinner fa-spin"></i> {{ t('dockerManager.loading') }}
+    <div v-else-if="isLoading && containers.length === 0" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+        <i class="fas fa-spinner fa-spin text-4xl mb-3"></i> {{ t('dockerManager.loading') }}
     </div>
      <!-- Case 6: Active session, SSH connected, Docker unavailable -->
-    <div v-else-if="!isDockerAvailable" class="unavailable-placeholder">
-        <i class="fab fa-docker error-icon"></i>
-        <p>{{ t('dockerManager.notAvailable') }}</p>
-        <small>{{ t('dockerManager.installHintRemote') }}</small> <!-- Use a remote-specific hint -->
+    <div v-else-if="!isDockerAvailable" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+        <i class="fab fa-docker text-4xl mb-3"></i>
+        <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.notAvailable') }}</p>
+        <small class="text-xs max-w-[80%] text-text-disabled">{{ t('dockerManager.installHintRemote') }}</small>
     </div>
      <!-- Case 7: Active session, SSH connected, Fetch error -->
-     <div v-else-if="error" class="error-placeholder">
-        <i class="fas fa-exclamation-triangle error-icon"></i>
-        <p>{{ t('dockerManager.error.fetchFailed') }}</p>
-        <small>{{ error }}</small>
+     <div v-else-if="error" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary p-4">
+        <i class="fas fa-exclamation-triangle text-3xl text-red-500 mb-2"></i>
+        <p class="mt-2 mb-1 font-medium">{{ t('dockerManager.error.fetchFailed') }}</p>
+        <small class="text-xs max-w-[80%]">{{ error }}</small>
      </div>
      <!-- Case 8: Active session, SSH connected, Docker available, show list -->
-    <div v-else class="container-list">
-      <div v-if="containers.length === 0 && !isLoading" class="empty-placeholder">
+    <div v-else class="flex-grow overflow-auto p-4">
+      <div v-if="containers.length === 0 && !isLoading" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary h-full">
         {{ t('dockerManager.noContainers') }}
       </div>
-      <table v-else class="responsive-table docker-table"> <!-- Add specific class -->
-        <thead>
-          <tr>
-            <th class="col-expand"></th> <!-- Empty header for expand button -->
-            <th>{{ t('dockerManager.header.name') }}</th>
-            <th>{{ t('dockerManager.header.image') }}</th>
-            <th>{{ t('dockerManager.header.status') }}</th>
-            <th>{{ t('dockerManager.header.ports') }}</th>
-            <th>{{ t('dockerManager.header.actions') }}</th>
+      <table v-else class="w-full border-collapse text-sm">
+        <thead class="responsive-thead"> <!-- Use class for CSS control -->
+          <tr class="bg-header">
+            <th class="w-8 px-2 py-2 border-b border-border"></th> <!-- Expand Col -->
+            <th class="px-3 py-2 border-b border-border text-left font-medium text-text-secondary uppercase tracking-wider">{{ t('dockerManager.header.name') }}</th>
+            <th class="px-3 py-2 border-b border-border text-left font-medium text-text-secondary uppercase tracking-wider">{{ t('dockerManager.header.image') }}</th>
+            <th class="px-3 py-2 border-b border-border text-left font-medium text-text-secondary uppercase tracking-wider">{{ t('dockerManager.header.status') }}</th>
+            <th class="px-3 py-2 border-b border-border text-left font-medium text-text-secondary uppercase tracking-wider">{{ t('dockerManager.header.ports') }}</th>
+            <th class="px-3 py-2 border-b border-border text-left font-medium text-text-secondary uppercase tracking-wider">{{ t('dockerManager.header.actions') }}</th>
           </tr>
         </thead>
         <!-- Use template v-for to render pairs of rows -->
-        <template v-for="container in containers" :key="container.id">
-          <!-- Main Row / Card Container -->
-          <tr :class="{'expanded': expandedContainerIds.has(container.id)}">
-            <!-- 表格视图中的展开按钮 -->
-            <td class="col-expand">
-              <button @click="toggleExpand(container.id)" class="expand-btn" :title="expandedContainerIds.has(container.id) ? t('common.collapse') : t('common.expand')">
-                <i :class="['fas', expandedContainerIds.has(container.id) ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
-              </button>
-            </td>
-            <td :data-label="t('dockerManager.header.name')">{{ container.Names?.join(', ') || 'N/A' }}</td>
-            <td :data-label="t('dockerManager.header.image')">{{ container.Image }}</td>
-            <td :data-label="t('dockerManager.header.status')">
-                <span :class="['status-badge', `status-${container.State?.toLowerCase()}`]">
-                    {{ container.Status }}
-                </span>
-            </td>
-            <td :data-label="t('dockerManager.header.ports')">{{ container.Ports?.map(p => `${p.IP ? p.IP + ':' : ''}${p.PublicPort ? p.PublicPort + '->' : ''}${p.PrivatePort}/${p.Type}`).join(', ') || 'N/A' }}</td>
-            <td :data-label="t('dockerManager.header.actions')" class="action-buttons">
-              <button @click="sendDockerCommand(container.id, 'start')" :title="t('dockerManager.action.start')" class="action-btn start" :disabled="container.State === 'running'">
-                <i class="fas fa-play"></i>
-              </button>
-              <button @click="sendDockerCommand(container.id, 'stop')" :title="t('dockerManager.action.stop')" class="action-btn stop" :disabled="container.State !== 'running'">
-                 <i class="fas fa-stop"></i>
-              </button>
-              <button @click="sendDockerCommand(container.id, 'restart')" :title="t('dockerManager.action.restart')" class="action-btn restart" :disabled="container.State !== 'running'">
-                 <i class="fas fa-sync-alt"></i>
-              </button>
-               <button @click="sendDockerCommand(container.id, 'remove')" :title="t('dockerManager.action.remove')" class="action-btn remove" :disabled="container.State === 'running'">
-                 <i class="fas fa-trash-alt"></i>
-              </button>
-              <!-- Log button removed as per user request -->
-            </td>
+        <tbody class="responsive-tbody"> <!-- Use class for CSS control -->
+          <template v-for="container in containers" :key="container.id">
+            <!-- Main Row / Card Container -->
+            <tr class="responsive-tr mb-4 border border-border rounded p-3 bg-background shadow-sm relative hover:bg-header/30 transition-colors duration-150"
+                :class="{'expanded': expandedContainerIds.has(container.id)}">
+              <!-- Expand Button Cell (Desktop only) -->
+              <td class="responsive-td-expand w-8 px-2 py-2 border-b border-border text-center align-middle">
+                <button @click="toggleExpand(container.id)" class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 text-xs" :title="expandedContainerIds.has(container.id) ? t('common.collapse') : t('common.expand')">
+                  <i :class="['fas', expandedContainerIds.has(container.id) ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+                </button>
+              </td>
+              <!-- Name Cell -->
+              <td class="responsive-td px-3 py-2 border-b border-border align-middle text-right" :data-label="t('dockerManager.header.name')">
+                <span class="font-medium">{{ container.Names?.join(', ') || 'N/A' }}</span>
+              </td>
+              <!-- Image Cell -->
+              <td class="responsive-td px-3 py-2 border-b border-border align-middle text-right break-all" :data-label="t('dockerManager.header.image')">
+                {{ container.Image }}
+              </td>
+              <!-- Status Cell -->
+              <td class="responsive-td px-3 py-2 border-b border-border align-middle text-right" :data-label="t('dockerManager.header.status')">
+                  <span :class="['px-2 py-0.5 rounded-full text-xs font-medium text-white whitespace-nowrap',
+                                 container.State === 'running' ? 'bg-green-500' :
+                                 container.State === 'exited' ? 'bg-red-500' :
+                                 container.State === 'paused' ? 'bg-yellow-500 text-gray-800' :
+                                 container.State === 'restarting' ? 'bg-blue-500' :
+                                 'bg-gray-500']">
+                      {{ container.Status }}
+                  </span>
+              </td>
+              <!-- Ports Cell -->
+              <td class="responsive-td px-3 py-2 border-b border-border align-middle text-right break-all" :data-label="t('dockerManager.header.ports')">
+                {{ container.Ports?.map(p => `${p.IP ? p.IP + ':' : ''}${p.PublicPort ? p.PublicPort + '->' : ''}${p.PrivatePort}/${p.Type}`).join(', ') || 'N/A' }}
+              </td>
+              <!-- Actions Cell -->
+              <td class="responsive-td px-3 py-2 border-b border-border align-middle text-right" :data-label="t('dockerManager.header.actions')">
+                <div class="responsive-actions-container flex justify-end gap-2 flex-wrap pt-2">
+                  <button @click="sendDockerCommand(container.id, 'start')" :title="t('dockerManager.action.start')" class="text-text-secondary hover:text-green-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base" :disabled="container.State === 'running'">
+                    <i class="fas fa-play"></i>
+                  </button>
+                  <button @click="sendDockerCommand(container.id, 'stop')" :title="t('dockerManager.action.stop')" class="text-text-secondary hover:text-yellow-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base" :disabled="container.State !== 'running'">
+                     <i class="fas fa-stop"></i>
+                  </button>
+                  <button @click="sendDockerCommand(container.id, 'restart')" :title="t('dockerManager.action.restart')" class="text-text-secondary hover:text-blue-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base" :disabled="container.State !== 'running'">
+                     <i class="fas fa-sync-alt"></i>
+                  </button>
+                   <button @click="sendDockerCommand(container.id, 'remove')" :title="t('dockerManager.action.remove')" class="text-text-secondary hover:text-red-500 disabled:text-text-disabled disabled:cursor-not-allowed transition-colors duration-150 p-0.5 text-base" :disabled="container.State === 'running'">
+                     <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </td>
 
-            <!-- NEW: Container Cell for Card Footer/Expansion (Only visible in card view) -->
-            <td class="card-expansion-cell">
-              <!-- Card Footer Button (Show when NOT expanded in card view) -->
-              <div class="card-footer" v-if="!expandedContainerIds.has(container.id)">
-                 <button @click="toggleExpand(container.id)" class="card-expand-btn">
-                   <i class="fas fa-chevron-down"></i> {{ t('common.expand') }} <!-- Added text -->
-                 </button>
-              </div>
-              <!-- Card Expansion Content (Show when expanded in card view) -->
-              <div class="expansion-card-content" v-if="expandedContainerIds.has(container.id)">
-                 <div class="stats-container card-stats-container">
-                    <!-- Stats content (loading, error, data) for this specific container -->
-                    <!-- SIMPLIFIED: Display stats directly from container object -->
-                    <!-- REMOVED: v-if="isStatsLoading..." and v-else-if="statsError..." -->
-                    <dl v-if="container.stats" class="stats-dl">
-                      <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                      <dd>{{ container.stats.CPUPerc ?? 'N/A' }}</dd>
-                      <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                      <dd>{{ container.stats.MemUsage ?? 'N/A' }} ({{ container.stats.MemPerc ?? 'N/A' }})</dd>
-                      <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                      <dd>{{ container.stats.NetIO ?? 'N/A' }}</dd>
-                      <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                      <dd>{{ container.stats.BlockIO ?? 'N/A' }}</dd>
-                      <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                      <dd>{{ container.stats.PIDs ?? 'N/A' }}</dd>
-                      <!-- Add more stats if available -->
-                    </dl>
-                    <div v-else class="stats-nodata">
-                        {{ t('dockerManager.stats.noData') }}
-                    </div>
-                 </div>
-                 <!-- NEW: Collapse Button for Card View -->
-                 <button @click="toggleExpand(container.id)" class="collapse-btn card-collapse-btn">
-                     <i class="fas fa-chevron-up"></i> {{ t('common.collapse') }}
-                 </button>
-              </div>
-            </td>
-          </tr>
+              <!-- Card Expansion Cell (Mobile only) -->
+              <td class="responsive-td-card-expand w-full p-0 border-t border-border mt-3">
+                <!-- Card Footer Button (Show when NOT expanded) -->
+                <div v-if="!expandedContainerIds.has(container.id)">
+                   <button @click="toggleExpand(container.id)" class="flex items-center justify-center w-full h-10 text-text-secondary hover:text-foreground hover:bg-header/50 transition-colors duration-150 text-sm rounded-b">
+                     <i class="fas fa-chevron-down mr-1.5"></i> {{ t('common.expand') }}
+                   </button>
+                </div>
+                <!-- Card Expansion Content (Show when expanded) -->
+                <div v-if="expandedContainerIds.has(container.id)" class="bg-header/30 rounded-b">
+                   <div class="p-4"> <!-- Stats Container -->
+                      <dl v-if="container.stats" class="grid grid-cols-[max-content_auto] gap-x-4 gap-y-2 text-xs">
+                        <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.cpu') }}</dt>
+                        <dd class="font-mono">{{ container.stats.CPUPerc ?? 'N/A' }}</dd>
+                        <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.memory') }}</dt>
+                        <dd class="font-mono">{{ container.stats.MemUsage ?? 'N/A' }} ({{ container.stats.MemPerc ?? 'N/A' }})</dd>
+                        <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.netIO') }}</dt>
+                        <dd class="font-mono">{{ container.stats.NetIO ?? 'N/A' }}</dd>
+                        <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.blockIO') }}</dt>
+                        <dd class="font-mono">{{ container.stats.BlockIO ?? 'N/A' }}</dd>
+                        <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.pids') }}</dt>
+                        <dd class="font-mono">{{ container.stats.PIDs ?? 'N/A' }}</dd>
+                      </dl>
+                      <div v-else class="text-center text-text-secondary italic text-xs py-2">
+                          {{ t('dockerManager.stats.noData') }}
+                      </div>
+                   </div>
+                   <!-- Collapse Button for Card View -->
+                   <button @click="toggleExpand(container.id)" class="flex items-center justify-center w-full h-10 text-text-secondary hover:text-foreground hover:bg-header/50 transition-colors duration-150 text-sm border-t border-border rounded-b">
+                       <i class="fas fa-chevron-up mr-1.5"></i> {{ t('common.collapse') }}
+                   </button>
+                </div>
+              </td>
+            </tr>
 
-          <!-- Desktop Expansion Row (Remains separate, only visible in desktop view when expanded) -->
-          <tr v-if="expandedContainerIds.has(container.id)" class="expansion-row">
-            <!-- Colspan needs to match the number of VISIBLE columns in desktop view (excluding the new card-expansion-cell) -->
-            <td :colspan="6">
-              <div class="stats-container">
-                <!-- Desktop stats content for this specific container -->
-                <!-- SIMPLIFIED: Display stats directly from container object -->
-                <!-- REMOVED: v-if="isStatsLoading..." and v-else-if="statsError..." -->
-                <dl v-if="container.stats" class="stats-dl">
-                  <dt>{{ t('dockerManager.stats.cpu') }}</dt>
-                  <dd>{{ container.stats.CPUPerc ?? 'N/A' }}</dd>
-                  <dt>{{ t('dockerManager.stats.memory') }}</dt>
-                  <dd>{{ container.stats.MemUsage ?? 'N/A' }} ({{ container.stats.MemPerc ?? 'N/A' }})</dd>
-                  <dt>{{ t('dockerManager.stats.netIO') }}</dt>
-                  <dd>{{ container.stats.NetIO ?? 'N/A' }}</dd>
-                  <dt>{{ t('dockerManager.stats.blockIO') }}</dt>
-                  <dd>{{ container.stats.BlockIO ?? 'N/A' }}</dd>
-                  <dt>{{ t('dockerManager.stats.pids') }}</dt>
-                  <dd>{{ container.stats.PIDs ?? 'N/A' }}</dd>
-                  <!-- Add more stats if available -->
+          <!-- Desktop Expansion Row (Hidden on mobile) -->
+          <tr v-if="expandedContainerIds.has(container.id)" class="responsive-expansion-row">
+            <td :colspan="6" class="p-0 border-b border-border">
+              <div class="bg-header/30 p-4"> <!-- Stats Container -->
+                <dl v-if="container.stats" class="grid grid-cols-[max-content_auto] gap-x-4 gap-y-2 text-xs">
+                  <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.cpu') }}</dt>
+                  <dd class="font-mono">{{ container.stats.CPUPerc ?? 'N/A' }}</dd>
+                  <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.memory') }}</dt>
+                  <dd class="font-mono">{{ container.stats.MemUsage ?? 'N/A' }} ({{ container.stats.MemPerc ?? 'N/A' }})</dd>
+                  <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.netIO') }}</dt>
+                  <dd class="font-mono">{{ container.stats.NetIO ?? 'N/A' }}</dd>
+                  <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.blockIO') }}</dt>
+                  <dd class="font-mono">{{ container.stats.BlockIO ?? 'N/A' }}</dd>
+                  <dt class="font-medium text-text-secondary">{{ t('dockerManager.stats.pids') }}</dt>
+                  <dd class="font-mono">{{ container.stats.PIDs ?? 'N/A' }}</dd>
                 </dl>
-                 <div v-else class="stats-nodata">
+                 <div v-else class="text-center text-text-secondary italic text-xs py-2">
                      {{ t('dockerManager.stats.noData') }}
                  </div>
               </div>
@@ -500,455 +510,115 @@ onUnmounted(() => {
           </tr>
           <!-- Removed original separate card-footer-row and expansion-card-row -->
         </template> <!-- End v-for template -->
+        </tbody>
       </table>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Styles remain largely the same */
-/* --- Define the component root as a size container --- */
-/* Remove padding from the main container */
+/* Define the component root as a size container */
 .docker-manager {
-  /* padding: var(--base-padding, 1rem); */ /* Removed */
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  /* overflow-y: auto; */ /* Let children handle scroll */
-  background-color: var(--app-bg-color);
-  color: var(--text-color);
   container-type: inline-size; /* Define as a size container */
   container-name: docker-manager-pane; /* Optional: give it a name */
-  overflow: hidden; /* Prevent double scrollbars */
 }
-
-/* Add padding to placeholders */
-.loading-placeholder,
-.error-placeholder,
-.unavailable-placeholder,
-.empty-placeholder {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  flex-grow: 1;
-  color: var(--text-color-secondary);
-  height: 100%;
-  padding: var(--base-padding, 1rem); /* Added padding */
-}
-.unavailable-placeholder i:first-child, .loading-placeholder i:first-child { /* Target the icon */
-    font-size: 2.5rem;
-    margin-bottom: 0.75rem;
-}
-.unavailable-placeholder p, .loading-placeholder p {
-    margin-top: 0.5rem;
-    margin-bottom: 0.3rem;
-    font-weight: 500;
-}
-.unavailable-placeholder small, .loading-placeholder small {
-    font-size: 0.8em;
-    max-width: 80%;
-    color: var(--text-color-disabled); /* Lighter color for subtext */
-}
-
-
-.error-placeholder p {
-    margin-top: 0.5rem;
-    margin-bottom: 0.3rem;
-    font-weight: 500;
-}
-.error-placeholder small {
-    font-size: 0.8em;
-    max-width: 80%;
-}
-
-.error-icon {
-    font-size: 2rem;
-    color: var(--color-danger, #dc3545);
-    margin-bottom: 0.5rem;
-}
-.unavailable-placeholder .error-icon { /* Style for docker icon when unavailable */
-     color: var(--text-color-secondary);
-}
-
-
-/* Add padding to the scrollable container and handle overflow */
-.container-list {
-  flex-grow: 1;
-  overflow: auto; /* Use auto for both x and y scroll */
-  padding: var(--base-padding, 1rem); /* Added padding */
-}
-
-.docker-table { /* Use specific class */
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9em;
-}
-
-.docker-table th, .docker-table td {
-  padding: 0.6rem 0.8rem;
-  text-align: left;
-  vertical-align: top; /* Align content to the top */
-  border-bottom: 1px solid var(--border-color-light, #eee);
-  white-space: nowrap; /* Default to nowrap */
-}
-.docker-table td:first-child, .docker-table th:first-child {
-    /* white-space: normal; */ /* Let specific columns handle wrapping */
-}
-
-/* Allow specific columns to wrap */
-.docker-table td:nth-child(2), /* Name */
-.docker-table td:nth-child(3), /* Image */
-.docker-table td:nth-child(5) { /* Ports */
-  white-space: normal;
-  word-break: break-all; /* Break long words if necessary */
-}
-
-/* Style for Status column: truncate with ellipsis */
-.docker-table td:nth-child(4) {
-  max-width: 180px; /* Adjust as needed */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap; /* Ensure ellipsis works */
-}
-
-.docker-table th {
-  background-color: var(--header-bg-color);
-  font-weight: 600;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.docker-table tbody tr:not(.expansion-row):not(.expansion-card-row):hover { /* Exclude expansion rows from hover */
-  background-color: var(--hover-bg-color, #f5f5f5);
-}
-
-.status-badge {
-    padding: 0.2em 0.6em;
-    border-radius: 10px;
-    font-size: 0.8em;
-    font-weight: 500;
-    color: #fff;
-    background-color: var(--text-color-secondary);
-}
-
-.status-running { background-color: var(--color-success, #28a745); }
-.status-exited { background-color: var(--color-danger, #dc3545); }
-.status-paused { background-color: var(--color-warning, #ffc107); color: #333; }
-.status-restarting { background-color: var(--color-info, #17a2b8); }
-.status-created { background-color: var(--text-color-secondary); }
-
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  background: none;
-  border: none;
-  color: var(--text-color-secondary);
-  cursor: pointer;
-  padding: 0.3rem;
-  font-size: 1rem;
-  transition: color 0.2s ease;
-}
-.action-btn[disabled] {
-    color: var(--text-color-disabled);
-    cursor: not-allowed;
-}
-.action-btn:not([disabled]):hover {
-  color: var(--text-color);
-}
-.action-btn.start:not([disabled]):hover { color: var(--color-success, #28a745); }
-.action-btn.stop:not([disabled]):hover { color: var(--color-warning, #ffc107); }
-.action-btn.restart:not([disabled]):hover { color: var(--color-info, #17a2b8); }
-.action-btn.remove:not([disabled]):hover { color: var(--color-danger, #dc3545); }
-
-/* Styles for Expand Button */
-.col-expand {
-    width: 30px; /* Fixed width for the button column */
-    padding: 0.6rem 0.4rem !important; /* Adjust padding */
-    text-align: center !important;
-    border-bottom: 1px solid var(--border-color-light, #eee); /* Match other cells */
-}
-.expand-btn {
-    background: none;
-    border: none;
-    color: var(--text-color-secondary);
-    cursor: pointer;
-    padding: 0.2rem;
-    font-size: 0.8em;
-    transition: color 0.2s ease;
-}
-.expand-btn:hover {
-    color: var(--text-color);
-}
-
-/* Styles for Expansion Row */
-.expansion-row td {
-    padding: 0 !important; /* Remove padding from the cell itself */
-    border-bottom: 1px solid var(--border-color); /* Add a bottom border */
-    /* background-color: var(--item-expanded-bg, #f9f9f9); */ /* Optional background */
-}
-.stats-container {
-    padding: var(--base-padding, 1rem);
-    background-color: var(--item-expanded-bg, rgba(0,0,0,0.02)); /* Slightly different background */
-}
-.stats-loading, .stats-error, .stats-nodata {
-    color: var(--text-color-secondary);
-    padding: 0.5rem 0;
-    text-align: center;
-}
-.stats-error {
-    color: var(--color-danger);
-}
-.stats-dl {
-    display: grid;
-    grid-template-columns: max-content auto; /* Label column and value column */
-    gap: 0.5rem 1rem; /* Row and column gap */
-    font-size: 0.9em;
-}
-.stats-dl dt {
-    font-weight: 500;
-    color: var(--text-color-secondary);
-    grid-column: 1;
-}
-.stats-dl dd {
-    grid-column: 2;
-    margin-left: 0;
-    font-family: var(--font-family-mono, monospace); /* Monospace for stats */
-}
-
-/* Hide card-specific expansion row and footer row by default */
-.expansion-card-row,
-.card-footer-row {
-    display: none;
-}
-
-/* Hide the new card expansion cell by default (for desktop view) */
-.responsive-table td.card-expansion-cell {
-  display: none;
-  padding: 0;
-  border: none;
-}
-
 
 /* --- Responsive Table Styles using Container Query --- */
-@container (max-width: 500px) { /* Lowered breakpoint */
-  .responsive-table {
-    border: none; /* Remove table border */
-  }
 
-  .responsive-table thead {
+/* Default styles (Table view) - Applied via classes in template */
+.responsive-thead { display: table-header-group; }
+.responsive-tbody { display: table-row-group; }
+.responsive-tr { display: table-row; }
+.responsive-td { display: table-cell; vertical-align: middle; } /* Added vertical-align */
+.responsive-td-expand { display: table-cell; vertical-align: middle; } /* Desktop expand button cell */
+.responsive-td-card-expand { display: none; } /* Hide card expansion cell */
+.responsive-expansion-row { display: table-row; } /* Desktop expansion row */
+.responsive-actions-container { justify-content: flex-start; } /* Align actions left in table */
+
+/* Styles for Card View when container is narrow */
+@container docker-manager-pane (max-width: 600px) { /* Use container query, adjust breakpoint if needed */
+  .responsive-thead.responsive-thead { /* Increased specificity */
     display: none; /* Hide table header */
   }
 
-  .responsive-table tr:not(.expansion-card-row) { /* Target main rows only */
-    display: block; /* Make rows behave like blocks/cards */
-    margin-bottom: 1rem; /* Space between cards */
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius-medium, 4px);
-    padding: 0.8rem;
-    background-color: var(--item-bg-color, var(--app-bg-color)); /* Card background */
-    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
-    position: relative; /* Needed for absolute positioning */
-    /* padding-bottom: 0; /* Removed, expansion/footer is now inside */
+  .responsive-tbody.responsive-tbody { /* Increased specificity */
+    display: block; /* Make body behave like block */
   }
 
-  .responsive-table td:not(.card-expansion-cell) { /* Exclude the new cell from general card TD styling */
+  .responsive-tr.responsive-tr { /* Increased specificity */
+    display: block; /* Make rows behave like blocks/cards */
+    /* Tailwind classes in template handle margin, border, padding, bg, shadow */
+  }
+
+  .responsive-td.responsive-td { /* Increased specificity */
     display: block; /* Stack cells vertically */
     text-align: right; /* Align cell content to the right */
     padding-left: 50%; /* Make space for the label */
     position: relative; /* Needed for pseudo-element positioning */
-    border-bottom: none; /* Remove default bottom border */
-    padding-top: 0.4rem;
-    padding-bottom: 0.4rem;
-    white-space: normal; /* Keep allowing wrapping */
-    word-break: break-all; /* Add this to force breaks in long strings */
+    /* Tailwind classes in template handle padding-top/bottom */
+    border-bottom: 1px dashed var(--border-color-light); /* Add separator */
   }
-   .responsive-table td:not(:last-child) {
-       /* Optional: add a subtle separator between fields in a card */
-       border-bottom: 1px dashed var(--border-color-light);
+   /* Remove border from last visible cell in card view (which is now the actions cell) */
+   /* Specificity already high enough with td context */
+   .responsive-tr td.responsive-td:last-of-type {
+       border-bottom: none;
    }
+   /* Also remove border from the hidden card expansion cell if it were visible */
+    .responsive-tr td.responsive-td-card-expand {
+         border-bottom: none;
+    }
 
 
-  .responsive-table td::before {
+  .responsive-td.responsive-td::before { /* Increased specificity */
     content: attr(data-label); /* Display the label */
     position: absolute;
-    left: 0.8rem; /* Position label on the left */
-    width: calc(50% - 1.6rem); /* Calculate label width */
+    left: 0.75rem; /* Corresponds to p-3 left padding in template */
+    width: calc(50% - 1.5rem); /* Calculate label width based on p-3 */
     padding-right: 10px;
     white-space: nowrap;
     text-align: left; /* Align label text to the left */
-    font-weight: bold;
-    color: var(--text-color-secondary);
+    font-weight: 600; /* Tailwind font-bold */
+    color: var(--text-color-secondary); /* Tailwind text-text-secondary */
   }
 
-  /* 表格模式下的展开按钮列样式 */
-  @container (min-width: 601px) { /* Adjusted corresponding min-width */
-    .responsive-table .col-expand {
-        width: 30px;
-        padding: 0.6rem 0.4rem !important;
-        text-align: center !important;
-        border-bottom: 1px solid var(--border-color-light, #eee);
-    }
-  }
-  
-  /* 卡片模式下隐藏原始的展开按钮列，改用底部长条按钮 */
-  @container (max-width: 600px) { /* Lowered breakpoint */
-    .responsive-table .col-expand {
-        display: none !important; /* Force hide in card view */
-    }
+  /* Hide desktop expand button cell in card view */
+  .responsive-td-expand.responsive-td-expand { /* Increased specificity */
+      display: none; /* Removed !important */
   }
 
-
-  /* Adjust specific cells if needed */
-   .responsive-table td:first-child { /* e.g., Name */
-       font-weight: 500; /* Make name slightly bolder */
-   }
-   
-   /* Styles for the new card expansion cell in card view */
-   .responsive-table td.card-expansion-cell {
-     display: block; /* Show in card view */
-     width: 100%; /* Take full width */
-     padding: 0 !important; /* Override default td padding */
-     position: static; /* Override relative positioning if needed */
-     border-top: 1px solid var(--border-color-light); /* Separator line */
-     margin-top: 0.8rem; /* Space above the separator */
-   }
-   .responsive-table td.card-expansion-cell::before {
+  /* Show card expansion cell in card view */
+  .responsive-td-card-expand.responsive-td-card-expand { /* Increased specificity */
+    display: block;
+    /* Tailwind classes in template handle width, padding, border, margin */
+  }
+   .responsive-td-card-expand.responsive-td-card-expand::before { /* Increased specificity */
      display: none; /* No label for this cell */
    }
 
-   /* Styles for the footer button container inside the cell */
-   .card-expansion-cell .card-footer {
-      display: block;
-      margin: 0;
-      padding: 0;
-   }
-   .card-expansion-cell .card-expand-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 40px;
-      padding: 0;
-      background: none;
-      border: none;
-      font-size: 0.9em;
-      color: var(--text-color-secondary);
-      cursor: pointer;
-      transition: color 0.2s ease, background-color 0.2s ease;
-      border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Add border radius to button */
-   }
-   .card-expansion-cell .card-expand-btn i {
-      margin-right: 6px;
-   }
-   .card-expansion-cell .card-expand-btn:hover {
-      color: var(--text-color);
-      background-color: var(--hover-bg-color, rgba(0,0,0,0.03));
-   }
-
-   /* Styles for the expansion content container inside the cell */
-   .card-expansion-cell .expansion-card-content {
-      display: block; /* Ensure visible */
-      background-color: var(--item-expanded-bg, rgba(0,0,0,0.02));
-      padding: 0; /* Let stats-container handle padding */
-      border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Add border radius */
-   }
-    .card-expansion-cell .card-stats-container {
-        padding: var(--base-padding, 1rem); /* Padding inside the content area */
-    }
-
-    /* Hide original separate rows in card view */
-    .responsive-table .card-footer-row,
-    .responsive-table .expansion-card-row {
-        display: none !important; /* Ensure they are hidden */
-    }
-   /* --- End New Card Expansion Cell Styles --- */
-
-
-  .responsive-table .action-buttons {
-    /* ... (existing action button styles) ... */
-    display: flex;
+  /* Align actions right in card view */
+  .responsive-actions-container.responsive-actions-container { /* Increased specificity */
     justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    padding-left: 0; /* Reset padding */
-    padding-top: 0.8rem;
+    /* Tailwind pt-2 in template handles top padding */
   }
-   .responsive-table .action-buttons::before {
-       display: none;
+   /* Remove label for actions cell in card view */
+   /* Specificity already high enough with attribute selector */
+   .responsive-td[data-label*="Actions"]::before {
+       content: ''; /* Override label */
+       display: none; /* Hide label space */
    }
-   .responsive-table .action-buttons button {
-       min-width: 30px;
-   }
+    .responsive-td[data-label*="Actions"] {
+        padding-left: 0.75rem; /* Reset padding-left for actions cell */
+        /* border-bottom: none; /* Already handled by last-of-type */
+    }
 
-   /* Adjust status badge alignment and prevent wrapping */
-   .responsive-table td[data-label*="Status"] {
-       display: flex; /* Use flexbox for alignment */
-       justify-content: flex-end; /* Align badge to the right */
-       align-items: center; /* Vertically align if needed */
-   }
-   .responsive-table td[data-label*="Status"] span.status-badge {
-       /* float: right; */ /* Removed float */
-       white-space: nowrap; /* Prevent text inside badge from wrapping */
-       flex-shrink: 0; /* Prevent badge from shrinking */
-   }
 
    /* Hide the table-specific expansion row in card view */
-   .responsive-table .expansion-row {
-       display: none !important; /* Ensure desktop row is hidden in card view */
+   .responsive-expansion-row.responsive-expansion-row { /* Increased specificity */
+       display: none; /* Removed !important */
    }
-    /* Original expansion-card-row styles are now handled by .card-expansion-cell .expansion-card-content */
-
 }
 /* --- End Responsive Table Styles --- */
 
-/* --- NEW: Collapse Button Styles --- */
-.collapse-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    padding: 0.6rem;
-    margin-top: 0.8rem; /* Space above the button */
-    background-color: var(--button-secondary-bg, #e9ecef);
-    border: 1px solid var(--button-secondary-border, #ced4da);
-    color: var(--button-secondary-text, #495057);
-    font-size: 0.9em;
-    font-weight: 500;
-    cursor: pointer;
-    border-radius: var(--border-radius-small, 3px);
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-.collapse-btn i {
-    margin-right: 6px;
-}
-.collapse-btn:hover {
-    background-color: var(--button-secondary-hover-bg, #dee2e6);
-    border-color: var(--button-secondary-hover-border, #adb5bd);
-    color: var(--button-secondary-hover-text, #343a40);
-}
-
-/* Specific styles for card collapse button */
-.card-collapse-btn {
-    border-radius: 0 0 var(--border-radius-medium, 4px) var(--border-radius-medium, 4px); /* Match card bottom radius */
-    border-top: 1px solid var(--border-color-light); /* Add top border */
-    margin-top: 0; /* Remove top margin as it's inside the content */
-    background-color: transparent; /* Make it less prominent than the expand button */
-    border: none;
-    border-top: 1px solid var(--border-color-light);
-    color: var(--text-color-secondary);
-}
-.card-collapse-btn:hover {
-    background-color: var(--hover-bg-color, rgba(0,0,0,0.03));
-    color: var(--text-color);
-}
-
-/* --- End Collapse Button Styles --- */
+/* Minimal styles needed - Tailwind handles most */
 
 </style>
