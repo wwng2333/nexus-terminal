@@ -44,8 +44,10 @@ const updateUnderline = async () => {
   if (navRef.value && underlineRef.value) {
     const activeLink = navRef.value.querySelector('.router-link-exact-active') as HTMLElement;
     if (activeLink) {
+      const offsetBottom = 2; // 下划线距离文字底部的距离 (px)
       underlineRef.value.style.left = `${activeLink.offsetLeft}px`;
       underlineRef.value.style.width = `${activeLink.offsetWidth}px`;
+      // underlineRef.value.style.top = `${activeLink.offsetTop + activeLink.offsetHeight + offsetBottom}px`; // 移除 top 设置
       underlineRef.value.style.opacity = '1'; // Make it visible
     } else {
       underlineRef.value.style.opacity = '0'; // Hide if no active link (e.g., on login page if not a nav link)
@@ -265,7 +267,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
             <a href="#" v-if="isAuthenticated" @click.prevent="handleLogout" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out whitespace-nowrap">{{ t('nav.logout') }}</a>
         </div>
         <!-- Sliding underline element with Tailwind classes using theme variables (JS still controls positioning) -->
-        <div ref="underlineRef" class="absolute bottom-0 h-0.5 bg-link-active rounded transition-all duration-300 ease-in-out pointer-events-none opacity-0"></div> <!-- Added opacity-0 -->
+        <div ref="underlineRef" class="absolute bottom-0 h-0.5 bg-link-active rounded transition-all duration-300 ease-in-out pointer-events-none opacity-0 transform translate-y-1.5"></div> <!-- Changed translate-y-1 to translate-y-1.5 -->
       </nav>
     </header>
 
