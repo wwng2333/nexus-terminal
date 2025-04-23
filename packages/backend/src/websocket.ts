@@ -195,11 +195,60 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
 
     let allContainers: DockerContainer[] = [];
     const statsMap = new Map<string, DockerStats>();
-    let isDockerCmdAvailable = true; // Assume available initially
+    let isDockerCmdAvailable = false; // Start assuming unavailable until version check passes
 
-    // 1. Get basic container info
+    // --- 1. Check Docker Availability with 'docker version' ---
+    try {
+        const versionCommand = "docker version --format '{{.Server.Version}}'";
+        console.log(`[fetchRemoteDockerStatus] Executing: ${versionCommand} on session ${state.ws.sessionId}`);
+        const { stdout: versionStdout, stderr: versionStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+            let stdout = '';
+            let stderr = '';
+            state.sshClient.exec(versionCommand, { pty: false }, (err, stream) => {
+                if (err) return reject(err);
+                stream.on('data', (data: Buffer) => { stdout += data.toString(); });
+                stream.stderr.on('data', (data: Buffer) => { stderr += data.toString(); });
+                stream.on('close', (code: number | null) => {
+                    // Resolve even if code is non-zero, check stderr
+                    resolve({ stdout, stderr });
+                });
+                stream.on('error', (execErr: Error) => reject(execErr));
+            });
+        });
+
+        // Check stderr for common errors indicating Docker is unavailable or inaccessible
+        if (versionStderr.includes('command not found') ||
+            versionStderr.includes('permission denied') ||
+            versionStderr.includes('Cannot connect to the Docker daemon')) {
+            console.warn(`[fetchRemoteDockerStatus] Docker version check failed on session ${state.ws.sessionId}. Docker unavailable or inaccessible. Stderr: ${versionStderr.trim()}`);
+            return { available: false, containers: [] }; // Docker not available
+        } else if (versionStderr) {
+            // Log other stderr outputs as warnings but proceed
+            console.warn(`[fetchRemoteDockerStatus] Docker version command stderr on session ${state.ws.sessionId}: ${versionStderr.trim()}`);
+        }
+
+        // If stdout has content (version number), Docker is likely available
+        if (versionStdout.trim()) {
+            console.log(`[fetchRemoteDockerStatus] Docker version check successful on session ${state.ws.sessionId}. Version: ${versionStdout.trim()}`);
+            isDockerCmdAvailable = true;
+        } else {
+            // If stdout is empty but no critical error in stderr, still assume unavailable
+            console.warn(`[fetchRemoteDockerStatus] Docker version check on session ${state.ws.sessionId} produced no output, assuming Docker unavailable.`);
+            return { available: false, containers: [] };
+        }
+
+    } catch (error: any) {
+        console.error(`[fetchRemoteDockerStatus] Error executing docker version for session ${state.ws.sessionId}:`, error);
+        // Treat any error during version check as Docker being unavailable
+        return { available: false, containers: [] };
+    }
+
+    // If version check failed, we already returned. If it passed, isDockerCmdAvailable is true.
+
+    // --- 2. Get basic container info ---
     try {
         const psCommand = "docker ps -a --no-trunc --format '{{json .}}'";
+        console.log(`[fetchRemoteDockerStatus] Executing: ${psCommand} on session ${state.ws.sessionId}`);
         const { stdout: psStdout, stderr: psStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
             let stdout = '';
             let stderr = '';
@@ -215,17 +264,20 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
             });
         });
 
-        if (psStderr.includes('command not found') || psStderr.includes('Cannot connect to the Docker daemon')) {
-            console.warn(`[fetchRemoteDockerStatus] Docker ps command failed on session ${state.ws.sessionId}. Docker unavailable. Stderr: ${psStderr}`);
-            isDockerCmdAvailable = false;
+        // Although version check should catch most, double-check ps stderr
+        if (psStderr.includes('command not found') || // Should not happen if version check passed
+            psStderr.includes('permission denied') || // Could still happen if permissions differ
+            psStderr.includes('Cannot connect to the Docker daemon')) { // Should not happen
+            console.warn(`[fetchRemoteDockerStatus] Docker ps command failed unexpectedly after version check on session ${state.ws.sessionId}. Stderr: ${psStderr.trim()}`);
+            // Report as available=false, as ps failed critically
             return { available: false, containers: [] };
         } else if (psStderr) {
-             console.warn(`[fetchRemoteDockerStatus] Docker ps command stderr on session ${state.ws.sessionId}: ${psStderr}`);
+             console.warn(`[fetchRemoteDockerStatus] Docker ps command stderr on session ${state.ws.sessionId}: ${psStderr.trim()}`);
              // Continue execution but log the warning
         }
 
-
-        const lines = psStdout.trim().split('\n');
+        // If stdout is empty, there are no containers, which is valid
+        const lines = psStdout.trim() ? psStdout.trim().split('\n') : [];
         allContainers = lines
             .map(line => {
                 try {
@@ -254,26 +306,23 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
 
     } catch (error: any) {
         console.error(`[fetchRemoteDockerStatus] Error executing docker ps for session ${state.ws.sessionId}:`, error);
-        // Check if error indicates docker unavailable
-        const errorMessage = error.message || '';
-         if (errorMessage.includes('command not found') || errorMessage.includes('Cannot connect to the Docker daemon')) {
-             isDockerCmdAvailable = false;
-             return { available: false, containers: [] };
-         }
-         // Otherwise, throw to indicate a more general fetch error
-         throw new Error(`Failed to get remote Docker container list: ${errorMessage}`);
+        // If ps command fails after version check, report as unavailable
+        return { available: false, containers: [] };
+        // Rethrowing might be too aggressive here, better to report unavailability
+        // throw new Error(`Failed to get remote Docker container list: ${error.message || error}`);
     }
 
-     // If docker ps failed indicating unavailability, return early
-     if (!isDockerCmdAvailable) {
-         return { available: false, containers: [] };
-     }
+    // --- 3. Get stats for running containers (only if ps was successful) ---
+    // Check if there are any containers before running stats
+    const runningContainerIds = allContainers.filter(c => c.State === 'running').map(c => c.id);
 
-    // 2. Get stats for running containers
-    try {
-        const statsCommand = "docker stats --no-stream --format '{{json .}}'";
-        const { stdout: statsStdout, stderr: statsStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-            let stdout = '';
+    if (runningContainerIds.length > 0) {
+        try {
+            // Construct command to get stats only for running containers
+            const statsCommand = `docker stats ${runningContainerIds.join(' ')} --no-stream --format '{{json .}}'`;
+            console.log(`[fetchRemoteDockerStatus] Executing: ${statsCommand} on session ${state.ws.sessionId}`);
+            const { stdout: statsStdout, stderr: statsStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+                let stdout = '';
             let stderr = '';
             state.sshClient.exec(statsCommand, { pty: false }, (err, stream) => {
                 if (err) return reject(err);
@@ -287,29 +336,32 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
             });
         });
 
-         if (statsStderr) {
-             // Log stats errors but don't necessarily fail the whole process
-             console.warn(`[fetchRemoteDockerStatus] Docker stats command stderr on session ${state.ws.sessionId}: ${statsStderr}`);
-         }
-
-        const statsLines = statsStdout.trim().split('\n');
-        statsLines.forEach(line => {
-            try {
-                const statsData = JSON.parse(line) as DockerStats;
-                if (statsData.ID) {
-                    // Use the ID from stats data (usually short ID) as the key
-                    statsMap.set(statsData.ID, statsData);
-                }
-            } catch (parseError) {
-                console.error(`[fetchRemoteDockerStatus] Failed to parse stats JSON line for session ${state.ws.sessionId}: ${line}`, parseError);
+            if (statsStderr) {
+                // Log stats errors but don't necessarily fail the whole process
+                console.warn(`[fetchRemoteDockerStatus] Docker stats command stderr on session ${state.ws.sessionId}: ${statsStderr.trim()}`);
             }
-        });
-    } catch (error: any) {
-        // Failure to get stats is not critical, just log and continue
-        console.warn(`[fetchRemoteDockerStatus] Error executing docker stats for session ${state.ws.sessionId}:`, error);
+
+            const statsLines = statsStdout.trim() ? statsStdout.trim().split('\n') : [];
+            statsLines.forEach(line => {
+                try {
+                    const statsData = JSON.parse(line) as DockerStats;
+                    if (statsData.ID) {
+                        // Use the ID from stats data (usually short ID) as the key
+                        statsMap.set(statsData.ID, statsData);
+                    }
+                } catch (parseError) {
+                    console.error(`[fetchRemoteDockerStatus] Failed to parse stats JSON line for session ${state.ws.sessionId}: ${line}`, parseError);
+                }
+            });
+        } catch (error: any) {
+            // Failure to get stats is not critical, just log and continue
+            console.warn(`[fetchRemoteDockerStatus] Error executing docker stats for session ${state.ws.sessionId}:`, error);
+        }
+    } else {
+         console.log(`[fetchRemoteDockerStatus] No running containers found on session ${state.ws.sessionId}, skipping docker stats.`);
     }
 
-    // 3. Merge stats into containers
+    // --- 4. Merge stats into containers ---
     allContainers.forEach(container => {
         const shortId = container.id.substring(0, 12); // docker stats often uses short ID
         const stats = statsMap.get(container.id) || statsMap.get(shortId); // Try matching long and short ID
@@ -318,6 +370,7 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
         }
     });
 
+    // If we reached here, Docker is considered available (version check passed)
     return { available: true, containers: allContainers };
 };
 // --- End fetchRemoteDockerStatus function ---

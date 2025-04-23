@@ -169,7 +169,6 @@ const currentTab = ref<'ui' | 'terminal' | 'background' | 'other'>('ui'); // <--
 const handleSaveUiTheme = async () => {
   try {
     await appearanceStore.saveCustomUiTheme(editableUiTheme.value);
-    alert(t('styleCustomizer.uiThemeSaved')); // 简单提示
   } catch (error: any) {
     console.error("保存 UI 主题失败:", error);
     alert(t('styleCustomizer.uiThemeSaveFailed', { message: error.message }));
