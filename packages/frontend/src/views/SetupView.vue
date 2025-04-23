@@ -1,13 +1,13 @@
 <template>
-  <div class="login-view"> <!-- Use class from LoginView -->
-    <div class="login-form-container"> <!-- Use class from LoginView -->
-      <h2>{{ $t('setup.title') }}</h2>
-      <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-6"> <!-- Added margin bottom -->
+  <div class="flex justify-center items-center min-h-[calc(100vh-150px)] p-8 bg-background">
+    <div class="bg-dialog text-dialog-text p-8 md:p-12 rounded-lg shadow-lg w-full max-w-md border border-border">
+      <h2 class="text-center text-2xl font-semibold mb-4 text-foreground">{{ $t('setup.title') }}</h2>
+      <p class="text-center text-sm text-text-secondary mb-6">
         {{ $t('setup.description') }}
       </p>
       <form @submit.prevent="handleSetup">
-        <div class="form-group"> <!-- Use class from LoginView -->
-          <label for="username">{{ $t('setup.username') }}:</label>
+        <div class="mb-6">
+          <label for="username" class="block mb-2 font-bold text-text-secondary">{{ $t('setup.username') }}:</label>
           <input
             id="username"
             v-model="username"
@@ -16,10 +16,11 @@
             required
             :disabled="isLoading"
             :placeholder="$t('setup.usernamePlaceholder')"
+            class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-600"
           />
         </div>
-        <div class="form-group"> <!-- Use class from LoginView -->
-          <label for="password">{{ $t('setup.password') }}:</label>
+        <div class="mb-6">
+          <label for="password" class="block mb-2 font-bold text-text-secondary">{{ $t('setup.password') }}:</label>
           <input
             id="password"
             v-model="password"
@@ -28,10 +29,11 @@
             required
             :disabled="isLoading"
             :placeholder="$t('setup.passwordPlaceholder')"
+            class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-600"
           />
         </div>
-        <div class="form-group"> <!-- Use class from LoginView -->
-          <label for="confirmPassword">{{ $t('setup.confirmPassword') }}:</label>
+        <div class="mb-6">
+          <label for="confirmPassword" class="block mb-2 font-bold text-text-secondary">{{ $t('setup.confirmPassword') }}:</label>
           <input
             id="confirmPassword"
             v-model="confirmPassword"
@@ -40,19 +42,19 @@
             required
             :disabled="isLoading"
             :placeholder="$t('setup.confirmPasswordPlaceholder')"
+            class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-600"
           />
         </div>
 
-        <!-- Use error-message class from LoginView -->
-        <div v-if="error" class="error-message">
+        <div v-if="error" class="text-error bg-error/10 border border-error/20 px-5 py-3 mb-4 rounded text-center text-sm">
           {{ error }}
         </div>
-         <!-- Use success-message styling similar to error -->
-         <div v-if="successMessage" class="success-message">
+         <div v-if="successMessage" class="text-success bg-success/10 border border-success/20 px-5 py-3 mb-4 rounded text-center text-sm">
           {{ successMessage }}
         </div>
 
-        <button type="submit" :disabled="isLoading">
+        <button type="submit" :disabled="isLoading"
+                class="w-full py-3 px-4 bg-primary text-white border-none rounded text-base cursor-pointer transition-colors duration-200 ease-in-out hover:bg-primary-dark disabled:bg-gray-400 disabled:opacity-65 disabled:cursor-not-allowed">
           <span v-if="isLoading">{{ $t('setup.settingUp') }}</span>
           <span v-else>{{ $t('setup.submitButton') }}</span>
         </button>
@@ -130,125 +132,3 @@ const handleSetup = async () => {
 </script>
 
 <!-- Copied styles from LoginView.vue -->
-<style scoped>
-.login-view {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 150px); /* Adjust based on header/footer height */
-  padding: 2rem;
-  /* Inherit background from body or set explicitly if needed */
-   background-color: var(--app-bg-color, #f8f9fa); /* Use CSS variable or fallback */
-}
-
-.login-form-container {
-  background-color: var(--card-bg-color, #fff); /* Use CSS variable or fallback */
-  color: var(--text-color, #333); /* Use CSS variable */
-  padding: 2rem 3rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  border: 1px solid var(--border-color, #ccc); /* Use CSS variable */
-  width: 100%;
-  max-width: 400px;
-}
-
-/* Dark mode adjustments (assuming body has a dark class) */
-.dark .login-form-container {
-  background-color: var(--card-bg-color-dark, #2d3748); /* Dark card background */
-  color: var(--text-color-dark, #f7fafc); /* Dark text */
-  border-color: var(--border-color-dark, #4a5568); /* Dark border */
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
-}
-
-
-h2 {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  /* color: #333; */ /* Inherit from container */
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-  /* color: #555; */ /* Inherit */
-}
-
-input[type="text"],
-input[type="password"] {
-  width: 100%;
-  padding: 0.8rem;
-  border: 1px solid var(--border-color, #ccc); /* Use CSS variable */
-  border-radius: 4px;
-  box-sizing: border-box;
-  font-size: 1rem;
-  background-color: var(--input-bg-color, #fff); /* Use CSS variable */
-  color: var(--input-text-color, #333); /* Use CSS variable */
-}
-
-.dark input[type="text"],
-.dark input[type="password"] {
-   border-color: var(--border-color-dark, #4a5568);
-   background-color: var(--input-bg-color-dark, #4a5568);
-   color: var(--input-text-color-dark, #f7fafc);
-}
-
-
-input:disabled {
-    background-color: var(--input-disabled-bg-color, #eee); /* Use CSS variable */
-    cursor: not-allowed;
-    opacity: 0.7;
-}
-.dark input:disabled {
-     background-color: var(--input-disabled-bg-color-dark, #4a5568);
-}
-
-
-.error-message {
-  color: #dc3545; /* Bootstrap danger color */
-  background-color: rgba(220, 53, 69, 0.1); /* Light red background */
-  border: 1px solid rgba(220, 53, 69, 0.2);
-  padding: 0.75rem 1.25rem;
-  margin-bottom: 1rem;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 0.9rem;
-}
-.success-message {
-  color: #28a745; /* Bootstrap success color */
-   background-color: rgba(40, 167, 69, 0.1);
-   border: 1px solid rgba(40, 167, 69, 0.2);
-   padding: 0.75rem 1.25rem;
-   margin-bottom: 1rem;
-   border-radius: 4px;
-   text-align: center;
-   font-size: 0.9rem;
-}
-
-
-button[type="submit"] {
-  width: 100%;
-  padding: 0.8rem;
-  background-color: var(--primary-color, #007bff); /* Use CSS variable */
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-button[type="submit"]:hover:not(:disabled) {
-  background-color: var(--primary-hover-color, #0056b3); /* Use CSS variable */
-}
-
-button:disabled {
-  background-color: var(--button-disabled-bg-color, #a0cfff); /* Use CSS variable */
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-</style>

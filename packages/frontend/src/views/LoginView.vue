@@ -32,38 +32,43 @@ const handleSubmit = async () => {
 </script>
 
 <template>
-  <div class="login-view">
-    <div class="login-form-container">
-      <h2>{{ t('login.title') }}</h2>
+  <div class="flex justify-center items-center min-h-[calc(100vh-150px)] p-8 bg-background">
+    <div class="bg-dialog text-dialog-text p-8 md:p-12 rounded-lg shadow-lg w-full max-w-md">
+      <h2 class="text-center text-2xl font-semibold mb-6 text-foreground">{{ t('login.title') }}</h2>
       <form @submit.prevent="handleSubmit">
-        <!-- 常规登录字段 -->
+        <!-- Regular Login Fields -->
         <div v-if="!loginRequires2FA">
-          <div class="form-group">
-            <label for="username">{{ t('login.username') }}:</label>
-            <input type="text" id="username" v-model="credentials.username" required :disabled="isLoading" />
+          <div class="mb-6">
+            <label for="username" class="block mb-2 font-bold text-text-secondary">{{ t('login.username') }}:</label>
+            <input type="text" id="username" v-model="credentials.username" required :disabled="isLoading"
+                   class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed" />
           </div>
-          <div class="form-group">
-            <label for="password">{{ t('login.password') }}:</label>
-            <input type="password" id="password" v-model="credentials.password" required :disabled="isLoading" />
+          <div class="mb-6">
+            <label for="password" class="block mb-2 font-bold text-text-secondary">{{ t('login.password') }}:</label>
+            <input type="password" id="password" v-model="credentials.password" required :disabled="isLoading"
+                   class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed" />
           </div>
-          <!-- 新增：记住我复选框 -->
-          <div class="form-group form-group-checkbox">
-            <input type="checkbox" id="rememberMe" v-model="rememberMe" :disabled="isLoading" />
-            <label for="rememberMe">记住我</label>
+          <!-- Remember Me Checkbox -->
+          <div class="flex items-center mb-6">
+            <input type="checkbox" id="rememberMe" v-model="rememberMe" :disabled="isLoading"
+                   class="w-4 h-4 mr-2 accent-primary disabled:cursor-not-allowed" />
+            <label for="rememberMe" class="text-sm text-text-secondary cursor-pointer">{{ t('login.rememberMe', '记住我') }}</label>
           </div>
         </div>
 
-        <!-- 2FA 验证码输入 -->
-        <div v-if="loginRequires2FA" class="form-group">
-          <label for="twoFactorToken">{{ t('login.twoFactorPrompt') }}</label>
-          <input type="text" id="twoFactorToken" v-model="twoFactorToken" required :disabled="isLoading" pattern="\d{6}" title="请输入 6 位数字验证码" />
+        <!-- 2FA Token Input -->
+        <div v-if="loginRequires2FA" class="mb-6">
+          <label for="twoFactorToken" class="block mb-2 font-bold text-text-secondary">{{ t('login.twoFactorPrompt') }}</label>
+          <input type="text" id="twoFactorToken" v-model="twoFactorToken" required :disabled="isLoading" pattern="\d{6}" title="请输入 6 位数字验证码"
+                 class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed" />
         </div>
 
-        <div v-if="error" class="error-message">
+        <div v-if="error" class="text-error text-center text-sm mb-4">
           {{ error }}
         </div>
 
-        <button type="submit" :disabled="isLoading">
+        <button type="submit" :disabled="isLoading"
+                class="w-full py-3 px-4 bg-primary text-white border-none rounded text-base cursor-pointer transition-colors duration-200 ease-in-out hover:bg-primary-dark disabled:bg-gray-400 disabled:cursor-not-allowed">
           {{ isLoading ? t('login.loggingIn') : (loginRequires2FA ? t('login.verifyButton') : t('login.loginButton')) }}
         </button>
       </form>
@@ -71,101 +76,3 @@ const handleSubmit = async () => {
   </div>
 </template>
 
-<style scoped>
-.login-view {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 150px); /* Adjust based on header/footer height */
-  padding: 2rem;
-}
-
-.login-form-container {
-  background-color: #fff;
-  padding: 2rem 3rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-}
-
-h2 {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  color: #333;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-/* Specific style for checkbox group */
-.form-group-checkbox {
-  display: flex;
-  align-items: center;
-  margin-bottom: 1.5rem; /* Keep consistent margin */
-}
-
-.form-group-checkbox input[type="checkbox"] {
-  width: auto; /* Override default width */
-  margin-right: 0.5rem; /* Space between checkbox and label */
-  accent-color: #007bff; /* Optional: Style the checkmark color */
-}
-
-.form-group-checkbox label {
-  margin-bottom: 0; /* Remove bottom margin for inline label */
-  font-weight: normal; /* Optional: Make label less bold */
-  cursor: pointer; /* Indicate it's clickable */
-}
-
-
-label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: bold;
-  color: #555;
-}
-
-input[type="text"],
-input[type="password"] {
-  width: 100%;
-  padding: 0.8rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  box-sizing: border-box;
-  font-size: 1rem;
-}
-
-input:disabled {
-    background-color: #eee;
-    cursor: not-allowed;
-}
-
-.error-message {
-  color: red;
-  margin-bottom: 1rem;
-  text-align: center;
-  font-size: 0.9rem;
-}
-
-button[type="submit"] {
-  width: 100%;
-  padding: 0.8rem;
-  background-color: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-button[type="submit"]:hover {
-  background-color: #0056b3;
-}
-
-button:disabled {
-  background-color: #a0cfff;
-  cursor: not-allowed;
-}
-</style>
