@@ -21,17 +21,33 @@ const getContainerClass = (type: string) => {
 </script>
 
 <template>
-  <div class="notification-container">
-    <transition-group name="notification-fade" tag="div">
+  <div class="fixed top-4 right-4 z-[1100] flex flex-col items-end">
+    <transition-group
+      tag="div"
+      enter-active-class="transition duration-500 ease-out"
+      enter-from-class="transform translate-x-[30px] opacity-0"
+      enter-to-class="transform translate-x-0 opacity-95"
+      leave-active-class="transition duration-500 ease-in"
+      leave-from-class="transform translate-x-0 opacity-95"
+      leave-to-class="transform translate-x-[30px] opacity-0"
+    >
       <div
         v-for="notification in notifications"
         :key="notification.id"
-        :class="getContainerClass(notification.type)"
+        :class="[
+          'flex items-center p-3 mb-2 rounded shadow-md min-w-[250px] max-w-[400px] opacity-95 text-white',
+          {
+            'bg-green-600': notification.type === 'success',
+            'bg-red-600': notification.type === 'error',
+            'bg-blue-600': notification.type === 'info',
+            'bg-yellow-500 text-gray-800': notification.type === 'warning', // Warning text color adjusted
+          }
+        ]"
       >
-        <i :class="['notification-icon', getIconClass(notification.type)]"></i>
-        <span class="notification-message">{{ notification.message }}</span>
+        <i :class="['mr-3 text-lg', getIconClass(notification.type)]"></i>
+        <span class="flex-grow break-words text-sm">{{ notification.message }}</span>
         <button
-          class="notification-close-btn"
+          class="ml-4 p-1 bg-transparent border-none text-current opacity-70 hover:opacity-100 cursor-pointer text-lg leading-none"
           @click="notificationsStore.removeNotification(notification.id)"
         >
           &times;
@@ -41,69 +57,3 @@ const getContainerClass = (type: string) => {
   </div>
 </template>
 
-<style scoped>
-.notification-container {
-  position: fixed;
-  top: 1rem; /* 距离顶部 */
-  right: 1rem; /* 距离右侧 */
-  z-index: 1100; /* 比其他元素层级高 */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end; /* 从右侧对齐 */
-}
-
-.notification-item {
-  background-color: #fff;
-  color: #fff;
-  padding: 0.8rem 1.2rem;
-  margin-bottom: 0.5rem;
-  border-radius: 4px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  min-width: 250px; /* 最小宽度 */
-  max-width: 400px; /* 最大宽度 */
-  opacity: 0.95;
-  transition: all 0.5s ease; /* 添加过渡效果 */
-}
-
-.notification-success { background-color: #28a745; } /* 绿色 */
-.notification-error { background-color: #dc3545; } /* 红色 */
-.notification-info { background-color: #17a2b8; } /* 蓝色 */
-.notification-warning { background-color: #ffc107; color: #333; } /* 黄色，文字用深色 */
-
-.notification-icon {
-  margin-right: 0.8rem;
-  font-size: 1.2em;
-}
-
-.notification-message {
-  flex-grow: 1;
-  word-wrap: break-word; /* 允许长单词换行 */
-}
-
-.notification-close-btn {
-  background: none;
-  border: none;
-  color: inherit; /* 继承父元素颜色 */
-  opacity: 0.7;
-  cursor: pointer;
-  font-size: 1.2em;
-  margin-left: 1rem;
-  padding: 0 0.3rem;
-}
-.notification-close-btn:hover {
-  opacity: 1;
-}
-
-/* 过渡动画 */
-.notification-fade-enter-active,
-.notification-fade-leave-active {
-  transition: all 0.5s ease;
-}
-.notification-fade-enter-from,
-.notification-fade-leave-to {
-  opacity: 0;
-  transform: translateX(30px); /* 从右侧滑入 */
-}
-</style>
