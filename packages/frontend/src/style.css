@@ -79,10 +79,7 @@ a {
   text-decoration: none; /* 移除下划线 */
 }
 
-a:hover {
-  color: var(--link-hover-color);
-  text-decoration: underline; /* 悬停时显示下划线 */
-}
+/* Removed global a:hover underline rule to avoid conflicts with Tailwind utilities */
 
 /* 全局图标样式 */
 i, .fas, .far, .fab { /* 根据你使用的图标库调整选择器 */
