@@ -766,6 +766,14 @@ watch(() => editingTheme.value?.themeData, (newThemeData) => {
     }
 }, { deep: true }); // 需要 deep watch 来监听 themeData 内部的变化
 
+// Helper function to safely select text in an input on focus
+const handleFocusAndSelect = (event: FocusEvent) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement) {
+    target.select();
+  }
+};
+
 </script>
 
 
@@ -798,21 +806,34 @@ watch(() => editingTheme.value?.themeData, (newThemeData) => {
             <!-- 动态生成 UI 样式编辑控件 -->
             <div v-for="(value, key) in editableUiTheme" :key="key" class="form-group">
               <label :for="`ui-${key}`">{{ formatLabel(key) }}:</label>
-              <!-- 简单判断是否为颜色值，显示颜色选择器 -->
-              <input
-                v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
-                type="color"
-                :id="`ui-${key}`"
-                v-model="editableUiTheme[key]"
-              />
-              <!-- 否则显示文本输入框 -->
-              <input
-                v-else
-                type="text"
-                :id="`ui-${key}`"
-                v-model="editableUiTheme[key]"
-                class="text-input"
-              />
+              <!-- Container for color picker and text display -->
+              <div class="color-input-group">
+                <!-- Color Picker -->
+                <input
+                  v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
+                  type="color"
+                  :id="`ui-${key}`"
+                  v-model="editableUiTheme[key]"
+                  class="color-picker-input"
+                />
+                <!-- Readonly text input to display and copy color value -->
+                <input
+                  v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
+                  type="text"
+                  :value="editableUiTheme[key]"
+                  readonly
+                  class="color-text-input text-input"
+                  @focus="handleFocusAndSelect"
+                />
+                <!-- Fallback for non-color values -->
+                <input
+                  v-else
+                  type="text"
+                  :id="`ui-${key}`"
+                  v-model="editableUiTheme[key]"
+                  class="text-input full-span-input"
+                />
+              </div>
             </div>
             <!-- UI Theme Textarea -->
             <hr style="margin-top: calc(var(--base-padding) * 2); margin-bottom: calc(var(--base-padding) * 2);">
@@ -920,21 +941,34 @@ watch(() => editingTheme.value?.themeData, (newThemeData) => {
                  <!-- 动态生成终端样式编辑控件 -->
               <div v-for="(value, key) in editingTheme.themeData" :key="key" class="form-group">
                 <label :for="`xterm-${key}`">{{ formatXtermLabel(key as keyof ITheme) }}:</label>
-                <!-- 简单判断是否为颜色值 -->
-                <input
-                  v-if="typeof value === 'string' && value.startsWith('#')"
-                  type="color"
-                  :id="`xterm-${key}`"
-                  v-model="(editingTheme.themeData as any)[key]"
-                />
-                <!-- 其他类型（如数字、布尔值）可以添加相应控件，这里简化为文本 -->
-                <input
-                  v-else
-                  type="text"
-                  :id="`xterm-${key}`"
-                  v-model="(editingTheme.themeData as any)[key]"
-                  class="text-input"
-                />
+                 <!-- Container for color picker and text display -->
+                <div class="color-input-group">
+                  <!-- Color Picker -->
+                  <input
+                    v-if="typeof value === 'string' && value.startsWith('#')"
+                    type="color"
+                    :id="`xterm-${key}`"
+                    v-model="(editingTheme.themeData as any)[key]"
+                    class="color-picker-input"
+                  />
+                  <!-- Readonly text input to display and copy color value -->
+                  <input
+                    v-if="typeof value === 'string' && value.startsWith('#')"
+                    type="text"
+                    :value="(editingTheme.themeData as any)[key]"
+                    readonly
+                    class="color-text-input text-input"
+                    @focus="handleFocusAndSelect"
+                  />
+                  <!-- Fallback for non-color values -->
+                  <input
+                    v-else
+                    type="text"
+                    :id="`xterm-${key}`"
+                    v-model="(editingTheme.themeData as any)[key]"
+                    class="text-input full-span-input"
+                  />
+                </div>
              </div>
               <!-- 显示解析错误（如果颜色选择器下方也需要的话） -->
               <!-- <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p> --> <!-- 错误消息统一显示在 Textarea 下方 -->
@@ -1218,14 +1252,32 @@ section[v-if*="isEditingTheme"] .form-group {
     box-sizing: border-box;
     transition: border-color 0.2s ease, box-shadow 0.2s ease; /* 添加过渡效果 */
 }
-.form-group input[type="color"] {
-    padding: 2px;
-    height: 34px;
-    min-width: 50px;
-    max-width: 70px;
-    justify-self: start;
-    border-radius: 4px; /* 保持圆角一致 */
+.color-input-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; /* Space between color picker and text input */
+    grid-column: 2 / 3; /* Ensure the group stays in the second column */
+    width: 100%; /* Take full width of the column */
 }
+.color-picker-input {
+    padding: 2px !important; /* Override general padding */
+    height: 34px !important; /* Match text input height */
+    min-width: 40px !important; /* Slightly smaller */
+    max-width: 50px !important;
+    border-radius: 4px !important;
+    border: 1px solid var(--border-color) !important; /* Add border */
+    flex-shrink: 0; /* Prevent shrinking */
+}
+.color-text-input {
+    flex-grow: 1; /* Allow text input to take remaining space */
+    min-width: 80px; /* Minimum width for text */
+    background-color: var(--header-bg-color) !important; /* Indicate readonly */
+    cursor: text; /* Allow text selection cursor */
+}
+.full-span-input {
+    grid-column: 1 / -1; /* Make non-color inputs span the whole group width */
+}
+
 .form-group input:focus, .form-group select:focus {
     border-color: var(--link-active-color);
     outline: 0;

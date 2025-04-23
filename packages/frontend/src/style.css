@@ -3,15 +3,19 @@
 /* Tailwind Theme Variables Mapping */
 @theme inline {
   /* Base Colors */
-  --color-app: var(--app-bg-color);
-  --color-text-default: var(--text-color);
+  --color-background: var(--app-bg-color); /* More generic name */
+  --color-foreground: var(--text-color); /* More generic name */
+  --color-app: var(--app-bg-color); /* Keep specific if needed */
+  --color-text-default: var(--text-color); /* Keep specific if needed */
   --color-text-secondary: var(--text-color-secondary);
-  --color-border-default: var(--border-color);
+  --color-border: var(--border-color); /* Simplified name */
+  --color-border-default: var(--border-color); /* Keep specific if needed */
   --color-link: var(--link-color);
   --color-link-hover: var(--link-hover-color);
   --color-link-active: var(--link-active-color); /* Also used as primary/theme color */
   --color-primary: var(--link-active-color); /* Map primary to active link color */
   --color-link-active-bg: var(--link-active-bg-color); /* Map active link background */
+  --color-nav-active-bg: var(--nav-item-active-bg-color); /* Map specific nav active background */
 
   /* Component Colors */
   --color-header: var(--header-bg-color);
@@ -40,6 +44,7 @@
   --link-hover-color: #0056b3;   /* 链接悬停颜色 */
   --link-active-color: #007bff;   /* 激活链接/主题色 */
   --link-active-bg-color: #e0e0ff; /* 激活链接背景色 (类似 indigo-50) */
+  --nav-item-active-bg-color: var(--link-active-bg-color); /* 导航选中项背景色, 默认同激活链接背景 */
 
   /* 组件颜色 */
   --header-bg-color: #f0f0f0;     /* 头部背景色 */
@@ -53,8 +58,8 @@
   --split-line-hover-color: var(--border-color); /* 分割线悬停颜色 */
   --input-focus-border-color: var(--link-active-color); /* 输入框聚焦边框颜色 */
   --input-focus-glow: var(--link-active-color); /* 输入框聚焦光晕值 */
-  --ssh-tab-active: none；/* ssh标签激活状态颜色 */
-  --ssh-tab-background: none；/* ssh标签背景颜色 */
+  --ssh-tab-active: transparent; /* Corrected value */
+  --ssh-tab-background: transparent; /* Corrected value */
 
   /* 字体 */
   --font-family-sans-serif: sans-serif; /* 默认字体 */
