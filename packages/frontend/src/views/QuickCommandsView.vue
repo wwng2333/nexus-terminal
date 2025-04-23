@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full overflow-hidden bg-background p-2">
+  <div class="flex flex-col h-full overflow-hidden bg-background">
     <!-- Container for controls and list -->
-    <div class="flex flex-col flex-grow border border-border rounded-md overflow-hidden bg-background">
+    <div class="flex flex-col flex-grow overflow-hidden bg-background">
       <!-- Controls embedded within the container -->
       <div class="flex items-stretch p-2 border-b border-border flex-shrink-0 gap-1 bg-header">
         <input

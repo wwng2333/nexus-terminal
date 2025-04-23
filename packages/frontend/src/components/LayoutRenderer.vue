@@ -225,7 +225,7 @@ const componentProps = computed(() => {
     case 'quickCommands':
        // 这两个视图需要转发 execute-command 事件
        return {
-         class: 'pane-content',
+         class: 'flex flex-col flex-grow h-full overflow-auto', // 移除 pane-content，保留填充类
          onExecuteCommand: (command: string) => emit('sendCommand', command), // 复用 sendCommand 事件
        };
    case 'dockerManager':
@@ -568,7 +568,6 @@ onMounted(() => {
                       v-else
                       :is="currentMainComponent"
                       v-bind="componentProps"
-                      class="flex-grow overflow-auto"
                     />
                 </template>
                 <!-- Invalid Pane Component -->
