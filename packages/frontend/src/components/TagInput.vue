@@ -175,30 +175,31 @@ const handleDeleteTagGlobally = async (tagToDelete: TagInfo) => {
 </script>
 
 <template>
-  <div class="tag-input-container">
-    <!-- .selected-tags 移动到 .input-area 内部 -->
-    <div class="input-area">
-       <div class="selected-tags">
-          <span v-for="tag in selectedTags" :key="tag.id" class="tag-item">
+  <div class="relative w-full">
+    <div class="flex flex-wrap items-center gap-1 p-1.5 border border-border rounded cursor-text bg-background" @click="inputRef?.focus()">
+       <div class="inline-flex flex-wrap gap-1">
+          <span v-for="tag in selectedTags" :key="tag.id" class="inline-flex items-center bg-background-alt text-foreground text-sm px-2 py-0.5 rounded whitespace-nowrap border border-border">
             {{ tag.name }}
             <button
-          type="button"
-          class="remove-tag-local"
-          @click="removeTagLocally(tag)"
-          :title="t('tags.removeSelection')"
-        >&times;</button>
-         <button
-            type="button"
-            class="remove-tag-global"
-            @click.stop="handleDeleteTagGlobally(tag)"
-            :title="t('tags.deleteTagGlobally')"
-            >&#x1F5D1;</button> <!-- 使用垃圾桶图标 -->
+              type="button"
+              class="ml-1.5 p-0 bg-transparent border-none cursor-pointer text-text-secondary hover:text-foreground text-lg leading-none"
+              @click.stop="removeTagLocally(tag)"
+              :title="t('tags.removeSelection')"
+            >&times;</button>
+            <button
+              type="button"
+              class="ml-1 p-0 bg-transparent border-none cursor-pointer text-text-alt hover:text-error text-xs leading-none"
+              @click.stop="handleDeleteTagGlobally(tag)"
+              :title="t('tags.deleteTagGlobally')"
+            >
+              <i class="fas fa-trash-alt"></i>
+            </button>
           </span>
        </div>
       <input
         ref="inputRef"
         type="text"
-        class="tag-actual-input"
+        class="flex-grow border-none outline-none p-0.5 text-sm min-w-[100px] bg-transparent"
         v-model="inputValue"
         :placeholder="t('tags.inputPlaceholder')"
         @focus="handleFocus"
@@ -206,131 +207,19 @@ const handleDeleteTagGlobally = async (tagToDelete: TagInfo) => {
         @keydown="handleKeyDown"
         autocomplete="off"
       />
-      <ul v-if="showSuggestions && suggestions.length > 0" class="suggestions-list">
-        <li
-          v-for="suggestion in suggestions"
-          :key="suggestion.id"
-          @mousedown.prevent="selectTag(suggestion)"
-        >
-          {{ suggestion.name }}
-        </li>
-      </ul>
-       <!-- 修改 v-if 条件，不再依赖 showSuggestions -->
-       <div v-if="isLoading" class="loading-small">{{ t('tags.loading') }}</div>
-       <div v-if="error" class="error-small">{{ t('tags.error', { error: error }) }}</div>
     </div>
+    <ul v-if="showSuggestions && suggestions.length > 0" class="absolute top-full left-0 right-0 mt-0.5 bg-background border border-border rounded-b shadow-md list-none p-0 m-0 max-h-[150px] overflow-y-auto z-10">
+      <li
+        v-for="suggestion in suggestions"
+        :key="suggestion.id"
+        class="px-3 py-1.5 cursor-pointer hover:bg-hover text-sm"
+        @mousedown.prevent="selectTag(suggestion)"
+      >
+        {{ suggestion.name }}
+      </li>
+    </ul>
+    <div v-if="isLoading" class="absolute bottom-[-1.5em] left-0 text-xs text-text-secondary mt-1">{{ t('tags.loading') }}</div>
+    <div v-if="error" class="absolute bottom-[-1.5em] left-0 text-xs text-error mt-1">{{ t('tags.error', { error: error }) }}</div>
   </div>
 </template>
 
-<style scoped>
-.tag-input-container {
-  /* 移除边框，让 .input-area 作为视觉边界 */
-  border-radius: 4px;
-  position: relative; /* 为了建议列表定位 */
-  box-sizing: border-box;
-  width: 100%; /* 占据父容器宽度 */
-}
-
-.selected-tags {
-  display: inline-flex; /* 改为 inline-flex 以便和 input 排列 */
-  flex-wrap: wrap;
-  gap: 0.3rem; /* 标签间距 */
-  /* margin-right: 0.5rem; */ /* 移除右边距 */
-  /* margin-bottom: 0.3rem; */ /* 如果换行，和下一行输入框的间距 */
-}
-
-.tag-item {
-  background-color: #e0e0e0;
-  padding: 0.2rem 0.4rem;
-  border-radius: 3px;
-  display: inline-flex; /* 让按钮和文字在一行 */
-  align-items: center;
-  font-size: 0.9em;
-  white-space: nowrap; /* 防止标签内文字换行 */
-}
-
-.tag-item button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 0.2rem;
-  margin-left: 0.3rem;
-  font-size: 1.1em; /* 放大图标 */
-  line-height: 1; /* 确保按钮高度一致 */
-  color: #555;
-}
-.tag-item button:hover {
-    color: #000;
-}
-.remove-tag-global {
-    font-size: 0.9em; /* 垃圾桶图标稍小 */
-    color: #a55; /* 红色提示危险操作 */
-}
-.remove-tag-global:hover {
-    color: red;
-}
-
-
-.input-area {
-  border: 1px solid #ccc; /* 将边框应用到这里 */
-  border-radius: 4px;
-  padding: 0.3rem 0.5rem; /* 内边距 */
-  display: flex; /* 使用 flex 布局 */
-  flex-wrap: wrap; /* 允许内部元素（标签和输入框）换行 */
-  align-items: center; /* 垂直居中对齐 */
-  gap: 0.3rem; /* 标签和输入框之间的间距 */
-  cursor: text; /* 模拟文本输入框点击效果 */
-  box-sizing: border-box;
-  width: 100%;
-}
-
-/* 对实际的 input 元素进行样式调整 */
-.tag-actual-input {
-  flex-grow: 1; /* 占据剩余空间 */
-  border: none;
-  outline: none;
-  padding: 0.2rem 0; /* 微调内边距 */
-  font-size: 1em;
-  min-width: 100px; /* 保证输入框有最小宽度 */
-  background: transparent; /* 背景透明 */
-}
-
-.suggestions-list {
-  position: absolute;
-  top: calc(100% + 2px); /* 显示在 .input-area 下方，留一点空隙 */
-  left: 0;
-  right: 0;
-  background-color: white;
-  border: 1px solid #ccc;
-  border-top: none;
-  border-radius: 0 0 4px 4px;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  max-height: 150px;
-  overflow-y: auto;
-  z-index: 10; /* 确保在其他元素之上 */
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.suggestions-list li {
-  padding: 0.5rem;
-  cursor: pointer;
-}
-
-.suggestions-list li:hover {
-  background-color: #f0f0f0;
-}
-
-.loading-small, .error-small {
-    font-size: 0.8em;
-    color: #666;
-    margin-top: 0.2rem;
-    position: absolute; /* 避免推开布局 */
-    bottom: -1.5em; /* 显示在输入框下方 */
-    left: 0;
-}
-.error-small {
-    color: red;
-}
-</style>
