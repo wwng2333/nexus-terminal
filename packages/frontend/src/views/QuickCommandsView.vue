@@ -1,9 +1,9 @@
 <template>
-  <div class="quick-commands-view">
-    <!-- Removed original top controls -->
-    <div class="commands-list-container">
-      <!-- Moved controls inside the container -->
-      <div class="embedded-controls">
+  <div class="flex flex-col h-full overflow-hidden bg-background p-2">
+    <!-- Container for controls and list -->
+    <div class="flex flex-col flex-grow border border-border rounded-md overflow-hidden bg-background">
+      <!-- Controls embedded within the container -->
+      <div class="flex items-stretch p-2 border-b border-border flex-shrink-0 gap-1 bg-header">
         <input
           type="text"
           :placeholder="$t('quickCommands.searchPlaceholder', '搜索名称或指令...')"
@@ -12,45 +12,48 @@
           @input="updateSearchTerm($event)"
           @keydown="handleKeydown"
           ref="searchInputRef"
-          class="search-input"
+          class="flex-grow min-w-[8px] px-2 py-1 border border-border rounded-sm bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
         />
-        <button @click="toggleSortBy" class="sort-toggle-button" :title="sortButtonTitle">
-          <i :class="sortButtonIcon"></i>
+        <button @click="toggleSortBy" class="w-8 py-1 border border-border rounded-sm text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150 flex-shrink-0 flex" :title="sortButtonTitle">
+          <i :class="[sortButtonIcon, 'text-sm', 'm-auto']"></i>
         </button>
-        <button @click="openAddForm" class="add-button icon-only" :title="$t('quickCommands.add', '添加快捷指令')">
-          <i class="fas fa-plus"></i>
+        <button @click="openAddForm" class="w-8 py-1 border border-border rounded-sm text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150 flex-shrink-0 flex" :title="$t('quickCommands.add', '添加快捷指令')">
+          <i class="fas fa-plus text-sm m-auto"></i>
         </button>
       </div>
-      <ul v-if="filteredAndSortedCommands.length > 0" class="commands-list">
-        <li
-          v-for="(cmd, index) in filteredAndSortedCommands"
-          :key="cmd.id"
-          class="command-item"
-          :class="{ selected: index === selectedIndex }"
-          @mouseover="hoveredItemId = cmd.id; selectedIndex = index"
-          @mouseleave="hoveredItemId = null; selectedIndex = -1"
-          @click="executeCommand(cmd)"
-        >
-          <div class="command-info">
-            <span v-if="cmd.name" class="command-name">{{ cmd.name }}</span>
-            <span class="command-text" :class="{ 'full-width': !cmd.name }">{{ cmd.command }}</span>
-          </div>
-          <div class="item-actions" v-show="hoveredItemId === cmd.id">
-             <span class="usage-count" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
-            <button @click.stop="openEditForm(cmd)" class="action-button edit" :title="$t('common.edit', '编辑')">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button @click.stop="confirmDelete(cmd)" class="action-button delete" :title="$t('common.delete', '删除')">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-        </li>
-      </ul>
-      <div v-else-if="isLoading" class="loading-message">
-        {{ t('common.loading', '加载中...') }}
-      </div>
-      <div v-else class="empty-message">
-        {{ $t('quickCommands.empty', '没有快捷指令。点击“添加”按钮创建一个吧！') }}
+      <!-- List Area -->
+      <div class="flex-grow overflow-y-auto">
+        <ul v-if="filteredAndSortedCommands.length > 0" class="list-none p-0 m-0" ref="commandListRef">
+          <li
+            v-for="(cmd, index) in filteredAndSortedCommands"
+            :key="cmd.id"
+            class="group flex justify-between items-center px-3 py-2 cursor-pointer border-b border-border last:border-b-0 hover:bg-header/50 transition-colors duration-150"
+            :class="{ 'bg-primary/10 text-primary': index === selectedIndex }"
+            @mouseover="hoveredItemId = cmd.id; selectedIndex = index"
+            @mouseleave="hoveredItemId = null; selectedIndex = -1"
+            @click="executeCommand(cmd)"
+          >
+            <div class="flex flex-col overflow-hidden mr-2 flex-grow">
+              <span v-if="cmd.name" class="font-medium text-foreground text-sm truncate mb-0.5">{{ cmd.name }}</span>
+              <span class="text-xs text-text-secondary truncate font-mono" :class="{ 'text-sm text-foreground': !cmd.name }">{{ cmd.command }}</span>
+            </div>
+            <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+               <span class="text-xs text-text-secondary bg-border px-1.5 py-0.5 rounded mr-1" :class="{'text-primary bg-primary/20': index === selectedIndex}" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
+              <button @click.stop="openEditForm(cmd)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :class="{'text-primary': index === selectedIndex}" :title="$t('common.edit', '编辑')">
+                <i class="fas fa-edit text-xs"></i>
+              </button>
+              <button @click.stop="confirmDelete(cmd)" class="p-1 text-text-secondary hover:text-error transition-colors duration-150" :class="{'text-primary': index === selectedIndex}" :title="$t('common.delete', '删除')">
+                <i class="fas fa-times text-xs"></i>
+              </button>
+            </div>
+          </li>
+        </ul>
+        <div v-else-if="isLoading" class="p-6 text-center text-text-secondary text-sm">
+          {{ t('common.loading', '加载中...') }}
+        </div>
+        <div v-else class="p-6 text-center text-text-secondary text-sm italic">
+          {{ $t('quickCommands.empty', '没有快捷指令。点击“添加”按钮创建一个吧！') }}
+        </div>
       </div>
     </div>
 
@@ -233,225 +236,3 @@ defineExpose({ focusSearchInput });
 
 </script>
 
-<style scoped>
-.quick-commands-view {
-  display: flex;
-  flex-direction: column;
-  height: 100%; /* Occupy available height */
-  overflow: hidden;
-  background-color: var(--app-bg-color); /* Use standard app background */
-  padding: 0.5rem; /* Keep overall padding */
-  box-sizing: border-box;
-}
-
-/* Remove original .view-header styles */
-/* .view-header { ... } */
-
-/* Styles for controls embedded within the list container */
-.embedded-controls {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap; /* Allow wrapping */
-  padding: 0.5rem; /* Add padding around embedded controls */
-  /* Removed border-bottom and margin-bottom */
-  flex-shrink: 0;
-  gap: 0.25rem;
-}
-
-.search-input {
-  flex-grow: 1; /* Allow search to grow */
-  flex-basis: 10px; /* Give search a base width before growing */
-  min-width: 8px; /* Reduced min-width */
-  padding: 0.3rem 0.5rem; /* Reduced padding */
-  border: 1px solid var(--border-color); /* Use standard border color */
-  border-radius: 4px; /* Consistent border radius */
-  background-color: var(--app-bg-color); /* Use app background for input */
-  color: var(--text-color); /* Use standard text color */
-  /* margin-right: 12px; */ /* Replaced by gap */
-  font-size: 0.9em;
-}
-.search-input:focus {
-    outline: none;
-    border-color: var(--button-bg-color); /* Highlight border on focus */
-    box-shadow: 0 0 5px var(--button-bg-color, #007bff); /* Use theme variable for glow */
-}
-
-/* 移除 .sort-controls 和 select 样式 */
-
-.sort-toggle-button {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-color-secondary);
-  cursor: pointer;
-  padding: 0.3rem 0.5rem; /* Match input padding */
-  font-size: 0.9em; /* Match input font size */
-  line-height: 1;
-  border-radius: 4px;
-  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
-  flex-shrink: 0; /* Prevent shrinking */
-}
-.sort-toggle-button:hover {
-  color: var(--text-color);
-  border-color: var(--button-bg-color);
-  background-color: rgba(128, 128, 128, 0.1);
-}
-.sort-toggle-button i {
-    display: block; /* Ensure icon takes space */
-}
-
-
-.add-button {
-  padding: 0.3rem 0.6rem; /* Default padding */
-  background-color: var(--button-bg-color); /* Use standard button color */
-  color: var(--button-text-color); /* Use standard button text color */
-  border: none;
-  border-radius: 4px; /* Consistent border radius */
-  cursor: pointer;
-  font-size: 0.9em;
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  transition: background-color 0.15s ease;
-  flex-shrink: 0; /* Prevent shrinking */
-}
-.add-button.icon-only {
-    padding: 0.3rem 0.5rem; /* Slightly adjust padding for icon only */
-}
-.add-button i {
-    margin-right: 0; /* Remove margin when text is gone */
-}
-.add-button:hover {
-  background-color: var(--button-hover-bg-color); /* Use standard hover color */
-}
-
-.commands-list-container {
-  flex-grow: 1;
-  overflow-y: auto;
-  /* Add subtle border/background for visual separation */
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  background-color: var(--app-bg-color);
-  /* Add display:flex and flex-direction:column to stack controls and list */
-  display: flex;
-  flex-direction: column;
-}
-
-.commands-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  /* Ensure the list itself can scroll if needed, although container handles it */
-  /* overflow-y: auto; */ /* Let container handle scroll */
-}
-
-.command-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.4rem 0.75rem; /* Reduced padding */
-  cursor: pointer;
-  border-bottom: 1px solid var(--border-color); /* Use standard border color */
-  transition: background-color 0.15s ease;
-}
-
-.command-item:last-child {
-  border-bottom: none; /* Keep removing border for last item */
-}
-
-.command-item:hover {
-  background-color: var(--header-bg-color); /* Use header background for hover */
-}
-/* Style for the keyboard-selected item */
-.command-item.selected {
-  background-color: var(--button-bg-color, #007bff); /* Use button background or fallback */
-  color: var(--button-text-color, white); /* Use button text color or fallback */
-}
-.command-item.selected .command-name,
-.command-item.selected .command-text,
-.command-item.selected .usage-count,
-.command-item.selected .action-button {
-    color: var(--button-text-color, white); /* Ensure text inside selected item is readable */
-}
-
-
-.command-info {
-    display: flex;
-    flex-direction: column; /* 名称和指令垂直排列 */
-    overflow: hidden; /* 防止内容溢出 */
-    margin-right: 10px;
-    flex-grow: 1;
-}
-
-.command-name {
-    font-weight: 500; /* Medium weight */
-    color: var(--text-color); /* Use standard text color */
-    font-size: 0.95em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-bottom: 2px; /* 名称和指令间距 */
-}
-
-.command-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: var(--font-family-sans-serif);
-  font-size: 0.85em;
-  color: var(--text-color-secondary); /* Use standard secondary text color */
-}
-.command-text.full-width { /* 当没有名称时，指令占据全部空间 */
-    font-size: 0.9em; /* 可以稍微大一点 */
-    color: var(--text-color); /* Use standard text color */
-}
-
-
-.item-actions {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.usage-count {
-    font-size: 0.8em;
-    color: var(--text-color-secondary); /* Use standard secondary text color */
-    margin-right: 4px; /* Reduced margin */
-    background-color: var(--header-bg-color); /* Use header background */
-    padding: 2px 4px; /* Reduced padding */
-    border-radius: 4px; /* Consistent border radius */
-    min-width: 18px; /* Adjust min-width */
-    text-align: center;
-    font-weight: 500;
-}
-
-.action-button {
-  background: none;
-  border: none;
-  color: var(--text-color-secondary); /* Use standard secondary text color */
-  cursor: pointer;
-  padding: 2px 4px; /* Reduced padding */
-  margin-left: 4px; /* Reduced margin */
-  font-size: 1em; /* Slightly larger icon size */
-  line-height: 1;
-  border-radius: 4px; /* Add radius for hover effect */
-  transition: color 0.15s ease, background-color 0.15s ease;
-}
-
-.action-button:hover {
-  background-color: rgba(128, 128, 128, 0.1); /* Subtle hover background */
-}
-.action-button.edit:hover {
-    color: var(--bs-warning, orange); /* Use Bootstrap warning or fallback */
-}
-.action-button.delete:hover {
-  color: var(--bs-danger, red); /* Use Bootstrap danger or fallback */
-}
-
-.loading-message,
-.empty-message {
-  padding: var(--base-padding, 1rem) * 2; /* Increase padding */
-  text-align: center;
-  color: var(--text-color-secondary); /* Use standard secondary text color */
-  font-style: italic;
-}
-</style>

@@ -1,42 +1,42 @@
 <template>
-  <div class="command-history-menu">
-    <div class="history-header">
+  <div class="flex flex-col bg-background border border-border rounded shadow-lg overflow-hidden">
+    <div class="flex items-center p-2 border-b border-border bg-header">
       <input
         type="text"
         :placeholder="$t('commandHistory.searchPlaceholder', '搜索历史记录...')"
         :value="searchTerm"
         @input="updateSearchTerm($event)"
-        class="search-input"
+        class="flex-grow px-2 py-1 border border-border rounded-sm bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
       />
-      <button @click="confirmClearAll" class="clear-button" :title="$t('commandHistory.clear', '清空')">
-        <i class="fas fa-trash-alt"></i> <!-- 假设使用 Font Awesome -->
+      <button @click="confirmClearAll" class="ml-2 p-1 text-text-secondary hover:text-error transition-colors duration-150" :title="$t('commandHistory.clear', '清空')">
+        <i class="fas fa-trash-alt text-base"></i>
       </button>
     </div>
-    <div class="history-list-container" ref="listContainer">
-      <ul v-if="filteredHistory.length > 0" class="history-list">
+    <div class="max-h-80 overflow-y-auto" ref="listContainer"> <!-- Adjusted max-height -->
+      <ul v-if="filteredHistory.length > 0" class="list-none p-0 m-0">
         <li
           v-for="entry in filteredHistory"
           :key="entry.id"
-          class="history-item"
+          class="group flex justify-between items-center px-3 py-2 cursor-pointer border-b border-border last:border-b-0 hover:bg-header/50 transition-colors duration-150"
           @mouseover="hoveredItemId = entry.id"
           @mouseleave="hoveredItemId = null"
           @click="selectCommand(entry.command)"
         >
-          <span class="command-text">{{ entry.command }}</span>
-          <div class="item-actions" v-show="hoveredItemId === entry.id">
-            <button @click.stop="copyCommand(entry.command)" class="action-button" :title="$t('commandHistory.copy', '复制')">
-              <i class="fas fa-copy"></i>
+          <span class="truncate mr-2 flex-grow font-mono text-sm text-foreground">{{ entry.command }}</span>
+          <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+            <button @click.stop="copyCommand(entry.command)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :title="$t('commandHistory.copy', '复制')">
+              <i class="fas fa-copy text-xs"></i>
             </button>
-            <button @click.stop="deleteSingleCommand(entry.id)" class="action-button delete" :title="$t('commandHistory.delete', '删除')">
-              <i class="fas fa-times"></i>
+            <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1 text-text-secondary hover:text-error transition-colors duration-150" :title="$t('commandHistory.delete', '删除')">
+              <i class="fas fa-times text-xs"></i>
             </button>
           </div>
         </li>
       </ul>
-      <div v-else-if="isLoading" class="loading-message">
+      <div v-else-if="isLoading" class="p-5 text-center text-text-secondary text-sm">
         {{ $t('commandHistory.loading', '加载中...') }}
       </div>
-      <div v-else class="empty-message">
+      <div v-else class="p-5 text-center text-text-secondary text-sm">
         {{ $t('commandHistory.empty', '没有历史记录') }}
       </div>
     </div>
@@ -112,117 +112,3 @@ const selectCommand = (command: string) => {
 
 </script>
 
-<style scoped>
-.command-history-menu {
-  display: flex;
-  flex-direction: column;
-  background-color: var(--color-bg-secondary); /* 使用 CSS 变量 */
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  overflow: hidden; /* 防止内容溢出 */
-}
-
-.history-header {
-  display: flex;
-  align-items: center;
-  padding: 8px;
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-bg-tertiary);
-}
-
-.search-input {
-  flex-grow: 1;
-  padding: 6px 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 3px;
-  background-color: var(--color-input-bg);
-  color: var(--color-text);
-  margin-right: 8px;
-  font-size: 0.9em;
-}
-
-.clear-button {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 5px;
-  font-size: 1.1em;
-  line-height: 1;
-}
-.clear-button:hover {
-  color: var(--color-danger); /* 悬浮时变红 */
-}
-
-.history-list-container {
-  max-height: 300px; /* 限制最大高度 */
-  overflow-y: auto; /* 超出时显示滚动条 */
-}
-
-.history-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  cursor: pointer;
-  border-bottom: 1px solid var(--color-border-light);
-  transition: background-color 0.2s ease;
-}
-
-.history-item:last-child {
-  border-bottom: none;
-}
-
-.history-item:hover {
-  background-color: var(--color-bg-hover);
-}
-
-.command-text {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis; /* 超长时显示省略号 */
-  margin-right: 10px; /* 给右侧按钮留出空间 */
-  flex-grow: 1; /* 占据剩余空间 */
-  font-family: var(--font-family-mono); /* 使用等宽字体 */
-  font-size: 0.9em;
-}
-
-.item-actions {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0; /* 防止按钮被压缩 */
-}
-
-.action-button {
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  padding: 2px 4px;
-  margin-left: 6px;
-  font-size: 0.9em;
-  line-height: 1;
-}
-
-.action-button:hover {
-  color: var(--color-primary);
-}
-
-.action-button.delete:hover {
-  color: var(--color-danger); /* 删除按钮悬浮时变红 */
-}
-
-.loading-message,
-.empty-message {
-  padding: 20px;
-  text-align: center;
-  color: var(--color-text-secondary);
-}
-</style>

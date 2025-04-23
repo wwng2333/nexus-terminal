@@ -316,7 +316,7 @@ const scrollToHighlighted = async () => {
         v-model="searchTerm"
         :placeholder="t('workspaceConnectionList.searchPlaceholder')"
         ref="searchInputRef"
-        class="flex-grow px-3 py-1.5 border border-border rounded-l-md text-sm outline-none bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-50 transition-colors duration-150"
+        class="flex-grow min-w-0 px-3 py-1.5 border border-border rounded-l-md text-sm outline-none bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-50 transition-colors duration-150"
         data-focus-id="connectionListSearch"
         @keydown="handleKeyDown"
         @blur="handleBlur"
