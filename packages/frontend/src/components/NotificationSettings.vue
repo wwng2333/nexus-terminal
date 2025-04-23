@@ -13,7 +13,7 @@
 
     <div v-if="!store.isLoading && !store.error">
       <button @click="showAddForm = true" class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 inline-flex items-center text-sm font-medium"> <!-- Add button -->
-        <i class="fas fa-plus mr-1 text-xs"></i> {{ $t('settings.notifications.addChannel') }}
+         {{ $t('settings.notifications.addChannel') }}
       </button>
 
       <div v-if="settings.length === 0" class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded"> <!-- Info state (using blue for now) -->

@@ -53,7 +53,7 @@ const closeForm = () => {
         v-if="!showForm"
         class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 inline-flex items-center text-sm font-medium"
       > <!-- Button styling consistent with Notifications -->
-        <i class="fas fa-plus mr-1 text-xs"></i> {{ t('proxies.addProxy') }}
+        {{ t('proxies.addProxy') }}
       </button>
 
       <!-- 添加/编辑代理表单 -->
