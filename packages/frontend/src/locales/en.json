@@ -389,6 +389,7 @@
     "gigaBytesPerSecond": "GB/s",
     "megaBytes": "MB",
     "gigaBytes": "GB",
+    "swapNotAvailable": "Swap Unavailable",
     "noActiveSession": "No active session"
   },
   "tags": {

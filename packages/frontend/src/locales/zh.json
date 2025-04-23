@@ -389,6 +389,7 @@
     "gigaBytesPerSecond": "GB/s",
     "megaBytes": "MB",
     "gigaBytes": "GB",
+    "swapNotAvailable": "Swap 不可用",
     "noActiveSession": "无活动会话"
   },
   "tags": {
