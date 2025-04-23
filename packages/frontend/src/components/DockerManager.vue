@@ -383,7 +383,7 @@ onUnmounted(() => {
         <small class="text-xs max-w-[80%]">{{ error }}</small>
      </div>
      <!-- Case 8: Active session, SSH connected, Docker available, show list -->
-    <div v-else class="flex-grow overflow-auto p-4">
+    <div v-else class="docker-content-area flex-grow overflow-auto">
       <div v-if="containers.length === 0 && !isLoading" class="flex flex-col justify-center items-center text-center flex-grow text-text-secondary h-full">
         {{ t('dockerManager.noContainers') }}
       </div>
@@ -537,6 +537,12 @@ onUnmounted(() => {
 
 /* Styles for Card View when container is narrow */
 @container docker-manager-pane (max-width: 600px) { /* Use container query, adjust breakpoint if needed */
+  /* +++ Add padding to content area in card view +++ */
+  .docker-content-area {
+    padding: 1rem; /* Equivalent to p-4 */
+  }
+  /* +++ End padding rule +++ */
+
   .responsive-thead.responsive-thead { /* Increased specificity */
     display: none; /* Hide table header */
   }

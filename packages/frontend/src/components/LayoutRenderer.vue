@@ -231,7 +231,7 @@ const componentProps = computed(() => {
    case 'dockerManager':
      // DockerManager 可能不需要 session 信息，但需要转发事件
      return {
-       class: 'pane-content',
+       class: 'flex-grow h-full overflow-hidden', // <-- 修改：添加 flex-grow 和 h-full，并保留 overflow-hidden
        // 假设 DockerManager 会发出 'docker-command' 事件
        // onDockerCommand: (payload: { containerId: string; command: 'up' | 'down' | 'restart' | 'stop' }) => emit('dockerCommand', payload),
        // 暂时不添加事件转发，等组件实现后再确定
