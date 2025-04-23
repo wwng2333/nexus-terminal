@@ -11,7 +11,12 @@ export const useAuditLogStore = defineStore('auditLog', () => {
     const currentPage = ref(1);
     const logsPerPage = ref(50); // Default page size
 
-    const fetchLogs = async (page: number = 1, filters: { actionType?: AuditLogActionType, startDate?: number, endDate?: number } = {}) => {
+    // Updated fetchLogs to accept searchTerm and actionType directly
+    const fetchLogs = async (
+        page: number = 1,
+        searchTerm?: string,
+        actionType?: AuditLogActionType | '' // Allow empty string from select
+    ) => {
         isLoading.value = true;
         error.value = null;
         currentPage.value = page;
@@ -21,10 +26,11 @@ export const useAuditLogStore = defineStore('auditLog', () => {
             const params: Record<string, any> = {
                 limit: logsPerPage.value,
                 offset: offset,
-                ...filters // Spread filter parameters
+                // Add new filter parameters if they have values
+                ...(searchTerm && { search: searchTerm }),
+                ...(actionType && { action_type: actionType }),
             };
-            // Remove undefined filter values
-            Object.keys(params).forEach(key => params[key] === undefined && delete params[key]);
+            // No need to remove undefined keys here as we conditionally add them
 
             const response = await apiClient.get<AuditLogApiResponse>('/audit-logs', { params }); // 使用 apiClient
             logs.value = response.data.logs;

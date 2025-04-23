@@ -5,7 +5,29 @@
         {{ $t('auditLog.title') }}
       </h1>
 
-      <!-- TODO: Add filtering options (Action Type, Date Range) -->
+      <!-- Filtering Controls -->
+      <div class="flex flex-wrap items-center gap-4 mb-4 p-4 border border-border rounded-lg bg-header/50">
+        <div class="flex-grow min-w-[200px]">
+          <label for="search-term" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('common.search') }}</label>
+          <input type="text" id="search-term" v-model="searchTerm" :placeholder="$t('auditLog.searchPlaceholder')"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm">
+        </div>
+        <div class="flex-grow min-w-[200px]">
+          <label for="action-type" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('auditLog.table.actionType') }}</label>
+          <select id="action-type" v-model="selectedActionType"
+                  class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8 text-sm"
+                  style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+            <option value="">{{ $t('common.all') }}</option>
+            <option v-for="type in allActionTypes" :key="type" :value="type">{{ translateActionType(type) }}</option>
+          </select>
+        </div>
+        <div class="self-end">
+           <button @click="applyFilters" class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover text-sm font-medium">
+             {{ $t('common.filter') }}
+           </button>
+        </div>
+      </div>
+      <!-- End Filtering Controls -->
 
       <div v-if="store.isLoading" class="p-4 text-center text-text-secondary italic"> <!-- Loading state -->
         {{ $t('common.loading') }}
@@ -76,13 +98,34 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue'; // Removed watch
 import { useAuditLogStore } from '../stores/audit.store';
 import { AuditLogEntry, AuditLogActionType } from '../types/server.types';
 import { useI18n } from 'vue-i18n';
+// Removed lodash-es import
 
 const store = useAuditLogStore();
 const { t } = useI18n();
+
+// --- Filtering State ---
+const searchTerm = ref('');
+const selectedActionType = ref<AuditLogActionType | ''>(''); // Allow empty string for 'All'
+
+// Define all possible action types for the dropdown
+const allActionTypes: AuditLogActionType[] = [
+    'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'PASSWORD_CHANGED',
+    '2FA_ENABLED', '2FA_DISABLED', 'PASSKEY_REGISTERED', 'PASSKEY_DELETED',
+    'CONNECTION_CREATED', 'CONNECTION_UPDATED', 'CONNECTION_DELETED', 'CONNECTION_TESTED',
+    'CONNECTIONS_IMPORTED', 'CONNECTIONS_EXPORTED',
+    'PROXY_CREATED', 'PROXY_UPDATED', 'PROXY_DELETED',
+    'TAG_CREATED', 'TAG_UPDATED', 'TAG_DELETED',
+    'SETTINGS_UPDATED', 'IP_WHITELIST_UPDATED',
+    'NOTIFICATION_SETTING_CREATED', 'NOTIFICATION_SETTING_UPDATED', 'NOTIFICATION_SETTING_DELETED',
+    'API_KEY_CREATED', 'API_KEY_DELETED',
+    'SFTP_ACTION',
+    'SERVER_STARTED', 'SERVER_ERROR', 'DATABASE_MIGRATION'
+];
+// --- End Filtering State ---
 
 const logs = computed(() => store.logs);
 const totalLogs = computed(() => store.totalLogs);
@@ -91,7 +134,20 @@ const logsPerPage = computed(() => store.logsPerPage);
 
 const totalPages = computed(() => Math.ceil(totalLogs.value / logsPerPage.value));
 
+// Function to apply filters and fetch logs
+const applyFilters = () => {
+    // Pass undefined if filter is empty, otherwise pass the value
+    store.fetchLogs(
+        1, // Reset to page 1 when applying filters
+        searchTerm.value || undefined,
+        selectedActionType.value || undefined
+    );
+};
+
+// Removed watch for filters
+
 onMounted(() => {
+  // Fetch initial logs without filters
   store.fetchLogs();
 });
 

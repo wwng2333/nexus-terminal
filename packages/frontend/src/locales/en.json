@@ -434,6 +434,12 @@
    },
    "settings": {
      "title": "Settings",
+     "category": {
+        "security": "Security Settings",
+        "appearance": "Appearance Settings",
+        "workspace": "Workspace Settings",
+        "system": "System Settings"
+     },
     "changePassword": {
       "title": "Change Password",
       "currentPassword": "Current Password:",

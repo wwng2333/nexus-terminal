@@ -434,6 +434,12 @@
    },
    "settings": {
      "title": "设置",
+     "category": {
+        "security": "安全设置",
+        "appearance": "外观设置",
+        "workspace": "工作区设置",
+        "system": "系统设置"
+     },
     "changePassword": {
       "title": "修改密码",
       "currentPassword": "当前密码:",
