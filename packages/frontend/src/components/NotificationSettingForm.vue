@@ -1,170 +1,206 @@
 <template>
-  <form @submit.prevent="handleSubmit" class="notification-setting-form">
-    <h3>{{ isEditing ? $t('settings.notifications.form.editTitle') : $t('settings.notifications.form.addTitle') }}</h3>
+  <form @submit.prevent="handleSubmit" class="space-y-6 text-foreground"> <!-- Form container with spacing -->
+    <h3 class="text-lg font-semibold mb-4 pb-2 border-b border-border"> <!-- Title -->
+      {{ isEditing ? $t('settings.notifications.form.editTitle') : $t('settings.notifications.form.addTitle') }}
+    </h3>
 
-    <div class="mb-3">
-      <label for="setting-name" class="form-label">{{ $t('settings.notifications.form.name') }}</label>
-      <input type="text" id="setting-name" v-model="formData.name" class="form-control" required>
-    </div>
+    <!-- General Settings -->
+    <div class="space-y-4">
+      <div>
+        <label for="setting-name" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.name') }}</label>
+        <input type="text" id="setting-name" v-model="formData.name" required
+               class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+      </div>
 
-    <div class="mb-3 form-check">
-      <input type="checkbox" id="setting-enabled" v-model="formData.enabled" class="form-check-input">
-      <label for="setting-enabled" class="form-check-label">{{ $t('common.enabled') }}</label>
-    </div>
+      <div class="flex items-center">
+        <input type="checkbox" id="setting-enabled" v-model="formData.enabled"
+               class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer">
+        <label for="setting-enabled" class="text-sm text-foreground cursor-pointer">{{ $t('common.enabled') }}</label>
+      </div>
 
-    <div class="mb-3">
-      <label for="setting-channel-type" class="form-label">{{ $t('settings.notifications.form.channelType') }}</label>
-      <select id="setting-channel-type" v-model="formData.channel_type" class="form-select" required :disabled="isEditing">
-        <option value="webhook">{{ $t('settings.notifications.types.webhook') }}</option>
-        <option value="email">{{ $t('settings.notifications.types.email') }}</option>
-        <option value="telegram">{{ $t('settings.notifications.types.telegram') }}</option>
-      </select>
-       <small v-if="isEditing" class="text-muted">{{ $t('settings.notifications.form.channelTypeEditNote') }}</small>
+      <div>
+        <label for="setting-channel-type" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.channelType') }}</label>
+        <select id="setting-channel-type" v-model="formData.channel_type" required :disabled="isEditing"
+                class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8 disabled:opacity-70 disabled:bg-header/50"
+                style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+          <option value="webhook">{{ $t('settings.notifications.types.webhook') }}</option>
+          <option value="email">{{ $t('settings.notifications.types.email') }}</option>
+          <option value="telegram">{{ $t('settings.notifications.types.telegram') }}</option>
+        </select>
+        <small v-if="isEditing" class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.channelTypeEditNote') }}</small>
+      </div>
     </div>
 
     <!-- Channel Specific Config -->
-    <div v-if="formData.channel_type === 'webhook'" class="channel-config mb-3 p-3 border rounded">
-      <h4>{{ $t('settings.notifications.types.webhook') }} {{ $t('common.settings') }}</h4>
-      <div class="mb-3">
-        <label for="webhook-url" class="form-label">URL</label>
-        <input type="url" id="webhook-url" v-model="webhookConfig.url" class="form-control" required>
-      </div>
-       <div class="mb-3">
-        <label for="webhook-method" class="form-label">{{ $t('settings.notifications.form.webhookMethod') }}</label>
-        <select id="webhook-method" v-model="webhookConfig.method" class="form-select">
+    <div class="border border-border rounded-md p-4 mt-4 bg-header/30 space-y-4"> <!-- Config section container -->
+      <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50"> <!-- Config section title -->
+        {{ $t(`settings.notifications.types.${formData.channel_type}`) }} {{ $t('common.settings') }}
+      </h4>
+
+      <!-- Webhook Config -->
+      <div v-if="formData.channel_type === 'webhook'" class="space-y-4">
+        <div>
+          <label for="webhook-url" class="block text-sm font-medium text-text-secondary mb-1">URL</label>
+          <input type="url" id="webhook-url" v-model="webhookConfig.url" required
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+        </div>
+        <div>
+          <label for="webhook-method" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.webhookMethod') }}</label>
+          <select id="webhook-method" v-model="webhookConfig.method"
+                  class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                  style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
             <option value="POST">POST</option>
             <option value="GET">GET</option>
             <option value="PUT">PUT</option>
-        </select>
-      </div>
-       <div class="mb-3">
-        <label for="webhook-headers" class="form-label">{{ $t('settings.notifications.form.webhookHeaders') }} (JSON)</label>
-        <textarea id="webhook-headers" v-model="webhookHeadersString" class="form-control" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer ..."}'></textarea>
-        <small v-if="headerError" class="text-danger">{{ headerError }}</small>
-      </div>
-       <div class="mb-3">
-        <label for="webhook-body" class="form-label">{{ $t('settings.notifications.form.webhookBodyTemplate') }}</label>
-        <textarea id="webhook-body" v-model="webhookConfig.bodyTemplate" class="form-control" rows="3" :placeholder="$t('settings.notifications.form.webhookBodyPlaceholder')"></textarea>
-         <small class="text-muted">{{ $t('settings.notifications.form.templateHelp') }}</small>
-      </div>
-    </div>
-
-    <div v-if="formData.channel_type === 'email'" class="channel-config mb-3 p-3 border rounded">
-       <h4>{{ $t('settings.notifications.types.email') }} {{ $t('common.settings') }}</h4>
-       <div class="mb-3">
-        <label for="email-to" class="form-label">{{ $t('settings.notifications.form.emailTo') }}</label>
-        <input type="email" id="email-to" v-model="emailConfig.to" class="form-control" required placeholder="recipient1@example.com, recipient2@example.com">
-         <small class="text-muted">{{ $t('settings.notifications.form.emailToHelp') }}</small>
-      </div>
-       <div class="mb-3">
-        <label for="email-subject" class="form-label">{{ $t('settings.notifications.form.emailSubjectTemplate') }}</label>
-        <input type="text" id="email-subject" v-model="emailConfig.subjectTemplate" class="form-control" :placeholder="$t('settings.notifications.form.emailSubjectPlaceholder')">
-         <small class="text-muted">{{ $t('settings.notifications.form.templateHelp') }}</small>
-      </div>
-      <!-- SMTP Settings -->
-      <div class="mb-3">
-        <label for="smtp-host" class="form-label">{{ $t('settings.notifications.form.smtpHost') }}</label>
-        <input type="text" id="smtp-host" v-model="emailConfig.smtpHost" class="form-control" required>
-      </div>
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label for="smtp-port" class="form-label">{{ $t('settings.notifications.form.smtpPort') }}</label>
-          <input type="number" id="smtp-port" v-model.number="emailConfig.smtpPort" class="form-control" required>
+          </select>
         </div>
-        <div class="col-md-6 mb-3 d-flex align-items-end">
-           <div class="form-check">
-             <input type="checkbox" id="smtp-secure" v-model="emailConfig.smtpSecure" class="form-check-input">
-             <label for="smtp-secure" class="form-check-label">{{ $t('settings.notifications.form.smtpSecure') }} (TLS)</label>
-           </div>
+        <div>
+          <label for="webhook-headers" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.webhookHeaders') }} (JSON)</label>
+          <textarea id="webhook-headers" v-model="webhookHeadersString" rows="3" placeholder='{"Content-Type": "application/json", "Authorization": "Bearer ..."}'
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+          <small v-if="headerError" class="block mt-1 text-xs text-error">{{ headerError }}</small> <!-- Use text-error -->
+        </div>
+        <div>
+          <label for="webhook-body" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.webhookBodyTemplate') }}</label>
+          <textarea id="webhook-body" v-model="webhookConfig.bodyTemplate" rows="3" :placeholder="$t('settings.notifications.form.webhookBodyPlaceholder')"
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }}</small>
         </div>
       </div>
-      <div class="mb-3">
-        <label for="smtp-user" class="form-label">{{ $t('settings.notifications.form.smtpUser') }}</label>
-        <input type="text" id="smtp-user" v-model="emailConfig.smtpUser" class="form-control">
-      </div>
-      <div class="mb-3">
-        <label for="smtp-pass" class="form-label">{{ $t('settings.notifications.form.smtpPass') }}</label>
-        <input type="password" id="smtp-pass" v-model="emailConfig.smtpPass" class="form-control">
-      </div>
-       <div class="mb-3">
-        <label for="smtp-from" class="form-label">{{ $t('settings.notifications.form.smtpFrom') }}</label>
-        <input type="email" id="smtp-from" v-model="emailConfig.from" class="form-control" required placeholder="sender@example.com">
-         <small class="text-muted">{{ $t('settings.notifications.form.smtpFromHelp') }}</small>
-      </div>
-      <!-- Removed duplicate test button from here -->
-    </div>
 
-    <div v-if="formData.channel_type === 'telegram'" class="channel-config mb-3 p-3 border rounded">
-       <h4>{{ $t('settings.notifications.types.telegram') }} {{ $t('common.settings') }}</h4>
-       <div class="mb-3">
-        <label for="telegram-token" class="form-label">{{ $t('settings.notifications.form.telegramToken') }}</label>
-        <input type="password" id="telegram-token" v-model="telegramConfig.botToken" class="form-control" required>
-         <small class="text-muted">{{ $t('settings.notifications.form.telegramTokenHelp') }}</small>
+      <!-- Email Config -->
+      <div v-if="formData.channel_type === 'email'" class="space-y-4">
+        <div>
+          <label for="email-to" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.emailTo') }}</label>
+          <input type="email" id="email-to" v-model="emailConfig.to" required placeholder="recipient1@example.com, recipient2@example.com"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.emailToHelp') }}</small>
+        </div>
+        <div>
+          <label for="email-subject" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.emailSubjectTemplate') }}</label>
+          <input type="text" id="email-subject" v-model="emailConfig.subjectTemplate" :placeholder="$t('settings.notifications.form.emailSubjectPlaceholder')"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }}</small>
+        </div>
+        <!-- SMTP Settings -->
+        <div>
+          <label for="smtp-host" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.smtpHost') }}</label>
+          <input type="text" id="smtp-host" v-model="emailConfig.smtpHost" required
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="smtp-port" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.smtpPort') }}</label>
+            <input type="number" id="smtp-port" v-model.number="emailConfig.smtpPort" required
+                   class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+          </div>
+          <div class="flex items-end pb-1"> <!-- Align checkbox with bottom of port input -->
+             <div class="flex items-center">
+               <input type="checkbox" id="smtp-secure" v-model="emailConfig.smtpSecure"
+                      class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer">
+               <label for="smtp-secure" class="text-sm text-foreground cursor-pointer">{{ $t('settings.notifications.form.smtpSecure') }} (TLS)</label>
+             </div>
+          </div>
+        </div>
+        <div>
+          <label for="smtp-user" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.smtpUser') }}</label>
+          <input type="text" id="smtp-user" v-model="emailConfig.smtpUser" autocomplete="off"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+        </div>
+        <div>
+          <label for="smtp-pass" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.smtpPass') }}</label>
+          <input type="password" id="smtp-pass" v-model="emailConfig.smtpPass" autocomplete="new-password"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+        </div>
+        <div>
+          <label for="smtp-from" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.smtpFrom') }}</label>
+          <input type="email" id="smtp-from" v-model="emailConfig.from" required placeholder="sender@example.com"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.smtpFromHelp') }}</small>
+        </div>
       </div>
-       <div class="mb-3">
-        <label for="telegram-chatid" class="form-label">{{ $t('settings.notifications.form.telegramChatId') }}</label>
-        <input type="text" id="telegram-chatid" v-model="telegramConfig.chatId" class="form-control" required>
-      </div>
-       <div class="mb-3">
-        <label for="telegram-message" class="form-label">{{ $t('settings.notifications.form.telegramMessageTemplate') }}</label>
-        <textarea id="telegram-message" v-model="telegramConfig.messageTemplate" class="form-control" rows="3" :placeholder="$t('settings.notifications.form.telegramMessagePlaceholder')"></textarea>
-         <small class="text-muted">{{ $t('settings.notifications.form.templateHelp') }}</small>
-      </div>
-       <!-- Test button moved below -->
-    </div>
 
-    <!-- Unified Test Button Area -->
-    <div class="test-button-area"> <!-- Added class -->
-        <!-- Show button if editing OR if adding and required fields are filled -->
-        <button
-            v-if="isEditing || canTestUnsaved"
-            type="button"
-            @click="handleTestNotification"
-            class="btn btn-outline-secondary btn-sm"
-            :disabled="testingNotification"
-        >
-            <span v-if="testingNotification" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-            {{ testingNotification ? $t('common.testing') : $t('settings.notifications.form.testButton') }}
-        </button>
-        <!-- Show hint if adding and required fields are NOT filled -->
-        <small v-else class="d-block mt-2 text-muted">
-            {{ $t('settings.notifications.form.fillRequiredToTest') }}
-        </small>
-        <!-- Show test result message if available -->
-        <small v-if="testResult" :class="['d-block mt-2', testResult.success ? 'text-success' : 'text-danger']">
-            {{ testResult.message }}
-        </small>
+      <!-- Telegram Config -->
+      <div v-if="formData.channel_type === 'telegram'" class="space-y-4">
+        <div>
+          <label for="telegram-token" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.telegramToken') }}</label>
+          <input type="password" id="telegram-token" v-model="telegramConfig.botToken" required autocomplete="new-password"
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.telegramTokenHelp') }}</small>
+        </div>
+        <div>
+          <label for="telegram-chatid" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.telegramChatId') }}</label>
+          <input type="text" id="telegram-chatid" v-model="telegramConfig.chatId" required
+                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+        </div>
+        <div>
+          <label for="telegram-message" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.telegramMessageTemplate') }}</label>
+          <textarea id="telegram-message" v-model="telegramConfig.messageTemplate" rows="3" :placeholder="$t('settings.notifications.form.telegramMessagePlaceholder')"
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }}</small>
+        </div>
+      </div>
+
+      <!-- Unified Test Button Area -->
+      <div class="text-center pt-4 mt-4 border-t border-border/50"> <!-- Test button container -->
+          <button
+              v-if="isEditing || canTestUnsaved"
+              type="button"
+              @click="handleTestNotification"
+              :disabled="testingNotification"
+              class="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-text-secondary bg-background hover:bg-header focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center"
+          >
+              <svg v-if="testingNotification" class="animate-spin -ml-0.5 mr-2 h-4 w-4 text-text-secondary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ testingNotification ? $t('common.testing') : $t('settings.notifications.form.testButton') }}
+          </button>
+          <!-- Show hint if adding and required fields are NOT filled -->
+          <small v-else class="block mt-2 text-xs text-text-secondary">
+              {{ $t('settings.notifications.form.fillRequiredToTest') }}
+          </small>
+          <!-- Show test result message if available -->
+          <small v-if="testResult" :class="['block mt-2 text-xs', testResult.success ? 'text-success' : 'text-error']"> <!-- Use text-success/text-error -->
+              {{ testResult.message }}
+          </small>
+      </div>
     </div>
 
 
     <!-- Enabled Events -->
-    <div class="mb-3">
-        <label class="form-label">{{ $t('settings.notifications.form.enabledEvents') }}</label>
-        <div class="enabled-events-grid"> <!-- Changed class -->
-            <div v-for="event in allNotificationEvents" :key="event"> <!-- Removed col classes -->
-                <div class="form-check">
+    <div>
+        <label class="block text-sm font-medium text-text-secondary mb-2">{{ $t('settings.notifications.form.enabledEvents') }}</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2"> <!-- Responsive grid for events -->
+            <div v-for="event in allNotificationEvents" :key="event">
+                <div class="flex items-center">
                     <input
                         type="checkbox"
                         :id="'event-' + event"
                         :value="event"
                         v-model="formData.enabled_events"
-                        class="form-check-input"
+                        class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer"
                     >
-                    <label :for="'event-' + event" class="form-check-label">{{ getEventDisplayName(event) }}</label>
+                    <label :for="'event-' + event" class="text-sm text-foreground cursor-pointer select-none">{{ getEventDisplayName(event) }}</label>
                 </div>
             </div>
         </div>
     </div>
 
 
-    <div class="form-actions"> <!-- Added class -->
-      <button type="button" @click="handleCancel" class="btn btn-secondary me-2">{{ $t('common.cancel') }}</button>
-      <button type="submit" class="btn btn-primary" :disabled="store.isLoading || !!headerError || testingNotification">
+    <!-- Form Actions -->
+    <div class="flex justify-end space-x-3 pt-5 mt-6 border-t border-border">
+      <button type="button" @click="handleCancel"
+              class="px-4 py-2 bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out">
+        {{ $t('common.cancel') }}
+      </button>
+      <button type="submit" :disabled="store.isLoading || !!headerError || testingNotification"
+              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out">
         {{ store.isLoading ? $t('common.saving') : $t('common.save') }}
       </button>
     </div>
-     <div v-if="formError" class="alert alert-danger mt-3">{{ formError }}</div>
-     <div v-if="testError" class="alert alert-danger mt-3">{{ testError }}</div>
+     <div v-if="formError" class="p-3 mt-3 border-l-4 border-error bg-error/10 text-error text-sm rounded">{{ formError }}</div> <!-- Use error colors -->
+     <div v-if="testError" class="p-3 mt-3 border-l-4 border-error bg-error/10 text-error text-sm rounded">{{ testError }}</div> <!-- Use error colors -->
   </form>
 </template>
 
@@ -457,234 +493,5 @@ const handleTestNotification = async () => {
 </script>
 
 <style scoped>
-/* Form container - Inherits styles from .form-section in parent */
-.notification-setting-form {
-  color: var(--text-color);
-  max-width: 800px; /* Limit form width */
-  margin: 0 auto; /* Center the form */
-}
-
-h3 {
-  color: var(--text-color);
-  margin-bottom: calc(var(--base-margin) * 1.5); /* Adjust margin */
-  padding-bottom: var(--base-margin);
-  border-bottom: 1px solid var(--border-color-light, var(--border-color)); /* Lighter border */
-  font-size: 1.4rem; /* Adjust size */
-  font-weight: 600;
-}
-
-.mb-3 {
-  margin-bottom: calc(var(--base-margin) * 1.2) !important; /* Consistent margin */
-}
-
-/* Form Elements Styling (Consistent with SettingsView) */
-.form-label {
-  display: block;
-  margin-bottom: calc(var(--base-margin) / 3);
-  font-weight: 600;
-  color: var(--text-color);
-  font-size: 0.9rem;
-}
-
-.form-control, .form-select {
-  width: 100%;
-  padding: 0.5rem 0.7rem;
-  box-sizing: border-box;
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  font-family: var(--font-family-sans-serif);
-  font-size: 0.95rem;
-  color: var(--text-color);
-  background-color: var(--input-bg-color, var(--app-bg-color));
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.form-control:focus, .form-select:focus {
-    border-color: var(--link-active-color);
-    outline: 0;
-    box-shadow: 0 0 0 3px rgba(var(--rgb-link-active-color, 0, 123, 255), 0.2);
-}
-.form-select {
-    appearance: none; /* Custom arrow styling might be needed */
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 0.75rem center;
-    background-size: 16px 12px;
-}
-
-textarea.form-control {
-    min-height: 100px; /* Adjust height */
-    resize: vertical;
-}
-
-/* Checkbox Styling (Consistent with SettingsView) */
-.form-check {
-  display: flex;
-  align-items: center;
-  padding-left: 0;
-  margin-bottom: calc(var(--base-margin) / 2); /* Spacing for checkbox groups */
-}
-.form-check-input {
-  width: 1.2em;
-  height: 1.2em;
-  margin-right: 0.7rem;
-  flex-shrink: 0;
-  appearance: none;
-  background-color: var(--input-bg-color, var(--app-bg-color));
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  cursor: pointer;
-  position: relative;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-.form-check-input:checked {
-    background-color: var(--button-bg-color);
-    border-color: var(--button-bg-color);
-}
-.form-check-input:checked::after {
-    content: '✔';
-    position: absolute;
-    color: var(--button-text-color);
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 0.85em;
-    font-weight: bold;
-}
-.form-check-input:focus {
-    box-shadow: 0 0 0 3px rgba(var(--rgb-link-active-color, 0, 123, 255), 0.2);
-    outline: 0;
-}
-.form-check-label {
-  margin-bottom: 0;
-  cursor: pointer;
-  font-weight: normal;
-  font-size: 0.95rem;
-  user-select: none;
-}
-
-/* Channel Config Section */
-.channel-config {
-  border: 1px solid var(--border-color-light, var(--border-color)); /* Lighter border */
-  border-radius: 6px; /* Slightly rounded */
-  padding: calc(var(--base-padding) * 1.2); /* Adjust padding */
-  margin-top: var(--base-margin);
-  margin-bottom: calc(var(--base-margin) * 1.5); /* Ensure space below */
-  background-color: rgba(0,0,0,0.02); /* Very subtle background */
-}
-
-.channel-config h4 {
-    font-size: 1.1rem; /* Adjust size */
-    font-weight: 600;
-    margin-bottom: var(--base-margin);
-    color: var(--text-color);
-    padding-bottom: calc(var(--base-margin) * 0.75);
-    border-bottom: 1px dashed var(--border-color-light, var(--border-color));
-}
-
-/* Enabled Events Layout */
-.enabled-events-grid { /* Use this class on the div wrapping the events */
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Responsive columns */
-    gap: calc(var(--base-margin) / 2) var(--base-margin); /* Row and column gap */
-    margin-top: calc(var(--base-margin) / 2);
-}
-
-/* Helper Text and Errors */
-.text-muted {
-  color: var(--text-color-secondary);
-  font-size: 0.85em;
-  display: block;
-  margin-top: calc(var(--base-margin) / 3);
-}
-.text-danger, .alert-danger {
-    color: #842029;
-    font-size: 0.9em;
-}
-.text-success {
-    color: #0f5132;
-    font-size: 0.9em;
-}
-.alert-danger { /* Style for form error */
-    background-color: #f8d7da;
-    border: 1px solid #f5c2c7;
-    border-left: 4px solid #842029;
-    padding: 0.8rem 1rem;
-    border-radius: 5px;
-    margin-top: var(--base-margin);
-}
-
-/* Test Button Area */
-.test-button-area { /* Add this class to the div wrapping the test button */
-    margin-top: calc(var(--base-margin) * 1.5);
-    margin-bottom: calc(var(--base-margin) * 1.5);
-    text-align: center;
-}
-.test-button-area .btn-outline-secondary {
-    /* Use base btn-outline-secondary */
-}
-.test-button-area .text-muted,
-.test-button-area .text-danger,
-.test-button-area .text-success {
-    margin-top: calc(var(--base-margin) / 2);
-}
-
-
-/* Button Styles (Inherited from parent component's style block) */
-/* Ensure .btn, .btn-primary, .btn-secondary, .btn-sm are defined there or globally */
-.spinner-border-sm {
-    width: 1rem;
-    height: 1rem;
-    border-width: 0.2em;
-    vertical-align: -0.125em;
-    margin-right: 0.3rem; /* Space between spinner and text */
-}
-
-/* Final Action Buttons */
-.form-actions { /* Add this class to the div wrapping save/cancel */
-    display: flex;
-    justify-content: flex-end;
-    margin-top: calc(var(--base-margin) * 2);
-    padding-top: var(--base-margin);
-    border-top: 1px solid var(--border-color-light, var(--border-color));
-}
-.form-actions .btn {
-    margin-left: var(--base-margin);
-    /* Re-affirming button styles for clarity */
-    padding: 0.5rem 1rem;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.1s ease;
-    font-weight: 600;
-    font-size: 0.95rem;
-    line-height: 1.5;
-    border: 1px solid transparent;
-}
-.form-actions .btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-.form-actions .btn:active:not(:disabled) {
-    transform: translateY(0px);
-}
-.form-actions .btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-}
-.form-actions .btn-primary {
-    background-color: var(--button-bg-color);
-    border-color: var(--button-bg-color);
-    color: var(--button-text-color);
-}
-.form-actions .btn-primary:hover:not(:disabled) {
-     background-color: var(--button-hover-bg-color);
-     border-color: var(--button-hover-bg-color);
-}
-.form-actions .btn-secondary {
-    background-color: var(--secondary-button-bg-color, var(--header-bg-color));
-    color: var(--secondary-button-text-color, var(--text-color));
-    border: 1px solid var(--border-color);
-}
-.form-actions .btn-secondary:hover:not(:disabled) {
-    background-color: var(--secondary-button-hover-bg-color, var(--border-color));
-    border-color: var(--border-color);
-}
+/* Remove all scoped styles as they are now handled by Tailwind utility classes */
 </style>

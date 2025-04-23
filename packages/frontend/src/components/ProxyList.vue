@@ -30,46 +30,46 @@ const formatTimestamp = (timestamp: number | null): string => {
 
 <template>
   <div class="mt-4"> <!-- Container with top margin -->
-    <div v-if="isLoading" class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50"> <!-- Loading state with Tailwind -->
+    <div v-if="isLoading" class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50 text-center italic"> <!-- Loading state consistent with Notifications -->
       {{ t('proxies.loading') }}
     </div>
-    <div v-else-if="error" class="p-4 border border-error/30 bg-error/10 text-error rounded-md mb-4"> <!-- Use semantic error colors -->
+    <div v-else-if="error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded"> <!-- Error state consistent with Notifications -->
       {{ t('proxies.error', { error: error }) }}
     </div>
-    <div v-else-if="proxies.length === 0" class="p-4 border border-border rounded-md mb-4 text-text-secondary"> <!-- No proxies state with Tailwind -->
+    <div v-else-if="proxies.length === 0" class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded"> <!-- No proxies state consistent with Notifications (using blue for now) -->
       {{ t('proxies.noProxies') }}
     </div>
-    <table v-else class="w-full border-collapse mt-4 text-sm"> <!-- Table with Tailwind -->
-      <thead>
-        <tr class="bg-header"> <!-- Table header row -->
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.name') }}</th>
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.type') }}</th>
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.host') }}</th>
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.port') }}</th>
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.user') }}</th>
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.updatedAt') }}</th>
-          <th class="px-4 py-2 border border-border text-left font-medium text-text-secondary">{{ t('proxies.table.actions') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="proxy in proxies" :key="proxy.id" class="odd:bg-background even:bg-header/50 hover:bg-link-active-bg/50"> <!-- Table body rows with alternating background and hover -->
-          <td class="px-4 py-2 border border-border">{{ proxy.name }}</td>
-          <td class="px-4 py-2 border border-border">{{ proxy.type }}</td>
-          <td class="px-4 py-2 border border-border">{{ proxy.host }}</td>
-          <td class="px-4 py-2 border border-border">{{ proxy.port }}</td>
-          <td class="px-4 py-2 border border-border">{{ proxy.username || '-' }}</td>
-          <td class="px-4 py-2 border border-border whitespace-nowrap">{{ formatTimestamp(proxy.updated_at) }}</td>
-          <td class="px-4 py-2 border border-border space-x-2 whitespace-nowrap"> <!-- Actions cell with spacing -->
-            <button @click="emit('edit-proxy', proxy)" class="text-link hover:text-link-hover hover:underline text-xs font-medium"> <!-- Edit button with link style -->
-              {{ t('proxies.actions.edit') }}
-            </button>
-            <button @click="handleDelete(proxy)" class="text-error hover:text-error/80 hover:underline text-xs font-medium"> <!-- Use semantic error color for delete -->
-              {{ t('proxies.actions.delete') }}
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+
+    <!-- Proxy List using Card Layout -->
+    <div v-else class="grid gap-4 mt-4">
+      <div v-for="proxy in proxies" :key="proxy.id" class="bg-background border border-border rounded-lg p-4 flex justify-between items-start gap-4 shadow-sm hover:shadow-md transition-shadow duration-200"> <!-- Proxy item card -->
+        <div class="flex-grow space-y-1"> <!-- Details section -->
+          <strong class="block font-semibold text-base text-foreground">{{ proxy.name }}</strong>
+          <div class="flex items-center space-x-2"> <!-- Type Badge -->
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-header border border-border text-text-secondary uppercase tracking-wider">
+              {{ proxy.type }}
+            </span>
+          </div>
+          <div class="text-sm text-text-secondary"> <!-- Host & Port -->
+            <i class="fas fa-server mr-1 text-xs opacity-70"></i> {{ proxy.host }}:{{ proxy.port }}
+          </div>
+          <div v-if="proxy.username" class="text-sm text-text-secondary"> <!-- Username (optional) -->
+             <i class="fas fa-user mr-1 text-xs opacity-70"></i> {{ proxy.username }}
+          </div>
+          <div class="text-xs text-text-secondary pt-1"> <!-- Updated At -->
+            <i class="fas fa-clock mr-1 opacity-70"></i> {{ t('common.updated') }}: {{ formatTimestamp(proxy.updated_at) }}
+          </div>
+        </div>
+        <div class="flex items-center flex-shrink-0 space-x-3 pt-1"> <!-- Actions section -->
+          <button @click="emit('edit-proxy', proxy)" class="text-link hover:text-link-hover text-sm font-medium hover:underline"> <!-- Edit button (link style) -->
+            <i class="fas fa-pencil-alt mr-1 text-xs"></i>{{ t('proxies.actions.edit') }}
+          </button>
+          <button @click="handleDelete(proxy)" class="text-error hover:text-error/80 text-sm font-medium hover:underline"> <!-- Delete button (error color) -->
+             <i class="fas fa-trash-alt mr-1 text-xs"></i>{{ t('proxies.actions.delete') }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 

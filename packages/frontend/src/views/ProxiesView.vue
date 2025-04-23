@@ -42,28 +42,32 @@ const closeForm = () => {
 </script>
 
 <template>
-  <div class="p-4 bg-background text-foreground"> <!-- Ensure Tailwind padding, background, and text color -->
-    <h2 class="text-xl font-semibold mb-4">{{ t('proxies.title') }}</h2> <!-- Ensure Tailwind typography -->
+  <div class="p-4 bg-background text-foreground"> <!-- Outer container with padding -->
+    <div class="max-w-6xl mx-auto"> <!-- Inner container for max-width and centering -->
+      <h2 class="text-xl font-semibold text-foreground mb-4 pb-2 border-b border-border"> <!-- Title styling consistent with Notifications -->
+        {{ t('proxies.title') }}
+      </h2>
 
-    <button
-      @click="openAddForm"
-      v-if="!showForm"
-      class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 transition duration-150 ease-in-out"
-    > <!-- Ensure Tailwind button styles -->
-      {{ t('proxies.addProxy') }}
-    </button>
+      <button
+        @click="openAddForm"
+        v-if="!showForm"
+        class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 inline-flex items-center text-sm font-medium"
+      > <!-- Button styling consistent with Notifications -->
+        <i class="fas fa-plus mr-1 text-xs"></i> {{ t('proxies.addProxy') }}
+      </button>
 
-    <!-- 添加/编辑代理表单 -->
-    <AddProxyForm
-      v-if="showForm"
-      :proxy-to-edit="editingProxy"
-      @close="closeForm"
-      @proxy-added="handleProxyAdded"
-      @proxy-updated="handleProxyUpdated"
-    />
+      <!-- 添加/编辑代理表单 -->
+      <AddProxyForm
+        v-if="showForm"
+        :proxy-to-edit="editingProxy"
+        @close="closeForm"
+        @proxy-added="handleProxyAdded"
+        @proxy-updated="handleProxyUpdated"
+      />
 
-    <!-- 代理列表 -->
-    <ProxyList @edit-proxy="handleEditRequest" />
+      <!-- 代理列表 -->
+      <ProxyList @edit-proxy="handleEditRequest" />
+    </div>
   </div>
 </template>
 
