@@ -11,6 +11,7 @@ import { createWebSocketConnectionManager, type WsConnectionStatus } from '../co
 import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions';
 import { createSshTerminalManager, type SshTerminalDependencies } from '../composables/useSshTerminal';
 import { createStatusMonitorManager, type StatusMonitorDependencies } from '../composables/useStatusMonitor';
+import { createDockerManager, type DockerManagerInstance, type DockerManagerDependencies } from '../composables/useDockerManager'; // +++ Import Docker Manager +++
 
 // --- 辅助函数 ---
 function generateSessionId(): string {
@@ -55,6 +56,7 @@ export type WsManagerInstance = ReturnType<typeof createWebSocketConnectionManag
 export type SftpManagerInstance = ReturnType<typeof createSftpActionsManager>;
 export type SshTerminalInstance = ReturnType<typeof createSshTerminalManager>;
 export type StatusMonitorInstance = ReturnType<typeof createStatusMonitorManager>;
+export type DockerManagerInstance = ReturnType<typeof createDockerManager>; // +++ Add Docker Manager Instance Type +++
 
 export interface SessionState {
   sessionId: string;
@@ -65,6 +67,7 @@ export interface SessionState {
   sftpManagers: Map<string, SftpManagerInstance>; // 使用 Map 管理多个实例
   terminalManager: SshTerminalInstance;
   statusMonitorManager: StatusMonitorInstance;
+  dockerManager: DockerManagerInstance; // +++ Add Docker Manager Instance +++
   // currentSftpPath: Ref<string>; // 移除，由每个 sftpManager 内部管理
   // --- 新增：独立编辑器状态 ---
   editorTabs: Ref<FileTab[]>; // 编辑器标签页列表
@@ -152,6 +155,14 @@ export const useSessionStore = defineStore('session', () => {
         isConnected: wsManager.isConnected,
     };
     const statusMonitorManager = createStatusMonitorManager(newSessionId, statusMonitorDeps);
+    // +++ Create Docker Manager Dependencies +++
+    const dockerManagerDeps: DockerManagerDependencies = {
+        sendMessage: wsManager.sendMessage,
+        onMessage: wsManager.onMessage,
+        isConnected: wsManager.isConnected,
+    };
+    // +++ Create Docker Manager Instance +++
+    const dockerManager = createDockerManager(newSessionId, dockerManagerDeps, { t });
 
     // 2. 创建 SessionState 对象
     const newSession: SessionState = {
@@ -163,6 +174,7 @@ export const useSessionStore = defineStore('session', () => {
         sftpManagers: new Map<string, SftpManagerInstance>(), // 初始化 Map
         terminalManager: terminalManager,
         statusMonitorManager: statusMonitorManager,
+        dockerManager: dockerManager, // +++ Add Docker Manager to Session State +++
         // currentSftpPath: currentSftpPath, // 移除
         // --- 初始化编辑器状态 ---
         editorTabs: ref([]), // 初始化为空数组
@@ -316,6 +328,8 @@ export const useSessionStore = defineStore('session', () => {
     console.log(`[SessionStore] 已为会话 ${sessionId} 调用 terminalManager.cleanup()`);
     sessionToClose.statusMonitorManager.cleanup();
     console.log(`[SessionStore] 已为会话 ${sessionId} 调用 statusMonitorManager.cleanup()`);
+    sessionToClose.dockerManager.cleanup(); // +++ Call Docker Manager cleanup +++
+    console.log(`[SessionStore] 已为会话 ${sessionId} 调用 dockerManager.cleanup()`); // +++ Add log +++
     // TODO: 清理编辑器相关资源？例如提示保存未保存的文件
 
     // 2. 从 Map 中移除会话 (需要创建 Map 的新实例以触发 shallowRef 更新)
