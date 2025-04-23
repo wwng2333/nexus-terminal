@@ -127,317 +127,73 @@ const toggleButtonTitle = computed(() => {
 </script>
 
 <template>
-  <div class="terminal-tab-bar">
-    <div class="tabs-and-add-button"> <!-- 新容器包裹标签和+按钮 -->
-      <ul class="tab-list">
+  <div class="flex bg-header border border-border rounded-t-md mx-2 mt-2 overflow-hidden h-10"> 
+    <div class="flex items-center overflow-x-auto flex-shrink min-w-0">
+      <ul class="flex list-none p-0 m-0 h-full flex-shrink-0">
         <li
           v-for="session in sessions"
-        :key="session.sessionId"
-        :class="['tab-item', { active: session.sessionId === activeSessionId }]"
-        @click="activateSession(session.sessionId)"
-        :title="session.connectionName"
-      >
-        <!-- 添加状态点 -->
-        <span :class="['status-dot', `status-${session.status}`]"></span>
-        <span class="tab-name">{{ session.connectionName }}</span>
-        <button class="close-tab-button" @click="closeSession($event, session.sessionId)" title="关闭标签页">
-          &times; <!-- 使用 HTML 实体 '×' -->
-        </button>
+          :key="session.sessionId"
+          :class="['flex items-center px-3 h-full cursor-pointer border-r border-border transition-colors duration-150 relative group',
+                   session.sessionId === activeSessionId ? 'bg-background text-foreground' : 'bg-header text-text-secondary hover:bg-border']"
+          @click="activateSession(session.sessionId)"
+          :title="session.connectionName"
+        >
+          <!-- Status dot -->
+          <span :class="['w-2 h-2 rounded-full mr-2 flex-shrink-0',
+                         session.status === 'connected' ? 'bg-green-500' :
+                         session.status === 'connecting' ? 'bg-yellow-500 animate-pulse' :
+                         session.status === 'disconnected' ? 'bg-red-500' : 'bg-gray-400']"></span>
+          <span class="truncate text-sm">{{ session.connectionName }}</span>
+          <button class="ml-2 p-0.5 rounded-full text-text-secondary hover:bg-border hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                  :class="{'text-foreground hover:bg-header': session.sessionId === activeSessionId}"
+                  @click="closeSession($event, session.sessionId)" title="关闭标签页">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </li>
       </ul>
-      <!-- "+" 按钮紧随标签列表 -->
-      <button class="add-tab-button" @click="togglePopup" title="新建连接标签页">
-        <i class="fas fa-plus"></i>
+      <!-- Add Tab Button -->
+      <button class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150 flex-shrink-0"
+              @click="togglePopup" title="新建连接标签页">
+        <i class="fas fa-plus text-sm"></i>
       </button>
     </div>
-    <div class="action-buttons-container">
-        <!-- Header Toggle Button (Only functional on /workspace) -->
+    <!-- Action Buttons -->
+    <div class="flex items-center ml-auto h-full flex-shrink-0">
         <button
           v-if="isWorkspaceRoute"
-          class="action-button header-toggle-button"
+          class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150"
           @click="toggleHeader"
           :title="toggleButtonTitle"
         >
-          <i :class="eyeIconClass"></i>
+          <i :class="[eyeIconClass, 'text-sm']"></i>
         </button>
-        <!-- Layout Configurator Button -->
-        <button class="action-button layout-config-button" @click="openLayoutConfigurator" :title="t('layout.configure', '配置布局')"> <!-- 使用 t 函数 -->
-          <i class="fas fa-th-large"></i> <!-- 恢复为田字格图标 -->
+        <button class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150"
+                @click="openLayoutConfigurator" :title="t('layout.configure', '配置布局')">
+          <i class="fas fa-th-large text-sm"></i>
         </button>
     </div>
-    <!-- 连接列表弹出窗口 (保持不变) -->
-    <div v-if="showConnectionListPopup" class="connection-list-popup" @click.self="togglePopup">
-      <div class="popup-content">
-        <button class="popup-close-button" @click="togglePopup">&times;</button>
-        <h3>选择要连接的服务器</h3>
-        <WorkspaceConnectionListComponent
-          @connect-request="handlePopupConnect"
-          @open-new-session="handlePopupConnect"
-          @request-add-connection="handleRequestAddFromPopup"
-          class="popup-connection-list"
-        />
+    <!-- Connection List Popup -->
+    <div v-if="showConnectionListPopup" class="fixed inset-0 bg-overlay flex justify-center items-center z-50 p-4" @click.self="togglePopup">
+      <div class="bg-background text-foreground p-6 rounded-lg shadow-xl border border-border w-full max-w-md max-h-[80vh] flex flex-col relative">
+        <button class="absolute top-2 right-2 p-1 text-text-secondary hover:text-foreground" @click="togglePopup">
+           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+           </svg>
+        </button>
+        <h3 class="text-lg font-semibold text-center mb-4">选择要连接的服务器</h3>
+        <div class="flex-grow overflow-y-auto border border-border rounded">
+            <WorkspaceConnectionListComponent
+              @connect-request="handlePopupConnect"
+              @open-new-session="handlePopupConnect"
+              @request-add-connection="handleRequestAddFromPopup"
+              class="popup-connection-list"
+            />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
-<style scoped>
-.terminal-tab-bar {
-  display: flex;
-  background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 */
-  border: 1px solid var(--border-color, #bdbdbd); /* 应用到所有四边 */
-  white-space: nowrap;
-  height: 2.5rem; /* 固定标签栏高度 */
-  box-sizing: border-box; /* 确保 padding 不会增加总高度 */
-  border-radius: 5px 5px 0 0; /* 保持左上和右上圆角 */
-  margin: 0 var(--base-margin, 0.5rem); /* Add horizontal margin to match content area */
-  margin-top: var(--base-margin, 0.5rem); /* Add top margin */
-  overflow: hidden; /* Clip content to rounded corners */
-}
-
-/* 包裹标签和+按钮的容器 */
-.tabs-and-add-button {
-  display: flex;
-  align-items: center;
-  overflow-x: auto; /* 允许标签和+按钮区域滚动 */
-  /* flex-grow: 1; */ /* 移除：让其自然宽度 */
-  /* max-width: calc(100% - 50px); */ /* 移除宽度限制 */
-  flex-shrink: 1; /* 允许在空间不足时收缩 */
-  min-width: 0; /* 允许收缩到0 */
-  height: 100%; /* 确保高度与父元素相同，消除上下间距 */
-}
-
-/* 状态点样式 */
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 8px; /* 增加右边距 */
-  display: inline-block;
-  vertical-align: middle;
-  flex-shrink: 0; /* 防止被压缩 */
-}
-.status-dot.status-disconnected { background-color: #dc3545; } /* 红色 */
-.status-dot.status-connecting { background-color: #ffc107; } /* 黄色 */
-.status-dot.status-connected { background-color: #28a745; } /* 绿色 */
-.status-dot.status-error { background-color: #6c757d; } /* 灰色 (或其他表示错误的颜色) */
-
-
-.tab-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-shrink: 0; /* 防止标签列表被压缩 */
-  height: 100%; /* 确保占满整个高度 */
-}
-
-.tab-item {
-  display: flex;
-  align-items: center;
-  padding: 0 0.8rem; /* 基础内边距 */
-  height: 100%;
-  cursor: pointer;
-  border-right: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
-  box-sizing: border-box;
-  background-color: var(--app-bg-color, #f0f0f0); /* 使用变量 - 未激活标签背景 */
-  color: var(--text-color-secondary, #616161); /* 使用变量 - 未激活标签文字颜色 */
-  transition: background-color 0.2s ease, color 0.2s ease;
-  position: relative; /* 保持相对定位，以防万一需要定位子元素 */
-}
-
-.tab-item:hover {
-  background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 - 悬停时背景 */
-}
-
-.tab-item.active {
-  background-color: var(--app-bg-color, #ffffff); /* 使用变量 - 激活标签背景 */
-  color: var(--text-color, #333333); /* 使用变量 - 激活标签文字颜色 */
-  border-bottom-color: transparent; /* 隐藏激活标签的底部边框，模拟连接效果 */
-  /* Ensure right border is explicitly set for active tab as well */
-  border-right-color: var(--border-color, #bdbdbd);
-  position: relative;
-  z-index: 1;
-}
-
-.tab-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* margin-right: 1.5rem; */ /* 移除 */
-  line-height: normal; /* 默认行高 */
-  flex-grow: 1; /* 保持：允许名称伸展 */
-  margin-left: 6px; /* 增加左边距 */
-  margin-right: 8px; /* 增加右边距，与关闭按钮拉开距离 */
-  text-align: left; /* 保持文本左对齐 */
-}
-
-.close-tab-button {
-  background: none;
-  border: none;
-  color: var(--text-color-secondary, #9e9e9e); /* 使用变量 */
-  cursor: pointer;
-  font-size: 1.1em;
-  padding: 0 0.3rem;
-  /* line-height: 1; */ /* 移除 line-height，让 align-items 控制垂直居中 */
-  border-radius: 50%;
-  margin-left: auto; /* 保持 auto 将按钮推到最右侧 */
-  flex-shrink: 0; /* 防止按钮被压缩 */
-  /* 移除绝对定位 */
-  /* top: 50%; */
-  /* right: 0.5rem; */
-  /* transform: translateY(-50%); */
-}
-
-.close-tab-button:hover {
-  background-color: var(--border-color, #bdbdbd); /* 使用变量 */
-  color: var(--app-bg-color, #ffffff); /* 使用变量 */
-}
-
-.tab-item.active .close-tab-button {
-    color: var(--text-color-secondary, #757575); /* 使用变量 */
-}
-.tab-item.active .close-tab-button:hover {
-    background-color: var(--header-bg-color, #e0e0e0); /* 使用变量 */
-    color: var(--text-color, #333333); /* 使用变量 */
-}
-
-/* 添加新标签按钮样式 */
-.add-tab-button {
-  background: none;
-  border: none;
-  border-left: 1px solid var(--border-color, #bdbdbd); /* 使用变量 */
-  padding: 0 0.8rem;
-  cursor: pointer;
-  font-size: 1.1em;
-  color: var(--text-color-secondary, #616161); /* 使用变量 */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  flex-shrink: 0; /* 防止按钮被压缩 */
-}
-.add-tab-button:hover {
-  background-color: var(--header-bg-color, #d0d0d0); /* 使用变量 */
-}
-.add-tab-button i {
-  line-height: 1; /* 确保图标垂直居中 */
-}
-
-/* 新增：包裹右侧操作按钮的容器 */
-.action-buttons-container {
-  display: flex;
-  align-items: center;
-  margin-left: auto; /* 将整个容器推到右侧 */
-  height: 100%;
-  flex-shrink: 0; /* 防止被压缩 */
-}
-
-/* 通用操作按钮样式 */
-.action-button {
-    background: none;
-    border: none;
-    border-left: 1px solid var(--border-color, #bdbdbd); /* 左侧边框作为分隔 */
-    padding: 0 0.8rem;
-    cursor: pointer;
-    font-size: 1.1em;
-    color: var(--text-color-secondary, #616161);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    flex-shrink: 0;
-    transition: background-color 0.2s, color 0.2s;
-}
-.action-button:hover {
-    background-color: var(--header-bg-color, #d0d0d0);
-    color: var(--text-color, #333);
-}
-.action-button i {
-    line-height: 1;
-}
-
-
-
-
-.layout-config-button {
-  padding: 0 0.8rem;
-  cursor: pointer;
-  font-size: 1.1em; /* 与其他按钮一致 */
-  color: var(--text-color-secondary, #616161);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  flex-shrink: 0;
-}
-.layout-config-button:hover {
-  background-color: var(--header-bg-color, #d0d0d0); /* 使用变量 */
-}
-.layout-config-button i {
-  line-height: 1;
-}
-
-.connection-list-popup {
-  position: fixed; /* 固定定位，覆盖整个屏幕 */
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* 半透明背景 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000; /* 确保在最上层 */
-}
-
-.popup-content {
-  background-color: var(--app-bg-color, white); /* 使用变量 */
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  width: 80%;
-  max-width: 500px; /* 限制最大宽度 */
-  max-height: 80vh; /* 限制最大高度 */
-  display: flex;
-  flex-direction: column;
-  position: relative; /* 为了关闭按钮定位 */
-}
-
-.popup-close-button {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text-color-secondary, #aaa); /* 使用变量 */
-  line-height: 1;
-}
-.popup-close-button:hover {
-  color: var(--text-color, #333); /* 使用变量 */
-}
-
-.popup-content h3 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  text-align: center;
-  color: var(--text-color, #333); /* 使用变量 */
-}
-
-.popup-connection-list {
-  flex-grow: 1; /* 让列表占据剩余空间 */
-  overflow-y: auto; /* 列表内容滚动 */
-  /* 可能需要覆盖 WorkspaceConnectionList 的一些默认样式 */
-  border: 1px solid var(--border-color); /* Use theme variable */
-  border-radius: 4px;
-}
-
-:deep(.popup-connection-list .connection-list-area) {
-  padding: 0; /* 保持移除内边距 */
-  background-color: var(--app-bg-color); /* 确保列表背景 */
-}
-
-</style>
-
+<!-- Scoped styles removed, now using Tailwind utility classes -->
