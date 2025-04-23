@@ -287,474 +287,151 @@ const testButtonText = computed(() => {
 </script>
 
 <template>
-  <div class="add-connection-form-overlay">
-    <div class="add-connection-form">
-      <h3>{{ formTitle }}</h3> <!-- 使用计算属性 -->
-      <form @submit.prevent="handleSubmit">
-         <div class="form-sections"> <!-- Container for sections -->
+  <div class="fixed inset-0 bg-overlay flex justify-center items-center z-50 p-4"> <!-- Overlay -->
+    <div class="bg-background text-foreground p-6 rounded-lg shadow-xl border border-border w-full max-w-2xl max-h-[90vh] flex flex-col"> <!-- Form Panel -->
+      <h3 class="text-xl font-semibold text-center mb-6 flex-shrink-0">{{ formTitle }}</h3> <!-- Title -->
+      <form @submit.prevent="handleSubmit" class="flex-grow overflow-y-auto pr-2 space-y-6"> <!-- Form with scroll and spacing -->
 
-           <fieldset class="form-section">
-             <legend>{{ t('connections.form.sectionBasic', '基本信息') }}</legend>
-             <div class="form-group">
-               <label for="conn-name">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label>
-               <input type="text" id="conn-name" v-model="formData.name" />
-             </div>
-             <!-- Host and Port Row -->
-             <div class="form-row">
-               <div class="form-group form-group-host">
-                 <label for="conn-host">{{ t('connections.form.host') }}</label>
-                 <input type="text" id="conn-host" v-model="formData.host" required />
-               </div>
-               <div class="form-group form-group-port">
-                 <label for="conn-port">{{ t('connections.form.port') }}</label>
-                 <input type="number" id="conn-port" v-model.number="formData.port" required min="1" max="65535" />
-               </div>
-             </div>
-           </fieldset>
+        <!-- Basic Info Section -->
+        <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
+          <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50">{{ t('connections.form.sectionBasic', '基本信息') }}</h4>
+          <div>
+            <label for="conn-name" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.name') }} ({{ t('connections.form.optional') }})</label>
+            <input type="text" id="conn-name" v-model="formData.name"
+                   class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+          </div>
+          <!-- Host and Port Row -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2">
+              <label for="conn-host" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.host') }}</label>
+              <input type="text" id="conn-host" v-model="formData.host" required
+                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+            </div>
+            <div>
+              <label for="conn-port" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.port') }}</label>
+              <input type="number" id="conn-port" v-model.number="formData.port" required min="1" max="65535"
+                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+            </div>
+          </div>
+        </div>
 
-           <fieldset class="form-section">
-              <legend>{{ t('connections.form.sectionAuth', '认证方式') }}</legend>
-              <!-- Username moved here -->
-              <div class="form-group">
-                <label for="conn-username">{{ t('connections.form.username') }}</label>
-                <input type="text" id="conn-username" v-model="formData.username" required />
-              </div>
-              <!-- Auth Method -->
-              <div class="form-group">
-                <label for="conn-auth-method">{{ t('connections.form.authMethod') }}</label>
-                <select id="conn-auth-method" v-model="formData.auth_method">
-                     <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
-                     <option value="key">{{ t('connections.form.authMethodKey') }}</option>
-                   </select>
-                 </div>
-
-                 <div class="form-group" v-if="formData.auth_method === 'password'">
-                   <label for="conn-password">{{ t('connections.form.password') }}</label>
-                   <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" />
-                 </div>
-
-                 <div v-if="formData.auth_method === 'key'">
-                   <div class="form-group">
-                     <label for="conn-private-key">{{ t('connections.form.privateKey') }}</label>
-                     <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"></textarea>
-                   </div>
-                   <div class="form-group">
-                     <label for="conn-passphrase">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
-                     <input type="password" id="conn-passphrase" v-model="formData.passphrase" />
-                   </div>
-                   <div class="form-group" v-if="isEditMode && formData.auth_method === 'key'">
-                     <small>{{ t('connections.form.keyUpdateNote') }}</small>
-                   </div>
-                 </div>
-           </fieldset>
-
-           <fieldset class="form-section">
-             <legend>{{ t('connections.form.sectionAdvanced', '高级选项') }}</legend>
-              <div class="form-group">
-               <label for="conn-proxy">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
-               <select id="conn-proxy" v-model="formData.proxy_id">
-                 <option :value="null">{{ t('connections.form.noProxy') }}</option>
-                 <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">
-                   {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
-                 </option>
-               </select>
-               <div v-if="isProxyLoading" class="loading-small">{{ t('proxies.loading') }}</div>
-               <div v-if="proxyStoreError" class="error-small">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
-             </div>
-
-             <div class="form-group">
-               <label>{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
-               <TagInput v-model="formData.tag_ids" />
-             </div>
-           </fieldset>
-
-           <!-- Error message remains outside sections -->
-           <div v-if="formError || storeError" class="error-message">
-             {{ formError || storeError }}
+        <!-- Authentication Section -->
+        <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
+           <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50">{{ t('connections.form.sectionAuth', '认证方式') }}</h4>
+           <div>
+             <label for="conn-username" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.username') }}</label>
+             <input type="text" id="conn-username" v-model="formData.username" required
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+           </div>
+           <div>
+             <label for="conn-auth-method" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.authMethod') }}</label>
+             <select id="conn-auth-method" v-model="formData.auth_method"
+                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                     style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+               <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
+               <option value="key">{{ t('connections.form.authMethodKey') }}</option>
+             </select>
            </div>
 
-         </div> <!-- 结束 form-sections -->
+           <div v-if="formData.auth_method === 'password'">
+             <label for="conn-password" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.password') }}</label>
+             <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" autocomplete="new-password"
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+           </div>
 
-         <div class="form-actions">
-            <div class="test-action-area"> <!-- New container for button, icon, and result -->
-                <div class="test-button-wrapper"> <!-- Container for button and icon -->
-                    <button type="button" @click="handleTestConnection" :disabled="isLoading || testStatus === 'testing'">
-                      {{ testButtonText }}
-                    </button>
-                    <span class="info-icon">?
-                      <span class="tooltip-text">{{ t('connections.test.latencyTooltip') }}</span>
-                    </span>
-                </div>
-                <!-- Test result moved below the button -->
-                <div class="test-status-wrapper">
-                    <div v-if="testStatus === 'testing'" class="test-status loading-small">
-                      {{ t('connections.test.testingInProgress', '测试中...') }}
-                    </div>
-                    <div v-else-if="testStatus === 'success'" class="test-status success" :style="{ color: latencyColor }">
-                      {{ testResult }}
-                    </div>
-                    <div v-else-if="testStatus === 'error'" class="test-status error">
-                      {{ t('connections.test.errorPrefix', '错误:') }} {{ testResult }}
-                    </div>
-                </div>
-            </div>
-            <div class="main-actions">
-                <button type="submit" :disabled="isLoading || testStatus === 'testing'">
-                  {{ submitButtonText }}
-                </button>
-                <button type="button" @click="emit('close')" :disabled="isLoading || testStatus === 'testing'">{{ t('connections.form.cancel') }}</button>
-            </div>
+           <div v-if="formData.auth_method === 'key'" class="space-y-4">
+             <div>
+               <label for="conn-private-key" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.privateKey') }}</label>
+               <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"
+                         class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+             </div>
+             <div>
+               <label for="conn-passphrase" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
+               <input type="password" id="conn-passphrase" v-model="formData.passphrase" autocomplete="new-password"
+                      class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+             </div>
+             <div v-if="isEditMode && formData.auth_method === 'key'">
+               <small class="block text-xs text-text-secondary">{{ t('connections.form.keyUpdateNote') }}</small>
+             </div>
+           </div>
+        </div>
+
+        <!-- Advanced Options Section -->
+        <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
+           <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50">{{ t('connections.form.sectionAdvanced', '高级选项') }}</h4>
+           <div>
+             <label for="conn-proxy" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
+             <select id="conn-proxy" v-model="formData.proxy_id"
+                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                     style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+               <option :value="null">{{ t('connections.form.noProxy') }}</option>
+               <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">
+                 {{ proxy.name }} ({{ proxy.type }} - {{ proxy.host }}:{{ proxy.port }})
+               </option>
+             </select>
+             <div v-if="isProxyLoading" class="mt-1 text-xs text-text-secondary">{{ t('proxies.loading') }}</div>
+             <div v-if="proxyStoreError" class="mt-1 text-xs text-error">{{ t('proxies.error', { error: proxyStoreError }) }}</div>
+           </div>
+
+           <div>
+             <label class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
+             <TagInput v-model="formData.tag_ids" />
+           </div>
+        </div>
+
+        <!-- Error message -->
+        <div v-if="formError || storeError" class="text-error bg-error/10 border border-error/30 rounded-md p-3 text-sm text-center font-medium">
+          {{ formError || storeError }}
+        </div>
+
+      </form> <!-- End Form -->
+
+      <!-- Form Actions -->
+      <div class="flex justify-between items-center pt-5 mt-6 border-t border-border flex-shrink-0">
+         <div class="flex flex-col items-start gap-1"> <!-- Test Area -->
+             <div class="flex items-center gap-2"> <!-- Button and Icon -->
+                 <button type="button" @click="handleTestConnection" :disabled="isLoading || testStatus === 'testing'"
+                         class="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-text-secondary bg-background hover:bg-border focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center transition-colors duration-150">
+                     <svg v-if="testStatus === 'testing'" class="animate-spin -ml-0.5 mr-2 h-4 w-4 text-text-secondary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                       <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                       <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                     </svg>
+                     {{ testButtonText }}
+                 </button>
+                 <div class="relative group"> <!-- Tooltip Container -->
+                     <i class="fas fa-info-circle text-text-secondary cursor-help"></i>
+                     <span class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-max max-w-xs p-2 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10 whitespace-pre-wrap">
+                         {{ t('connections.test.latencyTooltip') }}
+                     </span>
+                 </div>
+             </div>
+             <!-- Test Result -->
+             <div class="min-h-[1.2em] pl-1 text-xs">
+                 <div v-if="testStatus === 'testing'" class="text-text-secondary animate-pulse">
+                   {{ t('connections.test.testingInProgress', '测试中...') }}
+                 </div>
+                 <div v-else-if="testStatus === 'success'" class="font-medium" :style="{ color: latencyColor }">
+                   {{ testResult }}
+                 </div>
+                 <div v-else-if="testStatus === 'error'" class="text-error font-medium">
+                   {{ t('connections.test.errorPrefix', '错误:') }} {{ testResult }}
+                 </div>
+             </div>
          </div>
-       </form>
-    </div>
-  </div>
+         <div class="flex space-x-3"> <!-- Main Actions -->
+             <button type="submit" @click="handleSubmit" :disabled="isLoading || testStatus === 'testing'"
+                     class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out">
+               {{ submitButtonText }}
+             </button>
+             <button type="button" @click="emit('close')" :disabled="isLoading || testStatus === 'testing'"
+                     class="px-4 py-2 bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out">
+               {{ t('connections.form.cancel') }}
+             </button>
+         </div>
+      </div> <!-- End Form Actions -->
+
+    </div> <!-- End Form Panel -->
+  </div> <!-- End Overlay -->
 </template>
 
-<style scoped>
-.add-connection-form-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.6); /* 加深背景 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000; /* Ensure it's on top */
-}
-
-.add-connection-form {
-  background-color: var(--app-bg-color, white);
-  color: var(--text-color, #333);
-  padding: calc(var(--base-padding, 1rem) * 2);
-  border-radius: 8px;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25); /* 调整阴影 */
-  min-width: 320px; /* 减小最小宽度 */
-  max-width: 600px; /* 调回宽度 */
-  width: 90vw;
-  border: 1px solid var(--border-color, #ccc);
-  max-height: 90vh;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  padding: calc(var(--base-padding, 1rem) * 1.5); /* 减少整体内边距 */
-}
-
-h3 {
-  margin-top: 0;
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 2); /* 进一步减少标题下边距 */
-  text-align: center;
-  color: var(--text-color, #333);
-  font-family: var(--font-family-sans-serif, sans-serif);
-  font-size: 1.3em; /* 减小标题字号 */
-  font-weight: 600;
-  flex-shrink: 0;
-  padding-bottom: calc(var(--base-padding, 1rem) * 0.3); /* 进一步减少标题和内容间距 */
-}
-
-/* 移除两列布局相关样式 (.two-columns, .form-column, .full-width-error) */
-
-/* 新增：表单分段样式 */
-.form-sections {
-  flex-grow: 1; /* 占据主要空间 */
-  overflow-y: auto; /* 使 sections 内部可滚动 */
-  padding: 5px; /* 增加一点内边距防止滚动条遮挡 */
-  margin: -5px; /* 抵消内边距 */
-}
-
-.form-section {
-  border: 1px solid var(--border-color, #ddd);
-  border-radius: 5px; /* 稍小圆角 */
-  padding: calc(var(--base-padding, 1rem) * 1); /* 进一步减少 fieldset 内边距 */
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 1.5); /* 进一步减少 fieldset 间距 */
-}
-
-.form-section legend {
-  padding: 0 calc(var(--base-padding, 1rem) * 0.5); /* legend 左右内边距 */
-  font-weight: 600; /* 加粗 legend */
-  color: var(--text-color, #333);
-  font-size: 1.05em; /* 减小 legend 字号 */
-  margin-left: calc(var(--base-margin, 0.5rem) * 0.8); /* 减少 legend 左边距 */
-}
-
-/* 认证部分内部可以考虑两列，如果需要的话 */
-/* .auth-section-content { display: flex; gap: 1rem; } */
-/* .auth-section-content > * { flex: 1; } */
-
-
-/* Host/Port 行样式 */
-.form-row {
-  display: flex;
-  gap: calc(var(--base-padding, 1rem) * 1); /* Host 和 Port 之间的间距 */
-  align-items: flex-start; /* 顶部对齐 */
-}
-.form-row .form-group {
-  margin-bottom: 0; /* 移除行内元素的下边距，由行处理 */
-}
-.form-group-host {
-  flex: 3; /* Host 占据更多空间 */
-}
-.form-group-port {
-  flex: 1; /* Port 占据较少空间 */
-}
-
-
-.form-group {
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 1.2); /* 进一步减少组间距 */
-}
-
-label {
-  display: block;
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 0.8); /* 调整标签下边距 */
-  font-weight: 500;
-  font-size: 0.9em; /* 减小标签字号 */
-  color: var(--text-color-secondary, #666);
-  font-family: var(--font-family-sans-serif, sans-serif);
-  margin-bottom: calc(var(--base-margin, 0.5rem) * 0.5); /* 减少标签下边距 */
-}
-
-input[type="text"],
-input[type="number"],
-input[type="password"],
-select,
-textarea {
-  width: 100%;
-  padding: calc(var(--base-padding, 1rem) * 0.5); /* 减少输入框内边距 */
-  border: 1px solid var(--border-color, #ccc);
-  border-radius: 3px; /* 稍小圆角 */
-  box-sizing: border-box;
-  background-color: var(--app-bg-color, white);
-  color: var(--text-color, #333);
-  font-family: var(--font-family-sans-serif, sans-serif);
-  font-size: 1em; /* 确保字体大小 */
-  transition: border-color 0.2s ease, box-shadow 0.2s ease; /* 添加过渡效果 */
-}
-
-input[type="text"]:focus,
-input[type="number"]:focus,
-input[type="password"]:focus,
-select:focus,
-textarea:focus {
-  outline: none; /* 移除默认 outline */
-  border-color: var(--button-bg-color, #007bff); /* 聚焦时使用按钮背景色 (保持) */
-  box-shadow: 0 0 5px var(--button-bg-color, #007bff); /* 恢复光晕效果并使用主题色 */
-}
-
-textarea {
-    min-height: 50px; /* 进一步减小文本域最小高度 */
-    resize: vertical;
-}
-
-select {
-    appearance: none; /* 移除默认下拉箭头 (可能需要自定义箭头) */
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e"); /* 添加自定义箭头 */
-    background-repeat: no-repeat;
-    background-position: right calc(var(--base-padding, 1rem) * 0.6) center;
-    background-size: 16px 12px;
-    padding-right: calc(var(--base-padding, 1rem) * 2); /* 为箭头腾出空间 */
-}
-
-
- .loading-small, .info-small {
-    font-size: 0.85em; /* 调整字号 */
-    color: var(--text-color-secondary, #666);
-    margin-top: calc(var(--base-margin, 0.5rem) * 0.5); /* 调整上边距 */
-    font-family: var(--font-family-sans-serif, sans-serif);
-}
-.error-small {
-    font-size: 0.85em; /* 调整字号 */
-    color: red;
-    margin-top: calc(var(--base-margin, 0.5rem) * 0.5); /* 调整上边距 */
-    font-family: var(--font-family-sans-serif, sans-serif);
-}
-
-
-.error-message {
-  color: red;
-  margin-bottom: var(--base-margin, 0.5rem);
-  text-align: center;
-  font-family: var(--font-family-sans-serif, sans-serif);
-  font-weight: 500; /* 加粗错误信息 */
-  padding: calc(var(--base-padding, 1rem) * 0.5); /* 添加内边距 */
-  background-color: rgba(255, 0, 0, 0.05); /* 添加淡红色背景 */
-  border: 1px solid rgba(255, 0, 0, 0.2); /* 添加边框 */
-  border-radius: 4px;
-}
-
-.form-actions {
-  display: flex;
-  justify-content: space-between; /* 改为 space-between 对齐 */
-  align-items: center; /* 垂直居中对齐 */
-  margin-top: calc(var(--base-margin, 0.5rem) * 1.5); /* 减少顶部间距 */
-  padding-top: calc(var(--base-padding, 1rem) * 0.8); /* 减少按钮上方间距 */
-  border-top: 1px solid var(--border-color, #eee);
-  flex-shrink: 0; /* 防止按钮区域压缩 */
-  /* 确保按钮区域背景色，避免滚动内容透视 */
-  background-color: var(--app-bg-color, white);
-  padding-left: calc(var(--base-padding, 1rem) * 0.5);
-  padding-right: calc(var(--base-padding, 1rem) * 0.5);
-  padding-bottom: calc(var(--base-padding, 1rem) * 0.5);
-  margin-left: calc(var(--base-padding, 1rem) * -0.5); /* 抵消容器内边距 */
-  margin-right: calc(var(--base-padding, 1rem) * -0.5);
-}
-
-.main-actions button { /* 主操作按钮（保存/取消） */
-  margin-left: calc(var(--base-margin, 0.5rem) * 0.8); /* 保持按钮间距 */
-  padding: calc(var(--base-padding, 1rem) * 0.5) calc(var(--base-padding, 1rem) * 1.2);
-  cursor: pointer;
-  border-radius: 3px; /* 稍小圆角 */
-  font-family: var(--font-family-sans-serif, sans-serif);
-  font-weight: 500; /* 调整按钮字重 */
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease; /* 添加过渡 */
-}
-
-.form-actions button[type="submit"] {
-  background-color: var(--button-bg-color, #007bff);
-  color: var(--button-text-color, white);
-  border: 1px solid var(--button-bg-color, #007bff); /* 添加边框 */
-}
-.form-actions button[type="submit"]:hover:not(:disabled) {
-  background-color: var(--button-hover-bg-color, #0056b3);
-  border-color: var(--button-hover-bg-color, #0056b3); /* 同步边框色 */
-}
-
-.form-actions button[type="button"] {
-  background-color: transparent; /* 取消按钮透明背景 */
-  color: var(--text-color-secondary, #666); /* 使用次要文本颜色 */
-  border: 1px solid var(--border-color, #ccc); /* 添加边框 */
-}
-.form-actions button[type="button"]:hover:not(:disabled) {
-  background-color: var(--border-color, #eee); /* 悬停时淡灰色背景 */
-  border-color: var(--text-color-secondary, #bbb); /* 悬停时边框变深 */
-  color: var(--text-color, #333); /* 悬停时文本变深 */
-}
-
-
-.form-actions button:disabled {
-  opacity: 0.5; /* 调整禁用透明度 */
-  cursor: not-allowed;
-}
-
-/* 测试按钮、图标和结果的整体区域 */
-.test-action-area {
-    display: flex;
-    flex-direction: column; /* 让结果显示在按钮下方 */
-    align-items: flex-start; /* 左对齐 */
-    gap: calc(var(--base-padding, 1rem) * 0.3); /* 按钮行和结果行之间的间距 */
-}
-
-/* 包裹测试按钮和信息图标的容器 */
-.test-button-wrapper {
-    display: flex;
-    align-items: center;
-    gap: calc(var(--base-padding, 1rem) * 0.5); /* 按钮和图标之间的间距 */
-}
-
-/* 信息图标样式 & Tooltip Container */
-.info-icon {
-    position: relative; /* Needed for absolute positioning of the tooltip text */
-    cursor: help;
-    color: var(--text-color-secondary, #666);
-    font-size: 1.1em;
-    line-height: 1;
-    user-select: none;
-    display: inline-block; /* Ensure it takes space for positioning */
-}
-
-/* Tooltip Text Style */
-.tooltip-text {
-    visibility: hidden; /* Hide by default */
-    opacity: 0;
-    position: absolute;
-    bottom: 140%; /* Position above the icon */
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.85); /* Slightly darker background */
-    color: white;
-    padding: 8px 12px; /* Slightly more padding */
-    border-radius: 5px; /* Slightly larger radius */
-    font-size: 0.9em; /* Slightly larger font */
-    white-space: pre-wrap; /* Allow line breaks */
-    min-width: 180px; /* Adjust width as needed */
-    max-width: 320px;
-    text-align: left;
-    z-index: 10;
-    pointer-events: none; /* Prevent tooltip from blocking hover */
-    transition: opacity 0.25s ease, visibility 0.25s ease; /* Slightly longer transition */
-    box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Add subtle shadow */
-}
-
-/* Tooltip Arrow */
-.tooltip-text::after {
-    content: '';
-    position: absolute;
-    top: 100%; /* Position arrow at the bottom of the tooltip */
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 6px; /* Slightly larger arrow */
-    border-style: solid;
-    border-color: rgba(0, 0, 0, 0.85) transparent transparent transparent;
-}
-
-
-/* Show tooltip on hover */
-.info-icon:hover .tooltip-text {
-    visibility: visible;
-    opacity: 1;
-}
-
-/* 测试按钮样式 (从之前的 .test-result-container button 移过来) */
-.test-button-wrapper button {
-  /* 测试按钮可以有自己的样式，或者继承 .form-actions button */
-  padding: calc(var(--base-padding, 1rem) * 0.5) calc(var(--base-padding, 1rem) * 1.2);
-  cursor: pointer;
-  border-radius: 3px;
-  font-family: var(--font-family-sans-serif, sans-serif);
-  font-weight: 500;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
-  /* 可以给测试按钮一个不同的边框或背景色 */
-  background-color: transparent;
-  color: var(--text-color-secondary, #666);
-  border: 1px solid var(--border-color, #ccc);
-}
-.test-result-container button:hover:not(:disabled) {
-  background-color: var(--border-color, #eee);
-  border-color: var(--text-color-secondary, #bbb);
-  color: var(--text-color, #333);
-}
-.test-result-container button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* 包裹测试状态文本的容器 */
-.test-status-wrapper {
-    min-height: 1.2em; /* 预留空间，防止布局跳动 */
-    padding-left: 2px; /* 轻微缩进，与按钮对齐 */
-}
-
-.test-status {
-  font-size: 0.9em;
-  font-weight: 500;
-  font-family: var(--font-family-sans-serif, sans-serif);
-}
-
-.test-status.loading-small {
-  color: var(--text-color-secondary, #666);
-}
-
-.test-status.success {
-  /* 颜色由 latencyColor 计算属性动态设置 */
-}
-
-.test-status.error {
-  color: var(--color-danger, #dc3545); /* 红色 */
-}
-
-/* 主操作按钮容器 */
-.main-actions {
-    display: flex; /* 保持原有按钮布局 */
-}
-
-</style>
+<!-- Scoped styles removed, now using Tailwind utility classes -->

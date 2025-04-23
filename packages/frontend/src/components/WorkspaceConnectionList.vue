@@ -301,28 +301,28 @@ const scrollToHighlighted = async () => {
 </script>
 
 <template>
-  <div class="workspace-connection-list">
-    <div v-if="connectionsLoading || tagsLoading" class="loading">
+  <div class="h-full flex flex-col overflow-hidden bg-background text-sm text-foreground">
+    <div v-if="connectionsLoading || tagsLoading" class="p-4 text-center text-text-secondary">
       {{ t('common.loading') }}
     </div>
-    <div v-else-if="connectionsError || tagsError" class="error">
+    <div v-else-if="connectionsError || tagsError" class="p-4 text-center text-red-600">
       {{ connectionsError || tagsError }}
     </div>
 
     <!-- 搜索和添加栏 -->
-    <div class="search-add-bar">
+    <div class="flex p-2 border-b border-border bg-header">
       <input
         type="text"
         v-model="searchTerm"
         :placeholder="t('workspaceConnectionList.searchPlaceholder')"
         ref="searchInputRef"
-        class="search-input"
+        class="flex-grow px-3 py-1.5 border border-border rounded-l-md text-sm outline-none bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-50 transition-colors duration-150"
         data-focus-id="connectionListSearch"
         @keydown="handleKeyDown"
         @blur="handleBlur"
       />
       <button
-        class="add-button"
+        class="px-3 py-1.5 border border-border border-l-0 bg-background cursor-pointer rounded-r-md text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150"
         @click="handleMenuAction('add')"
         :title="t('connections.addConnection')"
       >
@@ -331,262 +331,71 @@ const scrollToHighlighted = async () => {
     </div>
 
     <!-- 连接列表区域 -->
-    <div class="connection-list-area" ref="listAreaRef">
-      <div v-if="connectionsLoading || tagsLoading" class="loading">
+    <div class="flex-grow overflow-y-auto" ref="listAreaRef">
+      <div v-if="connectionsLoading || tagsLoading" class="p-4 text-center text-text-secondary">
         {{ t('common.loading') }}
       </div>
-      <div v-else-if="connectionsError || tagsError" class="error">
+      <div v-else-if="connectionsError || tagsError" class="p-4 text-center text-red-600">
         {{ connectionsError || tagsError }}
       </div>
-      <div v-else-if="filteredAndGroupedConnections.length === 0 && connections.length > 0" class="no-results">
+      <div v-else-if="filteredAndGroupedConnections.length === 0 && connections.length > 0" class="p-4 text-center text-text-secondary">
          {{ t('workspaceConnectionList.noResults') }} "{{ searchTerm }}"
       </div>
-      <div v-else-if="connections.length === 0" class="no-connections">
+      <div v-else-if="connections.length === 0" class="p-4 text-center text-text-secondary">
          {{ t('connections.noConnections') }}
       </div>
       <div v-else>
-        <!-- 修正: 循环 filteredAndGroupedConnections -->
-        <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="connection-group">
-          <div class="group-header" @click="toggleGroup(groupData.groupName)">
-            <i :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right']"></i>
+        <!-- 循环分组 -->
+        <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="mb-0 last:mb-0">
+          <div class="group px-3 py-2 font-semibold cursor-pointer bg-header border-t border-b border-border flex items-center text-foreground hover:bg-border transition-colors duration-150" @click="toggleGroup(groupData.groupName)">
+            <i :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out']"></i>
             <span>{{ groupData.groupName }}</span>
           </div>
-          <!-- 修正: 使用 groupData.groupName 和 groupData.connections -->
-          <ul v-show="expandedGroups[groupData.groupName]" class="connection-items">
+          <!-- 连接项列表 -->
+          <ul v-show="expandedGroups[groupData.groupName]" class="list-none p-0 m-0">
             <li
               v-for="conn in groupData.connections"
               :key="conn.id"
-              class="connection-item"
-              :class="{ 'highlighted': conn.id === highlightedConnectionId }"
+              class="group py-2 pr-4 pl-6 cursor-pointer flex items-center border-b border-border whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-header/50 transition-colors duration-150"
+              :class="{ 'bg-primary/10 text-primary': conn.id === highlightedConnectionId }"
               :data-conn-id="conn.id"
               @click.left="handleConnect(conn.id)"
               @contextmenu.prevent="showContextMenu($event, conn)"
             >
-              <i class="fas fa-server connection-icon"></i>
-              <span class="connection-name" :title="conn.name || conn.host">
+              <i class="fas fa-server mr-2.5 w-4 text-center text-text-secondary group-hover:text-foreground" :class="{ 'text-primary': conn.id === highlightedConnectionId }"></i>
+              <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow" :title="conn.name || conn.host">
                 {{ conn.name || conn.host }}
               </span>
             </li>
           </ul>
         </div>
-        <!-- 移除重复的 ul 块 -->
       </div>
     </div>
 
     <!-- 右键菜单 -->
     <div
       v-if="contextMenuVisible"
-      class="context-menu"
+      class="fixed bg-background border border-border shadow-lg rounded-md py-1 z-50 min-w-[160px]"
       :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
       @click.stop
     >
       <!-- 防止点击菜单内部关闭菜单 -->
-      <ul>
-        <li @click="handleMenuAction('add')"><i class="fas fa-plus"></i> {{ t('connections.addConnection') }}</li>
-        <li v-if="contextTargetConnection" @click="handleMenuAction('edit')"><i class="fas fa-edit"></i> {{ t('connections.actions.edit') }}</li>
-        <li v-if="contextTargetConnection" @click="handleMenuAction('delete')"><i class="fas fa-trash-alt"></i> {{ t('connections.actions.delete') }}</li>
+      <ul class="list-none p-0 m-0">
+        <li class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-header text-sm transition-colors duration-150" @click="handleMenuAction('add')">
+            <i class="fas fa-plus mr-3 w-4 text-center text-text-secondary group-hover:text-foreground"></i>
+            <span>{{ t('connections.addConnection') }}</span>
+        </li>
+        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-header text-sm transition-colors duration-150" @click="handleMenuAction('edit')">
+            <i class="fas fa-edit mr-3 w-4 text-center text-text-secondary group-hover:text-foreground"></i>
+            <span>{{ t('connections.actions.edit') }}</span>
+        </li>
+        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-red-600 hover:bg-red-500/10 text-sm transition-colors duration-150" @click="handleMenuAction('delete')">
+            <i class="fas fa-trash-alt mr-3 w-4 text-center text-red-500 group-hover:text-red-600"></i>
+            <span>{{ t('connections.actions.delete') }}</span>
+        </li>
       </ul>
     </div>
   </div>
 </template>
 
-<style scoped>
-.workspace-connection-list {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* 防止内部滚动条影响布局 */
-  background-color: var(--app-bg-color); /* Use theme variable */
-  font-size: 0.9em;
-}
-
-.search-add-bar {
-  display: flex;
-  padding: var(--base-margin); /* Use theme variable */
-  border-bottom: 1px solid var(--border-color); /* Use theme variable */
-  background-color: var(--header-bg-color); /* Use theme variable */
-}
-
-.search-input {
-  min-width: 8px;
-  flex-grow: 1;
-  padding: 0.4rem 0.6rem;
-  border: 1px solid var(--border-color); /* Use theme variable */
-  border-radius: 4px 0 0 4px; /* 左侧圆角 */
-  font-size: 0.9em;
-  outline: none;
-  background-color: var(--app-bg-color); /* Use theme variable */
-  color: var(--text-color); /* Use theme variable */
-}
-.search-input:focus {
-  border-color: var(--button-bg-color); /* Use theme variable */
-  box-shadow: 0 0 5px var(--button-bg-color, #007bff); /* Use theme variable for glow */
-}
-
-.add-button {
-  padding: 0.4rem 0.8rem;
-  border: 1px solid var(--border-color); /* Use theme variable */
-  border-left: none; /* 移除左边框，与输入框合并 */
-  background-color: var(--app-bg-color); /* Use theme variable */
-  cursor: pointer;
-  border-radius: 0 4px 4px 0; /* 右侧圆角 */
-  color: var(--text-color); /* Use theme variable */
-}
-.add-button:hover {
-  background-color: var(--header-bg-color); /* Use theme variable */
-}
-.add-button i {
-  font-size: 1em; /* 图标大小 */
-}
-
-.connection-list-area {
-  flex-grow: 1; /* 占据剩余空间 */
-  overflow-y: auto; /* 列表内容滚动 */
-}
-
-
-.loading, .error, .no-connections, .no-results {
-  padding: var(--base-padding); /* Use theme variable */
-  text-align: center;
-  color: var(--text-color-secondary); /* Use theme variable */
-}
-.error {
-    color: #dc3545;
-}
-.no-connections button {
-    margin-top: 0.5rem;
-    padding: 0.3rem 0.6rem;
-}
-
-.add-connection-button {
-    display: block;
-    width: calc(100% - 2 * var(--base-margin)); /* Use theme variable */
-    margin: var(--base-margin); /* Use theme variable */
-    padding: var(--base-margin); /* Use theme variable */
-    text-align: left;
-    background-color: var(--header-bg-color); /* Use theme variable */
-    border: 1px solid var(--border-color); /* Use theme variable */
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9em;
-    color: var(--text-color); /* Use theme variable */
-}
-.add-connection-button:hover {
-    background-color: var(--header-bg-color); /* Use theme variable (or darker variant) */
-    filter: brightness(0.95); /* Example: slightly darken */
-}
-.add-connection-button i {
-    margin-right: 0.5rem;
-}
-
-
-.connection-group {
-  margin-bottom: 0.5rem;
-}
-
-.group-header {
-  padding: 0.4rem 0.8rem;
-  font-weight: bold;
-  cursor: pointer;
-  background-color: var(--header-bg-color); /* Use theme variable */
-  border-top: 1px solid var(--border-color); /* Use theme variable */
-  border-bottom: 1px solid var(--border-color); /* Use theme variable */
-  display: flex;
-  align-items: center;
-  color: var(--text-color); /* Use theme variable */
-}
-.group-header:hover {
-    background-color: var(--header-bg-color); /* Use theme variable */
-    filter: brightness(0.95); /* Example: slightly darken on hover */
-}
-
-.group-header i {
-  margin-right: 0.5rem;
-  width: 1em; /* Ensure icon takes space */
-  text-align: center;
-  transition: transform 0.2s ease-in-out;
-}
-
-
-
-.connection-items {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.connection-item {
-  padding: 0.5rem 1rem 0.5rem 1.5rem; /* Indent items */
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid var(--border-color); /* Use theme variable */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--text-color); /* Use theme variable */
-}
-
-.connection-item:hover {
-  background-color: var(--header-bg-color); /* Use theme variable */
-}
-
-/* 新增高亮样式 */
-.connection-item.highlighted {
-  background-color: var(--button-hover-bg-color); /* Use theme variable */
-  color: var(--button-text-color); /* Use theme variable */
-}
-.connection-item.highlighted .connection-icon {
-    color: var(--button-text-color); /* Use theme variable */
-}
-
-
-.connection-icon {
-  margin-right: 0.6rem;
-  color: var(--text-color-secondary); /* Use theme variable */
-  width: 1em;
-  text-align: center;
-}
-
-.connection-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex-grow: 1;
-}
-
-/* Context Menu Styles */
-.context-menu {
-  position: fixed;
-  background-color: var(--app-bg-color); /* Use theme variable */
-  border: 1px solid var(--border-color); /* Use theme variable */
-  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.15); /* Keep shadow or define variable */
-  border-radius: 4px;
-  padding: var(--base-margin) 0; /* Use theme variable */
-  z-index: 1001; /* Above the list */
-  min-width: 150px;
-}
-
-.context-menu ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.context-menu li {
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  color: var(--text-color); /* Use theme variable */
-}
-.context-menu li:hover {
-  background-color: var(--header-bg-color); /* Use theme variable */
-}
-.context-menu li i {
-    margin-right: 0.75rem;
-    width: 1em;
-    text-align: center;
-    color: var(--text-color); /* Use theme variable */
-}
-</style>
+<!-- Scoped styles removed, now using Tailwind utility classes -->
