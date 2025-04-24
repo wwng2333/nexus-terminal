@@ -142,11 +142,11 @@ const totalPages = computed(() => Math.ceil(totalLogs.value / logsPerPage.value)
 // Function to apply filters and fetch logs
 const applyFilters = () => {
     // Pass undefined if filter is empty, otherwise pass the value
-    store.fetchLogs(
-        1, // Reset to page 1 when applying filters
-        searchTerm.value || undefined,
-        selectedActionType.value || undefined
-    );
+    store.fetchLogs({
+        page: 1, // Reset to page 1 when applying filters
+        searchTerm: searchTerm.value || undefined,
+        actionType: selectedActionType.value || undefined
+    });
 };
 
 // Removed watch for filters
@@ -182,7 +182,12 @@ const formatDetails = (details: AuditLogEntry['details']): string => {
 
 const changePage = (page: number) => {
   if (page >= 1 && page <= totalPages.value && page !== currentPage.value) {
-    store.fetchLogs(page);
+    // Retain current filters when changing page
+    store.fetchLogs({
+        page: page,
+        searchTerm: searchTerm.value || undefined,
+        actionType: selectedActionType.value || undefined
+    });
   }
 };
 

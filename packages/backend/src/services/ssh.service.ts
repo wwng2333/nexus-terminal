@@ -119,9 +119,21 @@ export const establishSshConnection = (
             keepaliveCountMax: 10,
         };
 
-        const readyHandler = () => {
+        const readyHandler = async () => { // 改为 async 函数
             console.log(`SshService: SSH 连接到 ${connDetails.host}:${connDetails.port} (ID: ${connDetails.id}) 成功。`);
             sshClient.removeListener('error', errorHandler); // 成功后移除错误监听器
+
+            // --- 新增：更新 last_connected_at ---
+            try {
+                const currentTimeSeconds = Math.floor(Date.now() / 1000);
+                await ConnectionRepository.updateLastConnected(connDetails.id, currentTimeSeconds);
+                console.log(`SshService: 已更新连接 ${connDetails.id} 的 last_connected_at 为 ${currentTimeSeconds}`);
+            } catch (updateError) {
+                // 更新失败不应阻止连接成功，但需要记录错误
+                console.error(`SshService: 更新连接 ${connDetails.id} 的 last_connected_at 失败:`, updateError);
+            }
+            // --- 结束新增 ---
+
             resolve(sshClient); // 返回 Client 实例
         };
 

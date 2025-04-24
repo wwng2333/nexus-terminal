@@ -23,12 +23,25 @@ const maxRecentLogs = 5;
 
 // --- 最近连接 ---
 const recentConnections = computed(() => {
-  // 过滤掉 last_connected_at 为 null 或 undefined 的连接
-  const connected = connections.value.filter(c => c.last_connected_at); // 使用 last_connected_at
-  // 按 last_connected_at 降序排序
-  connected.sort((a, b) => (b.last_connected_at ?? 0) - (a.last_connected_at ?? 0)); // 使用 last_connected_at
-  // 取前 N 条
-  return connected.slice(0, maxRecentConnections);
+  console.log('[Dashboard] Raw connections from store:', JSON.parse(JSON.stringify(connections.value)));
+
+  // 优先尝试按 last_connected_at 过滤和排序
+  const connected = connections.value.filter(c => c.last_connected_at);
+  console.log('[Dashboard] Filtered connections (with last_connected_at):', JSON.parse(JSON.stringify(connected)));
+
+  if (connected.length > 0) {
+    connected.sort((a, b) => (b.last_connected_at ?? 0) - (a.last_connected_at ?? 0));
+    const result = connected.slice(0, maxRecentConnections);
+    console.log('[Dashboard] Final recent connections (using last_connected_at):', JSON.parse(JSON.stringify(result)));
+    return result;
+  } else {
+    // 如果没有带 last_connected_at 的连接，则按 updated_at 排序显示最近更新的
+    console.log('[Dashboard] No connections with last_connected_at found. Falling back to sorting by updated_at.');
+    const sortedByUpdate = [...connections.value].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
+    const result = sortedByUpdate.slice(0, maxRecentConnections);
+    console.log('[Dashboard] Final recent connections (fallback using updated_at):', JSON.parse(JSON.stringify(result)));
+    return result;
+  }
 });
 
 // --- 最近活动 ---
@@ -42,7 +55,9 @@ onMounted(async () => {
   // 如果 connections store 还没有加载过数据，则加载
   if (connections.value.length === 0) {
     try {
+      console.log('[Dashboard] onMounted: Fetching connections...'); // 添加日志
       await connectionsStore.fetchConnections();
+      console.log('[Dashboard] onMounted: Connections fetched.'); // 添加日志
     } catch (error) {
       console.error("加载连接列表失败:", error);
       // 可以在这里显示错误通知
@@ -50,8 +65,12 @@ onMounted(async () => {
   }
   // 加载最新的审计日志
   try {
-    // 只需要加载少量日志用于摘要
-    await auditLogStore.fetchLogs(1, maxRecentLogs, '', 'desc'); // 使用修正后的变量名
+    // 只需要加载少量日志用于摘要，并按时间倒序
+    await auditLogStore.fetchLogs({
+        page: 1,
+        limit: maxRecentLogs, // 传递 limit
+        sortOrder: 'desc'     // 传递 sortOrder
+    });
   } catch (error) {
     console.error("加载审计日志失败:", error);
     // 可以在这里显示错误通知
@@ -70,7 +89,14 @@ const connectTo = (connection: ConnectionBase) => { // 使用 ConnectionBase 类
 const formatRelativeTime = (dateString: string | undefined | null): string => {
   if (!dateString) return t('connections.status.never');
   try {
-    const date = new Date(dateString);
+    // 将秒级时间戳转换为毫秒级
+    const timestampInMs = Number(dateString) * 1000;
+    // 检查转换后的值是否有效
+    if (isNaN(timestampInMs)) {
+        console.warn(`[Dashboard] Invalid timestamp received: ${dateString}`);
+        return dateString; // 返回原始值或错误提示
+    }
+    const date = new Date(timestampInMs);
     const currentLocale = locale.value === 'zh' ? zhCN : enUS;
     return formatDistanceToNow(date, { addSuffix: true, locale: currentLocale });
   } catch (e) {

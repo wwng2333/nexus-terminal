@@ -219,6 +219,26 @@ export const deleteConnection = async (id: number): Promise<boolean> => {
 };
 
 /**
+ * 更新指定连接的 last_connected_at 时间戳
+ * @param id 连接 ID
+ * @param timestamp Unix 时间戳 (秒)
+ */
+export const updateLastConnected = async (id: number, timestamp: number): Promise<boolean> => {
+    const sql = `UPDATE connections SET last_connected_at = ? WHERE id = ?`;
+    try {
+        const db = await getDbInstance();
+        const result = await runDb(db, sql, [timestamp, id]);
+        if (result.changes === 0) {
+            console.warn(`[Repository] updateLastConnected: No connection found with ID ${id} to update.`);
+        }
+        return result.changes > 0;
+    } catch (err: any) {
+        console.error(`Repository: 更新连接 ${id} 的 last_connected_at 时出错:`, err.message);
+        throw new Error('更新上次连接时间失败');
+    }
+};
+
+/**
  * 更新连接的标签关联 (使用事务)
  * @param connectionId 连接 ID
  * @param tagIds 新的标签 ID 数组 (空数组表示清除所有标签)
