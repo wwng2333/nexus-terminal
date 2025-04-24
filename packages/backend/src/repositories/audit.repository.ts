@@ -36,10 +36,48 @@ export class AuditLogRepository {
             const db = await getDbInstance();
             await runDb(db, sql, params);
             // console.log(`[Audit Log] Logged action: ${actionType}`); // Optional: verbose logging
+
+            // --- 添加日志清理逻辑 ---
+            await this.cleanupOldLogs(db);
+            // --- 清理逻辑结束 ---
+
         } catch (err: any) {
             console.error(`[Audit Log] Error adding log entry for action ${actionType}: ${err.message}`);
             // Decide if logging failure should throw an error or just be logged
             // throw new Error(`Error adding log entry: ${err.message}`); // Uncomment to make it critical
+        }
+    }
+
+    /**
+     * 清理旧的审计日志，保持最多 MAX_LOG_ENTRIES 条记录
+     * @param db - 数据库实例
+     */
+    private async cleanupOldLogs(db: Database): Promise<void> {
+        const MAX_LOG_ENTRIES = 50000; // 设置最大日志条数
+        const countSql = 'SELECT COUNT(*) as total FROM audit_logs';
+        const deleteSql = `
+            DELETE FROM audit_logs
+            WHERE id IN (
+                SELECT id
+                FROM audit_logs
+                ORDER BY timestamp ASC
+                LIMIT ?
+            )
+        `; // 假设有自增的 id 列，并且 timestamp 能准确反映顺序
+
+        try {
+            const countRow = await getDbRow<{ total: number }>(db, countSql);
+            const total = countRow?.total ?? 0;
+
+            if (total > MAX_LOG_ENTRIES) {
+                const logsToDelete = total - MAX_LOG_ENTRIES;
+                console.log(`[Audit Log] Log count (${total}) exceeds limit (${MAX_LOG_ENTRIES}). Deleting ${logsToDelete} oldest entries.`);
+                await runDb(db, deleteSql, [logsToDelete]);
+                console.log(`[Audit Log] Successfully deleted ${logsToDelete} oldest log entries.`);
+            }
+        } catch (err: any) {
+            console.error(`[Audit Log] Error during log cleanup: ${err.message}`);
+            // 清理失败不应阻止主日志记录流程，仅记录错误
         }
     }
 
