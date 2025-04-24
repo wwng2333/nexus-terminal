@@ -37,7 +37,9 @@ export const settingsController = {
           'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
           'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
           'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
-          'sidebarPaneWidths' // +++ 添加侧边栏宽度对象键 +++
+          'sidebarPaneWidths', // +++ 添加侧边栏宽度对象键 +++
+          'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
+          'fileManagerColWidths' // +++ 添加文件管理器列宽键 +++
           // --- REMOVED old width keys ---
       ];
       const filteredSettings: Record<string, string> = {};

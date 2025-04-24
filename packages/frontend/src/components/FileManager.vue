@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly, defineExpose, shallowRef } from 'vue'; // 添加 shallowRef
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly, defineExpose, shallowRef } from 'vue';
+// 移除 debounce 导入
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
@@ -9,8 +10,8 @@ import { useFileUploader } from '../composables/useFileUploader';
 // import { useFileEditor } from '../composables/useFileEditor'; // 移除旧的 composable 导入
 import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; // 导入新的 Store 和 FileInfo 类型
 import { useSessionStore } from '../stores/session.store';
-import { useSettingsStore } from '../stores/settings.store';
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
+import { useSettingsStore } from '../stores/settings.store'; // +++ 实例化 Settings Store +++
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 实例化焦点切换 Store +++
 import { useFileManagerContextMenu } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable +++
 import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; // +++ 导入选择 Composable +++
 import { useFileManagerDragAndDrop } from '../composables/file-manager/useFileManagerDragAndDrop'; // +++ 导入拖放 Composable +++
@@ -101,11 +102,15 @@ const {
 // 实例化其他 Stores
 const fileEditorStore = useFileEditorStore(); // 用于共享模式
 // const sessionStore = useSessionStore(); // 已在上面实例化
-const settingsStore = useSettingsStore();
+const settingsStore = useSettingsStore(); // +++ 实例化 Settings Store +++
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 
 // 从 Settings Store 获取共享设置
-const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // 使用 storeToRefs 保持响应性
+const {
+  shareFileEditorTabsBoolean,
+  fileManagerRowSizeMultiplierNumber, // +++ 获取行大小 getter +++
+  fileManagerColWidthsObject, // +++ 获取列宽 getter +++
+} = storeToRefs(settingsStore); // 使用 storeToRefs 保持响应性
 
 
 
@@ -124,13 +129,13 @@ const editablePath = ref('');
 const fileListContainerRef = ref<HTMLDivElement | null>(null); // 文件列表容器引用 (保留，传递给 Composable)
 // const scrollIntervalId = ref<number | null>(null); // 已移至 useFileManagerDragAndDrop
 
-const rowSizeMultiplier = ref(1); // 新增：行大小（字体）乘数
+const rowSizeMultiplier = ref(1.0); // 新增：行大小（字体）乘数, 默认值会被 store 覆盖
 // --- 键盘导航状态 (移至 useFileManagerKeyboardNavigation) ---
 // const selectedIndex = ref<number>(-1);
 
 // --- Column Resizing State (Remains the same) ---
 const tableRef = ref<HTMLTableElement | null>(null);
-const colWidths = ref({
+const colWidths = ref({ // 默认值会被 store 覆盖
     type: 50,
     name: 300,
     size: 100,
@@ -515,10 +520,64 @@ watch(sortDirection, () => {
 });
 
 
+// --- 保存设置的函数 ---
+const saveLayoutSettings = () => {
+  // 确保 colWidths.value 是普通对象，而不是 Proxy
+  const widthsToSave = JSON.parse(JSON.stringify(colWidths.value));
+  // +++ 添加日志：记录保存的值 +++
+  console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering saveLayoutSettings: multiplier=${rowSizeMultiplier.value}, widths=${JSON.stringify(widthsToSave)}`);
+  settingsStore.updateFileManagerLayoutSettings(rowSizeMultiplier.value, widthsToSave);
+};
+
 // --- 生命周期钩子 ---
 onMounted(() => {
     console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Component mounted.`);
-    // Initial load logic is handled by watchEffect
+    // --- 移除 onMounted 中的加载逻辑 ---
+    // Initial load logic is handled by watchEffect below and the main sftp loading watchEffect
+});
+
+// +++ 使用 watchEffect 响应式地加载和应用布局设置 +++
+watchEffect(() => {
+  // 检查 store 中的值是否有效 (避免在 store 加载完成前使用默认值覆盖本地 ref)
+  // fileManagerColWidthsObject 初始可能是空对象 {}，需要检查其是否有键
+  const storeMultiplier = fileManagerRowSizeMultiplierNumber.value;
+  const storeWidths = fileManagerColWidthsObject.value;
+
+  // +++ 添加日志：记录从 store 获取的值 +++
+  console.log(`[FileManager ${props.sessionId}-${props.instanceId}] watchEffect triggered. Store values: multiplier=${storeMultiplier}, widths=${JSON.stringify(storeWidths)}`);
+
+  // 只有当 store 加载完成并提供了有效值时才更新
+  // 假设 store 加载完成后 multiplier > 0 且 widths 对象有内容
+  if (storeMultiplier > 0 && Object.keys(storeWidths).length > 0) {
+    const currentMultiplier = rowSizeMultiplier.value;
+    const currentWidthsString = JSON.stringify(colWidths.value);
+    const storeWidthsString = JSON.stringify(storeWidths);
+
+    // +++ 添加日志：记录当前值和 store 值，以及是否更新 +++
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Comparing values: Current Multiplier=${currentMultiplier}, Store Multiplier=${storeMultiplier}. Update needed: ${storeMultiplier !== currentMultiplier}`);
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Comparing values: Current Widths=${currentWidthsString}, Store Widths=${storeWidthsString}. Update needed: ${storeWidthsString !== currentWidthsString}`);
+
+    // 仅在值不同时更新，避免不必要的重渲染和潜在的循环更新
+    if (storeMultiplier !== currentMultiplier) {
+      rowSizeMultiplier.value = storeMultiplier;
+      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Row size multiplier updated from store: ${storeMultiplier}`);
+    }
+    if (storeWidthsString !== currentWidthsString) {
+      // --- 修改：合并 storeWidths 到 colWidths.value ---
+      // 确保 colWidths.value 的所有键都存在，并用 store 的值更新（如果存在且有效）
+      const updatedWidths = { ...colWidths.value }; // 创建当前值的副本
+      for (const key in updatedWidths) {
+        if (storeWidths[key] !== undefined && typeof storeWidths[key] === 'number' && storeWidths[key] > 0) {
+          updatedWidths[key as keyof typeof updatedWidths] = storeWidths[key];
+        }
+      }
+      colWidths.value = updatedWidths; // 赋值更新后的对象
+      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Column widths updated from store: ${JSON.stringify(updatedWidths)}`);
+    }
+  } else {
+    // +++ 添加日志：记录等待 store 加载 +++
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Waiting for valid layout settings from store... Store Multiplier=${storeMultiplier}, Store Widths Keys=${Object.keys(storeWidths).length}`);
+  }
 });
 
 // 使用 watchEffect 监听连接和 SFTP 就绪状态以触发初始加载
@@ -709,6 +768,10 @@ const stopResize = () => {
         document.removeEventListener('mouseup', stopResize);
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
+        // +++ 在调整结束后保存列宽 +++
+        // +++ 添加日志：记录触发保存 +++
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] stopResize triggered saveLayoutSettings.`);
+        saveLayoutSettings();
     }
 };
 
@@ -780,8 +843,15 @@ const handleWheel = (event: WheelEvent) => {
         const delta = event.deltaY > 0 ? -0.05 : 0.05; // 滚轮向下减小，向上增大
         // 限制字体大小乘数在 0.5 到 2 之间
         const newMultiplier = Math.max(0.5, Math.min(2, rowSizeMultiplier.value + delta));
+        const oldMultiplier = rowSizeMultiplier.value;
         rowSizeMultiplier.value = parseFloat(newMultiplier.toFixed(2)); // 保留两位小数避免浮点数问题
         // console.log(`Row size multiplier: ${rowSizeMultiplier.value}`); // 调试日志
+        // +++ 在行大小变化后保存设置 +++
+        if (rowSizeMultiplier.value !== oldMultiplier) {
+            // +++ 添加日志：记录触发保存 +++
+            console.log(`[FileManager ${props.sessionId}-${props.instanceId}] handleWheel triggered saveLayoutSettings.`);
+            saveLayoutSettings();
+        }
     }
 };
 
@@ -1100,5 +1170,3 @@ defineExpose({ focusSearchInput });
 <style scoped>
 /* Scoped styles removed for Tailwind CSS refactoring */
 </style>
-
-

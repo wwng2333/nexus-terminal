@@ -20,6 +20,8 @@ interface SettingsState {
   statusMonitorIntervalSeconds?: string; // NEW: 状态监控轮询间隔 (秒)
   workspaceSidebarPersistent?: string; // NEW: 工作区侧边栏是否固定 'true' or 'false'
   sidebarPaneWidths?: string; // NEW: 存储各侧边栏组件宽度的 JSON 字符串
+  fileManagerRowSizeMultiplier?: string; // NEW: 文件管理器行大小乘数 (e.g., '1.0')
+  fileManagerColWidths?: string; // NEW: 文件管理器列宽 JSON 字符串 (e.g., '{"name": 300, "size": 100}')
  // Add other general settings keys here as needed
  [key: string]: string | undefined; // Allow other string settings
 }
@@ -29,6 +31,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // --- State ---
   const settings = ref<Partial<SettingsState>>({}); // 通用设置状态
   const parsedSidebarPaneWidths = ref<Record<string, string>>({}); // NEW: 解析后的侧边栏宽度对象
+  const parsedFileManagerColWidths = ref<Record<string, number>>({}); // NEW: 解析后的文件管理器列宽对象
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   // 移除外观相关状态: isStyleCustomizerVisible, currentUiTheme, currentXtermTheme
@@ -115,6 +118,65 @@ export const useSettingsStore = defineStore('settings', () => {
       //     await updateSetting('sidebarPaneWidths', JSON.stringify(finalWidths));
       // }
 
+      // NEW: Load and parse file manager layout settings
+      const defaultFileManagerRowMultiplier = '1.0';
+      const defaultFileManagerColWidths = { type: 50, name: 300, size: 100, permissions: 120, modified: 180 };
+
+      // Row Size Multiplier
+      console.log(`[SettingsStore] Raw fileManagerRowSizeMultiplier from backend: '${settings.value.fileManagerRowSizeMultiplier}'`);
+      if (settings.value.fileManagerRowSizeMultiplier === undefined) {
+          settings.value.fileManagerRowSizeMultiplier = defaultFileManagerRowMultiplier; // Assign first
+          console.log(`[SettingsStore] fileManagerRowSizeMultiplier not found, set to default: ${settings.value.fileManagerRowSizeMultiplier}`); // Log the assigned value
+      }
+      // Ensure it's a valid number string before parsing later
+      const parsedMultiplier = parseFloat(settings.value.fileManagerRowSizeMultiplier);
+      if (isNaN(parsedMultiplier) || parsedMultiplier <= 0) {
+          console.warn(`[SettingsStore] Invalid fileManagerRowSizeMultiplier loaded ('${settings.value.fileManagerRowSizeMultiplier}'), resetting to default.`);
+          settings.value.fileManagerRowSizeMultiplier = defaultFileManagerRowMultiplier;
+      }
+      console.log(`[SettingsStore] Final fileManagerRowSizeMultiplier value in store: '${settings.value.fileManagerRowSizeMultiplier}'`);
+
+      // Column Widths
+      let loadedFmWidths: Record<string, number> = {};
+      console.log(`[SettingsStore] Raw fileManagerColWidths from backend: '${settings.value.fileManagerColWidths}'`);
+      try {
+          if (settings.value.fileManagerColWidths) {
+              loadedFmWidths = JSON.parse(settings.value.fileManagerColWidths);
+              console.log(`[SettingsStore] Successfully parsed fileManagerColWidths JSON: ${JSON.stringify(loadedFmWidths)}`);
+              if (typeof loadedFmWidths !== 'object' || loadedFmWidths === null) {
+                  console.warn('[SettingsStore] Invalid fileManagerColWidths format loaded, resetting.');
+                  loadedFmWidths = {};
+              }
+              // Validate that values are numbers
+              for (const key in loadedFmWidths) {
+                  if (typeof loadedFmWidths[key] !== 'number') {
+                      console.warn(`[SettingsStore] Invalid non-numeric value found in fileManagerColWidths for key '${key}', resetting.`);
+                      loadedFmWidths = {};
+                      break;
+                  }
+              }
+          }
+      } catch (e) {
+          console.error('[SettingsStore] Failed to parse fileManagerColWidths, resetting.', e);
+          loadedFmWidths = {};
+      }
+      // Ensure defaults for all known columns, merging with loaded valid ones
+      const finalFmWidths: Record<string, number> = { ...defaultFileManagerColWidths };
+      console.log(`[SettingsStore] Default FM Col Widths: ${JSON.stringify(defaultFileManagerColWidths)}`);
+      Object.keys(defaultFileManagerColWidths).forEach(key => {
+          if (loadedFmWidths[key] !== undefined && loadedFmWidths[key] > 0) { // Use loaded if valid
+              finalFmWidths[key] = loadedFmWidths[key];
+          }
+      });
+      parsedFileManagerColWidths.value = finalFmWidths;
+      console.log(`[SettingsStore] Final parsedFileManagerColWidths value in store: ${JSON.stringify(parsedFileManagerColWidths.value)}`);
+      // Save back if defaults were added or structure changed (optional, might cause extra write)
+      // const currentSavedFmWidthsString = settings.value.fileManagerColWidths;
+      // const finalFmWidthsString = JSON.stringify(finalFmWidths);
+      // if (currentSavedFmWidthsString !== finalFmWidthsString) {
+      //     await updateSetting('fileManagerColWidths', finalFmWidthsString);
+      // }
+
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
@@ -166,7 +228,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
         'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
         'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
-        'sidebarPaneWidths' // +++ 添加侧边栏宽度对象键 +++
+        'sidebarPaneWidths', // +++ 添加侧边栏宽度对象键 +++
+        'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
+        'fileManagerColWidths' // +++ 添加文件管理器列宽键 +++
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -202,7 +266,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'autoCopyOnSelect', 'dockerStatusIntervalSeconds', 'dockerDefaultExpand',
         'statusMonitorIntervalSeconds', // +++ 添加状态监控间隔键 +++
         'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
-        'sidebarPaneWidths' // +++ 添加侧边栏宽度对象键 +++
+        'sidebarPaneWidths', // +++ 添加侧边栏宽度对象键 +++
+        'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
+        'fileManagerColWidths' // +++ 添加文件管理器列宽键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: 'en' | 'zh' | undefined = undefined;
@@ -257,6 +323,33 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  /**
+   * Updates the File Manager layout settings (row size multiplier and column widths).
+   * @param multiplier The new row size multiplier (number).
+   * @param widths The new column widths object (Record<string, number>).
+   */
+  async function updateFileManagerLayoutSettings(multiplier: number, widths: Record<string, number>) {
+    const multiplierString = multiplier.toFixed(2); // Store with 2 decimal places
+    const widthsString = JSON.stringify(widths);
+
+    // Update local parsed state immediately for responsiveness
+    parsedFileManagerColWidths.value = widths;
+    // The multiplier is handled directly by the component, but update the setting value
+    settings.value.fileManagerRowSizeMultiplier = multiplierString;
+    settings.value.fileManagerColWidths = widthsString;
+
+    try {
+      console.log(`[SettingsStore] Saving FM layout: multiplier=${multiplierString}, widths=${widthsString}`);
+      await updateMultipleSettings({
+        fileManagerRowSizeMultiplier: multiplierString,
+        fileManagerColWidths: widthsString,
+      });
+    } catch (error) {
+      console.error('[SettingsStore] Failed to save file manager layout settings:', error);
+      // Optionally revert local state or show error to user
+    }
+  }
+
   // 移除外观相关 actions: saveCustomThemes, resetCustomThemes, toggleStyleCustomizer
 
   // --- Getters ---
@@ -306,6 +399,18 @@ export const useSettingsStore = defineStore('settings', () => {
       return isNaN(val) || val <= 0 ? 3 : val; // Fallback to 3 if invalid
   });
 
+  // NEW: Getter for File Manager row size multiplier, returning number
+  const fileManagerRowSizeMultiplierNumber = computed(() => {
+      const val = parseFloat(settings.value.fileManagerRowSizeMultiplier || '1.0');
+      return isNaN(val) || val <= 0 ? 1.0 : val; // Fallback to 1.0 if invalid
+  });
+
+  // NEW: Getter for File Manager column widths, returning object
+  const fileManagerColWidthsObject = computed(() => {
+      // Return the reactive ref directly, which is updated during load and save
+      return parsedFileManagerColWidths.value;
+  });
+
   return {
     settings, // 只包含通用设置
     isLoading,
@@ -319,10 +424,13 @@ export const useSettingsStore = defineStore('settings', () => {
     statusMonitorIntervalSecondsNumber, // +++ 暴露状态监控间隔 getter +++
     workspaceSidebarPersistentBoolean, // +++ 暴露侧边栏固定 getter +++
     getSidebarPaneWidth, // +++ 暴露获取特定面板宽度的 getter +++
+    fileManagerRowSizeMultiplierNumber, // +++ 暴露文件管理器行大小 getter +++
+    fileManagerColWidthsObject, // +++ 暴露文件管理器列宽 getter +++
     // 移除外观相关的 getters 和 actions
     loadInitialSettings,
     updateSetting,
     updateMultipleSettings,
     updateSidebarPaneWidth, // +++ 暴露更新特定面板宽度的 action +++
+    updateFileManagerLayoutSettings, // +++ 暴露更新文件管理器布局的 action +++
   };
 });
