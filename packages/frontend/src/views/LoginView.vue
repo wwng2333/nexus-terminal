@@ -33,7 +33,11 @@ const handleSubmit = async () => {
 
 <template>
   <div class="flex justify-center items-center min-h-[calc(100vh-150px)] p-8 bg-background">
-    <div class="bg-dialog text-dialog-text p-8 md:p-12 rounded-lg shadow-lg w-full max-w-md">
+    <div class="bg-background text-foreground p-8 md:p-12 rounded-lg shadow-lg w-full max-w-md border border-border"> <!-- Changed bg-dialog to bg-background, text-dialog-text to text-foreground, added border -->
+      <!-- Logo -->
+      <div class="flex justify-center mb-6">
+        <img src="../assets/logo.png" alt="Project Logo" class="h-20 w-auto"> <!-- 增大 logo 高度 -->
+      </div>
       <h2 class="text-center text-2xl font-semibold mb-6 text-foreground">{{ t('login.title') }}</h2>
       <form @submit.prevent="handleSubmit">
         <!-- Regular Login Fields -->
