@@ -13,8 +13,8 @@ export type NotificationEvent =
   | 'TAG_ADDED'
   | 'TAG_UPDATED'
   | 'TAG_DELETED'
-  | 'API_KEY_ADDED'
-  | 'API_KEY_DELETED'
+  // | 'API_KEY_ADDED' // Removed API Key events
+  // | 'API_KEY_DELETED'
   | 'PASSKEY_ADDED'
   | 'PASSKEY_DELETED'
   | 'IP_BLACKLISTED' // New event for IP blacklisting

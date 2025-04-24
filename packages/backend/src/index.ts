@@ -92,6 +92,7 @@ const initializeDatabase = async () => {
     // await runMigrations(db); // Removed call to placeholder runMigrations
 
     // 检查管理员用户是否存在
+    console.log('[Index] Checking user count...'); // 添加日志：开始检查用户数量
     const userCount = await new Promise<number>((resolve, reject) => {
       // Use the resolved db instance here
       db.get('SELECT COUNT(*) as count FROM users', (err: Error | null, row: { count: number }) => { // Add type for err
@@ -102,6 +103,7 @@ const initializeDatabase = async () => {
         resolve(row.count);
       });
     });
+    console.log(`[Index] User count check completed. Found ${userCount} users.`); // 添加日志：用户数量检查完成
 
     // 检查用户数量后不再执行任何操作 (移除了自动创建和日志记录)
 

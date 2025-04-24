@@ -57,7 +57,7 @@ export const tableDefinitions: TableDefinition[] = [
         init: settingsRepository.ensureDefaultSettingsExist // <-- Use the function from the repository
     },
     { name: 'audit_logs', sql: schemaSql.createAuditLogsTableSQL },
-    { name: 'api_keys', sql: schemaSql.createApiKeysTableSQL },
+    // { name: 'api_keys', sql: schemaSql.createApiKeysTableSQL }, // Removed API Keys table from registry
     { name: 'passkeys', sql: schemaSql.createPasskeysTableSQL },
     { name: 'notification_settings', sql: schemaSql.createNotificationSettingsTableSQL },
     { name: 'users', sql: schemaSql.createUsersTableSQL },
