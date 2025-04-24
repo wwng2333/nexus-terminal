@@ -1,158 +1,173 @@
 import express = require('express');
-// import express = require('express'); // 移除重复导入
-import { Request, Response, NextFunction, RequestHandler } from 'express'; // 添加 RequestHandler
-import http from 'http'; // 引入 http 模块
-import fs from 'fs'; // 导入 fs 模块用于创建目录
+import { Request, Response, NextFunction, RequestHandler } from 'express';
+import http from 'http';
+import fs from 'fs'; // 导入 fs 模块
+import path from 'path'; // 导入 path 模块
+import crypto from 'crypto'; // 导入 crypto 模块
+import dotenv from 'dotenv'; // 导入 dotenv
 import session from 'express-session';
-import sessionFileStore from 'session-file-store'; // 替换为 session-file-store
-import path from 'path'; // 需要 path 模块
-import bcrypt from 'bcrypt'; // 引入 bcrypt 用于哈希密码
-import { getDbInstance } from './database/connection'; // Updated import path, use getDbInstance
-import { runMigrations } from './database/migrations'; // Updated import path
-import authRouter from './auth/auth.routes'; // 导入认证路由
+import sessionFileStore from 'session-file-store';
+import bcrypt from 'bcrypt';
+import { getDbInstance } from './database/connection';
+// import { runMigrations } from './database/migrations'; // Migrations are handled within getDbInstance
+import authRouter from './auth/auth.routes';
 import connectionsRouter from './connections/connections.routes';
 import sftpRouter from './sftp/sftp.routes';
-import proxyRoutes from './proxies/proxies.routes'; // 导入代理路由
-import tagsRouter from './tags/tags.routes'; // 导入标签路由
-import settingsRoutes from './settings/settings.routes'; // 导入设置路由
-import notificationRoutes from './notifications/notification.routes'; // 导入通知路由
-import auditRoutes from './audit/audit.routes'; // 导入审计路由
-import commandHistoryRoutes from './command-history/command-history.routes'; // 导入命令历史记录路由
-import quickCommandsRoutes from './quick-commands/quick-commands.routes'; // 导入快捷指令路由
-import terminalThemeRoutes from './terminal-themes/terminal-theme.routes'; // 导入终端主题路由
-import appearanceRoutes from './appearance/appearance.routes'; // 导入外观设置路由
-// import dockerRouter from './docker/docker.routes'; // <--- 移除 Docker 路由导入
+import proxyRoutes from './proxies/proxies.routes';
+import tagsRouter from './tags/tags.routes';
+import settingsRoutes from './settings/settings.routes';
+import notificationRoutes from './notifications/notification.routes';
+import auditRoutes from './audit/audit.routes';
+import commandHistoryRoutes from './command-history/command-history.routes';
+import quickCommandsRoutes from './quick-commands/quick-commands.routes';
+import terminalThemeRoutes from './terminal-themes/terminal-theme.routes';
+import appearanceRoutes from './appearance/appearance.routes';
 import { initializeWebSocket } from './websocket';
-import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware'; // 导入 IP 白名单中间件
+import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware';
+
+// --- 环境变量和密钥初始化 ---
+const initializeEnvironment = async () => {
+    const rootEnvPath = path.resolve(__dirname, '../../.env'); // 指向项目根目录的 .env
+    let keysGenerated = false;
+    let keysToAppend = '';
+
+    // 1. 尝试加载根目录的 .env 文件 (如果存在)
+    // dotenv.config 不会覆盖已存在的 process.env 变量
+    dotenv.config({ path: rootEnvPath });
+
+    // 2. 检查 ENCRYPTION_KEY
+    if (!process.env.ENCRYPTION_KEY) {
+        console.log('[ENV Init] ENCRYPTION_KEY 未设置，正在生成...');
+        const newEncryptionKey = crypto.randomBytes(32).toString('hex');
+        process.env.ENCRYPTION_KEY = newEncryptionKey; // 更新当前进程环境
+        keysToAppend += `\nENCRYPTION_KEY=${newEncryptionKey}`;
+        keysGenerated = true;
+    }
+
+    // 3. 检查 SESSION_SECRET
+    if (!process.env.SESSION_SECRET) {
+        console.log('[ENV Init] SESSION_SECRET 未设置，正在生成...');
+        const newSessionSecret = crypto.randomBytes(64).toString('hex');
+        process.env.SESSION_SECRET = newSessionSecret; // 更新当前进程环境
+        keysToAppend += `\nSESSION_SECRET=${newSessionSecret}`;
+        keysGenerated = true;
+    }
+
+    // 4. 如果生成了新密钥，则追加到 .env 文件
+    if (keysGenerated) {
+        try {
+            // 确保追加前有换行符 (如果文件非空)
+            let prefix = '';
+            if (fs.existsSync(rootEnvPath)) {
+                const content = fs.readFileSync(rootEnvPath, 'utf-8');
+                if (content.trim().length > 0 && !content.endsWith('\n')) {
+                    prefix = '\n';
+                }
+            }
+            fs.appendFileSync(rootEnvPath, prefix + keysToAppend.trim()); // trim() 移除开头的换行符
+            console.warn(`[ENV Init] 已自动生成密钥并保存到 ${rootEnvPath}`);
+            console.warn('[ENV Init] !!! 重要：请务必备份此 .env 文件，并在生产环境中妥善保管 !!!');
+        } catch (error) {
+            console.error(`[ENV Init] 无法写入密钥到 ${rootEnvPath}:`, error);
+            console.error('[ENV Init] 请检查文件权限或手动创建 .env 文件并添加生成的密钥。');
+            // 即使写入失败，密钥已在 process.env 中，程序可以继续运行本次
+        }
+    }
+
+    // 5. 生产环境最终检查 (虽然理论上已被覆盖，但作为保险)
+    if (process.env.NODE_ENV === 'production') {
+        if (!process.env.ENCRYPTION_KEY) {
+            console.error('错误：生产环境中 ENCRYPTION_KEY 最终未能设置！');
+            process.exit(1);
+        }
+        if (!process.env.SESSION_SECRET) {
+            console.error('错误：生产环境中 SESSION_SECRET 最终未能设置！');
+            process.exit(1);
+        }
+    }
+};
+// --- 结束环境变量和密钥初始化 ---
 
 
-// 基础 Express 应用设置 (后续会扩展)
+// 基础 Express 应用设置
 const app = express();
-const server = http.createServer(app); // 创建 HTTP 服务器实例
+const server = http.createServer(app);
 
-// --- 信任代理设置 (用于正确获取 req.ip) ---
-// 如果应用部署在反向代理后面，需要设置此项
-// 'true' 信任直接连接的代理；更安全的做法是配置具体的代理 IP 或子网
+// --- 信任代理设置 ---
 app.set('trust proxy', true);
-// --- 结束信任代理设置 ---
-
-// --- 会话存储设置 ---
-// const SQLiteStore = connectSqlite3(session); // 移除旧的 Store 初始化
-// 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
-// console.log('[Index CWD 1]', process.cwd()); // 移除调试日志
-// const dbPath = path.join(process.cwd(), 'data'); // 移除未使用的变量
 
 // --- 中间件 ---
-// !! 重要：IP 白名单应尽可能早地应用，通常在其他中间件之前 !!
-app.use(ipWhitelistMiddleware as RequestHandler); // 应用 IP 白名单中间件 (使用类型断言)
-
-app.use(express.json()); // 添加此行以解析 JSON 请求体
-
-// 会话中间件配置
-// TODO: 将 secret 移到环境变量中，不要硬编码在代码里！
-const sessionSecret = process.env.SESSION_SECRET || 'a-very-insecure-secret-for-dev';
-if (sessionSecret === 'a-very-insecure-secret-for-dev') {
-    console.warn('警告：正在使用默认的不安全会话密钥，请在生产环境中设置 SESSION_SECRET 环境变量！');
-}
-
-// !! 移除顶层的 session 中间件应用，将其移至 startServer 内部 !!
-// !! 将 sessionMiddleware 的创建和应用移到 startServer 函数内部 !!
-// const sessionMiddleware = session({ ... }); // 不在这里创建
-// app.use(sessionMiddleware); // 不在这里应用
+app.use(ipWhitelistMiddleware as RequestHandler);
+app.use(express.json());
 
 // --- 静态文件服务 ---
-// 提供上传的背景图片等静态资源
-const uploadsPath = path.join(__dirname, '../uploads'); // 指向 backend/uploads 目录
+const uploadsPath = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsPath)) { // 确保 uploads 目录存在
+    fs.mkdirSync(uploadsPath, { recursive: true });
+}
 app.use('/uploads', express.static(uploadsPath));
-// console.log(`静态文件服务已启动，路径: ${uploadsPath}`); // 移除调试日志
-// --- 结束静态文件服务 ---
 
 
-// 扩展 Express Request 类型以包含 session 数据 (如果需要更明确的类型提示)
+// 扩展 Express Request 类型
 declare module 'express-session' {
     interface SessionData {
-        userId?: number; // 存储登录用户的 ID
+        userId?: number;
         username?: string;
     }
 }
 
+const port = process.env.PORT || 3001;
 
-const port = process.env.PORT || 3001; // 示例端口，可配置
-
-// --- API 路由 (移动到 startServer 内部，在 session 中间件之后应用) ---
-
-// 在服务器启动前初始化数据库并执行迁移
+// 初始化数据库
 const initializeDatabase = async () => {
   try {
-    // getDb() now returns a Promise and handles initialization internally
-    const db = await getDbInstance(); // Correctly await the Promise, use getDbInstance
-    // console.log('数据库实例已获取并初始化完成。'); // 移除调试日志
-
-    // runMigrations is now just a placeholder and initialization is done within getDb
-    // await runMigrations(db); // Removed call to placeholder runMigrations
-
-    // 检查管理员用户是否存在
-    console.log('[Index] Checking user count...'); // 添加日志：开始检查用户数量
+    const db = await getDbInstance();
+    console.log('[Index] Checking user count...');
     const userCount = await new Promise<number>((resolve, reject) => {
-      // Use the resolved db instance here
-      db.get('SELECT COUNT(*) as count FROM users', (err: Error | null, row: { count: number }) => { // Add type for err
+      db.get('SELECT COUNT(*) as count FROM users', (err: Error | null, row: { count: number }) => {
         if (err) {
           console.error('检查 users 表时出错:', err.message);
-          return reject(err); // Reject the promise on error
+          return reject(err);
         }
         resolve(row.count);
       });
     });
-    console.log(`[Index] User count check completed. Found ${userCount} users.`); // 添加日志：用户数量检查完成
-
-    // 检查用户数量后不再执行任何操作 (移除了自动创建和日志记录)
-
-    // console.log(`数据库中找到 ${userCount} 个用户。`); // 移除调试日志
-
-    // console.log('数据库初始化后检查完成。'); // 移除调试日志
+    console.log(`[Index] User count check completed. Found ${userCount} users.`);
   } catch (error) {
-    console.error('数据库初始化或检查失败:', error); // More specific error message
-    process.exit(1); // 如果数据库初始化失败，则退出进程
+    console.error('数据库初始化或检查失败:', error);
+    process.exit(1);
   }
 };
 
-// 启动 HTTP 服务器 (而不是直接 app.listen)
+// 启动服务器
 const startServer = () => {
-    // !! 在服务器启动前，但在数据库初始化后，设置会话中间件 !!
-    // console.log('数据库初始化成功，现在设置会话存储...'); // 移除调试日志
-    const FileStore = sessionFileStore(session); // 使用新的 FileStore
-    // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
-    // console.log('[Index CWD 2]', process.cwd()); // 移除调试日志
-    // const dataPath = path.join(process.cwd(), 'data'); // 不再需要 dataPath 在此文件
-    // 使用 __dirname 定位到 dist，然后回退一级到 packages/backend，再进入 sessions
+    // --- 会话中间件配置 ---
+    const FileStore = sessionFileStore(session);
     const sessionsPath = path.join(__dirname, '..', 'sessions');
-    // 确保 sessions 目录存在
     if (!fs.existsSync(sessionsPath)) {
         fs.mkdirSync(sessionsPath, { recursive: true });
-        // console.log(`[Session Store] 已创建会话目录: ${sessionsPath}`); // 移除调试日志
     }
-    // console.log(`[Session Store] 使用文件存储，路径: ${sessionsPath}`); // 移除调试日志
     const sessionMiddleware = session({
         store: new FileStore({
-            path: sessionsPath, // 指定会话文件存储目录
-            ttl: 31536000, // 会话有效期 (秒)，设置为 1 年，确保服务器端会话数据长期存在
-            // logFn: (message) => { console.log('[SessionFileStore]', message); } // 移除调试日志
-            // reapInterval: 3600 // 清理过期会话间隔 (秒)，默认1小时
+            path: sessionsPath,
+            ttl: 31536000, // 1 year
+            // logFn: console.log // 可选：启用详细日志
         }),
-        secret: sessionSecret,
+        // 直接从 process.env 读取，initializeEnvironment 已确保其存在
+        secret: process.env.SESSION_SECRET as string,
         resave: false,
         saveUninitialized: false,
         cookie: {
-            // maxAge: 1000 * 60 * 60 * 24 * 7, // 移除固定的 cookie maxAge，默认为会话期
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production'
+            // maxAge: 默认会话期
         }
     });
-    app.use(sessionMiddleware); // 在这里应用会话中间件
-    // console.log('会话中间件已应用。'); // 移除调试日志
+    app.use(sessionMiddleware);
+    // --- 结束会话中间件配置 ---
+
 
     // --- 应用 API 路由 ---
-    // console.log('应用 API 路由...'); // 移除调试日志
     app.use('/api/v1/auth', authRouter);
     app.use('/api/v1/connections', connectionsRouter);
     app.use('/api/v1/sftp', sftpRouter);
@@ -165,21 +180,28 @@ const startServer = () => {
     app.use('/api/v1/quick-commands', quickCommandsRoutes);
     app.use('/api/v1/terminal-themes', terminalThemeRoutes);
     app.use('/api/v1/appearance', appearanceRoutes);
-    // app.use('/api/v1/docker', dockerRouter); // <--- 移除 Docker 路由注册
 
     // 状态检查接口
     app.get('/api/v1/status', (req: Request, res: Response) => {
       res.json({ status: '后端服务运行中！' });
     });
-    // console.log('API 路由已应用。'); // 移除调试日志
+    // --- 结束 API 路由 ---
 
 
-    server.listen(port, () => { // 使用 server.listen
+    server.listen(port, () => {
         console.log(`后端服务器正在监听 http://localhost:${port}`);
-        // 初始化 WebSocket 服务器，并传入 HTTP 服务器实例和会话解析器
-        initializeWebSocket(server, sessionMiddleware as RequestHandler); // 传递新创建的 sessionMiddleware
+        initializeWebSocket(server, sessionMiddleware as RequestHandler);
     });
 };
 
-// 先执行数据库初始化，成功后再启动服务器
-initializeDatabase().then(startServer);
+// --- 主程序启动流程 ---
+const main = async () => {
+    await initializeEnvironment(); // 首先初始化环境和密钥
+    await initializeDatabase();   // 然后初始化数据库
+    startServer();                // 最后启动服务器
+};
+
+main().catch(error => {
+    console.error("启动过程中发生未处理的错误:", error);
+    process.exit(1);
+});

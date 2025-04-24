@@ -1,32 +1,32 @@
 import crypto from 'crypto';
 
-// 从环境变量获取加密密钥，提供一个不安全的默认值用于开发
-// 警告：生产环境中必须设置一个强随机的 32 字节密钥 (例如通过 openssl rand -base64 32 生成)
-const encryptionKeyEnv = process.env.ENCRYPTION_KEY;
-if (!encryptionKeyEnv && process.env.NODE_ENV === 'production') {
-    console.error('错误：生产环境中必须设置 ENCRYPTION_KEY 环境变量！');
-    process.exit(1);
-}
-// 使用一个 32 字节的字符串作为不安全的开发默认值
-const defaultDevKey = '12345678901234567890123456789012';
-const encryptionKey = Buffer.from(
-    encryptionKeyEnv || defaultDevKey,
-    'utf8' // 或者 'base64' 如果环境变量是 base64 编码的
-); // Buffer.from utf8 string of 32 chars is 32 bytes
-
-// 重新检查，虽然 Buffer.from 应该保证了长度，但以防万一
-if (encryptionKey.length !== 32) {
-    console.error(`错误：加密密钥长度必须是 32 字节，当前长度为 ${encryptionKey.length}。`);
-    process.exit(1);
-}
-if (!encryptionKeyEnv) { // 仅在未设置环境变量时显示警告
-    console.warn('警告：正在使用默认的不安全加密密钥，请在生产环境中设置 ENCRYPTION_KEY 环境变量！');
-}
-
-
 const algorithm = 'aes-256-gcm';
 const ivLength = 16; // GCM 推荐的 IV 长度为 12 或 16 字节
 const tagLength = 16; // GCM 认证标签长度
+
+/**
+ * Internal helper to get and validate the encryption key buffer on demand.
+ */
+const getEncryptionKeyBuffer = (): Buffer => {
+    const keyEnv = process.env.ENCRYPTION_KEY;
+    if (!keyEnv) {
+        // This should ideally not happen due to initializeEnvironment in index.ts
+        console.error('错误：ENCRYPTION_KEY 环境变量未设置！');
+        throw new Error('ENCRYPTION_KEY is not set.');
+    }
+    try {
+        const keyBuffer = Buffer.from(keyEnv, 'hex');
+        if (keyBuffer.length !== 32) {
+            console.error(`错误：加密密钥长度必须是 32 字节，当前长度为 ${keyBuffer.length}。`);
+            throw new Error('Invalid ENCRYPTION_KEY length.');
+        }
+        return keyBuffer;
+    } catch (error) {
+        console.error('错误：无法将 ENCRYPTION_KEY 从 hex 解码为 Buffer:', error);
+        throw new Error('Failed to decode ENCRYPTION_KEY.');
+    }
+};
+
 
 /**
  * 加密文本 (例如连接密码)
@@ -35,6 +35,7 @@ const tagLength = 16; // GCM 认证标签长度
  */
 export const encrypt = (text: string): string => {
     try {
+        const encryptionKey = getEncryptionKeyBuffer(); // Get key on demand
         const iv = crypto.randomBytes(ivLength);
         const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
         const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
@@ -54,6 +55,7 @@ export const encrypt = (text: string): string => {
  */
 export const decrypt = (encryptedText: string): string => {
     try {
+        const encryptionKey = getEncryptionKeyBuffer(); // Get key on demand
         const data = Buffer.from(encryptedText, 'base64');
         if (data.length < ivLength + tagLength) {
             throw new Error('无效的加密数据格式');
