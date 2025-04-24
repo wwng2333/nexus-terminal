@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useAppearanceStore } from '../stores/appearance.store'; // 使用新的 store
 import { storeToRefs } from 'pinia';
 import type { ITheme } from 'xterm';
-import type { TerminalTheme } from '../../../backend/src/types/terminal-theme.types'; // 引入类型
+import type { TerminalTheme } from '../types/terminal-theme.types'; // 引入本地类型
 import { defaultXtermTheme } from '../features/appearance/config/default-themes'; // 引入默认主题
 
 const { t } = useI18n();

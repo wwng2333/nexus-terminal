@@ -6,7 +6,7 @@ import { useSessionStore } from '../stores/session.store'; // +++ 引入 Session
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import type { ConnectionInfo } from '../stores/connections.store'; // 只导入 ConnectionInfo
-import type { AuditLogEntry } from '../../../backend/src/types/audit.types'; // 引入 AuditLogEntry 类型
+import type { AuditLogEntry } from '../types/audit.types'; // 引入本地 AuditLogEntry 类型
 import { storeToRefs } from 'pinia';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, enUS } from 'date-fns/locale'; // 导入语言包

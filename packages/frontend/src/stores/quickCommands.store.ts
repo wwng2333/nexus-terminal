@@ -2,7 +2,7 @@ import { defineStore } from 'pinia';
 import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue';
 import { useUiNotificationsStore } from './uiNotifications.store';
-import type { QuickCommand } from '../../../backend/src/repositories/quick-commands.repository'; // 复用后端类型定义
+import type { QuickCommand } from '../types/quick-commands.types'; // 引入本地 QuickCommand 类型
 
 // 定义前端使用的快捷指令接口 (可以与后端一致)
 export type QuickCommandFE = QuickCommand;

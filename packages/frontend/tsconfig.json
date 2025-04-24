@@ -13,11 +13,11 @@
     "lib": ["ESNext", "DOM", "DOM.Iterable"], // 包含的库定义
     "skipLibCheck": true, // 跳过对声明文件 (*.d.ts) 的类型检查
     "noEmit": true, // 不输出编译后的文件 (由 Vite 处理构建)
-    "baseUrl": ".", // 基础目录，用于解析非相对模块名
+    "baseUrl": ".", // 恢复基础目录
     "paths": {
-      "@/*": ["src/*"] // 路径别名，例如 @/components/* 指向 src/components/*
+      "@/*": ["src/*"] // 恢复原始前端别名路径
     },
-    "types": ["vite/client", "pinia-plugin-persistedstate"] // **关键：包含 Vite 客户端和 Pinia 持久化插件类型定义**
+    "types": ["vite/client", "pinia-plugin-persistedstate", "node"] // 重新添加 "node" 类型
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"], // 需要进行类型检查的文件
   "exclude": ["node_modules"] // 排除检查的目录
