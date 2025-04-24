@@ -81,7 +81,12 @@
     "applyButton": "应用",
     "searchThemePlaceholder": "搜索主题名称...",
     "exportActiveThemeTooltip": "将当前激活的主题导出为 JSON 文件",
-    "exportActiveTheme": "导出当前主题"
+    "exportActiveTheme": "导出当前主题",
+    "themeModeLabel": "主题模式:",
+    "defaultMode": "默认模式",
+    "darkMode": "黑暗模式",
+    "darkModeApplied": "黑暗模式已应用",
+    "darkModeApplyFailed": "应用黑暗模式失败: {message}"
   },
   "login": {
     "title": "用户登录",

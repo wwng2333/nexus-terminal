@@ -32,7 +32,7 @@ export const defaultUiTheme: Record<string, string> = {
   '--text-color': '#333333',
   '--text-color-secondary': '#666666',
   '--border-color': '#cccccc',
-  '--link-color': '#333',
+  '--link-color': '#333333', // 修复：扩展为 #rrggbb
   '--link-hover-color': '#0056b3',
   '--link-active-color': '#007bff',
   '--link-active-bg-color': '#e0e0ff', /* Added */
@@ -51,7 +51,7 @@ export const defaultUiTheme: Record<string, string> = {
   '--input-focus-glow': 'var(--link-active-color)', /* 输入框聚焦光晕值 */
   '--ssh-tab-active': 'transparent', /* Added SSH Tab Active */
   '--ssh-tab-background': 'transparent', /* Added SSH Tab Background */
-  '--overlay-bg-color': 'rgba(0, 0, 0, 0.6)', /* Added Overlay Background */
+  '--overlay-bg-color': '#000000', /* Added Overlay Background - 修复：改为 #rrggbb 格式 */
   // End added variables
   '--font-family-sans-serif': 'sans-serif',
   '--base-padding': '1rem',

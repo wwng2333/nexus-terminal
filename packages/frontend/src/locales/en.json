@@ -81,7 +81,12 @@
     "applyButton": "Apply",
     "searchThemePlaceholder": "Search theme name...",
     "exportActiveThemeTooltip": "Export the currently active theme as a JSON file",
-    "exportActiveTheme": "Export Active Theme"
+    "exportActiveTheme": "Export Active Theme",
+    "themeModeLabel": "Theme Mode:",
+    "defaultMode": "Default Mode",
+    "darkMode": "Dark Mode",
+    "darkModeApplied": "Dark mode applied",
+    "darkModeApplyFailed": "Failed to apply dark mode: {message}"
   },
   "login": {
     "title": "User Login",

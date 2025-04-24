@@ -187,6 +187,54 @@ const handleResetUiTheme = async () => {
     }
 };
 
+// 定义黑暗模式主题变量
+const darkModeTheme = {
+  '--app-bg-color': '#212529',
+  '--text-color': '#e9ecef',
+  '--text-color-secondary': '#adb5bd',
+  '--border-color': '#495057',
+  '--link-color': '#6cb2eb',
+  '--link-hover-color': '#91caff',
+  '--link-active-color': '#3498db',
+  '--link-active-bg-color': 'rgba(52, 152, 219, 0.2)',
+  '--nav-item-active-bg-color': 'var(--link-active-bg-color)',
+  '--header-bg-color': '#343a40',
+  '--footer-bg-color': '#343a40',
+  '--button-bg-color': 'var(--link-active-color)',
+  '--button-text-color': '#ffffff',
+  '--button-hover-bg-color': '#2980b9',
+  '--icon-color': 'var(--text-color-secondary)',
+  '--icon-hover-color': 'var(--link-hover-color)',
+  '--split-line-color': 'var(--border-color)',
+  '--split-line-hover-color': 'var(--border-color)',
+  '--input-focus-border-color': 'var(--link-active-color)',
+  '--input-focus-glow': 'var(--link-active-color)',
+  '--ssh-tab-active': 'transparent',
+  '--ssh-tab-background': 'transparent',
+  '--overlay-bg-color': 'rgba(0, 0, 0, 0.8)',
+  '--color-success': '#5cb85c',
+  '--color-error': '#d9534f',
+  '--color-warning': '#f0ad4e',
+  '--font-family-sans-serif': 'sans-serif',
+  '--base-padding': '1rem',
+  '--base-margin': '0.5rem'
+};
+
+// 应用黑暗模式
+const applyDarkMode = async () => {
+  try {
+    // 深拷贝覆盖当前编辑的主题
+    editableUiTheme.value = JSON.parse(JSON.stringify(darkModeTheme));
+    await appearanceStore.saveCustomUiTheme(editableUiTheme.value);
+    // TODO: 添加 i18n 翻译 'styleCustomizer.darkModeApplied'
+    alert(t('styleCustomizer.darkModeApplied', '黑暗模式已应用'));
+  } catch (error: any) {
+    console.error("应用黑暗模式失败:", error);
+    // TODO: 添加 i18n 翻译 'styleCustomizer.darkModeApplyFailed'
+    alert(t('styleCustomizer.darkModeApplyFailed', { message: error.message || '未知错误' }));
+  }
+};
+
 // --- Textarea 和 Color Picker 同步 ---
 
 // 计算属性：将本地编辑的 UI 主题对象格式化为内部键值对字符串（无大括号，无行尾逗号）
@@ -801,6 +849,14 @@ const handleFocusAndSelect = (event: FocusEvent) => {
         <main class="panel-main">
           <section v-if="currentTab === 'ui'">
             <h3>{{ t('styleCustomizer.uiStyles') }}</h3>
+            <!-- 新增：主题模式选择 -->
+            <div class="theme-mode-selector form-group">
+                <label>{{ t('styleCustomizer.themeModeLabel', '主题模式:') }}</label> <!-- TODO: 添加翻译 -->
+                <div class="button-group">
+                    <button @click="handleResetUiTheme" class="button-inline">{{ t('styleCustomizer.defaultMode', '默认模式') }}</button> <!-- TODO: 添加翻译 -->
+                    <button @click="applyDarkMode" class="button-inline">{{ t('styleCustomizer.darkMode', '黑暗模式') }}</button> <!-- TODO: 添加翻译 -->
+                </div>
+            </div>
             <p>{{ t('styleCustomizer.uiDescription') }}</p>
             <!-- 动态生成 UI 样式编辑控件 -->
             <div v-for="(value, key) in editableUiTheme" :key="key" class="form-group">
@@ -1734,5 +1790,29 @@ hr {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
+/* 主题模式选择器样式 */
+.theme-mode-selector {
+  grid-template-columns: auto 1fr; /* 标签自动宽度，按钮组占据剩余空间 */
+  margin-bottom: calc(var(--base-padding) * 1.5); /* 与下方元素的间距 */
+}
+
+.theme-mode-selector label {
+  grid-column: 1 / 2;
+  text-align: left;
+  color: var(--text-color);
+  font-size: 0.9rem;
+  font-weight: 500;
+  align-self: center; /* 垂直居中 */
+}
+
+.theme-mode-selector .button-group {
+  grid-column: 2 / 3;
+  display: flex;
+  gap: var(--base-margin); /* 按钮间距 */
+  justify-content: flex-start; /* 按钮靠左对齐 */
+}
+
+/* 按钮组内的按钮继承 .button-inline 样式，无需重复 */
 
 </style>
