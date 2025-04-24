@@ -2,9 +2,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useConnectionsStore } from '../stores/connections.store';
 import { useAuditLogStore } from '../stores/audit.store'; // 修正 Store 名称
+import { useSessionStore } from '../stores/session.store'; // +++ 引入 Session Store +++
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import type { ConnectionBase } from '../../../backend/src/types/connection.types'; // 修正导入的类型
+import type { ConnectionInfo } from '../stores/connections.store'; // 只导入 ConnectionInfo
 import type { AuditLogEntry } from '../../../backend/src/types/audit.types'; // 引入 AuditLogEntry 类型
 import { storeToRefs } from 'pinia';
 import { formatDistanceToNow } from 'date-fns';
@@ -14,6 +15,7 @@ const { t, locale } = useI18n();
 const router = useRouter();
 const connectionsStore = useConnectionsStore();
 const auditLogStore = useAuditLogStore(); // 修正变量名
+const sessionStore = useSessionStore(); // +++ 获取 Session Store 实例 +++
 
 const { connections, isLoading: isLoadingConnections } = storeToRefs(connectionsStore);
 const { logs: auditLogs, isLoading: isLoadingLogs, totalLogs } = storeToRefs(auditLogStore); // 使用修正后的变量名
@@ -76,32 +78,34 @@ onMounted(async () => {
     // 可以在这里显示错误通知
   }
 });
-
 // --- 方法 ---
-const connectTo = (connection: ConnectionBase) => { // 使用 ConnectionBase 类型
-  // 跳转到 Workspace 页面，并传递连接信息 (如果需要)
-  // 注意：当前 Workspace 路由不接受参数，需要依赖全局状态或 store
-  // 可以在 connections.store 中添加一个设置当前活动连接的方法
-  // connectionsStore.setActiveConnection(connection); // 假设有这个方法
-  router.push({ name: 'Workspace' }); // 直接跳转
+// 修改函数签名，接受 ConnectionInfo 类型
+const connectTo = (connection: ConnectionInfo) => {
+  console.log(`[Dashboard] connectTo called for ID: ${connection.id}`);
+  // 调用 session store 处理连接请求
+  sessionStore.handleConnectRequest(connection.id);
+  // 跳转到工作区
+  router.push({ name: 'Workspace' });
 };
 
-const formatRelativeTime = (dateString: string | undefined | null): string => {
-  if (!dateString) return t('connections.status.never');
+
+// 修正函数签名，接受 number | null | undefined
+const formatRelativeTime = (timestampInSeconds: number | null | undefined): string => {
+  if (!timestampInSeconds) return t('connections.status.never');
   try {
     // 将秒级时间戳转换为毫秒级
-    const timestampInMs = Number(dateString) * 1000;
-    // 检查转换后的值是否有效
+    const timestampInMs = timestampInSeconds * 1000;
+    // 检查转换后的值是否有效 (虽然输入是 number，但以防万一)
     if (isNaN(timestampInMs)) {
-        console.warn(`[Dashboard] Invalid timestamp received: ${dateString}`);
-        return dateString; // 返回原始值或错误提示
+        console.warn(`[Dashboard] Invalid timestamp received: ${timestampInSeconds}`);
+        return String(timestampInSeconds); // 返回原始值或错误提示
     }
     const date = new Date(timestampInMs);
     const currentLocale = locale.value === 'zh' ? zhCN : enUS;
     return formatDistanceToNow(date, { addSuffix: true, locale: currentLocale });
   } catch (e) {
     console.error("格式化日期失败:", e);
-    return dateString; // 出错时返回原始字符串
+    return String(timestampInSeconds); // 出错时返回原始字符串
   }
 };
 
@@ -161,9 +165,9 @@ const getActionTranslation = (actionType: string): string => {
         <div class="card-body p-4">
           <div v-if="isLoadingLogs" class="text-center text-gray-500">{{ t('common.loading') }}</div>
           <ul v-else-if="recentAuditLogs.length > 0" class="space-y-3">
-            <li v-for="log in recentAuditLogs" :key="log._id" class="p-3 bg-gray-50 dark:bg-gray-700 rounded">
+            <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-gray-50 dark:bg-gray-700 rounded"> <!-- 使用 log.id -->
               <div class="flex justify-between items-start mb-1">
-                <span class="font-medium text-sm">{{ getActionTranslation(log.actionType) }}</span>
+                <span class="font-medium text-sm">{{ getActionTranslation(log.action_type) }}</span> <!-- 使用 log.action_type -->
                 <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 ml-2">{{ formatRelativeTime(log.timestamp) }}</span>
               </div>
               <p class="text-sm text-gray-600 dark:text-gray-300 break-words">{{ log.details }}</p>
