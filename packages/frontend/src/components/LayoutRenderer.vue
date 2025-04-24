@@ -277,8 +277,11 @@ const sidebarProps = computed(() => (paneName: PaneName | null, side: 'left' | '
           console.log(`[LayoutRenderer Sidebar] Forwarding 'request-edit-connection'`);
           emit('request-edit-connection', conn);
        },
-       // We might not need 'request-add-connection' from the sidebar context
-       // onRequestAddConnection: () => emit('request-add-connection')
+       // Forward 'request-add-connection' from sidebar context
+       onRequestAddConnection: () => {
+           console.log(`[LayoutRenderer Sidebar] Forwarding 'request-add-connection'`);
+           emit('request-add-connection');
+       }
      };
    case 'fileManager':
      // Only provide props if there's an active session
