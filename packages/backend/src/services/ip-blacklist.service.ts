@@ -116,7 +116,7 @@ export class IpBlacklistService {
 
                 if (shouldNotify && blockedUntil) {
                     // Trigger notification after successful DB update
-                    notificationService.sendNotification('IP_BLACKLISTED', {
+                    notificationService.sendNotification('IP_BLOCKED', {
                         ip: ip,
                         attempts: newAttempts,
                         duration: banDuration,
@@ -143,7 +143,7 @@ export class IpBlacklistService {
 
                  if (shouldNotify && blockedUntil) {
                      // Trigger notification after successful DB insert
-                     notificationService.sendNotification('IP_BLACKLISTED', {
+                     notificationService.sendNotification('IP_BLOCKED', {
                          ip: ip,
                          attempts: attempts,
                          duration: banDuration,
