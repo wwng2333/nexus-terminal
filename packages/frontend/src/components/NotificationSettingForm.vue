@@ -269,7 +269,7 @@ const canTestUnsaved = computed(() => {
 const allNotificationEvents: NotificationEvent[] = [
     'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'CONNECTION_ADDED', 'CONNECTION_UPDATED', 'CONNECTION_DELETED',
     'SETTINGS_UPDATED', 'PROXY_ADDED', 'PROXY_UPDATED', 'PROXY_DELETED', 'TAG_ADDED', 'TAG_UPDATED',
-    'TAG_DELETED', 'API_KEY_ADDED', 'API_KEY_DELETED', 'PASSKEY_ADDED', 'PASSKEY_DELETED',
+    'TAG_DELETED', /* 'API_KEY_ADDED', 'API_KEY_DELETED', */ 'PASSKEY_ADDED', 'PASSKEY_DELETED', // Removed API Key events
     'IP_BLACKLISTED', // Add the new event here
     'SERVER_ERROR'
 ];
