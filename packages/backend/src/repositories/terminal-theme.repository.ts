@@ -250,15 +250,21 @@ export const deleteTheme = async (id: number): Promise<boolean> => {
  */
 export const initializePresetThemes = async (db: Database, presets: Array<Omit<TerminalTheme, '_id' | 'createdAt' | 'updatedAt' | 'isSystemDefault'> & { name: string }>) => {
     console.log('[DB Init] 开始检查并初始化预设主题...');
+    // 在这里添加日志，显示总共要处理多少个预设主题
+    console.log(`[DB Init] 发现 ${presets.length} 个预设主题定义。`);
     const nowSeconds = Math.floor(Date.now() / 1000); // Use seconds for DB consistency
     // const db = await getDbInstance(); // Use the passed db instance
 
     for (const preset of presets) {
+        // 在循环开始时添加日志，显示正在处理哪个主题
+        console.log(`[DB Init] 正在处理预设主题: "${preset.name}"`);
         try {
             // Check using name and theme_type
             const existing = await getDb<{ id: number }>(db, `SELECT id FROM terminal_themes WHERE name = ? AND theme_type = 'preset'`, [preset.name]);
 
             if (!existing) {
+                // 添加日志，表明正在插入新主题
+                console.log(`[DB Init] 主题 "${preset.name}" 不存在，正在插入...`);
                 // Map preset.themeData to individual columns
                 const theme = preset.themeData;
                 const columns = [
@@ -284,7 +290,8 @@ export const initializePresetThemes = async (db: Database, presets: Array<Omit<T
                 await runDb(db, insertSql, values);
                 console.log(`[DB Init] 预设主题 "${preset.name}" 已初始化到数据库。`);
             } else {
-                // console.log(`[DB Init] 预设主题 "${preset.name}" 已存在，跳过初始化。`);
+                // 取消注释并添加日志，表明主题已存在
+                 console.log(`[DB Init] 预设主题 "${preset.name}" 已存在，跳过初始化。`);
             }
         } catch (err: any) { // Add type annotation for err
              // Remove reference to non-existent preset_key

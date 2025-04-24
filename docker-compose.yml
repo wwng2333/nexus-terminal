@@ -9,27 +9,10 @@ services:
     ports:
       - "3001:3001" # 将容器的 3001 端口映射到宿主机的 3001 端口
     environment:
-      # 这里需要添加后端运行所需的环境变量
-      # 例如：
-      # NODE_ENV: production
-      # PORT: 3001 # 确保容器内端口与 EXPOSE 一致
-      # DATABASE_PATH: /app/data/database.sqlite # 如果使用 SQLite
-      # ENCRYPTION_KEY: your_strong_encryption_key # 需要设置强密钥
-      # SESSION_SECRET: your_strong_session_secret # 需要设置强密钥
-      # JWT_SECRET: your_strong_jwt_secret # 如果使用 JWT
-      # ... 其他后端需要的环境变量
-      # 注意：敏感信息最好通过 .env 文件或 Docker secrets 管理
       NODE_ENV: production
       PORT: 3001
-      # 示例：如果数据库文件在容器内的 /app/data 目录下
-      DATABASE_PATH: /app/data/database.sqlite
-      # !! 请务必替换下面的示例密钥为强随机值 !!
-      ENCRYPTION_KEY: replace_with_strong_random_key_32_bytes
-      SESSION_SECRET: replace_with_strong_random_secret
-      JWT_SECRET: replace_with_strong_random_jwt_secret
+
     volumes:
-      # 如果后端需要持久化数据（例如 SQLite 数据库），则挂载卷
-      # 将宿主机上的 ./data 目录映射到容器内的 /app/data 目录
       - ./data:/app/data # 确保宿主机上的 ./data 目录存在或 Docker 会创建它
     networks:
       - nexus_network # 将服务连接到自定义网络

@@ -255,6 +255,21 @@ export const useLayoutStore = defineStore('layout', () => {
             sidebarPanes.value = getDefaultSidebarPanes();
         }
     }
+
+    // --- Final Check: Ensure defaults are applied if loading failed or resulted in null ---
+    if (!layoutTree.value) {
+        console.warn('[Layout Store] Layout tree is still null after all loading attempts. Applying default layout.');
+        layoutTree.value = getDefaultLayout();
+        // Optionally save the default to localStorage now?
+        // try { localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(layoutTree.value)); } catch(e) {}
+    }
+    // Basic check for sidebarPanes structure validity before potentially applying default
+    if (!sidebarPanes.value || !Array.isArray(sidebarPanes.value.left) || !Array.isArray(sidebarPanes.value.right)) {
+         console.warn('[Layout Store] Sidebar panes are null or invalid after all loading attempts. Applying default sidebar panes.');
+         sidebarPanes.value = getDefaultSidebarPanes();
+         // Optionally save the default to localStorage now?
+         // try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sidebarPanes.value)); } catch(e) {}
+    }
   }
 
   // --- Helper for debounced persistence ---

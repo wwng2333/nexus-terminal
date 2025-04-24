@@ -143,7 +143,8 @@ const initializeDatabase = async () => {
 const startServer = () => {
     // --- 会话中间件配置 ---
     const FileStore = sessionFileStore(session);
-    const sessionsPath = path.join(__dirname, '..', 'sessions');
+    // 修改路径以匹配 Docker volume 挂载点 /app/data
+    const sessionsPath = path.join('/app/data', 'sessions');
     if (!fs.existsSync(sessionsPath)) {
         fs.mkdirSync(sessionsPath, { recursive: true });
     }
@@ -157,9 +158,12 @@ const startServer = () => {
         secret: process.env.SESSION_SECRET as string,
         resave: false,
         saveUninitialized: false,
+        proxy: true, // 信任反向代理设置的 X-Forwarded-Proto 头
         cookie: {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production'
+            // secure: 'auto' in newer versions, relies on proxy: true here
+            // secure: process.env.NODE_ENV === 'production', // Keep original logic, but proxy:true adjusts behavior
+            secure: false, // Temporarily force secure to false for debugging proxy issues
             // maxAge: 默认会话期
         }
     });
