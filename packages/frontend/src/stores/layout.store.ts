@@ -26,52 +26,88 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
-// 定义默认布局结构
+// 定义默认布局结构 (根据用户提供的配置更新，但使用 generateId)
 const getDefaultLayout = (): LayoutNode => ({
-  id: generateId(), // 根容器 ID
-  type: 'container',
-  direction: 'horizontal', // 主方向：水平分割
+  id: generateId(), // Generate new ID
+  type: "container",
+  direction: "horizontal",
   children: [
-    // 左侧边栏：连接列表
-    { id: generateId(), type: 'pane', component: 'connections', size: 15 },
-    // 中间主区域：垂直分割
     {
-      id: generateId(),
-      type: 'container',
-      direction: 'vertical',
-      size: 60, // 中间区域占比
+      id: generateId(), // Generate new ID
+      type: "container",
+      direction: "vertical",
       children: [
-        // 上方：终端
-        { id: generateId(), type: 'pane', component: 'terminal', size: 60 },
-        // 中下方：命令栏 (固定高度，特殊处理或放在终端内?) - 暂时移除，可在配置器中添加
-        // { id: generateId(), type: 'pane', component: 'commandBar', size: 5 },
-        // 下方：文件管理器
-        { id: generateId(), type: 'pane', component: 'fileManager', size: 40 },
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "statusMonitor",
+          size: 44.56372126372345 // 使用用户提供的 size
+        },
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "commandHistory",
+          size: 26.235651482670775 // 使用用户提供的 size
+        },
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "quickCommands",
+          size: 29.200627253605774 // 使用用户提供的 size
+        }
       ],
+      size: 14.59006012147659 // 使用用户提供的 size
     },
-    // 右侧边栏：垂直分割
     {
-      id: generateId(),
-      type: 'container',
-      direction: 'vertical',
-      size: 25, // 右侧区域占比
+      id: generateId(), // Generate new ID
+      type: "container",
+      direction: "vertical",
+      size: 58.02787988626151, // 使用用户提供的 size
       children: [
-        // 上方：编辑器
-        { id: generateId(), type: 'pane', component: 'editor', size: 60 },
-        // 下方：状态监视器
-        { id: generateId(), type: 'pane', component: 'statusMonitor', size: 40 },
-        // 可选：命令历史和快捷指令可以放在这里，或者作为可添加的面板
-        // { id: generateId(), type: 'pane', component: 'commandHistory', size: 20 },
-        // { id: generateId(), type: 'pane', component: 'quickCommands', size: 20 },
-      ],
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "terminal",
+          size: 59.94833664833884 // 使用用户提供的 size
+        },
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "commandBar",
+          size: 5 // 使用用户提供的 size
+        },
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "fileManager",
+          size: 35.05166335166116 // 使用用户提供的 size
+        }
+      ]
     },
-  ],
+    {
+      id: generateId(), // Generate new ID
+      type: "container",
+      direction: "vertical",
+      size: 27.3820599922619, // 使用用户提供的 size
+      children: [
+        {
+          id: generateId(), // Generate new ID
+          type: "pane",
+          component: "editor",
+          size: 100 // 使用用户提供的 size
+        }
+      ]
+    }
+  ]
 });
 
-// 定义默认侧栏配置
+// 定义默认侧栏配置 (根据用户提供的配置更新)
 const getDefaultSidebarPanes = (): { left: PaneName[], right: PaneName[] } => ({
-  left: [],
-  right: [],
+  "left": [
+    "connections",
+    "dockerManager"
+  ],
+  "right": []
 });
 
 // 递归查找主布局树中使用的面板
@@ -270,6 +306,10 @@ export const useLayoutStore = defineStore('layout', () => {
          // Optionally save the default to localStorage now?
          // try { localStorage.setItem(SIDEBAR_STORAGE_KEY, JSON.stringify(sidebarPanes.value)); } catch(e) {}
     }
+
+    // --- Log the final layout configuration after initialization ---
+    console.log('[Layout Store] Final Initialized Layout Tree:', JSON.stringify(layoutTree.value, null, 2));
+    console.log('[Layout Store] Final Initialized Sidebar Panes:', JSON.stringify(sidebarPanes.value, null, 2));
   }
 
   // --- Helper for debounced persistence ---

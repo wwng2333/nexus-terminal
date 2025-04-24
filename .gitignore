@@ -139,3 +139,4 @@ dist
 /packages/backend/uploads/backgrounds
 /temp_iterm_schemes
 /packages/backend/sessions
+/data
