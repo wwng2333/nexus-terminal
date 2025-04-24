@@ -194,30 +194,30 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
 
 <style scoped>
 .layout-node-editor {
-  border: 1px solid #ccc;
-  margin: 5px;
-  padding: 5px;
+  border: 1px solid var(--border-color);
+  margin: var(--base-margin);
+  padding: var(--base-margin); /* Or define a specific padding variable */
   position: relative;
-  background-color: #f9f9f9;
-  min-height: 60px; /* 保证有最小高度以便拖放 */
+  background-color: var(--header-bg-color); /* Use header background color */
+  min-height: 60px; /* Keep specific height or make variable */
   display: flex;
   flex-direction: column;
 }
 
 .node-type-container {
-  background-color: #eef; /* 容器用淡蓝色背景 */
+  background-color: var(--app-bg-color); /* Consider a dedicated var(--container-bg-color) */
 }
 .node-type-pane {
-  background-color: #efe; /* 面板用淡绿色背景 */
+  background-color: var(--app-bg-color); /* Consider a dedicated var(--pane-bg-color), maybe light green */
 }
 
 .node-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #eee;
-  padding: 3px 5px;
-  margin-bottom: 5px;
+  background-color: var(--header-bg-color); /* Or a specific control bar background */
+  padding: 3px var(--base-margin);
+  margin-bottom: var(--base-margin);
   font-size: 0.8em;
   min-height: 24px; /* 确保控制栏有高度 */
 }
@@ -237,7 +237,7 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
 
 .action-button {
   background: none;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-color);
   border-radius: 3px;
   cursor: pointer;
   padding: 1px 4px;
@@ -245,22 +245,22 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
   line-height: 1;
 }
 .action-button:hover {
-  background-color: #ddd;
+  background-color: var(--border-color); /* Consider a dedicated var(--button-hover-light-bg-color) */
 }
 .remove-button {
-  color: #dc3545;
-  border-color: #dc3545;
+  color: #dc3545; /* Consider var(--danger-color) */
+  border-color: #dc3545; /* Consider var(--danger-color) */
 }
 .remove-button:hover {
-  background-color: #dc3545;
-  color: white;
+  background-color: #dc3545; /* Consider var(--danger-bg-color) */
+  color: var(--button-text-color);
 }
 
 .node-children-container {
   flex-grow: 1;
-  padding: 5px;
-  border: 1px dashed #bbb; /* 容器内部边框 */
-  min-height: 40px; /* 容器拖放区域最小高度 */
+  padding: var(--base-margin);
+  border: 1px dashed var(--border-color); /* 容器内部边框 */
+  min-height: 40px; /* Keep specific height or make variable */
   display: flex;
 }
 .children-direction-horizontal {
@@ -290,14 +290,14 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
 
 .drag-handle-node {
   cursor: grab;
-  color: #aaa;
-  padding: 5px 3px; /* 增加点击区域 */
-  background-color: #f0f0f0;
-  border-right: 1px solid #ddd; /* 垂直句柄 */
+  color: var(--text-color-secondary);
+  padding: var(--base-margin) 3px; /* 增加点击区域 */
+  background-color: var(--header-bg-color); /* Or a specific handle background */
+  border-right: 1px solid var(--border-color); /* 垂直句柄 */
 }
 .children-direction-vertical > .child-node-wrapper > .drag-handle-node {
    border-right: none;
-   border-bottom: 1px solid #ddd; /* 水平句柄 */
+   border-bottom: 1px solid var(--border-color); /* 水平句柄 */
    writing-mode: vertical-rl; /* 可选：旋转图标 */
 }
 
@@ -311,11 +311,11 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
 
 .pane-node-content {
   /* 面板节点在配置器中通常是空的 */
-  min-height: 30px; /* 给面板一个最小高度 */
+  min-height: 30px; /* Keep specific height or make variable */
   text-align: center;
-  color: #aaa;
+  color: var(--text-color-secondary);
   font-size: 0.8em;
-  padding-top: 5px;
+  padding-top: var(--base-margin);
 }
 
 .empty-container-placeholder {
@@ -324,19 +324,19 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
   justify-content: center;
   align-items: center;
   text-align: center;
-  color: #ccc;
+  color: var(--text-color-secondary);
   font-size: 0.9em;
-  min-height: 30px;
-  padding: 10px;
-  border: 1px dashed #ddd;
-  margin: 5px; /* 与 layout-node-editor 的 margin 匹配 */
+  min-height: 30px; /* Keep specific height or make variable */
+  padding: calc(var(--base-padding) / 2); /* Or specific padding */
+  border: 1px dashed var(--border-color);
+  margin: var(--base-margin); /* 与 layout-node-editor 的 margin 匹配 */
 }
 
 /* vuedraggable 拖拽时的样式 */
 .sortable-ghost {
   opacity: 0.4;
-  background-color: #cceeff !important; /* 拖拽占位符样式 */
-  border: 1px dashed #007bff;
+  background-color: var(--link-active-bg-color) !important; /* 拖拽占位符样式 */
+  border: 1px dashed var(--link-active-color);
 }
 .sortable-chosen {
   /* 被选中的元素样式 */
@@ -345,3 +345,4 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
   /* 正在拖拽的元素样式 */
 }
 </style>
+
