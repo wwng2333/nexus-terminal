@@ -7,6 +7,7 @@ import * as schema from './schema';
 import { tableDefinitions } from './schema.registry';
 // presetTerminalThemes might still be needed if passed directly, but likely handled in registry now
 // import { presetTerminalThemes } from '../config/preset-themes-definition';
+// Removed import for default-layout-data as logic is now in settings repository
 
 // --- Revert to original path and filename ---
 // 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
@@ -116,6 +117,9 @@ const runDatabaseInitializations = async (db: sqlite3.Database): Promise<void> =
                 await tableDef.init(db);
             }
         }
+
+        // Default layout/sidebar data is now handled within settingsRepository.ensureDefaultSettingsExist
+        // No separate call needed here anymore.
 
         // Migrations (if any) would run after initial schema setup
         // import { runMigrations } from './migrations';

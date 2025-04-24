@@ -1,6 +1,6 @@
 // packages/backend/src/repositories/settings.repository.ts
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
-import { SidebarConfig } from '../types/settings.types'; // <-- Correct import path
+import { SidebarConfig, LayoutNode, PaneName } from '../types/settings.types'; // <-- Import LayoutNode and PaneName
 import * as sqlite3 from 'sqlite3'; // Import sqlite3 for Database type hint
 
 // Define keys for specific settings
@@ -154,6 +154,53 @@ export const setSidebarConfig = async (config: SidebarConfig): Promise<void> => 
  * @param db - The active database instance
  */
 export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<void> => {
+    // --- Define Default Structures Here ---
+    // Use OmitIdRecursive helper type if needed, or define structure without IDs
+    type OmitIdRecursive<T> = T extends object
+      ? { [K in keyof Omit<T, 'id'>]: OmitIdRecursive<T[K]> }
+      : T;
+
+    const defaultLayoutTreeStructure: OmitIdRecursive<LayoutNode> = {
+      type: "container",
+      direction: "horizontal",
+      children: [
+        {
+          type: "container",
+          direction: "vertical",
+          children: [
+            { type: "pane", component: "statusMonitor", size: 44.56 },
+            { type: "pane", component: "commandHistory", size: 26.24 },
+            { type: "pane", component: "quickCommands", size: 29.20 }
+          ],
+          size: 14.59
+        },
+        {
+          type: "container",
+          direction: "vertical",
+          size: 58.03,
+          children: [
+            { type: "pane", component: "terminal", size: 59.95 },
+            { type: "pane", component: "commandBar", size: 5 },
+            { type: "pane", component: "fileManager", size: 35.05 }
+          ]
+        },
+        {
+          type: "container",
+          direction: "vertical",
+          size: 27.38,
+          children: [
+            { type: "pane", component: "editor", size: 100 }
+          ]
+        }
+      ]
+    };
+
+    const defaultSidebarPanesStructure: SidebarConfig = {
+      left: ["connections", "dockerManager"],
+      right: []
+    };
+
+    // --- Define All Default Settings ---
     const defaultSettings: Record<string, string> = {
         language: 'en', // Default language
         ipWhitelistEnabled: 'false',
@@ -162,14 +209,14 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
         loginBanDuration: '300', // 5 minutes in seconds
         focusSwitcherSequence: JSON.stringify(["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"]), // Default focus sequence
         navBarVisible: 'true', // Default nav bar visibility
-        layoutTree: 'null', // Default layout tree (null initially)
+        layoutTree: JSON.stringify(defaultLayoutTreeStructure), // Use the defined structure
         autoCopyOnSelect: 'false', // Default auto copy setting
         showPopupFileEditor: 'false', // Default popup editor setting
         shareFileEditorTabs: 'true', // Default editor tab sharing
         dockerStatusIntervalSeconds: '5', // Default Docker refresh interval
         dockerDefaultExpand: 'false', // Default Docker expand state
         statusMonitorIntervalSeconds: '3', // Default Status Monitor interval
-        [SIDEBAR_CONFIG_KEY]: JSON.stringify({ left: [], right: [] }), // Default sidebar config
+        [SIDEBAR_CONFIG_KEY]: JSON.stringify(defaultSidebarPanesStructure), // Use the defined structure
         // Add other default settings here
     };
     const nowSeconds = Math.floor(Date.now() / 1000);
