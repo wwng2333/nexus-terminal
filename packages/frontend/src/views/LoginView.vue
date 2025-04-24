@@ -42,7 +42,7 @@ const handleSubmit = async () => {
          <div class="z-10 text-center">
            <img src="../assets/logo.png" alt="Project Logo" class="h-20 w-auto mb-5 mx-auto">
            <h1 class="text-3xl font-bold mb-2">{{ t('projectName') }}</h1>
-           <p class="text-base opacity-80">在这里管理您的所有连接。</p> <!-- Example Slogan -->
+           <p class="text-base opacity-80">nexus terminal</p> <!-- Example Slogan -->
          </div>
       </div>
 
