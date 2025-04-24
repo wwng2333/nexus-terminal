@@ -120,64 +120,64 @@ const getActionTranslation = (actionType: string): string => {
 </script>
 
 <template>
-  <div class="dashboard-view p-4 md:p-6 lg:p-8">
+  <div class="p-4 md:p-6 lg:p-8 bg-background text-foreground">
     <h1 class="text-2xl font-semibold mb-6">{{ t('nav.dashboard') }}</h1>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      <!-- 最近连接 -->
-      <div class="card bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div class="card-header px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 class="text-lg font-medium">{{ t('dashboard.recentConnections', '最近连接') }}</h2> <!-- TODO: Add translation -->
+      <!-- Recent Connections -->
+      <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border">
+        <div class="px-4 py-3 border-b border-border">
+          <h2 class="text-lg font-medium">{{ t('dashboard.recentConnections', '最近连接') }}</h2>
         </div>
-        <div class="card-body p-4">
-          <div v-if="isLoadingConnections" class="text-center text-gray-500">{{ t('common.loading') }}</div>
+        <div class="p-4">
+          <div v-if="isLoadingConnections" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
           <ul v-else-if="recentConnections.length > 0" class="space-y-3">
-            <li v-for="conn in recentConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-150 ease-in-out"> <!-- 使用 conn.id -->
+            <li v-for="conn in recentConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-background-alt rounded hover:bg-hover transition duration-150 ease-in-out">
               <div class="flex-grow mr-4 overflow-hidden">
-                <span class="font-medium block truncate" :title="conn.name || ''">{{ conn.name || 'Unnamed' }}</span> <!-- 处理 name 可能为 null 的情况 -->
-                <span class="text-sm text-gray-500 dark:text-gray-400 block truncate" :title="`${conn.username}@${conn.host}:${conn.port}`">
+                <span class="font-medium block truncate" :title="conn.name || ''">{{ conn.name || 'Unnamed' }}</span>
+                <span class="text-sm text-text-secondary block truncate" :title="`${conn.username}@${conn.host}:${conn.port}`">
                   {{ conn.username }}@{{ conn.host }}:{{ conn.port }}
                 </span>
-                <span class="text-xs text-gray-400 dark:text-gray-500 block">
-                  {{ t('dashboard.lastConnected', '上次连接:') }} {{ formatRelativeTime(conn.last_connected_at) }} <!-- TODO: Add translation --> <!-- 使用 last_connected_at -->
+                <span class="text-xs text-text-alt block">
+                  {{ t('dashboard.lastConnected', '上次连接:') }} {{ formatRelativeTime(conn.last_connected_at) }}
                 </span>
               </div>
-              <button @click="connectTo(conn)" class="button-primary button-small flex-shrink-0">
+              <button @click="connectTo(conn)" class="px-3 py-1.5 text-sm rounded border transition-colors duration-150 bg-primary text-white border-primary hover:bg-primary-dark hover:border-primary-dark flex-shrink-0"> <!-- Increased padding and font size -->
                 {{ t('connections.actions.connect') }}
               </button>
             </li>
           </ul>
-          <div v-else class="text-center text-gray-500">{{ t('dashboard.noRecentConnections', '没有最近连接记录') }}</div> <!-- TODO: Add translation -->
+          <div v-else class="text-center text-text-secondary">{{ t('dashboard.noRecentConnections', '没有最近连接记录') }}</div>
         </div>
-        <div class="card-footer px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-right">
-          <RouterLink :to="{ name: 'Workspace' }" class="text-sm text-link hover:text-link-hover">
-            {{ t('dashboard.viewAllConnections', '查看所有连接') }} <!-- TODO: Add translation -->
+        <div class="px-4 py-3 border-t border-border text-right">
+          <RouterLink :to="{ name: 'Workspace' }" class="text-sm text-link hover:text-link-hover hover:underline">
+            {{ t('dashboard.viewAllConnections', '查看所有连接') }}
           </RouterLink>
         </div>
       </div>
 
-      <!-- 最近活动 -->
-      <div class="card bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
-        <div class="card-header px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 class="text-lg font-medium">{{ t('dashboard.recentActivity', '最近活动') }}</h2> <!-- TODO: Add translation -->
+      <!-- Recent Activity -->
+      <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border">
+        <div class="px-4 py-3 border-b border-border">
+          <h2 class="text-lg font-medium">{{ t('dashboard.recentActivity', '最近活动') }}</h2>
         </div>
-        <div class="card-body p-4">
-          <div v-if="isLoadingLogs" class="text-center text-gray-500">{{ t('common.loading') }}</div>
+        <div class="p-4">
+          <div v-if="isLoadingLogs" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
           <ul v-else-if="recentAuditLogs.length > 0" class="space-y-3">
-            <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-gray-50 dark:bg-gray-700 rounded"> <!-- 使用 log.id -->
+            <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-background-alt rounded">
               <div class="flex justify-between items-start mb-1">
-                <span class="font-medium text-sm">{{ getActionTranslation(log.action_type) }}</span> <!-- 使用 log.action_type -->
-                <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 ml-2">{{ formatRelativeTime(log.timestamp) }}</span>
+                <span class="font-medium text-sm">{{ getActionTranslation(log.action_type) }}</span>
+                <span class="text-xs text-text-alt flex-shrink-0 ml-2">{{ formatRelativeTime(log.timestamp) }}</span>
               </div>
-              <p class="text-sm text-gray-600 dark:text-gray-300 break-words">{{ log.details }}</p>
+              <p class="text-sm text-text-secondary break-words">{{ log.details }}</p>
             </li>
           </ul>
-          <div v-else class="text-center text-gray-500">{{ t('dashboard.noRecentActivity', '没有最近活动记录') }}</div> <!-- TODO: Add translation -->
+          <div v-else class="text-center text-text-secondary">{{ t('dashboard.noRecentActivity', '没有最近活动记录') }}</div>
         </div>
-        <div class="card-footer px-4 py-3 border-t border-gray-200 dark:border-gray-700 text-right">
-          <RouterLink :to="{ name: 'AuditLogs' }" class="text-sm text-link hover:text-link-hover">
-            {{ t('dashboard.viewFullAuditLog', '查看完整审计日志') }} <!-- TODO: Add translation -->
+        <div class="px-4 py-3 border-t border-border text-right">
+          <RouterLink :to="{ name: 'AuditLogs' }" class="text-sm text-link hover:text-link-hover hover:underline">
+            {{ t('dashboard.viewFullAuditLog', '查看完整审计日志') }}
           </RouterLink>
         </div>
       </div>
@@ -185,59 +185,3 @@ const getActionTranslation = (actionType: string): string => {
     </div>
   </div>
 </template>
-
-<style scoped>
-/* 使用 Tailwind 类，这里可以添加一些特定于此视图的微调样式 */
-.card {
-  /* 卡片基础样式 */
-}
-.card-header {
-  /* 卡片头部样式 */
-}
-.card-body {
-  /* 卡片主体样式 */
-}
-.card-footer {
-  /* 卡片底部样式 */
-}
-
-/* 按钮小型化 */
-.button-small {
-    padding: 0.3rem 0.6rem !important;
-    font-size: 0.85rem !important;
-}
-
-/* 主按钮样式 (假设全局或组件库已定义) */
-.button-primary {
-    background-color: var(--button-bg-color);
-    color: var(--button-text-color);
-    border: 1px solid transparent;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-.button-primary:hover {
-    background-color: var(--button-hover-bg-color);
-}
-
-/* 链接样式 */
-.text-link {
-  color: var(--link-color);
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-.text-link-hover:hover {
-  color: var(--link-hover-color);
-  text-decoration: underline;
-}
-
-/* 暗黑模式下的颜色变量 (假设已通过全局 CSS 或 store 应用) */
-.dark .dark\:bg-gray-800 { background-color: var(--app-bg-color); } /* 示例 */
-.dark .dark\:bg-gray-700 { background-color: var(--header-bg-color); } /* 示例 */
-.dark .dark\:border-gray-700 { border-color: var(--border-color); } /* 示例 */
-.dark .dark\:text-gray-300 { color: var(--text-color); } /* 示例 */
-.dark .dark\:text-gray-400 { color: var(--text-color-secondary); } /* 示例 */
-.dark .dark\:text-gray-500 { color: var(--text-color-secondary); opacity: 0.7; } /* 示例 */
-.dark .dark\:hover\:bg-gray-600:hover { background-color: rgba(255, 255, 255, 0.1); } /* 示例 */
-
-</style>
