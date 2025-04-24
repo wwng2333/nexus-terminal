@@ -691,33 +691,54 @@ watch(() => props.sessionId, (newSessionId, oldSessionId) => {
 // onBeforeUnmount 中 cleanupSftpHandlers 的调用已移至新的 onBeforeUnmount 逻辑中
 
 // +++ 注册/注销自定义聚焦动作 +++
-let unregisterFocusAction: (() => void) | null = null; // 用于存储注销函数
+let unregisterSearchFocusAction: (() => void) | null = null; // 搜索框注销函数
+let unregisterPathFocusAction: (() => void) | null = null; // 路径编辑框注销函数
 
 onMounted(() => {
-  // 注册一个 async 函数以兼容 Promise 返回类型
-  const focusActionWrapper = async (): Promise<boolean | undefined> => {
+  // 注册搜索框聚焦动作
+  const focusSearchActionWrapper = async (): Promise<boolean | undefined> => {
     if (props.sessionId === sessionStore.activeSessionId) {
-      // 如果是活动会话，调用聚焦函数并返回其结果
-      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Executing focus action for active session.`);
-      return focusSearchInput(); // focusSearchInput 返回 boolean
+      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Executing search focus action for active session.`);
+      return focusSearchInput();
     } else {
-      // 如果不是活动会话，返回 undefined 表示跳过
-      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Focus action skipped for inactive session.`);
+      console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Search focus action skipped for inactive session.`);
       return undefined;
     }
   };
-  // 调用 registerFocusAction 并存储返回的注销函数
-  unregisterFocusAction = focusSwitcherStore.registerFocusAction('fileManagerSearch', focusActionWrapper);
+  unregisterSearchFocusAction = focusSwitcherStore.registerFocusAction('fileManagerSearch', focusSearchActionWrapper);
+
+  // 注册路径编辑框聚焦动作
+  const focusPathActionWrapper = async (): Promise<boolean | undefined> => {
+     if (props.sessionId === sessionStore.activeSessionId) {
+       console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Executing path edit focus action for active session.`);
+       // startPathEdit 本身不是 async，但注册时需要包装成 async 以匹配类型
+       startPathEdit(); // 调用暴露的方法
+       // 假设 startPathEdit 总是尝试聚焦，这里返回 true 表示已尝试
+       // 注意：startPathEdit 内部没有返回成功与否，这里乐观返回 true
+       // 如果需要更精确，startPathEdit 需要返回 boolean
+       return true;
+     } else {
+       console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Path edit focus action skipped for inactive session.`);
+       return undefined;
+     }
+  };
+  unregisterPathFocusAction = focusSwitcherStore.registerFocusAction('fileManagerPathInput', focusPathActionWrapper);
 });
 
 onBeforeUnmount(() => {
-  // 调用存储的注销函数
-  if (unregisterFocusAction) {
-    unregisterFocusAction();
-    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Unregistered focus action on unmount.`);
+  // 注销搜索框动作
+  if (unregisterSearchFocusAction) {
+    unregisterSearchFocusAction();
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Unregistered search focus action on unmount.`);
   }
-  // 清理对函数的引用
-  unregisterFocusAction = null;
+  unregisterSearchFocusAction = null;
+
+  // 注销路径编辑框动作
+  if (unregisterPathFocusAction) {
+    unregisterPathFocusAction();
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Unregistered path edit focus action on unmount.`);
+  }
+  unregisterPathFocusAction = null;
   // // 调用注入的 SFTP 管理器提供的清理函数 (移除，由 store 处理)
   // cleanupSftpHandlers();
   // 调用 store 的清理方法
@@ -883,7 +904,7 @@ const focusSearchInput = (): boolean => {
   console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Could not focus search input.`);
   return false;
 };
-defineExpose({ focusSearchInput });
+defineExpose({ focusSearchInput, startPathEdit });
 
 </script>
 
@@ -912,6 +933,7 @@ defineExpose({ focusSearchInput });
             type="text"
             v-model="editablePath"
             class="flex-grow bg-transparent text-foreground p-0.5 outline-none min-w-[100px]"
+            data-focus-id="fileManagerPathInput"
             @keyup.enter="handlePathInput"
             @blur="handlePathInput"
             @keyup.esc="cancelPathEdit"
