@@ -85,9 +85,15 @@ export type AuditLogActionType =
   | 'TAG_CREATED' | 'TAG_UPDATED' | 'TAG_DELETED'
   | 'SETTINGS_UPDATED' | 'IP_WHITELIST_UPDATED'
   | 'NOTIFICATION_SETTING_CREATED' | 'NOTIFICATION_SETTING_UPDATED' | 'NOTIFICATION_SETTING_DELETED'
-  | 'API_KEY_CREATED' | 'API_KEY_DELETED'
+  // | 'API_KEY_CREATED' | 'API_KEY_DELETED' // Removed API Key types
   | 'SFTP_ACTION'
-  | 'SERVER_STARTED' | 'SERVER_ERROR' | 'DATABASE_MIGRATION';
+  // SSH Actions
+  | 'SSH_CONNECT_SUCCESS' | 'SSH_CONNECT_FAILURE' | 'SSH_SHELL_FAILURE'
+  // System/Error
+  | 'SERVER_STARTED' | 'SERVER_ERROR' | 'DATABASE_MIGRATION' | 'ADMIN_SETUP_COMPLETE';
+  // Settings (Specific)
+  // | 'FOCUS_SWITCHER_SEQUENCE_UPDATED'; // Removed Focus Switcher type
+
 
 // Structure for a single log entry received from the API
 export interface AuditLogEntry {

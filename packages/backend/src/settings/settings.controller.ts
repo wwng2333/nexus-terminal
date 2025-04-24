@@ -110,8 +110,8 @@ export const settingsController = {
       await settingsService.setFocusSwitcherSequence(fullConfig);
       console.log('[Controller] settingsService.setFocusSwitcherSequence completed successfully.');
 
-      console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED');
-      auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { config: fullConfig }); // +++ 修改审计日志内容 +++
+      console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED'); // Keep console log for now if needed
+      // auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { config: fullConfig }); // Removed specific log
 
       console.log('[Controller] Sending success response.');
       res.status(200).json({ message: '焦点切换顺序已成功更新' });

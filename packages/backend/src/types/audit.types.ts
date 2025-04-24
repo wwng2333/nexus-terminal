@@ -31,16 +31,16 @@ export type AuditLogActionType =
   // Settings
   | 'SETTINGS_UPDATED' // General settings update
   | 'IP_WHITELIST_UPDATED' // Specific setting update
-  | 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // +++ 新增：焦点切换顺序更新 +++
+  // | 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // Removed
 
   // Notifications
   | 'NOTIFICATION_SETTING_CREATED'
   | 'NOTIFICATION_SETTING_UPDATED'
   | 'NOTIFICATION_SETTING_DELETED'
 
-  // API Keys
-  | 'API_KEY_CREATED'
-  | 'API_KEY_DELETED'
+  // API Keys (Removed from audit log types)
+  // | 'API_KEY_CREATED'
+  // | 'API_KEY_DELETED'
 
   // SFTP (Consider logging specific actions if needed, e.g., UPLOAD, DOWNLOAD, DELETE_FILE)
   | 'SFTP_ACTION' // Generic SFTP action for now
