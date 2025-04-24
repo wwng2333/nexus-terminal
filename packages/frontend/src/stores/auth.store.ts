@@ -74,7 +74,8 @@ export const useAuthStore = defineStore('auth', {
                     if (this.user?.language) {
                         setLocale(this.user.language);
                     }
-                    await router.push({ name: 'Workspace' });
+                    // await router.push({ name: 'Workspace' }); // 改为页面刷新
+                    window.location.href = '/'; // 跳转到根路径并刷新
                     return { success: true };
                 } else {
                     // 不应该发生，但作为防御性编程
@@ -110,7 +111,8 @@ export const useAuthStore = defineStore('auth', {
                 if (this.user?.language) {
                     setLocale(this.user.language);
                 }
-                await router.push({ name: 'Workspace' });
+                // await router.push({ name: 'Workspace' }); // 改为页面刷新
+                window.location.href = '/'; // 跳转到根路径并刷新
                 return { success: true };
             } catch (err: any) {
                 console.error('2FA 验证失败:', err);
