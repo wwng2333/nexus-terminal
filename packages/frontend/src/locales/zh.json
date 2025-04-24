@@ -571,6 +571,36 @@
       "error": {
         "sidebarPersistentSaveFailed": "保存侧边栏设置失败。"
       }
+    },
+    "ipBlacklist": {
+      "title": "IP 黑名单管理",
+      "description": "配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。",
+      "maxAttemptsLabel": "最大失败次数:",
+      "banDurationLabel": "封禁时长 (秒):",
+      "saveConfigButton": "保存配置",
+      "currentBannedTitle": "当前已封禁的 IP 地址",
+      "loadingList": "正在加载黑名单...",
+      "noBannedIps": "当前没有 IP 地址在黑名单中。",
+      "confirmRemoveIp": "确定要从黑名单中移除 IP 地址 \"{ip}\" 吗？",
+      "table": {
+        "ipAddress": "IP 地址",
+        "attempts": "失败次数",
+        "lastAttempt": "最后尝试时间",
+        "bannedUntil": "封禁截止时间",
+        "actions": "操作",
+        "removeButton": "移除",
+        "deleting": "删除中..."
+      },
+      "success": {
+        "configUpdated": "黑名单配置已成功更新。"
+      },
+      "error": {
+        "fetchFailed": "获取黑名单失败",
+        "deleteFailed": "删除失败",
+        "invalidMaxAttempts": "最大失败次数必须是正整数。",
+        "invalidBanDuration": "封禁时长必须是正整数（秒）。",
+        "updateConfigFailed": "更新黑名单配置失败"
+      }
     }
   },
   "common": {

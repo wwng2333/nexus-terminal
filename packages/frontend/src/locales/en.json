@@ -571,6 +571,36 @@
       "error": {
         "sidebarPersistentSaveFailed": "Failed to save sidebar setting."
       }
+    },
+    "ipBlacklist": {
+      "title": "IP Blacklist Management",
+      "description": "Configure login attempt limits and automatic ban duration. Local addresses (127.0.0.1, ::1) will not be banned.",
+      "maxAttemptsLabel": "Max Failed Attempts:",
+      "banDurationLabel": "Ban Duration (seconds):",
+      "saveConfigButton": "Save Configuration",
+      "currentBannedTitle": "Currently Banned IP Addresses",
+      "loadingList": "Loading blacklist...",
+      "noBannedIps": "No IP addresses are currently in the blacklist.",
+      "confirmRemoveIp": "Are you sure you want to remove the IP address \"{ip}\" from the blacklist?",
+      "table": {
+        "ipAddress": "IP Address",
+        "attempts": "Attempts",
+        "lastAttempt": "Last Attempt",
+        "bannedUntil": "Banned Until",
+        "actions": "Actions",
+        "removeButton": "Remove",
+        "deleting": "Deleting..."
+      },
+      "success": {
+        "configUpdated": "Blacklist configuration updated successfully."
+      },
+      "error": {
+        "fetchFailed": "Failed to fetch blacklist",
+        "deleteFailed": "Failed to delete",
+        "invalidMaxAttempts": "Max failed attempts must be a positive integer.",
+        "invalidBanDuration": "Ban duration must be a positive integer (seconds).",
+        "updateConfigFailed": "Failed to update blacklist configuration"
+      }
     }
   },
   "common": {

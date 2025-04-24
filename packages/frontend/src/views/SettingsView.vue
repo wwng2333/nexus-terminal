@@ -146,44 +146,44 @@
 
           <!-- IP Blacklist (Full Width within Security Column) -->
            <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
-             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">IP 黑名单管理</h2>
+             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.ipBlacklist.title') }}</h2>
              <div class="p-6 space-y-6">
-                <p class="text-sm text-text-secondary">配置登录失败次数限制和自动封禁时长。本地地址 (127.0.0.1, ::1) 不会被封禁。</p>
+                <p class="text-sm text-text-secondary">{{ $t('settings.ipBlacklist.description') }}</p>
                 <!-- Blacklist config form -->
                 <form @submit.prevent="handleUpdateBlacklistSettings" class="flex flex-wrap items-end gap-4 pt-4 border-t border-border/50">
                    <div class="flex-grow min-w-[150px]">
-                     <label for="maxLoginAttempts" class="block text-sm font-medium text-text-secondary mb-1">最大失败次数:</label>
+                     <label for="maxLoginAttempts" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.ipBlacklist.maxAttemptsLabel') }}</label>
                      <input type="number" id="maxLoginAttempts" v-model="blacklistSettingsForm.maxLoginAttempts" min="1" required
                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
                    </div>
                    <div class="flex-grow min-w-[150px]">
-                     <label for="loginBanDuration" class="block text-sm font-medium text-text-secondary mb-1">封禁时长 (秒):</label>
+                     <label for="loginBanDuration" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.ipBlacklist.banDurationLabel') }}</label>
                      <input type="number" id="loginBanDuration" v-model="blacklistSettingsForm.loginBanDuration" min="1" required
                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
                    </div>
                    <div class="flex-shrink-0">
                       <button type="submit" :disabled="blacklistSettingsLoading"
                               class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ blacklistSettingsLoading ? $t('common.saving') : '保存配置' }}
+                        {{ blacklistSettingsLoading ? $t('common.saving') : $t('settings.ipBlacklist.saveConfigButton') }}
                       </button>
                    </div>
                    <p v-if="blacklistSettingsMessage" :class="['w-full mt-2 text-sm', blacklistSettingsSuccess ? 'text-success' : 'text-error']">{{ blacklistSettingsMessage }}</p>
                 </form>
                 <hr class="border-border/50">
                 <!-- Blacklist table -->
-                <h3 class="text-base font-semibold text-foreground">当前已封禁的 IP 地址</h3>
-                <div v-if="ipBlacklist.loading" class="p-4 text-center text-text-secondary italic">正在加载黑名单...</div>
+                <h3 class="text-base font-semibold text-foreground">{{ $t('settings.ipBlacklist.currentBannedTitle') }}</h3>
+                <div v-if="ipBlacklist.loading" class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.loadingList') }}</div>
                 <div v-if="ipBlacklist.error" class="p-3 border-l-4 border-error bg-error/10 text-error text-sm rounded">{{ ipBlacklist.error }}</div>
                 <div v-if="!ipBlacklist.loading && !ipBlacklist.error">
                   <div v-if="ipBlacklist.entries.length > 0" class="overflow-x-auto border border-border rounded-lg shadow-sm bg-background">
                     <table class="min-w-full divide-y divide-border text-sm">
                        <thead class="bg-header">
                          <tr>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">IP 地址</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">失败次数</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">最后尝试时间</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">封禁截止时间</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">操作</th>
+                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.ipAddress') }}</th>
+                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.attempts') }}</th>
+                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.lastAttempt') }}</th>
+                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.bannedUntil') }}</th>
+                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.actions') }}</th>
                          </tr>
                        </thead>
                        <tbody class="divide-y divide-border">
@@ -191,21 +191,21 @@
                            <td class="px-4 py-2 whitespace-nowrap">{{ entry.ip }}</td>
                            <td class="px-4 py-2 whitespace-nowrap">{{ entry.attempts }}</td>
                            <td class="px-4 py-2 whitespace-nowrap">{{ new Date(entry.last_attempt_at * 1000).toLocaleString() }}</td>
-                           <td class="px-4 py-2 whitespace-nowrap">{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : 'N/A' }}</td>
+                           <td class="px-4 py-2 whitespace-nowrap">{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : $t('statusMonitor.notAvailable') }}</td>
                            <td class="px-4 py-2 whitespace-nowrap">
                              <button
                                @click="handleDeleteIp(entry.ip)"
                                :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
                                class="px-2 py-1 bg-error text-white rounded text-xs font-medium hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
                              >
-                               {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? '删除中...' : '移除' }}
+                               {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? $t('settings.ipBlacklist.table.deleting') : $t('settings.ipBlacklist.table.removeButton') }}
                              </button>
                            </td>
                          </tr>
                        </tbody>
                     </table>
                   </div>
-                  <p v-else class="p-4 text-center text-text-secondary italic">当前没有 IP 地址在黑名单中。</p>
+                  <p v-else class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.noBannedIps') }}</p>
                    <p v-if="blacklistDeleteError" class="mt-3 text-sm text-error">{{ blacklistDeleteError }}</p>
                 </div>
              </div>
@@ -794,7 +794,7 @@ const fetchIpBlacklist = async (page = 1) => {
         ipBlacklist.total = data.total;
         ipBlacklist.currentPage = page;
     } catch (error: any) {
-        ipBlacklist.error = error.message || '获取黑名单失败';
+        ipBlacklist.error = error.message || t('settings.ipBlacklist.error.fetchFailed');
     } finally {
         ipBlacklist.loading = false;
     }
@@ -802,7 +802,7 @@ const fetchIpBlacklist = async (page = 1) => {
 
 const handleDeleteIp = async (ip: string) => {
     blacklistToDeleteIp.value = ip;
-    if (confirm(`确定要从黑名单中移除 IP 地址 "${ip}" 吗？`)) {
+    if (confirm(t('settings.ipBlacklist.confirmRemoveIp', { ip }))) {
         blacklistDeleteLoading.value = true;
         blacklistDeleteError.value = null;
         try {
@@ -810,7 +810,7 @@ const handleDeleteIp = async (ip: string) => {
             await authStore.deleteIpFromBlacklist(ip);
             await fetchIpBlacklist(ipBlacklist.currentPage);
         } catch (error: any) {
-            blacklistDeleteError.value = error.message || '删除失败';
+            blacklistDeleteError.value = error.message || t('settings.ipBlacklist.error.deleteFailed');
         } finally {
             blacklistDeleteLoading.value = false;
             blacklistToDeleteIp.value = null;
@@ -829,20 +829,20 @@ const handleUpdateBlacklistSettings = async () => {
         const maxAttempts = parseInt(blacklistSettingsForm.maxLoginAttempts, 10);
         const banDuration = parseInt(blacklistSettingsForm.loginBanDuration, 10);
         if (isNaN(maxAttempts) || maxAttempts <= 0) {
-            throw new Error('最大失败次数必须是正整数。');
+            throw new Error(t('settings.ipBlacklist.error.invalidMaxAttempts'));
         }
         if (isNaN(banDuration) || banDuration <= 0) {
-            throw new Error('封禁时长必须是正整数（秒）。');
+            throw new Error(t('settings.ipBlacklist.error.invalidBanDuration'));
         }
         await settingsStore.updateMultipleSettings({
             maxLoginAttempts: blacklistSettingsForm.maxLoginAttempts,
             loginBanDuration: blacklistSettingsForm.loginBanDuration,
         });
-        blacklistSettingsMessage.value = '黑名单配置已成功更新。';
+        blacklistSettingsMessage.value = t('settings.ipBlacklist.success.configUpdated');
         blacklistSettingsSuccess.value = true;
     } catch (error: any) {
         console.error('更新黑名单配置失败:', error);
-        blacklistSettingsMessage.value = error.message || '更新黑名单配置失败';
+        blacklistSettingsMessage.value = error.message || t('settings.ipBlacklist.error.updateConfigFailed');
         blacklistSettingsSuccess.value = false;
     } finally {
         blacklistSettingsLoading.value = false;
