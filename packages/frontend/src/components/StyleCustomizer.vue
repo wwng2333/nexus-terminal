@@ -193,22 +193,22 @@ const darkModeTheme = {
   '--text-color': '#e9ecef',
   '--text-color-secondary': '#adb5bd',
   '--border-color': '#495057',
-  '--link-color': '#6cb2eb',
-  '--link-hover-color': '#91caff',
-  '--link-active-color': '#3498db',
-  '--link-active-bg-color': 'rgba(52, 152, 219, 0.2)',
+  '--link-color': '#BB86FC', // 现代紫色 - 亮 (Material Design Purple 200)
+  '--link-hover-color': '#D1A9FF', // 现代紫色 - 悬停 (更亮)
+  '--link-active-color': '#A06CD5', // 现代紫色 - 激活 (与默认主题一致)
+  '--link-active-bg-color': 'rgba(160, 108, 213, 0.2)', /* 现代紫色 - 激活背景 (暗模式) */
   '--nav-item-active-bg-color': 'var(--link-active-bg-color)',
   '--header-bg-color': '#343a40',
   '--footer-bg-color': '#343a40',
-  '--button-bg-color': 'var(--link-active-color)',
+  '--button-bg-color': 'var(--link-active-color)', // 自动更新
   '--button-text-color': '#ffffff',
-  '--button-hover-bg-color': '#2980b9',
+  '--button-hover-bg-color': '#8E44AD', // 现代紫色 - 悬停 (与默认主题一致)
   '--icon-color': 'var(--text-color-secondary)',
-  '--icon-hover-color': 'var(--link-hover-color)',
+  '--icon-hover-color': 'var(--link-hover-color)', // 自动更新
   '--split-line-color': 'var(--border-color)',
   '--split-line-hover-color': 'var(--border-color)',
-  '--input-focus-border-color': 'var(--link-active-color)',
-  '--input-focus-glow': 'var(--link-active-color)',
+  '--input-focus-border-color': 'var(--link-active-color)', // 自动更新
+  '--input-focus-glow': 'var(--link-active-color)', // 自动更新
   '--ssh-tab-active': 'transparent',
   '--ssh-tab-background': 'transparent',
   '--overlay-bg-color': 'rgba(0, 0, 0, 0.8)',
