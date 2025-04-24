@@ -179,8 +179,6 @@ const handleSaveUiTheme = async () => {
 const handleResetUiTheme = async () => {
     try {
         await appearanceStore.resetCustomUiTheme();
-        // watch 会自动更新 editableUiTheme.value
-        alert(t('styleCustomizer.uiThemeReset'));
     } catch (error: any) {
         console.error("重置 UI 主题失败:", error);
          alert(t('styleCustomizer.uiThemeResetFailed', { message: error.message }));
@@ -226,8 +224,6 @@ const applyDarkMode = async () => {
     // 深拷贝覆盖当前编辑的主题
     editableUiTheme.value = JSON.parse(JSON.stringify(darkModeTheme));
     await appearanceStore.saveCustomUiTheme(editableUiTheme.value);
-    // TODO: 添加 i18n 翻译 'styleCustomizer.darkModeApplied'
-    alert(t('styleCustomizer.darkModeApplied', '黑暗模式已应用'));
   } catch (error: any) {
     console.error("应用黑暗模式失败:", error);
     // TODO: 添加 i18n 翻译 'styleCustomizer.darkModeApplyFailed'
