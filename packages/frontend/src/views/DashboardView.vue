@@ -133,7 +133,7 @@ const getActionTranslation = (actionType: string): string => {
         <div class="p-4">
           <div v-if="isLoadingConnections" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
           <ul v-else-if="recentConnections.length > 0" class="space-y-3">
-            <li v-for="conn in recentConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-background-alt rounded hover:bg-hover transition duration-150 ease-in-out">
+            <li v-for="conn in recentConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-header/50 border border-border/50 rounded transition duration-150 ease-in-out"> <!-- Applied audit log item style -->
               <div class="flex-grow mr-4 overflow-hidden">
                 <span class="font-medium block truncate" :title="conn.name || ''">{{ conn.name || 'Unnamed' }}</span>
                 <span class="text-sm text-text-secondary block truncate" :title="`${conn.username}@${conn.host}:${conn.port}`">
@@ -150,11 +150,6 @@ const getActionTranslation = (actionType: string): string => {
           </ul>
           <div v-else class="text-center text-text-secondary">{{ t('dashboard.noRecentConnections', '没有最近连接记录') }}</div>
         </div>
-        <div class="px-4 py-3 border-t border-border text-right">
-          <RouterLink :to="{ name: 'Workspace' }" class="text-sm text-link hover:text-link-hover hover:underline">
-            {{ t('dashboard.viewAllConnections', '查看所有连接') }}
-          </RouterLink>
-        </div>
       </div>
 
       <!-- Recent Activity -->
@@ -165,7 +160,7 @@ const getActionTranslation = (actionType: string): string => {
         <div class="p-4">
           <div v-if="isLoadingLogs" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
           <ul v-else-if="recentAuditLogs.length > 0" class="space-y-3">
-            <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-background-alt rounded">
+            <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-header/50 border border-border/50 rounded"> <!-- Applied audit log item style -->
               <div class="flex justify-between items-start mb-1">
                 <span class="font-medium text-sm">{{ getActionTranslation(log.action_type) }}</span>
                 <span class="text-xs text-text-alt flex-shrink-0 ml-2">{{ formatRelativeTime(log.timestamp) }}</span>
