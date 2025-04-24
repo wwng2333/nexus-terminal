@@ -26,6 +26,8 @@ app.use(i18n); // 使用 i18n
 // 使用 async IIFE 来允许顶层 await
 (async () => {
   const authStore = useAuthStore(pinia); // 实例化 Auth Store
+  // **提前实例化 AppearanceStore 以确保 immediate watcher 运行**
+  const appearanceStore = useAppearanceStore(pinia);
 
   try {
     // 1. 检查是否需要初始设置
@@ -47,11 +49,11 @@ app.use(i18n); // 使用 i18n
         // 3a. 如果已认证，加载用户设置和外观数据
         console.log("用户已认证，加载设置和外观数据...");
         const settingsStore = useSettingsStore(pinia);
-        const appearanceStore = useAppearanceStore(pinia);
+        // appearanceStore 已在外部实例化
         try {
           await Promise.all([
             settingsStore.loadInitialSettings(),
-            appearanceStore.loadInitialAppearanceData()
+            appearanceStore.loadInitialAppearanceData() // 调用已实例化的 store 的 action
           ]);
           console.log("用户设置和外观数据加载完成。");
         } catch (error) {
@@ -60,6 +62,7 @@ app.use(i18n); // 使用 i18n
         }
       } else {
         // 3b. 如果未认证，不需要加载用户特定数据
+        // 但 appearanceStore 已实例化，其 immediate watcher 会应用默认主题
         console.log("用户未认证。");
       }
 

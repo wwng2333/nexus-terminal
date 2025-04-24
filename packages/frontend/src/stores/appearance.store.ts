@@ -470,7 +470,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
     // 监听 UI 主题变化并应用
     watch(currentUiTheme, (newTheme) => {
         applyUiTheme(newTheme);
-    }, { deep: true });
+    }, { deep: true, immediate: true }); // 添加 immediate: true 确保初始加载时应用默认主题
 
     // 监听页面背景变化并应用
     watch(pageBackgroundImage, () => { // 只监听图片变化
