@@ -194,22 +194,22 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
 
 <style scoped>
 .layout-node-editor {
-  border: 1px solid var(--border-color);
+  /* border: 1px solid var(--border-color);
   margin: var(--base-margin);
-  padding: var(--base-margin); /* Or define a specific padding variable */
+  padding: var(--base-margin); 
   position: relative;
-  background-color: var(--header-bg-color); /* Use header background color */
-  min-height: 60px; /* Keep specific height or make variable */
+  background-color: var(--header-bg-color); 
+  min-height: 60px; 
   display: flex;
-  flex-direction: column;
+  flex-direction: column; */
 }
 
-.node-type-container {
-  background-color: var(--app-bg-color); /* Consider a dedicated var(--container-bg-color) */
+/* .node-type-container {
+  background-color: var(--app-bg-color); 
 }
 .node-type-pane {
-  background-color: var(--app-bg-color); /* Consider a dedicated var(--pane-bg-color), maybe light green */
-}
+  background-color: var(--app-bg-color);
+} */
 
 .node-controls {
   display: flex;
