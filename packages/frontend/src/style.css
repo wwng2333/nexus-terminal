@@ -82,7 +82,7 @@ body {
 
 /* 全局链接样式 */
 a {
-  color: var(--link-color);
+  /* color: var(--link-color); */ /* 注释掉全局 a 标签的颜色设置，让 Tailwind 类生效 */
   text-decoration: none; /* 移除下划线 */
 }
 
