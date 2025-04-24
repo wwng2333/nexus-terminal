@@ -1,68 +1,84 @@
 <template>
-  <div class="flex justify-center items-center min-h-[calc(100vh-150px)] p-8 bg-background">
-    <div class="bg-background text-foreground p-8 md:p-12 rounded-lg shadow-lg w-full max-w-md border border-border"> <!-- Changed bg-dialog to bg-background, text-dialog-text to text-foreground -->
-      <!-- Logo -->
-      <div class="flex justify-center mb-6">
-        <img src="../assets/logo.png" alt="Project Logo" class="h-20 w-auto"> <!-- 增大 logo 高度 -->
+  <!-- Page Container with Subtle Dot Background -->
+  <div class="flex items-center justify-center min-h-screen bg-background p-4 bg-[radial-gradient(theme(colors.border)_1px,transparent_1px)] bg-[size:16px_16px]">
+    <!-- Setup Card -->
+    <div class="flex w-full max-w-4xl rounded-xl shadow-2xl overflow-hidden bg-background border border-border/20">
+      <!-- Left Panel (Brand) - Hidden on small screens -->
+      <div class="hidden md:flex w-2/5 bg-gradient-to-br from-primary to-primary-dark flex-col items-center justify-center p-10 text-white relative">
+         <!-- Subtle pattern or overlay could go here -->
+         <div class="z-10 text-center">
+           <img src="../assets/logo.png" alt="Project Logo" class="h-20 w-auto mb-5 mx-auto">
+           <h1 class="text-3xl font-bold mb-2">{{ $t('projectName') }}</h1>
+           <p class="text-base opacity-80">{{ $t('setup.description') }}</p> <!-- Moved description here -->
+         </div>
       </div>
-      <h2 class="text-center text-2xl font-semibold mb-4 text-foreground">{{ $t('setup.title') }}</h2>
-      <p class="text-center text-sm text-text-secondary mb-6">
-        {{ $t('setup.description') }}
-      </p>
-      <form @submit.prevent="handleSetup">
-        <div class="mb-6">
-          <label for="username" class="block mb-2 font-bold text-text-secondary">{{ $t('setup.username') }}:</label>
-          <input
-            id="username"
-            v-model="username"
-            name="username"
-            type="text"
-            required
-            :disabled="isLoading"
-            :placeholder="$t('setup.usernamePlaceholder')"
-            class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-600"
-          />
-        </div>
-        <div class="mb-6">
-          <label for="password" class="block mb-2 font-bold text-text-secondary">{{ $t('setup.password') }}:</label>
-          <input
-            id="password"
-            v-model="password"
-            name="password"
-            type="password"
-            required
-            :disabled="isLoading"
-            :placeholder="$t('setup.passwordPlaceholder')"
-            class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-600"
-          />
-        </div>
-        <div class="mb-6">
-          <label for="confirmPassword" class="block mb-2 font-bold text-text-secondary">{{ $t('setup.confirmPassword') }}:</label>
-          <input
-            id="confirmPassword"
-            v-model="confirmPassword"
-            name="confirmPassword"
-            type="password"
-            required
-            :disabled="isLoading"
-            :placeholder="$t('setup.confirmPasswordPlaceholder')"
-            class="w-full px-4 py-3 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150 disabled:bg-gray-200 disabled:cursor-not-allowed dark:disabled:bg-gray-600"
-          />
-        </div>
 
-        <div v-if="error" class="text-error bg-error/10 border border-error/20 px-5 py-3 mb-4 rounded text-center text-sm">
-          {{ error }}
-        </div>
-         <div v-if="successMessage" class="text-success bg-success/10 border border-success/20 px-5 py-3 mb-4 rounded text-center text-sm">
-          {{ successMessage }}
-        </div>
+      <!-- Right Panel (Setup Form) -->
+      <div class="w-full md:w-3/5 flex flex-col justify-center p-8 sm:p-12">
+        <!-- Mobile Logo & Title (optional) -->
+         <div class="flex flex-col items-center mb-6 md:hidden">
+           <img src="../assets/logo.png" alt="Project Logo" class="h-16 w-auto mb-3">
+           <h2 class="text-xl font-semibold text-foreground">{{ $t('setup.title') }}</h2>
+           <p class="text-sm text-text-secondary mt-1">{{ $t('setup.description') }}</p>
+         </div>
+         <!-- Desktop Title (Subtle) -->
+         <h2 class="text-2xl font-semibold mb-6 text-center text-foreground hidden md:block">{{ $t('setup.title') }}</h2>
 
-        <button type="submit" :disabled="isLoading"
-                class="w-full py-3 px-4 bg-primary text-white border-none rounded text-base cursor-pointer transition-colors duration-200 ease-in-out hover:bg-primary-dark disabled:bg-gray-400 disabled:opacity-65 disabled:cursor-not-allowed">
-          <span v-if="isLoading">{{ $t('setup.settingUp') }}</span>
-          <span v-else>{{ $t('setup.submitButton') }}</span>
-        </button>
-      </form>
+        <form @submit.prevent="handleSetup" class="space-y-5"> <!-- Reduced space slightly -->
+          <div>
+            <label for="username" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('setup.username') }}</label>
+            <input
+              id="username"
+              v-model="username"
+              name="username"
+              type="text"
+              required
+              :disabled="isLoading"
+              :placeholder="$t('setup.usernamePlaceholder')"
+              class="w-full px-4 py-3 border border-border/50 rounded-lg bg-input text-foreground text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label for="password" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('setup.password') }}</label>
+            <input
+              id="password"
+              v-model="password"
+              name="password"
+              type="password"
+              required
+              :disabled="isLoading"
+              :placeholder="$t('setup.passwordPlaceholder')"
+              class="w-full px-4 py-3 border border-border/50 rounded-lg bg-input text-foreground text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+          </div>
+          <div>
+            <label for="confirmPassword" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('setup.confirmPassword') }}</label>
+            <input
+              id="confirmPassword"
+              v-model="confirmPassword"
+              name="confirmPassword"
+              type="password"
+              required
+              :disabled="isLoading"
+              :placeholder="$t('setup.confirmPasswordPlaceholder')"
+              class="w-full px-4 py-3 border border-border/50 rounded-lg bg-input text-foreground text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out disabled:bg-gray-100 disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <div v-if="error" class="text-error bg-error/10 border border-error/20 px-4 py-2 rounded text-center text-sm"> <!-- Adjusted padding -->
+            {{ error }}
+          </div>
+           <div v-if="successMessage" class="text-success bg-success/10 border border-success/20 px-4 py-2 rounded text-center text-sm"> <!-- Adjusted padding -->
+            {{ successMessage }}
+          </div>
+
+          <button type="submit" :disabled="isLoading"
+                  class="w-full py-3 px-4 bg-primary text-white border-none rounded-lg text-base font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:opacity-70 disabled:cursor-not-allowed">
+            <span v-if="isLoading">{{ $t('setup.settingUp') }}</span>
+            <span v-else>{{ $t('setup.submitButton') }}</span>
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 {
   "appName": "Nexus Terminal",
+  "projectName": "Nexus Terminal",
   "nav": {
     "dashboard": "Dashboard",
     "terminal": "Terminal",
