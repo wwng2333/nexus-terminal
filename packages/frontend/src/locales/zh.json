@@ -634,7 +634,20 @@
     "rightSidebar": "右侧栏面板",
     "dropHere": "从可用面板拖拽到此处",
     "confirmClose": "有未保存的更改，确定要关闭吗？",
-    "confirmReset": "确定要恢复默认布局和侧栏配置吗？当前更改将丢失。"
+    "confirmReset": "确定要恢复默认布局和侧栏配置吗？当前更改将丢失。",
+    "saveError": "保存布局时出错，请稍后再试。",
+    "confirmClearLayout": "确定要清空整个布局吗？所有面板将返回可用列表。"
+  },
+  "layoutNodeEditor": {
+    "containerLabel": "容器 ({direction})",
+    "horizontal": "水平",
+    "vertical": "垂直",
+    "toggleDirection": "切换方向",
+    "addHorizontalContainer": "添加水平容器",
+    "addVerticalContainer": "添加垂直容器",
+    "removeNode": "移除此节点",
+    "dragHandle": "拖拽调整顺序或移动",
+    "dropHere": "将面板或容器拖拽到此处"
   },
   "auditLog": {
     "title": "审计日志",
@@ -840,5 +853,8 @@
     "recentActivity": "最近活动",
     "noRecentActivity": "没有最近活动记录",
     "viewFullAuditLog": "查看完整审计日志"
+  },
+  "terminalTabBar": {
+    "selectServerTitle": "选择要连接的服务器"
   }
 }

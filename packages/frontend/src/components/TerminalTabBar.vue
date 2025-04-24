@@ -182,7 +182,7 @@ const toggleButtonTitle = computed(() => {
              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
            </svg>
         </button>
-        <h3 class="text-lg font-semibold text-center mb-4">选择要连接的服务器</h3>
+        <h3 class="text-lg font-semibold text-center mb-4">{{ t('terminalTabBar.selectServerTitle') }}</h3>
         <div class="flex-grow overflow-y-auto border border-border rounded">
             <WorkspaceConnectionListComponent
               @connect-request="handlePopupConnect"

@@ -132,19 +132,19 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
     <!-- 节点控制栏 -->
     <div class="node-controls">
       <span class="node-info">
-        {{ node.type === 'pane' ? (props.paneLabels[node.component!] || node.component) : `容器 (${node.direction === 'horizontal' ? '水平' : '垂直'})` }}
+        {{ node.type === 'pane' ? (props.paneLabels[node.component!] || node.component) : t('layoutNodeEditor.containerLabel', { direction: node.direction === 'horizontal' ? t('layoutNodeEditor.horizontal') : t('layoutNodeEditor.vertical') }) }}
       </span>
       <div class="node-actions">
-         <button v-if="node.type === 'container'" @click="toggleDirection" title="切换方向" class="action-button">
+         <button v-if="node.type === 'container'" @click="toggleDirection" :title="t('layoutNodeEditor.toggleDirection')" class="action-button">
            <i class="fas fa-sync-alt"></i>
          </button>
-         <button v-if="node.type === 'container'" @click="addHorizontalContainer" title="添加水平容器" class="action-button">
+         <button v-if="node.type === 'container'" @click="addHorizontalContainer" :title="t('layoutNodeEditor.addHorizontalContainer')" class="action-button">
            <i class="fas fa-columns"></i> H
          </button>
-          <button v-if="node.type === 'container'" @click="addVerticalContainer" title="添加垂直容器" class="action-button">
+          <button v-if="node.type === 'container'" @click="addVerticalContainer" :title="t('layoutNodeEditor.addVerticalContainer')" class="action-button">
            <i class="fas fa-bars"></i> V
          </button>
-         <button @click="removeSelf" title="移除此节点" class="action-button remove-button">
+         <button @click="removeSelf" :title="t('layoutNodeEditor.removeNode')" class="action-button remove-button">
            <i class="fas fa-trash-alt"></i>
          </button>
       </div>
@@ -165,8 +165,8 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
     >
       <template #item="{ element: childNode, index }">
         <div class="child-node-wrapper" :key="childNode.id"> 
-           <i class="fas fa-grip-vertical drag-handle-node" title="拖拽调整顺序或移动"></i>
-           
+           <i class="fas fa-grip-vertical drag-handle-node" :title="t('layoutNodeEditor.dragHandle')"></i>
+
            <LayoutNodeEditor
              :node="childNode"
              :parent-node="node"
@@ -180,7 +180,7 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
        <!-- 容器为空时的占位符 -->
        <template #footer>
          <div v-if="!childrenList || childrenList.length === 0" class="empty-container-placeholder">
-           将面板或容器拖拽到此处
+           {{ t('layoutNodeEditor.dropHere') }}
          </div>
        </template>
     </draggable>

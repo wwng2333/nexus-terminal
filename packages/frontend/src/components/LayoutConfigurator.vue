@@ -191,7 +191,7 @@ const saveLayout = async () => { // Make async
   } catch (error) {
       console.error('[LayoutConfigurator] Error saving layout:', error);
       // Optionally notify the user about the error
-      alert(t('layoutConfigurator.saveError', '保存布局时出错，请稍后再试。'));
+      alert(t('layoutConfigurator.saveError', '保存布局时出错，请稍后再试。')); // Keep default text for now
   }
 };
 
@@ -277,7 +277,7 @@ function findAndRemoveNode(node: LayoutNode | null, parentNodeId: string | undef
 const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex: number }) => {
   console.log('[LayoutConfigurator] Received node remove request:', payload);
   if (payload.parentNodeId === undefined && payload.nodeIndex === 0) {
-     if (confirm(t('layoutConfigurator.confirmClearLayout', '确定要清空整个布局吗？所有面板将返回可用列表。'))) {
+     if (confirm(t('layoutConfigurator.confirmClearLayout', '确定要清空整个布局吗？所有面板将返回可用列表。'))) { // Keep default text for now
        // Add all panes from the tree back to available list before clearing - REMOVED, no longer needed
        // const usedInTree = getMainLayoutUsedPaneNames(localLayoutTree.value);
        // usedInTree.forEach(paneName => addPaneToAvailableList(paneName));

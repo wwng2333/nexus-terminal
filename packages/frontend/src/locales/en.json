@@ -629,7 +629,23 @@
     "layoutPreview": "Layout Preview",
     "resetDefault": "Reset to Default",
     "noAvailablePanes": "All panes are already in the layout",
-    "emptyLayout": "Layout is empty. Drag panes from the left or add a container."
+    "emptyLayout": "Layout is empty. Drag panes from the left or add a container.",
+    "leftSidebar": "Left Sidebar Panes",
+    "rightSidebar": "Right Sidebar Panes",
+    "dropHere": "Drop panes from available list here",
+    "saveError": "Error saving layout. Please try again later.",
+    "confirmClearLayout": "Are you sure you want to clear the entire layout? All panes will return to the available list."
+  },
+  "layoutNodeEditor": {
+    "containerLabel": "Container ({direction})",
+    "horizontal": "Horizontal",
+    "vertical": "Vertical",
+    "toggleDirection": "Toggle Direction",
+    "addHorizontalContainer": "Add Horizontal Container",
+    "addVerticalContainer": "Add Vertical Container",
+    "removeNode": "Remove this node",
+    "dragHandle": "Drag to reorder or move",
+    "dropHere": "Drop panes or containers here"
   },
   "auditLog": {
     "title": "Audit Logs",
@@ -835,5 +851,8 @@
     "recentActivity": "Recent Activity",
     "noRecentActivity": "No recent activity records",
     "viewFullAuditLog": "View Full Audit Log"
+  },
+  "terminalTabBar": {
+    "selectServerTitle": "Select server to connect"
   }
 }
