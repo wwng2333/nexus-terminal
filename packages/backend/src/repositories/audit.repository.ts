@@ -50,23 +50,40 @@ export class AuditLogRepository {
      * @param actionType 可选的操作类型过滤
      * @param startDate 可选的开始时间戳 (秒)
      * @param endDate 可选的结束时间戳 (秒)
+     * @param searchTerm 可选的搜索关键词 (模糊匹配 details)
      */
     async getLogs(
         limit: number = 50,
         offset: number = 0,
         actionType?: AuditLogActionType,
         startDate?: number,
-        endDate?: number
+        endDate?: number,
+        searchTerm?: string // 添加 searchTerm 参数
     ): Promise<{ logs: AuditLogEntry[], total: number }> {
+        console.log(`[Audit Repo] getLogs called with: actionType=${actionType}, searchTerm=${searchTerm}`); // 添加日志
+
         let baseSql = 'SELECT * FROM audit_logs';
         let countSql = 'SELECT COUNT(*) as total FROM audit_logs';
         const whereClauses: string[] = [];
         const params: (string | number)[] = [];
         const countParams: (string | number)[] = [];
 
-        if (actionType) { whereClauses.push('action_type = ?'); params.push(actionType); countParams.push(actionType); }
-        if (startDate) { whereClauses.push('timestamp >= ?'); params.push(startDate); countParams.push(startDate); }
-        if (endDate) { whereClauses.push('timestamp <= ?'); params.push(endDate); countParams.push(endDate); }
+        if (actionType) {
+            console.log(`[Audit Repo] Filtering by actionType: ${actionType}`); // 添加日志
+            whereClauses.push('action_type = ?');
+            params.push(actionType);
+            countParams.push(actionType);
+        }
+        // 添加 searchTerm 的过滤逻辑
+        if (searchTerm) {
+            console.log(`[Audit Repo] Filtering by searchTerm: ${searchTerm}`); // 添加日志
+            // 搜索 details 字段，使用 LIKE 进行模糊匹配
+            whereClauses.push('details LIKE ?');
+            const searchTermLike = `%${searchTerm}%`;
+            params.push(searchTermLike);
+            countParams.push(searchTermLike);
+        }
+
 
         if (whereClauses.length > 0) {
             const whereSql = ` WHERE ${whereClauses.join(' AND ')}`;
@@ -76,6 +93,9 @@ export class AuditLogRepository {
 
         baseSql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
+
+        console.log(`[Audit Repo] Executing count SQL: ${countSql} with params:`, countParams); // 添加日志
+        console.log(`[Audit Repo] Executing base SQL: ${baseSql} with params:`, params); // 添加日志
 
         try {
             const db = await getDbInstance();

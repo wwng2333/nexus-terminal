@@ -14,9 +14,13 @@ export class AuditController {
             // 解析查询参数
             const limit = parseInt(req.query.limit as string || '50', 10);
             const offset = parseInt(req.query.offset as string || '0', 10);
-            const actionType = req.query.actionType as AuditLogActionType | undefined;
+            // 修正：从 req.query 中读取 action_type (snake_case)
+            const actionType = req.query.action_type as AuditLogActionType | undefined;
             const startDate = req.query.startDate ? parseInt(req.query.startDate as string, 10) : undefined;
             const endDate = req.query.endDate ? parseInt(req.query.endDate as string, 10) : undefined;
+            // 解析 searchTerm 参数
+            const searchTerm = req.query.search as string | undefined;
+
 
             // 输入验证 (基本)
             if (isNaN(limit) || limit <= 0) {
@@ -37,7 +41,8 @@ export class AuditController {
             }
             // TODO: 可以添加对 actionType 是否有效的验证
 
-            const result = await auditLogService.getLogs(limit, offset, actionType, startDate, endDate);
+            // 将 searchTerm 传递给 service
+            const result = await auditLogService.getLogs(limit, offset, actionType, startDate, endDate, searchTerm);
 
             // 解析 details 字段从 JSON 字符串到对象（如果需要）
             const logsWithParsedDetails = result.logs.map(log => {
