@@ -512,8 +512,8 @@ onMounted(() => {
                     <div v-if="!activeSession" class="flex-grow flex justify-center items-center text-center text-text-secondary bg-header text-sm p-4">
                       <div class="flex flex-col items-center justify-center p-8 w-full h-full">
                         <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                        <span class="text-lg font-medium text-text-secondary mb-2">无活动会话</span>
-                        <div class="text-xs text-text-secondary mt-2">请先连接一个会话</div>
+                        <span class="text-lg font-medium text-text-secondary mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                        <div class="text-xs text-text-secondary mt-2">{{ t('layout.noActiveSession.message') }}</div>
                       </div>
                     </div>
                 </template>
@@ -530,8 +530,8 @@ onMounted(() => {
                     <div v-if="!activeSession" class="flex-grow flex justify-center items-center text-center text-text-secondary bg-header text-sm p-4">
                       <div class="flex flex-col items-center justify-center p-8 w-full h-full">
                         <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                        <span class="text-lg font-medium text-text-secondary mb-2">无活动会话</span>
-                        <div class="text-xs text-text-secondary mt-2">请先连接一个会话</div>
+                        <span class="text-lg font-medium text-text-secondary mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                        <div class="text-xs text-text-secondary mt-2">{{ t('layout.noActiveSession.message') }}</div>
                       </div>
                     </div>
                 </template>
@@ -547,8 +547,8 @@ onMounted(() => {
                      <div v-else class="flex-grow flex justify-center items-center text-center text-text-secondary bg-header text-sm p-4">
                       <div class="flex flex-col items-center justify-center p-8 w-full h-full">
                         <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                        <span class="text-lg font-medium text-text-secondary mb-2">无活动会话</span>
-                        <div class="text-xs text-text-secondary mt-2">请先连接一个会话</div>
+                        <span class="text-lg font-medium text-text-secondary mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                        <div class="text-xs text-text-secondary mt-2">{{ t('layout.noActiveSession.message') }}</div>
                       </div>
                     </div>
                 </template>
@@ -613,15 +613,15 @@ onMounted(() => {
                 <div v-else-if="activeLeftSidebarPane === 'fileManager' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
                   <div class="flex flex-col items-center justify-center p-8">
                     <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                    <span class="text-lg font-medium mb-2">无活动会话</span>
-                    <div class="text-xs mt-2">文件管理器需要活动会话</div>
+                    <span class="text-lg font-medium mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                    <div class="text-xs mt-2">{{ t('layout.noActiveSession.fileManagerSidebar') }}</div>
                   </div>
                 </div>
                 <div v-else-if="activeLeftSidebarPane === 'statusMonitor' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
                   <div class="flex flex-col items-center justify-center p-8">
                     <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                    <span class="text-lg font-medium mb-2">无活动会话</span>
-                    <div class="text-xs mt-2">状态监视器需要活动会话</div>
+                    <span class="text-lg font-medium mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                    <div class="text-xs mt-2">{{ t('layout.noActiveSession.statusMonitorSidebar') }}</div>
                   </div>
                 </div>
                  <div v-else class="flex flex-col flex-grow">
@@ -649,15 +649,15 @@ onMounted(() => {
                 <div v-else-if="activeRightSidebarPane === 'fileManager' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
                   <div class="flex flex-col items-center justify-center p-8">
                     <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                    <span class="text-lg font-medium mb-2">无活动会话</span>
-                    <div class="text-xs mt-2">文件管理器需要活动会话</div>
+                    <span class="text-lg font-medium mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                    <div class="text-xs mt-2">{{ t('layout.noActiveSession.fileManagerSidebar') }}</div>
                   </div>
                 </div>
                 <div v-else-if="activeRightSidebarPane === 'statusMonitor' && !activeSession" class="flex flex-col flex-grow justify-center items-center text-center text-text-secondary p-4">
                   <div class="flex flex-col items-center justify-center p-8">
                     <i class="fas fa-plug text-4xl mb-3 text-text-secondary"></i>
-                    <span class="text-lg font-medium mb-2">无活动会话</span>
-                    <div class="text-xs mt-2">状态监视器需要活动会话</div>
+                    <span class="text-lg font-medium mb-2">{{ t('layout.noActiveSession.title') }}</span>
+                    <div class="text-xs mt-2">{{ t('layout.noActiveSession.statusMonitorSidebar') }}</div>
                   </div>
                 </div>
                  <div v-else class="flex flex-col flex-grow">

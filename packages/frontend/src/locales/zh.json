@@ -714,6 +714,12 @@
       "commandHistory": "命令历史",
       "quickCommands": "快捷指令",
       "dockerManager": "Docker 管理器"
+    },
+    "noActiveSession": {
+      "title": "无活动会话",
+      "message": "请先连接一个会话",
+      "fileManagerSidebar": "文件管理器需要活动会话",
+      "statusMonitorSidebar": "状态监视器需要活动会话"
     }
   },
   "header": {
@@ -780,7 +786,8 @@
       "commandInput": "命令输入",
       "terminalSearch": "终端内搜索",
       "connectionListSearch": "连接列表搜索",
-      "fileEditorActive": "文件编辑器"
+      "fileEditorActive": "文件编辑器",
+      "fileManagerPathInput": "文件管理器路径编辑"
     },
     "confirmClose": "有未保存的更改，确定要关闭吗？",
     "shortcutPlaceholder": "例如 Alt+K",
@@ -795,8 +802,8 @@
       "fetchFailed": "获取远程容器状态失败",
       "commandFailed": "执行远程命令 '{command}' 失败",
       "invalidResponse": "收到无效的服务器响应",
-      "noActiveSession": "无活动的会话。",
-      "connectFirst": "请先连接到一个会话。",
+      "noActiveSession": "无活动会话",
+      "connectFirst": "请先连接一个会话",
       "sshDisconnected": "SSH 会话已断开。",
       "sshError": "SSH 连接错误",
       "sshNotConnected": "SSH 会话未连接。"
