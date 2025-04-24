@@ -7,8 +7,8 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/',
     name: 'Dashboard',
-    // component: () => import('../views/DashboardView.vue') // 稍后创建
-    component: { template: '<div>仪表盘 (建设中)</div>' } // 临时占位
+    component: () => import('../views/DashboardView.vue') // 指向实际的仪表盘组件
+    // component: { template: '<div>仪表盘 (建设中)</div>' } // 移除临时占位
   },
   // 登录页面 (占位符)
   {

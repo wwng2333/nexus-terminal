@@ -788,5 +788,14 @@
       "blockIO": "Block I/O",
       "pids": "PIDs"
     }
+  },
+  "dashboard": {
+    "recentConnections": "Recent Connections",
+    "lastConnected": "Last connected:",
+    "noRecentConnections": "No recent connection records",
+    "viewAllConnections": "View All Connections",
+    "recentActivity": "Recent Activity",
+    "noRecentActivity": "No recent activity records",
+    "viewFullAuditLog": "View Full Audit Log"
   }
 }

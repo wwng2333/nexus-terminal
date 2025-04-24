@@ -793,5 +793,14 @@
       "blockIO": "磁盘 I/O",
       "pids": "进程数"
     }
+  },
+  "dashboard": {
+    "recentConnections": "最近连接",
+    "lastConnected": "上次连接:",
+    "noRecentConnections": "没有最近连接记录",
+    "viewAllConnections": "查看所有连接",
+    "recentActivity": "最近活动",
+    "noRecentActivity": "没有最近活动记录",
+    "viewFullAuditLog": "查看完整审计日志"
   }
 }

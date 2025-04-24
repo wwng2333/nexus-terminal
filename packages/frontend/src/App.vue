@@ -255,7 +255,7 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
         <div class="flex items-center space-x-1">
           <!-- 项目 Logo -->
           <img src="./assets/logo.png" alt="Project Logo" class="h-10 w-auto"> <!-- 移除右侧外边距，使其更靠左 -->
-            <!-- <RouterLink to="/">{{ t('nav.dashboard') }}</RouterLink> --> <!-- 隐藏仪表盘链接 -->
+            <RouterLink to="/" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-nav-active-bg">{{ t('nav.dashboard') }}</RouterLink> <!-- 恢复仪表盘链接 -->
             <RouterLink to="/workspace" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-nav-active-bg">{{ t('nav.terminal') }}</RouterLink>
             <RouterLink to="/proxies" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-nav-active-bg">{{ t('nav.proxies') }}</RouterLink>
             <RouterLink to="/notifications" class="px-3 py-2 rounded-md text-sm font-medium text-secondary hover:text-link-hover hover:bg-nav-active-bg hover:no-underline transition duration-150 ease-in-out whitespace-nowrap" active-class="text-link-active bg-nav-active-bg">{{ t('nav.notifications') }}</RouterLink>
