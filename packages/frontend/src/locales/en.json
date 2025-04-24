@@ -2,17 +2,13 @@
   "appName": "Nexus Terminal",
   "nav": {
     "dashboard": "Dashboard",
-    "connections": "Connections",
     "terminal": "Terminal",
     "proxies": "Proxies",
     "login": "Login",
     "logout": "Logout",
-    "tags": "Tags",
     "notifications": "Notifications",
     "auditLogs": "Audit Logs",
     "settings": "Settings",
-    "hideLayout": "Hide Layout Elements",
-    "showLayout": "Show Layout Elements",
     "customizeStyle": "Customize Style"
   },
   "styleCustomizer": {
@@ -21,9 +17,6 @@
     "terminalStyles": "Terminal Styles",
     "backgroundSettings": "Background",
     "uiDescription": "Adjust colors, fonts, etc. for the application interface.",
-    "terminalDescription": "Customize the color scheme and font for the terminal.",
-    "resetDefault": "Reset to Default",
-    "saveChanges": "Save Changes",
     "resetUiTheme": "Reset UI Theme",
     "saveUiTheme": "Save UI Theme",
     "terminalFontFamily": "Terminal Font",
@@ -31,17 +24,12 @@
     "terminalFontDescription": "Enter font names, separated by commas. Use quotes for names with spaces.",
     "terminalThemeSelection": "Terminal Theme",
     "activeTheme": "Active Theme",
-    "selectThemePrompt": "Select a theme...",
-    "preset": "Preset",
     "addNewTheme": "New Theme",
     "importTheme": "Import Theme",
-    "exportTheme": "Export Selected",
     "editThemeTitle": "Edit Terminal Theme",
     "newThemeTitle": "New Terminal Theme",
     "newThemeDefaultName": "New Theme",
     "themeName": "Theme Name",
-    "confirmDeleteTheme": "Are you sure you want to delete the theme \"{name}\"? This action cannot be undone.",
-    "confirmCloseEditing": "You are currently editing a theme. Closing will discard unsaved changes. Are you sure?",
     "errorThemeNameRequired": "Theme name cannot be empty.",
     "themeUpdatedSuccess": "Theme updated successfully.",
     "themeCreatedSuccess": "Theme created successfully.",
@@ -58,18 +46,12 @@
     "removePageBg": "Remove Page Bg",
     "uploadTerminalBg": "Upload Terminal Bg",
     "removeTerminalBg": "Remove Terminal Bg",
-    "pageBgOpacity": "Page Bg Opacity",
-    "terminalBgOpacity": "Terminal Bg Opacity",
     "uploadFailed": "Upload failed: {message}",
     "pageBgUploadSuccess": "Page background uploaded successfully.",
     "terminalBgUploadSuccess": "Terminal background uploaded successfully.",
-    "confirmRemovePageBg": "Are you sure you want to remove the page background image?",
-    "confirmRemoveTerminalBg": "Are you sure you want to remove the terminal background image?",
     "pageBgRemoved": "Page background removed.",
     "terminalBgRemoved": "Terminal background removed.",
     "removeBgFailed": "Failed to remove background: {message}",
-    "setOpacityFailed": "Failed to set opacity: {message}",
-    "uiThemeSaved": "UI theme saved.",
     "uiThemeSaveFailed": "Failed to save UI theme: {message}",
     "uiThemeReset": "UI theme reset to default.",
     "uiThemeResetFailed": "Failed to reset UI theme: {message}",
@@ -90,7 +72,6 @@
     "errorInvalidJsonObject": "Invalid input. Please provide a valid JSON object.",
     "errorInvalidJsonConfig": "Invalid JSON configuration",
     "editAsCopy": "Edit as Copy",
-    "copySuffix": "Copy",
     "cannotDeletePreset": "Cannot delete preset theme",
     "applyThemeTooltip": "Apply this theme",
     "terminalThemeJsonEditorTitle": "Terminal Theme JSON Editor",
@@ -99,9 +80,6 @@
     "errorFixJsonBeforeSave": "Please fix the JSON format errors before saving.",
     "applyButton": "Apply",
     "searchThemePlaceholder": "Search theme name...",
-    "sortBy": "Sort by:",
-    "sortAsc": "Name Asc",
-    "sortDesc": "Name Desc",
     "exportActiveThemeTooltip": "Export the currently active theme as a JSON file",
     "exportActiveTheme": "Export Active Theme"
   },
@@ -111,16 +89,12 @@
     "password": "Password",
     "loginButton": "Login",
     "loggingIn": "Logging in...",
-    "error": "Login failed. Please check your username and password.",
     "twoFactorPrompt": "Enter your two-factor authentication code:",
     "verifyButton": "Verify",
     "rememberMe": "Remember Me (7 days)"
   },
   "connections": {
-    "title": "Connection Management",
     "addConnection": "Add New Connection",
-    "loading": "Loading connections...",
-    "error": "Failed to load connections: {error}",
     "noConnections": "No connections yet. Click 'Add New Connection' to create one!",
     "table": {
       "name": "Name",
@@ -177,37 +151,26 @@
       "testing": "Testing..."
     },
     "test": {
-        "success": "Connection test successful!",
-        "failed": "Connection test failed: {error}",
-        "latencyTooltip": "This measures the time to establish a new SSH connection (TCP, Proxy, SSH Handshake, Auth). It's typically higher than interaction latency on an already established connection.",
-        "errorMissingFields": "Please fill in Host, Port, Username, and select an Auth Method.",
-        "errorPasswordUndefined": "Password field is required for password authentication.",
-        "errorPrivateKeyRequired": "Private key is required for key authentication.",
-        "errorUnknown": "An unknown error occurred during testing.",
-        "errorNetwork": "Network error or server unreachable.",
-        "testingInProgress": "Testing...",
-        "errorPrefix": "Error:"
+      "success": "Connection test successful!",
+      "failed": "Connection test failed: {error}",
+      "latencyTooltip": "This measures the time to establish a new SSH connection (TCP, Proxy, SSH Handshake, Auth). It's typically higher than interaction latency on an already established connection.",
+      "errorMissingFields": "Please fill in Host, Port, Username, and select an Auth Method.",
+      "errorUnknown": "An unknown error occurred during testing.",
+      "errorNetwork": "Network error or server unreachable.",
+      "testingInProgress": "Testing...",
+      "errorPrefix": "Error:"
     },
     "prompts": {
-        "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
+      "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
     },
     "errors": {
-        "deleteFailed": "Failed to delete connection: {error}"
+      "deleteFailed": "Failed to delete connection: {error}"
     },
     "status": {
       "never": "Never"
     },
-    "filterAllTags": "All Tags",
     "untaggedGroup": "Untagged",
-    "noUntaggedConnections": "No untagged connections found.",
-    "exportConnections": "Export Connections",
-    "importConnections": "Import Connections",
-    "exportError": "Failed to export connections: {message}",
-    "importError": "Failed to import connections: {message}",
-    "importErrorFileType": "Invalid file type. Please select a JSON file.",
-    "importErrorUnknown": "Unknown import error occurred.",
-    "importErrorNetwork": "Network error during import.",
-    "importSuccess": "Import completed. Successful: {successCount}, Failed: {failureCount}."
+    "noUntaggedConnections": "No untagged connections found."
   },
   "proxies": {
     "title": "Proxy Management",
@@ -215,15 +178,6 @@
     "loading": "Loading proxies...",
     "error": "Failed to load proxies: {error}",
     "noProxies": "No proxies yet. Click 'Add New Proxy' to create one!",
-    "table": {
-      "name": "Name",
-      "type": "Type",
-      "host": "Host",
-      "port": "Port",
-      "user": "User",
-      "updatedAt": "Updated At",
-      "actions": "Actions"
-    },
     "actions": {
       "edit": "Edit",
       "delete": "Delete"
@@ -250,47 +204,14 @@
       "passwordUpdateNote": "Leave password blank to keep the existing password."
     },
     "prompts": {
-        "confirmDelete": "Are you sure you want to delete the proxy \"{name}\"? This cannot be undone."
+      "confirmDelete": "Are you sure you want to delete the proxy \"{name}\"? This cannot be undone."
     },
     "errors": {
-        "deleteFailed": "Failed to delete proxy: {error}"
+      "deleteFailed": "Failed to delete proxy: {error}"
     }
   },
   "workspace": {
-    "noActiveSession": "No Active Session",
-    "selectConnectionPrompt": "Please select a connection",
-    "selectConnectionHint": "Select a connection from the left list, or click the 'Add New Connection' button to create a new one.",
-    "statusBar": "Status: {status} | Connection: {id}",
-    "status": {
-      "initializing": "Initializing...",
-      "connectingWs": "Connecting to {url}...",
-      "wsConnected": "WebSocket connected, requesting SSH session...",
-      "connectingSsh": "Connecting to {host}...",
-      "sshConnected": "SSH connected, opening shell...",
-      "connected": "Connected",
-      "disconnected": "Disconnected: {reason}",
-      "wsClosed": "WebSocket closed (Code: {code})",
-      "error": "Error: {message}",
-      "wsError": "WebSocket connection error",
-      "sshError": "SSH Error: {message}",
-      "decryptError": "Cannot decrypt credentials.",
-      "noConnInfo": "Connection config not found for ID {id}.",
-      "noPassword": "Connection config is missing password.",
-       "shellError": "Failed to open shell: {message}",
-       "alreadyConnected": "An active SSH connection already exists.",
-       "unknown": "Unknown status",
-       "wsClosedWillRetry": "WebSocket connection closed, will attempt reconnect {attempt} in {seconds} seconds...",
-       "reconnecting": "Attempting to reconnect...",
-       "reconnectFailed": "Reconnect failed"
-     },
-     "terminal": {
-      "infoPrefix": "[INFO]",
-      "errorPrefix": "[ERROR]",
-      "disconnectMsg": "--- SSH Connection Closed ({reason}) ---",
-      "wsCloseMsg": "--- WebSocket Connection Closed (Code: {code}) ---",
-      "wsErrorMsg": "--- WebSocket Connection Error ---",
-      "decryptErrorMsg": "--- Error: Could not decrypt connection credentials ---",
-      "genericErrorMsg": "--- Error: {message} ---",
+    "terminal": {
       "reconnectingMsg": "Attempting to reconnect..."
     }
   },
@@ -321,20 +242,13 @@
       "name": "Name",
       "size": "Size",
       "permissions": "Permissions",
-      "modified": "Modified",
-      "actions": "Actions"
+      "modified": "Modified"
     },
     "uploadStatus": {
-      "pending": "Pending",
-      "uploading": "Uploading",
-      "paused": "Paused",
-      "success": "Success",
-      "error": "Error",
       "cancelled": "Cancelled"
     },
     "errors": {
       "generic": "Error",
-      "websocketNotConnected": "WebSocket not connected",
       "missingConnectionId": "Cannot get current connection ID",
       "createFolderFailed": "Failed to create folder",
       "deleteFailed": "Failed to delete",
@@ -365,8 +279,6 @@
     "saveSuccess": "Save successful",
     "saveError": "Save error",
     "editPathTooltip": "Click path to edit",
-    "noActiveSession": "No active session",
-    "loadDirectoryFailed": "Failed to load directory",
     "noOpenFile": "No file open",
     "selectFileToEdit": "Select a file from the file manager to start editing.",
     "searchPlaceholder": "Search files..."
@@ -389,8 +301,7 @@
     "gigaBytesPerSecond": "GB/s",
     "megaBytes": "MB",
     "gigaBytes": "GB",
-    "swapNotAvailable": "Swap Unavailable",
-    "noActiveSession": "No active session"
+    "swapNotAvailable": "Swap Unavailable"
   },
   "tags": {
     "title": "Tag Management",
@@ -398,49 +309,20 @@
     "loading": "Loading tags...",
     "error": "Failed to load tags: {error}",
     "noTags": "No tags yet. Click 'Add New Tag' to create one!",
-    "table": {
-      "name": "Name",
-      "updatedAt": "Updated At",
-      "actions": "Actions"
-    },
-    "actions": {
-      "edit": "Edit",
-      "delete": "Delete"
-    },
-    "form": {
-      "title": "Add New Tag",
-      "titleEdit": "Edit Tag",
-      "name": "Tag Name:",
-      "confirm": "Confirm Add",
-      "confirmEdit": "Confirm Edit",
-      "adding": "Adding...",
-      "saving": "Saving...",
-      "cancel": "Cancel",
-      "errorNameRequired": "Tag name cannot be empty.",
-      "errorAdd": "Failed to add tag: {error}",
-      "errorUpdate": "Failed to update tag: {error}"
-    },
     "prompts": {
-        "confirmDelete": "Are you sure you want to delete the tag \"{name}\"? This cannot be undone."
-    },
-    "errors": {
-        "deleteFailed": "Failed to delete tag: {error}"
-    },
-     "status": {
-      "never": "Never"
+      "confirmDelete": "Are you sure you want to delete the tag \"{name}\"? This cannot be undone."
     },
     "inputPlaceholder": "Type to search or create tags...",
     "removeSelection": "Remove this tag selection",
-      "deleteTagGlobally": "Delete this tag globally"
-   },
-   "settings": {
-     "title": "Settings",
-     "category": {
-        "security": "Security Settings",
-        "appearance": "Appearance Settings",
-        "workspace": "Workspace Settings",
-        "system": "System Settings"
-     },
+    "deleteTagGlobally": "Delete this tag globally"
+  },
+  "settings": {
+    "title": "Settings",
+    "category": {
+      "security": "Security Settings",
+      "appearance": "Appearance Settings",
+      "system": "System Settings"
+    },
     "changePassword": {
       "title": "Change Password",
       "currentPassword": "Current Password:",
@@ -494,7 +376,6 @@
         "saved": "IP whitelist saved successfully."
       },
       "error": {
-        "fetchFailed": "Failed to fetch IP whitelist settings.",
         "saveFailed": "Failed to save IP whitelist."
       }
     },
@@ -529,7 +410,6 @@
         "saved": "Language settings saved successfully."
       },
       "error": {
-        "fetchFailed": "Failed to fetch language settings.",
         "saveFailed": "Failed to save language settings."
       }
     },
@@ -539,15 +419,11 @@
       "nameLabel": "Passkey Name",
       "namePlaceholder": "e.g., My Laptop",
       "registerButton": "Register New Passkey",
-      "deleteButton": "Delete Passkey",
-      "confirmDelete": "Are you sure you want to delete the Passkey '{name}'?",
-      "noPasskeys": "No Passkeys registered yet.",
       "error": {
         "nameRequired": "Please enter a Passkey name.",
         "cancelled": "Passkey registration was cancelled by the user.",
         "genericRegistration": "Could not register Passkey: {message}",
-        "verificationFailed": "Registration failed: {message}",
-        "unknown": "Registration failed: Unknown error."
+        "verificationFailed": "Registration failed: {message}"
       },
       "success": {
         "registered": "Passkey registered successfully!"
@@ -589,7 +465,6 @@
         "testButton": "Test Notification",
         "testSuccess": "Test notification sent successfully!",
         "testFailed": "Test notification failed",
-        "saveToTest": "Save the settings before testing.",
         "fillRequiredToTest": "Fill required fields to enable testing.",
         "telegramToken": "Bot Token:",
         "telegramTokenHelp": "Store securely. Consider environment variables.",
@@ -636,10 +511,10 @@
         "ADMIN_SETUP_COMPLETE": "Initial Admin Setup Completed"
       }
     },
-     "appearance": {
-        "title": "Appearance Settings",
-        "description": "Customize the visual theme and background of the application.",
-        "customizeButton": "Customize Appearance"
+    "appearance": {
+      "title": "Appearance Settings",
+      "description": "Customize the visual theme and background of the application.",
+      "customizeButton": "Customize Appearance"
     },
     "autoCopyOnSelect": {
       "title": "Terminal Auto Copy",
@@ -653,44 +528,44 @@
       }
     },
     "docker": {
-       "title": "Docker Manager Settings",
-       "refreshIntervalLabel": "Status Refresh Interval (seconds):",
-       "refreshIntervalHint": "How often to fetch Docker container status and stats (minimum 1).",
-       "defaultExpandLabel": "Expand container details by default",
-       "saveButton": "Save Docker Settings",
-       "success": {
-         "saved": "Docker settings saved successfully."
-       },
-       "error": {
-         "saveFailed": "Failed to save Docker settings.",
-         "invalidInterval": "Refresh interval must be a positive integer."
-       }
-     },
-     "statusMonitor": {
-       "title": "Status Monitor Settings",
-       "refreshIntervalLabel": "Status Refresh Interval (seconds):",
-       "refreshIntervalHint": "How often to fetch server CPU, memory, disk, etc. status (minimum 1).",
-       "saveButton": "Save Status Monitor Settings",
-       "success": {
-         "saved": "Status monitor settings saved successfully."
-       },
-       "error": {
-         "saveFailed": "Failed to save status monitor settings.",
-         "invalidInterval": "Refresh interval must be a positive integer."
-       }
-     },
-     "workspace": {
-       "title": "Workspace & Terminal",
-       "sidebarPersistentTitle": "Sidebar Behavior",
-       "sidebarPersistentLabel": "Pin sidebar when opened (prevent auto-collapse)",
-       "sidebarPersistentDescription": "When enabled, clicking outside the sidebar will not automatically collapse it.",
-       "success": {
-         "sidebarPersistentSaved": "Sidebar setting saved."
-       },
-       "error": {
-         "sidebarPersistentSaveFailed": "Failed to save sidebar setting."
-       }
-     }
+      "title": "Docker Manager Settings",
+      "refreshIntervalLabel": "Status Refresh Interval (seconds):",
+      "refreshIntervalHint": "How often to fetch Docker container status and stats (minimum 1).",
+      "defaultExpandLabel": "Expand container details by default",
+      "saveButton": "Save Docker Settings",
+      "success": {
+        "saved": "Docker settings saved successfully."
+      },
+      "error": {
+        "saveFailed": "Failed to save Docker settings.",
+        "invalidInterval": "Refresh interval must be a positive integer."
+      }
+    },
+    "statusMonitor": {
+      "title": "Status Monitor Settings",
+      "refreshIntervalLabel": "Status Refresh Interval (seconds):",
+      "refreshIntervalHint": "How often to fetch server CPU, memory, disk, etc. status (minimum 1).",
+      "saveButton": "Save Status Monitor Settings",
+      "success": {
+        "saved": "Status monitor settings saved successfully."
+      },
+      "error": {
+        "saveFailed": "Failed to save status monitor settings.",
+        "invalidInterval": "Refresh interval must be a positive integer."
+      }
+    },
+    "workspace": {
+      "title": "Workspace & Terminal",
+      "sidebarPersistentTitle": "Sidebar Behavior",
+      "sidebarPersistentLabel": "Pin sidebar when opened (prevent auto-collapse)",
+      "sidebarPersistentDescription": "When enabled, clicking outside the sidebar will not automatically collapse it.",
+      "success": {
+        "sidebarPersistentSaved": "Sidebar setting saved."
+      },
+      "error": {
+        "sidebarPersistentSaveFailed": "Failed to save sidebar setting."
+      }
+    }
   },
   "common": {
     "loading": "Loading...",
@@ -704,9 +579,13 @@
     "disabled": "Disabled",
     "settings": "Settings",
     "errorOccurred": "An error occurred.",
-    "dismiss": "Dismiss",
     "close": "Close",
-    "remove": "Remove"
+    "remove": "Remove",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "search": "Search",
+    "all": "All",
+    "filter": "Filter"
   },
   "layoutConfigurator": {
     "title": "Layout Configurator",
@@ -779,7 +658,6 @@
     "closeSearch": "Close terminal search",
     "findPrevious": "Find previous",
     "findNext": "Find next",
-    "noResults": "No results",
     "configureFocusSwitch": "Configure Focus Switcher"
   },
   "layout": {
@@ -801,7 +679,6 @@
     "hide": "Hide"
   },
   "commandHistory": {
-    "title": "Command History",
     "searchPlaceholder": "Search history...",
     "clear": "Clear",
     "copy": "Copy",
@@ -813,10 +690,8 @@
     "copyFailed": "Copy failed"
   },
   "quickCommands": {
-    "title": "Quick Commands",
     "searchPlaceholder": "Search name or command...",
     "add": "Add",
-    "sortBy": "Sort by:",
     "sortByName": "Name",
     "sortByUsage": "Usage Frequency",
     "usageCount": "Usage Count",
@@ -874,7 +749,6 @@
   "dockerManager": {
     "loading": "Loading Docker Containers...",
     "notAvailable": "Docker Not Available on Remote Host",
-    "installHint": "Please ensure Docker is installed and running on the remote host.",
     "installHintRemote": "Please ensure Docker is installed and running on the remote host.",
     "error": {
       "fetchFailed": "Failed to fetch remote container status",
@@ -895,8 +769,6 @@
       "actions": "Actions"
     },
     "action": {
-      "up": "Start/Up",
-      "down": "Remove/Down",
       "restart": "Restart",
       "stop": "Stop",
       "start": "Start",
@@ -904,9 +776,6 @@
     },
     "waitingForSsh": "Waiting for SSH connection...",
     "stats": {
-      "loading": "Loading stats...",
-      "error": "Error loading stats",
-      "errorGeneric": "Could not load container statistics.",
       "noData": "No stats data available.",
       "cpu": "CPU %",
       "memory": "Memory Usage / Limit",
@@ -914,26 +783,5 @@
       "blockIO": "Block I/O",
       "pids": "PIDs"
     }
-  },
-  "common": {
-    "loading": "Loading...",
-    "cancel": "Cancel",
-    "save": "Save",
-    "saving": "Saving...",
-    "testing": "Testing...",
-    "edit": "Edit",
-    "delete": "Delete",
-    "enabled": "Enabled",
-    "disabled": "Disabled",
-    "settings": "Settings",
-    "errorOccurred": "An error occurred.",
-    "dismiss": "Dismiss",
-    "close": "Close",
-    "remove": "Remove",
-    "expand": "Expand",
-    "collapse": "Collapse",
-    "search": "Search",
-    "all": "All",
-    "filter": "Filter"
   }
 }
