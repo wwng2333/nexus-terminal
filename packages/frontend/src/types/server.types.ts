@@ -18,25 +18,23 @@ export interface ServerStatus {
 
 export type NotificationChannelType = 'webhook' | 'email' | 'telegram';
 
+// Align NotificationEvent with AuditLogActionType as requested
 export type NotificationEvent =
-  | 'LOGIN_SUCCESS'
-  | 'LOGIN_FAILURE'
-  | 'CONNECTION_ADDED'
-  | 'CONNECTION_UPDATED'
-  | 'CONNECTION_DELETED'
-  | 'SETTINGS_UPDATED'
-  | 'PROXY_ADDED'
-  | 'PROXY_UPDATED'
-  | 'PROXY_DELETED'
-  | 'TAG_ADDED'
-  | 'TAG_UPDATED'
-  | 'TAG_DELETED'
-  // | 'API_KEY_ADDED' // Removed API Key events
-  // | 'API_KEY_DELETED'
-  | 'PASSKEY_ADDED'
-  | 'PASSKEY_DELETED'
-  | 'IP_BLACKLISTED' // Add the new event type here as well
-  | 'SERVER_ERROR';
+  | 'LOGIN_SUCCESS' | 'LOGIN_FAILURE' | 'LOGOUT' | 'PASSWORD_CHANGED'
+  | '2FA_ENABLED' | '2FA_DISABLED' | 'PASSKEY_REGISTERED' | 'PASSKEY_DELETED'
+  | 'CONNECTION_CREATED' | 'CONNECTION_UPDATED' | 'CONNECTION_DELETED' | 'CONNECTION_TESTED'
+  | 'CONNECTIONS_IMPORTED' | 'CONNECTIONS_EXPORTED'
+  | 'PROXY_CREATED' | 'PROXY_UPDATED' | 'PROXY_DELETED'
+  | 'TAG_CREATED' | 'TAG_UPDATED' | 'TAG_DELETED'
+  | 'SETTINGS_UPDATED' | 'IP_WHITELIST_UPDATED'
+  | 'NOTIFICATION_SETTING_CREATED' | 'NOTIFICATION_SETTING_UPDATED' | 'NOTIFICATION_SETTING_DELETED'
+  | 'SFTP_ACTION'
+  // SSH Actions
+  | 'SSH_CONNECT_SUCCESS' | 'SSH_CONNECT_FAILURE' | 'SSH_SHELL_FAILURE'
+  // System/Error
+  | 'SERVER_STARTED' | 'SERVER_ERROR' | 'DATABASE_MIGRATION' | 'ADMIN_SETUP_COMPLETE';
+  // Settings (Specific) - Keep aligned with AuditLogActionType
+  // Note: IP_BLACKLISTED was in NotificationEvent but not AuditLogActionType, removed for consistency based on user request
 
 export interface WebhookConfig {
   url: string;
