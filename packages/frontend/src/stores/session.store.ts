@@ -374,7 +374,8 @@ export const useSessionStore = defineStore('session', () => {
           activeAndDisconnected = true;
           // 满足最高优先级：重连当前活动会话
           console.log(`[SessionStore] 活动会话 ${activeSessionId.value} 已断开或出错，尝试重连...`);
-          const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const wsUrl = `${protocol}//${window.location.hostname}/`; // 与 openNewSession 保持一致
           currentActiveSession.wsManager.connect(wsUrl);
         }
       }
