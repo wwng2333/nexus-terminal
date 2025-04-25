@@ -96,10 +96,9 @@
            <div class="text-center text-text-secondary text-sm mt-3"> <!-- Pagination info -->
               {{ $t('auditLog.paginationInfo', { currentPage, totalPages, totalLogs }) }}
           </div>
-        </div>
+</div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup lang="ts">
