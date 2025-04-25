@@ -202,7 +202,6 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
 
     // --- Define All Default Settings ---
     const defaultSettings: Record<string, string> = {
-        language: 'en', // Default language
         ipWhitelistEnabled: 'false',
         ipWhitelist: '',
         maxLoginAttempts: '5',
