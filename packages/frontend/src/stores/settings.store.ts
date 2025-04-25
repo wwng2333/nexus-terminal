@@ -3,6 +3,7 @@ import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue'; // 移除 watch
 import i18n, { setLocale, defaultLng } from '../i18n'; // Import i18n instance and setLocale
 import type { PaneName } from './layout.store'; // +++ Import PaneName type +++
+import { useAuthStore } from './auth.store'; // <--- 导入 authStore
 // Import CAPTCHA types from backend (adjust path if needed, assuming types are mirrored or shared)
 // For now, let's assume they are available via a shared types definition or manually defined here
 // Assuming manual definition for now if no shared types exist:
@@ -49,6 +50,8 @@ interface SettingsState {
 
 
 export const useSettingsStore = defineStore('settings', () => {
+  const authStore = useAuthStore(); // <--- 实例化 authStore
+
   // --- State ---
   const settings = ref<Partial<SettingsState>>({}); // 通用设置状态
   const parsedSidebarPaneWidths = ref<Record<string, string>>({}); // NEW: 解析后的侧边栏宽度对象
@@ -427,6 +430,12 @@ export const useSettingsStore = defineStore('settings', () => {
         await loadCaptchaSettings();
       }
       console.log('[SettingsStore] CAPTCHA 设置更新成功。');
+
+      // --- 新增：强制 authStore 重新获取配置 ---
+      console.log('[SettingsStore] Triggering authStore to refetch CAPTCHA config...');
+      authStore.publicCaptchaConfig = null; // 重置 authStore 的状态以允许重新获取
+      await authStore.fetchCaptchaConfig(); // 让 authStore 立即获取最新的配置
+      // -----------------------------------------
 
     } catch (err: any) {
       console.error('更新 CAPTCHA 设置失败:', err);

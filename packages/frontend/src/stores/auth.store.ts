@@ -26,6 +26,16 @@ interface PublicCaptchaConfig {
     recaptchaSiteKey?: string;
 }
 
+// Backend's full CAPTCHA Settings Interface (as returned by /settings/captcha)
+interface FullCaptchaSettings {
+    enabled: boolean;
+    provider: 'hcaptcha' | 'recaptcha' | 'none';
+    hcaptchaSiteKey?: string;
+    hcaptchaSecretKey?: string; // We won't use this in authStore
+    recaptchaSiteKey?: string;
+    recaptchaSecretKey?: string; // We won't use this in authStore
+}
+
 // Auth Store State 接口
 interface AuthState {
     isAuthenticated: boolean;
@@ -281,19 +291,29 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
-        // NEW: 获取公共 CAPTCHA 配置
+        // NEW: 获取公共 CAPTCHA 配置 (修改为从 /settings/captcha 获取)
         async fetchCaptchaConfig() {
             // Avoid refetching if already loaded
             if (this.publicCaptchaConfig !== null) return;
 
             // Don't set isLoading for this, it should be quick background fetch
             try {
-                console.log('[AuthStore] Fetching public CAPTCHA config...');
-                const response = await apiClient.get<PublicCaptchaConfig>('/auth/captcha/config');
-                this.publicCaptchaConfig = response.data;
-                console.log('[AuthStore] Public CAPTCHA config loaded:', this.publicCaptchaConfig);
+                console.log('[AuthStore] Fetching CAPTCHA config from /settings/captcha...');
+                // 修改 API 端点
+                const response = await apiClient.get<FullCaptchaSettings>('/settings/captcha');
+                const fullConfig = response.data;
+
+                // 从完整配置中提取公共部分
+                this.publicCaptchaConfig = {
+                    enabled: fullConfig.enabled,
+                    provider: fullConfig.provider,
+                    hcaptchaSiteKey: fullConfig.hcaptchaSiteKey,
+                    recaptchaSiteKey: fullConfig.recaptchaSiteKey,
+                };
+
+                console.log('[AuthStore] Public CAPTCHA config derived from /settings/captcha:', this.publicCaptchaConfig);
             } catch (error: any) {
-                console.error('获取公共 CAPTCHA 配置失败:', error.response?.data?.message || error.message);
+                console.error('获取 CAPTCHA 配置失败 (from /settings/captcha):', error.response?.data?.message || error.message);
                 // Set a default disabled config on error to prevent blocking login UI
                 this.publicCaptchaConfig = {
                     enabled: false,

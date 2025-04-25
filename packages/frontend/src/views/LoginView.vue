@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted, computed } from 'vue'; // Import onMounted, computed
+import { reactive, ref, onMounted, computed } from 'vue'; // computed 已导入
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth.store';
@@ -25,24 +25,24 @@ const hcaptchaWidget = ref<InstanceType<typeof VueHcaptcha> | null>(null); // NE
 // --- reCAPTCHA v3 Initialization ---
 const recaptchaInstance = useReCaptcha(); // Get the instance, might be undefined
 
+
 // --- CAPTCHA Event Handlers ---
-// TODO: Implement functions to handle successful CAPTCHA completion and token retrieval
 const handleCaptchaVerified = (token: string) => {
-  console.log('CAPTCHA verified, token:', token);
+  // console.log('CAPTCHA verified, token:', token);
   captchaToken.value = token;
   captchaError.value = null; // Clear error on successful verification
 };
 const handleCaptchaExpired = () => {
-  console.log('CAPTCHA expired');
+  // console.log('CAPTCHA expired');
   captchaToken.value = null;
 };
 const handleCaptchaError = (errorDetails: any) => {
   console.error('CAPTCHA error:', errorDetails);
   captchaToken.value = null;
-  captchaError.value = t('login.error.captchaLoadFailed'); // Need translation
+  captchaError.value = t('login.error.captchaLoadFailed');
 };
 const resetCaptchaWidget = () => {
-  console.log('Resetting CAPTCHA widget...');
+  // console.log('Resetting CAPTCHA widget...');
   captchaToken.value = null;
   // Reset hCaptcha if it exists
   hcaptchaWidget.value?.reset();
@@ -81,7 +81,7 @@ const handleSubmit = async () => {
 
     // Check if token exists (for both hCaptcha and reCAPTCHA)
     if (!captchaToken.value) {
-      captchaError.value = t('login.error.captchaRequired'); // Need translation
+      captchaError.value = t('login.error.captchaRequired');
       return; // Stop submission if CAPTCHA is required but not completed/obtained
     }
   }
@@ -107,7 +107,6 @@ const handleSubmit = async () => {
        resetCaptchaWidget(); // Reset the widget for potential retry
      }
   } // <-- Correctly closing the try block here
-  // --- Remove the extraneous else block that was causing the syntax error ---
 };
 
 // Fetch CAPTCHA config on component mount
@@ -138,6 +137,7 @@ onMounted(() => {
            <img src="../assets/logo.png" alt="Project Logo" class="h-16 w-auto">
          </div>
         <h2 class="text-2xl font-semibold mb-6 text-center text-foreground">{{ t('login.title') }}</h2>
+
         <form @submit.prevent="handleSubmit" class="space-y-5"> <!-- Reduced space slightly -->
           <!-- Regular Login Fields -->
           <div v-if="!loginRequires2FA" class="space-y-6">
@@ -167,10 +167,12 @@ onMounted(() => {
          </div>
 
          <!-- CAPTCHA Area -->
+         <!-- 恢复原始的 v-if 条件 -->
          <div v-if="publicCaptchaConfig?.enabled && !loginRequires2FA" class="space-y-2">
             <label class="block text-sm font-medium text-text-secondary">{{ t('login.captchaPrompt') }}</label>
             <!-- hCaptcha Component -->
-            <div v-if="publicCaptchaConfig.provider === 'hcaptcha' && publicCaptchaConfig.hcaptchaSiteKey">
+            <!-- 这里的内部 v-if 仍然可以保留，虽然理论上外层已经判断过了 -->
+            <div v-if="publicCaptchaConfig?.provider === 'hcaptcha' && publicCaptchaConfig.hcaptchaSiteKey">
                <VueHcaptcha
                  ref="hcaptchaWidget"
                  :sitekey="publicCaptchaConfig.hcaptchaSiteKey"
@@ -181,9 +183,9 @@ onMounted(() => {
                ></VueHcaptcha>
             </div>
             <!-- reCAPTCHA v3 Info (usually invisible) -->
-            <div v-else-if="publicCaptchaConfig.provider === 'recaptcha'">
+            <div v-else-if="publicCaptchaConfig?.provider === 'recaptcha'">
                 <p class="text-xs text-text-secondary italic">
-                  {{ t('login.recaptchaV3Notice', 'This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply.') }}
+                  {{ t('login.recaptchaV3Notice') }}
                 </p>
                 <!-- v3 is typically invisible, token obtained programmatically on submit -->
             </div>
