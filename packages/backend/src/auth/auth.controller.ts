@@ -60,7 +60,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             if (!captchaToken) {
                 console.log(`[AuthController] 登录尝试失败: CAPTCHA 已启用但未提供令牌 - ${username}`);
                 // 记录审计日志等（可选，看是否需要区分）
-                return res.status(400).json({ message: '需要提供 CAPTCHA 令牌。' });
+                res.status(400).json({ message: '需要提供 CAPTCHA 令牌。' });
+                return; // 添加 return 语句以确保函数在此处终止
             }
             try {
                 const isCaptchaValid = await captchaService.verifyToken(captchaToken);
@@ -70,13 +71,15 @@ export const login = async (req: Request, res: Response): Promise<void> => {
                     ipBlacklistService.recordFailedAttempt(clientIp); // Record failed attempt for invalid CAPTCHA
                     auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
                     notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
-                    return res.status(401).json({ message: 'CAPTCHA 验证失败。' });
+                    res.status(401).json({ message: 'CAPTCHA 验证失败。' });
+                    return; // 添加 return 语句以确保函数在此处终止
                 }
                 console.log(`[AuthController] CAPTCHA 验证成功 - ${username}`);
             } catch (captchaError: any) {
                 console.error(`[AuthController] CAPTCHA 验证过程中出错 (${username}):`, captchaError.message);
                 // 如果是配置错误或 API 请求失败，返回 500
-                return res.status(500).json({ message: 'CAPTCHA 验证服务出错，请稍后重试或检查配置。' });
+                res.status(500).json({ message: 'CAPTCHA 验证服务出错，请稍后重试或检查配置。' });
+                return; // 添加 return 语句以确保函数在此处终止
             }
         } else {
             console.log(`[AuthController] CAPTCHA 未启用，跳过验证 - ${username}`);
