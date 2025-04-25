@@ -149,13 +149,19 @@ const toggleGroup = (groupName: string) => {
   expandedGroups.value[groupName] = !expandedGroups.value[groupName];
 };
 
-// 处理单击连接 (左键) - 使用 session store 处理连接请求
-const handleConnect = (connectionId: number) => {
-  console.log(`[WkspConnList] handleConnect (左键) called for ID: ${connectionId}. Emitting event.`);
+// 处理单击连接 (左键/Enter) - 使用 session store 处理连接请求
+const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent) => { // 接受 MouseEvent 或 KeyboardEvent
+  // 增加检查：只处理左键点击 (button 0) 或非鼠标事件 (如 Enter 键)
+  if (event instanceof MouseEvent && event.button !== 0) {
+    console.log(`[WkspConnList] DEBUG: handleConnect called with non-left click (button: ${event.button}). Ignoring.`);
+    return; // 如果不是左键点击，则忽略
+  }
+  // console.log('[WkspConnList] DEBUG: handleConnect triggered! Event:', event); // 移除调试日志
+  console.log(`[WkspConnList] handleConnect (左键/Enter) called for ID: ${connectionId}. Emitting event.`);
   // 移除对 sessionStore 的直接调用，由父组件处理
   // sessionStore.handleConnectRequest(connectionId);
   emit('connect-request', connectionId); // 发出事件通知父组件
-  closeContextMenu(); // 点击连接后关闭菜单
+  closeContextMenu(); // 点击连接后关闭菜单 (如果菜单是打开的)
 };
 
 // 显示右键菜单
@@ -163,6 +169,7 @@ const showContextMenu = (event: MouseEvent, connection: ConnectionInfo) => {
   console.log(`[WkspConnList] showContextMenu (右键) called for ID: ${connection.id}. Event:`, event);
   event.preventDefault(); // 再次确保阻止默认行为
   event.stopPropagation(); // 阻止事件冒泡
+  event.stopImmediatePropagation(); // 尝试更强力地阻止事件链
   console.log('[WkspConnList] Right-click default prevented and propagation stopped.');
   contextTargetConnection.value = connection;
   contextMenuPosition.value = { x: event.clientX, y: event.clientY };
@@ -244,12 +251,17 @@ onBeforeUnmount(() => {
 });
 
 // 处理中键点击（在新标签页打开）
-const handleOpenInNewTab = (connectionId: number) => {
-  console.log(`[WkspConnList] handleOpenInNewTab (中键/辅助键) called for ID: ${connectionId}`);
+const handleOpenInNewTab = (connectionId: number, event?: MouseEvent) => { // 添加 event 参数
+  // 增加检查：只处理中键点击 (button 1)
+  if (event instanceof MouseEvent && event.button !== 1) {
+    console.log(`[WkspConnList] DEBUG: handleOpenInNewTab called with non-middle click (button: ${event.button}). Ignoring.`);
+    return; // 如果不是中键点击，则忽略
+  }
+  // console.log(`[WkspConnList] handleOpenInNewTab (中键/辅助键) called for ID: ${connectionId}. Event:`, event); // 移除调试日志
   emit('open-new-session', connectionId);
-  console.log(`[WkspConnList] Emitted 'open-new-session' for ID: ${connectionId}`);
+  // console.log(`[WkspConnList] Emitted 'open-new-session' for ID: ${connectionId}`); // 移除调试日志
   closeContextMenu(); // 如果右键菜单是打开的，也关闭它
-  return false; // 尝试显式阻止进一步处理
+  // return false; // .prevent 修饰符应该足够了
 };
 
 // 新增：暴露聚焦搜索框的方法
@@ -371,9 +383,10 @@ const scrollToHighlighted = async () => {
                 :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }" 
                 :data-conn-id="conn.id"
                 @click.left="handleConnect(conn.id)"
+                @click.right.prevent
                 @contextmenu.prevent="showContextMenu($event, conn)"
-                @mousedown.middle.prevent="handleOpenInNewTab(conn.id)"
-                @auxclick.prevent="handleOpenInNewTab(conn.id)"
+                @mousedown.middle.prevent="handleOpenInNewTab(conn.id, $event)"
+                @auxclick.prevent="handleOpenInNewTab(conn.id, $event)"
               >
                 <i class="fas fa-server mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary" :class="{ 'text-white': conn.id === highlightedConnectionId }"></i>
                 <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
