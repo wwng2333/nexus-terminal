@@ -108,6 +108,7 @@
   "connections": {
     "addConnection": "添加新连接",
     "noConnections": "还没有任何连接。点击'添加新连接'来创建一个吧！",
+    "addFirstConnection": "添加第一个连接",
     "table": {
       "name": "名称",
       "host": "主机",

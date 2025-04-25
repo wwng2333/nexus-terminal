@@ -108,6 +108,7 @@
   "connections": {
     "addConnection": "Add New Connection",
     "noConnections": "No connections yet. Click 'Add New Connection' to create one!",
+    "addFirstConnection": "Add your first connection",
     "table": {
       "name": "Name",
       "host": "Host",

@@ -347,7 +347,7 @@ const scrollToHighlighted = async () => {
              class="mt-4 px-4 py-2 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
              @click="handleMenuAction('add')"
            >
-             {{ t('connections.addFirstConnection') }} <!-- Need translation -->
+             {{ t('connections.addFirstConnection') }}
            </button>
         </div>
 

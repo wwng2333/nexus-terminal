@@ -189,7 +189,13 @@ export const useSessionStore = defineStore('session', () => {
     console.log(`[SessionStore] 已创建新会话实例: ${newSessionId} for connection ${dbConnId}`);
 
     // 4. 启动 WebSocket 连接
-    const wsUrl = `ws://${window.location.hostname}:3001`; // TODO: 从配置获取 URL
+    // 根据当前页面协议动态生成 WebSocket URL，并移除硬编码的端口
+    // 假设 WebSocket 服务与 Web 服务在同一主机和端口上提供（通过反向代理）
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // 移除端口 :3001，依赖反向代理或同源策略
+    // 如果 WebSocket 有特定路径 (例如 /ws)，需要在这里添加
+    const wsUrl = `${protocol}//${window.location.hostname}/`;
+    console.log(`[SessionStore] Generated WebSocket URL: ${wsUrl}`); // 添加日志记录生成的 URL
     wsManager.connect(wsUrl);
     console.log(`[SessionStore] 已为会话 ${newSessionId} 启动 WebSocket 连接。`);
   };
