@@ -115,7 +115,6 @@ export const establishSshConnection = (
             privateKey: connDetails.privateKey,
             passphrase: connDetails.passphrase,
             readyTimeout: timeout,
-            tryKeyboard: true, // 尝试处理 keyboard-interactive 认证
             keepaliveInterval: 10000, // 保持连接
             keepaliveCountMax: 10,
         };
