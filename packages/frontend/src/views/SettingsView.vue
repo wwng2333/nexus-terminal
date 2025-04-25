@@ -6,19 +6,23 @@
         {{ $t('settings.title') }}
       </h1>
 
-      <!-- General Settings Loading/Error -->
-      <div v-if="settingsLoading" class="p-4 text-center text-text-secondary italic"> <!-- Loading state -->
-        {{ $t('common.loading') }}
-      </div>
-      <div v-if="settingsError" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded"> <!-- Error state -->
+      <!-- Error state (Show first if error exists) -->
+      <div v-if="settingsError" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded">
         {{ settingsError }}
       </div>
 
-      <!-- Settings Sections Grid -->
-      <div v-if="!settingsLoading && !settingsError" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Settings Sections Grid (Render grid structure always if no error) -->
+      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        <!-- Column 1: Security -->
-        <div class="lg:col-span-2 space-y-6"> <!-- Security takes 2 columns on large screens -->
+        <!-- Loading state (Show inside grid area when loading) -->
+        <div v-if="settingsLoading" class="lg:col-span-3 p-8 text-center text-text-secondary italic">
+           {{ $t('common.loading') }}
+        </div>
+
+        <!-- Actual Settings Content (Show only when not loading) -->
+        <template v-else>
+          <!-- Column 1: Security -->
+          <div class="lg:col-span-2 space-y-6"> <!-- Security takes 2 columns on large screens -->
           <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.security') }}</h2>
             <div class="p-6 space-y-6">
@@ -242,43 +246,45 @@
                 <hr class="border-border/50">
                 <!-- Blacklist table -->
                 <h3 class="text-base font-semibold text-foreground">{{ $t('settings.ipBlacklist.currentBannedTitle') }}</h3>
-                <!-- Loading state (Only show if loading AND no entries are displayed yet) -->
-                <div v-if="ipBlacklist.loading && ipBlacklist.entries.length === 0" class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.loadingList') }}</div>
+                <!-- Error state -->
                 <div v-if="ipBlacklist.error" class="p-3 border-l-4 border-error bg-error/10 text-error text-sm rounded">{{ ipBlacklist.error }}</div>
-                <div v-if="!ipBlacklist.loading && !ipBlacklist.error">
-                  <div v-if="ipBlacklist.entries.length > 0" class="overflow-x-auto border border-border rounded-lg shadow-sm bg-background">
-                    <table class="min-w-full divide-y divide-border text-sm">
-                       <thead class="bg-header">
-                         <tr>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.ipAddress') }}</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.attempts') }}</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.lastAttempt') }}</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.bannedUntil') }}</th>
-                           <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.actions') }}</th>
-                         </tr>
-                       </thead>
-                       <tbody class="divide-y divide-border">
-                         <tr v-for="entry in ipBlacklist.entries" :key="entry.ip" class="hover:bg-header/50">
-                           <td class="px-4 py-2 whitespace-nowrap">{{ entry.ip }}</td>
-                           <td class="px-4 py-2 whitespace-nowrap">{{ entry.attempts }}</td>
-                           <td class="px-4 py-2 whitespace-nowrap">{{ new Date(entry.last_attempt_at * 1000).toLocaleString() }}</td>
-                           <td class="px-4 py-2 whitespace-nowrap">{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : $t('statusMonitor.notAvailable') }}</td>
-                           <td class="px-4 py-2 whitespace-nowrap">
-                             <button
-                               @click="handleDeleteIp(entry.ip)"
-                               :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
-                               class="px-2 py-1 bg-error text-error-text rounded text-xs font-medium hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
-                             >
-                               {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? $t('settings.ipBlacklist.table.deleting') : $t('settings.ipBlacklist.table.removeButton') }}
-                             </button>
-                           </td>
-                         </tr>
-                       </tbody>
-                    </table>
-                  </div>
-                  <p v-else class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.noBannedIps') }}</p>
-                   <p v-if="blacklistDeleteError" class="mt-3 text-sm text-error">{{ blacklistDeleteError }}</p>
+                <!-- Loading state (Only show if loading AND no entries are displayed yet) -->
+                <div v-else-if="ipBlacklist.loading && ipBlacklist.entries.length === 0" class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.loadingList') }}</div>
+                <!-- Empty state (Show only if not loading, no error, and entries empty) -->
+                <p v-else-if="!ipBlacklist.loading && !ipBlacklist.error && ipBlacklist.entries.length === 0" class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.noBannedIps') }}</p>
+                <!-- Table (Show if not loading, no error, and has entries) -->
+                <div v-else-if="!ipBlacklist.loading && !ipBlacklist.error && ipBlacklist.entries.length > 0" class="overflow-x-auto border border-border rounded-lg shadow-sm bg-background">
+                  <table class="min-w-full divide-y divide-border text-sm">
+                     <thead class="bg-header">
+                       <tr>
+                         <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.ipAddress') }}</th>
+                         <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.attempts') }}</th>
+                         <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.lastAttempt') }}</th>
+                         <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.bannedUntil') }}</th>
+                         <th scope="col" class="px-4 py-2 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('settings.ipBlacklist.table.actions') }}</th>
+                       </tr>
+                     </thead>
+                     <tbody class="divide-y divide-border">
+                       <tr v-for="entry in ipBlacklist.entries" :key="entry.ip" class="hover:bg-header/50">
+                         <td class="px-4 py-2 whitespace-nowrap">{{ entry.ip }}</td>
+                         <td class="px-4 py-2 whitespace-nowrap">{{ entry.attempts }}</td>
+                         <td class="px-4 py-2 whitespace-nowrap">{{ new Date(entry.last_attempt_at * 1000).toLocaleString() }}</td>
+                         <td class="px-4 py-2 whitespace-nowrap">{{ entry.blocked_until ? new Date(entry.blocked_until * 1000).toLocaleString() : $t('statusMonitor.notAvailable') }}</td>
+                         <td class="px-4 py-2 whitespace-nowrap">
+                           <button
+                             @click="handleDeleteIp(entry.ip)"
+                             :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
+                             class="px-2 py-1 bg-error text-error-text rounded text-xs font-medium hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                           >
+                             {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? $t('settings.ipBlacklist.table.deleting') : $t('settings.ipBlacklist.table.removeButton') }}
+                           </button>
+                         </td>
+                       </tr>
+                     </tbody>
+                  </table>
                 </div>
+                <!-- Delete Error (Show regardless of loading state if present) -->
+                <p v-if="blacklistDeleteError" class="mt-3 text-sm text-error">{{ blacklistDeleteError }}</p>
              </div>
            </div>
         </div>

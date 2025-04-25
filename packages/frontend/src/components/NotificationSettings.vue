@@ -4,25 +4,28 @@
       {{ $t('settings.notifications.title') }}
     </h2>
 
-    <!-- Loading state (Only show if loading AND no settings are displayed yet) -->
-    <div v-if="store.isLoading && settings.length === 0" class="p-4 text-center text-text-secondary italic">
-      {{ $t('common.loading') }}
-    </div>
-    <div v-if="store.error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded"> <!-- Error state using error color -->
+    <!-- Error state (Show first if error exists) -->
+    <div v-if="store.error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded">
       {{ store.error }}
     </div>
 
-    <div v-if="!store.isLoading && !store.error">
-      <button @click="showAddForm = true" class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 inline-flex items-center text-sm font-medium"> <!-- Add button -->
-         {{ $t('settings.notifications.addChannel') }}
-      </button>
+    <!-- Add Button (Show if no error) -->
+    <button v-if="!store.error" @click="showAddForm = true" class="px-4 py-2 bg-button text-button-text rounded hover:bg-button-hover mb-4 inline-flex items-center text-sm font-medium">
+       {{ $t('settings.notifications.addChannel') }}
+    </button>
 
-      <div v-if="settings.length === 0" class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded"> <!-- Info state (using blue for now) -->
-        {{ $t('settings.notifications.noChannels') }}
-      </div>
+    <!-- Loading state (Show only if loading AND settings empty AND no error) -->
+    <div v-if="store.isLoading && settings.length === 0 && !store.error" class="p-4 text-center text-text-secondary italic">
+      {{ $t('common.loading') }}
+    </div>
 
-      <!-- Notification List -->
-      <div v-else class="grid gap-4 mt-4">
+    <!-- Empty state (Show only if not loading, no error, and settings empty) -->
+    <div v-else-if="!store.isLoading && !store.error && settings.length === 0" class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded">
+      {{ $t('settings.notifications.noChannels') }}
+    </div>
+
+    <!-- Notification List (Show if not loading, no error, and has settings) -->
+    <div v-else-if="!store.isLoading && !store.error && settings.length > 0" class="grid gap-4 mt-4">
         <div v-for="setting in settings" :key="setting.id" class="bg-background border border-border rounded-lg p-4 flex justify-between items-start gap-4 shadow-sm hover:shadow-md transition-shadow duration-200"> <!-- List item card -->
           <div class="flex-grow"> <!-- Details section -->
             <strong class="block font-semibold text-base mb-1 text-foreground">{{ setting.name }}</strong>
@@ -51,7 +54,6 @@
           </div>
         </div>
       </div>
-    </div>
 
     <!-- Add/Edit Form Section -->
     <div v-if="showAddForm || editingSetting" class="mt-6 p-6 border border-border bg-background rounded-lg shadow-sm"> <!-- Form container -->

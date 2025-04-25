@@ -29,19 +29,23 @@
       </div>
       <!-- End Filtering Controls -->
 
-      <!-- Loading state (Only show if loading AND no logs are displayed yet) -->
-      <div v-if="store.isLoading && logs.length === 0" class="p-4 text-center text-text-secondary italic">
-        {{ $t('common.loading') }}
-      </div>
-      <div v-if="store.error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded"> <!-- Error state -->
+      <!-- Error state -->
+      <div v-if="store.error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded">
         {{ store.error }}
       </div>
 
-      <div v-if="!store.isLoading && !store.error">
-        <div v-if="logs.length === 0" class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded"> <!-- No logs state -->
-          {{ $t('auditLog.noLogs') }}
-        </div>
-        <div v-else>
+      <!-- Loading state (Only show if loading AND logs empty) -->
+      <div v-else-if="store.isLoading && logs.length === 0" class="p-4 text-center text-text-secondary italic">
+        {{ $t('common.loading') }}
+      </div>
+
+      <!-- No logs state (Show only if not loading, no error, and logs empty) -->
+      <div v-else-if="!store.isLoading && !store.error && logs.length === 0" class="p-4 mb-4 border-l-4 border-blue-400 bg-blue-100 text-blue-700 rounded">
+        {{ $t('auditLog.noLogs') }}
+      </div>
+
+      <!-- Table and Pagination (Show if not loading, no error, and logs exist) -->
+      <div v-else-if="!store.isLoading && !store.error && logs.length > 0">
           <div class="border border-border rounded-lg overflow-hidden shadow-sm mt-4 bg-background"> <!-- Table container -->
             <div class="overflow-x-auto"> <!-- Allow horizontal scroll -->
               <table class="min-w-full divide-y divide-border text-sm"> <!-- Table styling -->
