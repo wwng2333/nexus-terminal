@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth.store';
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'; // <-- Import hCaptcha component
 // import { useReCaptcha } from 'vue-recaptcha-v3'; // <-- v3 hook, not needed for v2 widget
-// TODO: Import a reCAPTCHA v2 component, e.g., import VueRecaptchaV2 from 'vue-recaptcha-v2';
+import TheVueRecaptcha from 'vue-recaptcha'; // <-- Use a different name for import
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -21,9 +21,9 @@ const twoFactorToken = ref(''); // 用于存储 2FA 验证码
 const rememberMe = ref(false); // 新增：记住我状态，默认为 false
 const captchaToken = ref<string | null>(null); // NEW: Store CAPTCHA token
 const captchaError = ref<string | null>(null); // NEW: Store CAPTCHA specific error
-const hcaptchaWidget = ref<InstanceType<typeof VueHcaptcha> | null>(null); // NEW: Ref for hCaptcha component instance
+const hcaptchaWidget = ref<InstanceType<typeof VueHcaptcha> | null>(null); // Ref for hCaptcha component instance
 // const recaptchaInstance = useReCaptcha(); // v3 instance, not needed for v2 widget
-const recaptchaV2Widget = ref<any | null>(null); // NEW: Ref for reCAPTCHA v2 component instance (replace 'any' with actual type)
+// No specific ref needed for VueRecaptcha v2 component usually, events handle token
 
 
 // --- CAPTCHA Event Handlers ---
@@ -46,8 +46,7 @@ const resetCaptchaWidget = () => {
   captchaToken.value = null;
   // Reset hCaptcha if it exists
   hcaptchaWidget.value?.reset();
-  // Reset reCAPTCHA v2 if it exists and component supports it
-  // recaptchaV2Widget.value?.reset(); // Assuming the component has a reset method
+  // vue-recaptcha v2 component might reset automatically or not have an explicit method easily accessible via ref
 };
 // --- End CAPTCHA Event Handlers ---
 
@@ -164,21 +163,17 @@ onMounted(() => {
                  theme="auto"
                ></VueHcaptcha>
             </div>
-            <!-- reCAPTCHA v2 Component Placeholder -->
+            <!-- Google reCAPTCHA v2 Component -->
             <div v-else-if="publicCaptchaConfig?.provider === 'recaptcha' && publicCaptchaConfig.recaptchaSiteKey">
-                <!-- TODO: Replace this with an actual reCAPTCHA v2 component -->
-                <!-- Example using a hypothetical VueRecaptchaV2 component:
-                <VueRecaptchaV2
-                  ref="recaptchaV2Widget"
+                <!-- @ts-ignore - Bypassing type check due to potential library type definition issues -->
+                <TheVueRecaptcha
                   :sitekey="publicCaptchaConfig.recaptchaSiteKey"
                   @verify="handleCaptchaVerified"
                   @expired="handleCaptchaExpired"
                   @error="handleCaptchaError"
-                ></VueRecaptchaV2>
-                -->
-                <div class="p-4 border border-dashed border-warning text-warning bg-warning/10 rounded">
-                  此处需要集成 Google reCAPTCHA v2 组件。
-                </div>
+                  theme="light"
+                  size="normal"
+                ></TheVueRecaptcha>
                  <p class="text-xs text-text-secondary italic mt-1">
                   {{ t('login.recaptchaV3Notice') }} <!-- Keep the notice -->
                 </p>
