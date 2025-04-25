@@ -13,17 +13,12 @@
 
       <!-- Settings Sections Grid (Render grid structure always if no error) -->
       <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Removed global loading state, content will show/hide based on individual loading states -->
 
-        <!-- Loading state (Show inside grid area when loading) -->
-        <div v-if="settingsLoading" class="lg:col-span-3 p-8 text-center text-text-secondary italic">
-           {{ $t('common.loading') }}
-        </div>
-
-        <!-- Actual Settings Content (Show only when not loading) -->
-        <template v-else>
           <!-- Column 1: Security -->
           <div class="lg:col-span-2 space-y-6"> <!-- Security takes 2 columns on large screens -->
-          <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+          <!-- Security Sections: Only show if settings data is loaded -->
+          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.security') }}</h2>
             <div class="p-6 space-y-6">
               <!-- Change Password -->
@@ -218,8 +213,8 @@
             </div>
           </div>
 
-          <!-- IP Blacklist (Full Width within Security Column) -->
-           <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+          <!-- IP Blacklist Section: Only show if settings data is loaded (as config depends on it) -->
+           <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
              <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.ipBlacklist.title') }}</h2>
              <div class="p-6 space-y-6">
                 <p class="text-sm text-text-secondary">{{ $t('settings.ipBlacklist.description') }}</p>
@@ -291,8 +286,8 @@
 
         <!-- Column 2: Appearance, Workspace, System -->
         <div class="lg:col-span-1 space-y-6">
-          <!-- Appearance -->
-          <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+          <!-- Appearance Section: Only show if settings data is loaded -->
+          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.appearance') }}</h2>
             <div class="p-6 space-y-6">
               <!-- Language -->
@@ -330,8 +325,8 @@
             </div>
           </div>
 
-          <!-- Workspace -->
-          <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+          <!-- Workspace Section: Only show if settings data is loaded -->
+          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.workspace.title') }}</h2>
             <div class="p-6 space-y-6">
               <!-- Popup Editor -->
@@ -439,8 +434,8 @@
             </div>
           </div>
 
-          <!-- System -->
-          <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+          <!-- System Section: Only show if settings data is loaded -->
+          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.system') }}</h2>
             <div class="p-6 space-y-6">
               <!-- Docker -->
@@ -490,8 +485,6 @@
             </div>
           </div>
         </div>
-</template>
-
       </div> <!-- End Settings Sections Grid -->
     </div> <!-- End Inner container -->
   </div> <!-- End Outer container -->
