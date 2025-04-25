@@ -490,6 +490,7 @@
             </div>
           </div>
         </div>
+</template>
 
       </div> <!-- End Settings Sections Grid -->
     </div> <!-- End Inner container -->
