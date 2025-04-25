@@ -28,8 +28,7 @@
   --color-split-line: var(--split-line-color);
   --color-split-line-hover: var(--split-line-hover-color);
   --color-input-focus-border: var(--input-focus-border-color);
-  /* --color-input-focus-glow: var(--input-focus-glow); /* Glow might need direct var() use in shadow utilities */
-  --color-overlay: var(--overlay-bg-color); /* Added Overlay Background */
+  --color-overlay: var(--overlay-bg-color);
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
   --color-error: var(--color-error);
