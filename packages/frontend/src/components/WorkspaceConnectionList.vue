@@ -302,8 +302,8 @@ const scrollToHighlighted = async () => {
 
 <template>
   <div class="h-full flex flex-col overflow-hidden bg-background text-foreground">
-    <!-- Loading / Error State -->
-    <div v-if="connectionsLoading || tagsLoading" class="flex items-center justify-center h-full text-text-secondary">
+    <!-- Loading State (Only show if loading AND no connections are available yet) -->
+    <div v-if="(connectionsLoading || tagsLoading) && connections.length === 0" class="flex items-center justify-center h-full text-text-secondary">
       <i class="fas fa-spinner fa-spin mr-2"></i> {{ t('common.loading') }}
     </div>
     <div v-else-if="connectionsError || tagsError" class="flex items-center justify-center h-full text-error px-4 text-center">
