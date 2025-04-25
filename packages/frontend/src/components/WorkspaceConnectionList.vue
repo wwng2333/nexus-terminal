@@ -11,7 +11,7 @@ import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ �
 // 定义事件
 const emit = defineEmits([
   'connect-request',        // 左键单击 - 请求激活或替换当前标签
-  'open-new-session',       // 中键单击 - 请求在新标签中打开
+  // 'open-new-session',       // 中键单击 - 请求在新标签中打开 (已移除)
   'request-add-connection', // 右键菜单 - 添加
   'request-edit-connection' // 右键菜单 - 编辑
 ]);
@@ -250,19 +250,7 @@ onBeforeUnmount(() => {
   unregisterFocusAction = null;
 });
 
-// 处理中键点击（在新标签页打开）
-const handleOpenInNewTab = (connectionId: number, event?: MouseEvent) => { // 添加 event 参数
-  // 增加检查：只处理中键点击 (button 1)
-  if (event instanceof MouseEvent && event.button !== 1) {
-    console.log(`[WkspConnList] DEBUG: handleOpenInNewTab called with non-middle click (button: ${event.button}). Ignoring.`);
-    return; // 如果不是中键点击，则忽略
-  }
-  // console.log(`[WkspConnList] handleOpenInNewTab (中键/辅助键) called for ID: ${connectionId}. Event:`, event); // 移除调试日志
-  emit('open-new-session', connectionId);
-  // console.log(`[WkspConnList] Emitted 'open-new-session' for ID: ${connectionId}`); // 移除调试日志
-  closeContextMenu(); // 如果右键菜单是打开的，也关闭它
-  // return false; // .prevent 修饰符应该足够了
-};
+// 处理中键点击（在新标签页打开） - 功能已移除
 
 // 新增：暴露聚焦搜索框的方法
 const focusSearchInput = (): boolean => {
@@ -385,8 +373,6 @@ const scrollToHighlighted = async () => {
                 @click.left="handleConnect(conn.id)"
                 @click.right.prevent
                 @contextmenu.prevent="showContextMenu($event, conn)"
-                @mousedown.middle.prevent="handleOpenInNewTab(conn.id, $event)"
-                @auxclick.prevent="handleOpenInNewTab(conn.id, $event)"
               >
                 <i class="fas fa-server mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary" :class="{ 'text-white': conn.id === highlightedConnectionId }"></i>
                 <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
