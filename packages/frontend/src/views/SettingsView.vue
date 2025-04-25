@@ -242,7 +242,8 @@
                 <hr class="border-border/50">
                 <!-- Blacklist table -->
                 <h3 class="text-base font-semibold text-foreground">{{ $t('settings.ipBlacklist.currentBannedTitle') }}</h3>
-                <div v-if="ipBlacklist.loading" class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.loadingList') }}</div>
+                <!-- Loading state (Only show if loading AND no entries are displayed yet) -->
+                <div v-if="ipBlacklist.loading && ipBlacklist.entries.length === 0" class="p-4 text-center text-text-secondary italic">{{ $t('settings.ipBlacklist.loadingList') }}</div>
                 <div v-if="ipBlacklist.error" class="p-3 border-l-4 border-error bg-error/10 text-error text-sm rounded">{{ ipBlacklist.error }}</div>
                 <div v-if="!ipBlacklist.loading && !ipBlacklist.error">
                   <div v-if="ipBlacklist.entries.length > 0" class="overflow-x-auto border border-border rounded-lg shadow-sm bg-background">

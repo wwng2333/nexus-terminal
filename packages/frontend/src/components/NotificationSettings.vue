@@ -4,7 +4,8 @@
       {{ $t('settings.notifications.title') }}
     </h2>
 
-    <div v-if="store.isLoading" class="p-4 text-center text-text-secondary italic"> <!-- Loading state -->
+    <!-- Loading state (Only show if loading AND no settings are displayed yet) -->
+    <div v-if="store.isLoading && settings.length === 0" class="p-4 text-center text-text-secondary italic">
       {{ $t('common.loading') }}
     </div>
     <div v-if="store.error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded"> <!-- Error state using error color -->

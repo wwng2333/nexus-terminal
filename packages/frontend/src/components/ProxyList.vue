@@ -30,7 +30,8 @@ const formatTimestamp = (timestamp: number | null): string => {
 
 <template>
   <div class="mt-4"> <!-- Container with top margin -->
-    <div v-if="isLoading" class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50 text-center italic"> <!-- Loading state consistent with Notifications -->
+    <!-- Loading state (Only show if loading AND no proxies are displayed yet) -->
+    <div v-if="isLoading && proxies.length === 0" class="p-4 border border-border rounded-md mb-4 text-text-secondary bg-header/50 text-center italic">
       {{ t('proxies.loading') }}
     </div>
     <div v-else-if="error" class="p-4 mb-4 border-l-4 border-error bg-error/10 text-error rounded"> <!-- Error state consistent with Notifications -->
