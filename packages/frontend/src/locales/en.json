@@ -98,7 +98,7 @@
     "loggingIn": "Logging in...",
     "twoFactorPrompt": "Enter your two-factor authentication code:",
     "verifyButton": "Verify",
-    "rememberMe": "Remember Me (7 days)",
+    "rememberMe": "Remember Me",
     "captchaPrompt": "Please complete the verification below:",
     "error": {
         "captchaLoadFailed": "Failed to load CAPTCHA. Please try refreshing.",

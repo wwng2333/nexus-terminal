@@ -98,7 +98,7 @@
     "loggingIn": "正在登录...",
     "twoFactorPrompt": "请输入两步验证码:",
     "verifyButton": "验证",
-    "rememberMe": "记住我 (7 天)",
+    "rememberMe": "记住我",
     "captchaPrompt": "请完成下方的验证：",
     "error": {
         "captchaLoadFailed": "加载 CAPTCHA 失败，请尝试刷新页面。",
