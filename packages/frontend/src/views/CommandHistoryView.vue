@@ -21,8 +21,8 @@
       </div>
       <!-- List Area -->
       <div class="flex-grow overflow-y-auto p-2">
-        <!-- Loading State -->
-        <div v-if="isLoading" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
+<!-- Loading State (Only show if loading AND no history is displayed yet) -->
+        <div v-if="isLoading && filteredHistory.length === 0" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
           <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
           <p>{{ $t('commandHistory.loading', '加载中...') }}</p>
         </div>
