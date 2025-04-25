@@ -39,7 +39,8 @@ export const settingsController = {
           'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
           'sidebarPaneWidths', // +++ 添加侧边栏宽度对象键 +++
           'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
-          'fileManagerColWidths' // +++ 添加文件管理器列宽键 +++
+          'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
+          'commandInputSyncTarget' // +++ 添加命令输入同步目标键 +++
           // --- REMOVED old width keys ---
       ];
       const filteredSettings: Record<string, string> = {};
