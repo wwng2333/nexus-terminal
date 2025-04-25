@@ -117,6 +117,15 @@ const getActionTranslation = (actionType: string): string => {
   return translated === key ? actionType : translated;
 };
 
+// 辅助函数：判断活动类型是否表示失败
+const isFailedAction = (actionType: string): boolean => {
+  const lowerCaseAction = actionType.toLowerCase();
+  // 检查常见的失败关键词
+  return lowerCaseAction.includes('fail') || lowerCaseAction.includes('error') || lowerCaseAction.includes('denied');
+  // 或者，如果 action_type 本身不包含明确的失败词，但翻译后包含，可以这样判断：
+  // const translatedAction = getActionTranslation(actionType);
+  // return translatedAction.includes('失败') || translatedAction.toLowerCase().includes('fail');
+};
 </script>
 
 <template>
@@ -162,7 +171,7 @@ const getActionTranslation = (actionType: string): string => {
           <ul v-else-if="recentAuditLogs.length > 0" class="space-y-3">
             <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-header/50 border border-border/50 rounded"> <!-- Applied audit log item style -->
               <div class="flex justify-between items-start mb-1">
-                <span class="font-medium text-sm">{{ getActionTranslation(log.action_type) }}</span>
+                <span class="font-medium text-sm" :class="{ 'text-error': isFailedAction(log.action_type) }">{{ getActionTranslation(log.action_type) }}</span>
                 <span class="text-xs text-text-alt flex-shrink-0 ml-2">{{ formatRelativeTime(log.timestamp) }}</span>
               </div>
               <p class="text-sm text-text-secondary break-words">{{ log.details }}</p>
