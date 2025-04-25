@@ -150,10 +150,19 @@ export function createWebSocketConnectionManager(sessionId: string, dbConnection
         isSftpReady.value = false; // 重置 SFTP 状态
 
         try {
-            ws.value = new WebSocket(url);
+            // --- 根据页面协议调整 WebSocket URL ---
+            let secureUrl = url;
+            if (window.location.protocol === 'https:') {
+                secureUrl = url.replace(/^ws:/, 'wss:');
+                console.log(`[WebSocket ${instanceSessionId}] HTTPS detected, upgrading WebSocket URL to: ${secureUrl}`);
+            } else {
+                 console.log(`[WebSocket ${instanceSessionId}] HTTP detected, using WebSocket URL: ${secureUrl}`);
+            }
+            // --- 使用调整后的 URL ---
+            ws.value = new WebSocket(secureUrl);
 
             ws.value.onopen = () => {
-                console.log(`[WebSocket ${instanceSessionId}] 连接已打开。`);
+                console.log(`[WebSocket ${instanceSessionId}] 连接已打开 (${secureUrl})。`); // 在日志中包含使用的 URL
                 reconnectAttempts = 0; // 连接成功，重置尝试次数
                 statusMessage.value = getStatusText('wsConnected');
                 // 状态保持 'connecting' 直到收到 ssh:connected
