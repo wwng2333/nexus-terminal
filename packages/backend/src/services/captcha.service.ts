@@ -91,12 +91,13 @@ export class CaptchaService {
     private async _verifyReCaptcha(token: string, secretKey: string): Promise<boolean> {
         console.log('[CaptchaService] 正在验证 Google reCAPTCHA 令牌...');
         try {
-            const response = await axios.post(RECAPTCHA_VERIFY_URL, null, { // 使用 POST，数据在 params 中
-                 params: {
-                    secret: secretKey,
-                    response: token,
-                    // remoteip: 可选，用户 IP 地址
-                },
+            // 正确方式：将数据放在 POST body 中，并使用 URLSearchParams 格式化
+            const params = new URLSearchParams();
+            params.append('secret', secretKey);
+            params.append('response', token);
+            // params.append('remoteip', userIpAddress); // 如果需要传递用户 IP
+
+            const response = await axios.post(RECAPTCHA_VERIFY_URL, params, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
