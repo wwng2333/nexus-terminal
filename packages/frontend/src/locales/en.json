@@ -464,7 +464,7 @@
         "webhookMethod": "HTTP Method:",
         "webhookHeaders": "Custom Headers",
         "webhookBodyTemplate": "Body Template (Optional)",
-        "webhookBodyPlaceholder": "Default: JSON payload. Use {{{{event}}}}, {{{{timestamp}}}}, {{{{details}}}}.",
+        "webhookBodyPlaceholder": "Default: JSON payload. Use {{event}}, {{timestamp}}, {{details}}.",
         "emailTo": "Recipient Email(s):",
         "emailToHelp": "Comma-separated list.",
         "emailSubjectTemplate": "Subject Template (Optional)",
@@ -484,9 +484,9 @@
         "telegramTokenHelp": "Store securely. Consider environment variables.",
         "telegramChatId": "Chat ID:",
         "telegramMessageTemplate": "Message Template (Optional)",
-        "telegramMessagePlaceholder": "Default: Markdown format. Use {{{{event}}}}, {{{{timestamp}}}}, {{{{details}}}}.",
+        "telegramMessagePlaceholder": "Default: Markdown format. Use {{event}}, {{timestamp}}, {{details}}.",
         "enabledEvents": "Enabled Events:",
-        "templateHelp": "Placeholders: {{{{event}}}}, {{{{timestamp}}}}, {{{{details}}}} (JSON string)",
+        "templateHelp": "Placeholders: {{event}}, {{timestamp}}, {{details}} (JSON string)",
         "invalidJson": "Invalid JSON"
       },
       "events": {
