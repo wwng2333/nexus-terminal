@@ -170,7 +170,8 @@ const isFailedAction = (actionType: string): boolean => {
           <h2 class="text-lg font-medium">{{ t('dashboard.recentActivity', '最近活动') }}</h2>
         </div>
         <div class="p-4">
-          <div v-if="isLoadingLogs" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
+          <!-- Loading State (Only show if loading AND no logs are displayed yet) -->
+          <div v-if="isLoadingLogs && recentAuditLogs.length === 0" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
           <ul v-else-if="recentAuditLogs.length > 0" class="space-y-3">
             <li v-for="log in recentAuditLogs" :key="log.id" class="p-3 bg-header/50 border border-border/50 rounded"> <!-- Applied audit log item style -->
               <div class="flex justify-between items-start mb-1">
