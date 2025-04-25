@@ -362,6 +362,7 @@ const handleCloseEditorTab = (tabId: string) => {
         @close-session="sessionStore.closeSession"
         @open-layout-configurator="handleOpenLayoutConfigurator"
         @request-add-connection-from-popup="handleRequestAddConnection"
+        @request-edit-connection-from-popup="handleRequestEditConnection" 
     />
 
     <!-- 移除 :class 绑定 -->
