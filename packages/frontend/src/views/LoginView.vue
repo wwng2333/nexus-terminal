@@ -4,8 +4,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '../stores/auth.store';
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha'; // <-- Import hCaptcha component
-// import { useReCaptcha } from 'vue-recaptcha-v3'; // <-- v3 hook, not needed for v2 widget
-import TheVueRecaptcha from 'vue-recaptcha'; // <-- Use a different name for import
+import { useReCaptcha } from 'vue-recaptcha-v3'; // <-- Restore reCAPTCHA v3 hook
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -21,9 +20,10 @@ const twoFactorToken = ref(''); // 用于存储 2FA 验证码
 const rememberMe = ref(false); // 新增：记住我状态，默认为 false
 const captchaToken = ref<string | null>(null); // NEW: Store CAPTCHA token
 const captchaError = ref<string | null>(null); // NEW: Store CAPTCHA specific error
-const hcaptchaWidget = ref<InstanceType<typeof VueHcaptcha> | null>(null); // Ref for hCaptcha component instance
-// const recaptchaInstance = useReCaptcha(); // v3 instance, not needed for v2 widget
-// No specific ref needed for VueRecaptcha v2 component usually, events handle token
+const hcaptchaWidget = ref<InstanceType<typeof VueHcaptcha> | null>(null); // NEW: Ref for hCaptcha component instance
+
+// --- reCAPTCHA v3 Initialization ---
+const recaptchaInstance = useReCaptcha(); // Restore v3 instance
 
 
 // --- CAPTCHA Event Handlers ---
@@ -46,7 +46,7 @@ const resetCaptchaWidget = () => {
   captchaToken.value = null;
   // Reset hCaptcha if it exists
   hcaptchaWidget.value?.reset();
-  // vue-recaptcha v2 component might reset automatically or not have an explicit method easily accessible via ref
+  // reCAPTCHA v3 doesn't typically need explicit reset in the same way
 };
 // --- End CAPTCHA Event Handlers ---
 
@@ -56,11 +56,30 @@ const handleSubmit = async () => {
   captchaError.value = null; // Clear previous CAPTCHA error
 
   // --- CAPTCHA Execution & Check ---
-  // For v2/hCaptcha, the token should already be set by the component's @verify event
   if (publicCaptchaConfig.value?.enabled && !loginRequires2FA.value) {
-    // No programmatic execution needed for v2/hCaptcha here.
+    // Restore If reCAPTCHA v3, execute it now to get the token
+    if (publicCaptchaConfig.value.provider === 'recaptcha') {
+        // Check if instance and methods are available
+        if (recaptchaInstance?.recaptchaLoaded && recaptchaInstance?.executeRecaptcha) {
+            try {
+                await recaptchaInstance.recaptchaLoaded(); // Ensure library is loaded
+                const token = await recaptchaInstance.executeRecaptcha('login'); // Execute with action 'login'
+                console.log('reCAPTCHA v3 token obtained:', token);
+                captchaToken.value = token; // Store the obtained token
+            } catch (reError: any) {
+                console.error('reCAPTCHA v3 execution failed:', reError);
+                captchaError.value = t('login.error.captchaLoadFailed');
+                return; // Stop submission if reCAPTCHA execution fails
+            }
+        } else {
+            // Handle case where reCAPTCHA is not ready/initialized
+            console.error('reCAPTCHA v3 not initialized or ready.');
+            captchaError.value = t('login.error.captchaLoadFailed'); // Or a more specific error
+            return;
+        }
+    }
 
-    // Check if token exists (obtained via @verify callback from either component)
+    // Check if token exists (for both hCaptcha and reCAPTCHA)
     if (!captchaToken.value) {
       captchaError.value = t('login.error.captchaRequired');
       return; // Stop submission if CAPTCHA is required but not completed/obtained
@@ -163,20 +182,12 @@ onMounted(() => {
                  theme="auto"
                ></VueHcaptcha>
             </div>
-            <!-- Google reCAPTCHA v2 Component -->
-            <div v-else-if="publicCaptchaConfig?.provider === 'recaptcha' && publicCaptchaConfig.recaptchaSiteKey">
-                <!-- @ts-ignore - Bypassing type check due to potential library type definition issues -->
-                <TheVueRecaptcha
-                  :sitekey="publicCaptchaConfig.recaptchaSiteKey"
-                  @verify="handleCaptchaVerified"
-                  @expired="handleCaptchaExpired"
-                  @error="handleCaptchaError"
-                  theme="light"
-                  size="normal"
-                ></TheVueRecaptcha>
-                 <p class="text-xs text-text-secondary italic mt-1">
-                  {{ t('login.recaptchaV3Notice') }} <!-- Keep the notice -->
+            <!-- reCAPTCHA v3 Info (usually invisible) -->
+            <div v-else-if="publicCaptchaConfig?.provider === 'recaptcha'">
+                <p class="text-xs text-text-secondary italic">
+                  {{ t('login.recaptchaV3Notice') }}
                 </p>
+                <!-- v3 is typically invisible, token obtained programmatically on submit -->
             </div>
             <!-- CAPTCHA Error Message -->
             <div v-if="captchaError" class="text-error text-sm">
