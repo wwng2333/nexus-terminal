@@ -42,6 +42,8 @@ interface SettingsState {
   sidebarPaneWidths?: string; // NEW: 存储各侧边栏组件宽度的 JSON 字符串
   fileManagerRowSizeMultiplier?: string; // NEW: 文件管理器行大小乘数 (e.g., '1.0')
   fileManagerColWidths?: string; // NEW: 文件管理器列宽 JSON 字符串 (e.g., '{"name": 300, "size": 100}')
+ fileManagerColWidths?: string; // NEW: 文件管理器列宽 JSON 字符串 (e.g., '{"name": 300, "size": 100}')
+ commandInputSyncTarget?: 'quickCommands' | 'commandHistory' | 'none'; // NEW: 命令输入同步目标
  // Add other general settings keys here as needed
  [key: string]: string | undefined; // Allow other string settings
 }
@@ -198,6 +200,11 @@ export const useSettingsStore = defineStore('settings', () => {
       //     await updateSetting('fileManagerColWidths', finalFmWidthsString);
       // }
 
+      // NEW: Command Input Sync Target default
+      if (settings.value.commandInputSyncTarget === undefined) {
+          settings.value.commandInputSyncTarget = 'none'; // 默认不同步
+      }
+
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
@@ -251,7 +258,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
         'sidebarPaneWidths', // +++ 添加侧边栏宽度对象键 +++
         'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
-        'fileManagerColWidths' // +++ 添加文件管理器列宽键 +++
+        'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
+        'commandInputSyncTarget' // +++ 添加命令输入同步目标键 +++
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -289,7 +297,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'workspaceSidebarPersistent', // +++ 添加侧边栏固定键 +++
         'sidebarPaneWidths', // +++ 添加侧边栏宽度对象键 +++
         'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
-        'fileManagerColWidths' // +++ 添加文件管理器列宽键 +++
+        'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
+        'commandInputSyncTarget' // +++ 添加命令输入同步目标键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: 'en' | 'zh' | undefined = undefined;
@@ -491,6 +500,15 @@ export const useSettingsStore = defineStore('settings', () => {
       return parsedFileManagerColWidths.value;
   });
 
+  // NEW: Getter for command input sync target
+  const commandInputSyncTarget = computed(() => {
+      const target = settings.value.commandInputSyncTarget;
+      if (target === 'quickCommands' || target === 'commandHistory') {
+          return target;
+      }
+      return 'none'; // Default to 'none' if invalid or not set
+  });
+
   // --- CAPTCHA Getters (Public Only) ---
   const isCaptchaEnabled = computed(() => captchaSettings.value?.enabled ?? false);
   const captchaProvider = computed(() => captchaSettings.value?.provider ?? 'none');
@@ -527,5 +545,6 @@ export const useSettingsStore = defineStore('settings', () => {
     updateMultipleSettings,
     updateSidebarPaneWidth, // +++ 暴露更新特定面板宽度的 action +++
     updateFileManagerLayoutSettings, // +++ 暴露更新文件管理器布局的 action +++
+    commandInputSyncTarget, // +++ 暴露命令输入同步目标 getter +++
   };
 });

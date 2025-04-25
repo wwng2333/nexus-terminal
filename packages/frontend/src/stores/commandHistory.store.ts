@@ -21,6 +21,7 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
     const isLoading = ref(false);
     const error = ref<string | null>(null);
     const uiNotificationsStore = useUiNotificationsStore();
+    const selectedIndex = ref<number>(-1); // NEW: Index of the selected command in the filtered list
 
     // --- Getters ---
 
@@ -36,6 +37,26 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
     });
 
     // --- Actions ---
+
+    // NEW: Action to select the next command in the filtered list
+    const selectNextCommand = () => {
+        const history = filteredHistory.value;
+        if (history.length === 0) {
+            selectedIndex.value = -1;
+            return;
+        }
+        selectedIndex.value = (selectedIndex.value + 1) % history.length;
+    };
+
+    // NEW: Action to select the previous command in the filtered list
+    const selectPreviousCommand = () => {
+        const history = filteredHistory.value;
+        if (history.length === 0) {
+            selectedIndex.value = -1;
+            return;
+        }
+        selectedIndex.value = (selectedIndex.value - 1 + history.length) % history.length;
+    };
 
     // 从后端获取历史记录
     const fetchHistory = async () => {
@@ -108,6 +129,12 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
     // 设置搜索词
     const setSearchTerm = (term: string) => {
         searchTerm.value = term;
+        selectedIndex.value = -1; // Reset selection when search term changes
+    };
+
+    // NEW: Action to reset the selection (Moved before return)
+    const resetSelection = () => {
+        selectedIndex.value = -1;
     };
 
     return {
@@ -116,10 +143,18 @@ export const useCommandHistoryStore = defineStore('commandHistory', () => {
         isLoading,
         error,
         filteredHistory,
+        selectedIndex, // NEW: Expose selected index
         fetchHistory,
         addCommand, // 导出 addCommand
         deleteCommand,
         clearAllHistory,
         setSearchTerm,
+        selectNextCommand, // NEW: Expose action
+        selectPreviousCommand, // NEW: Expose action
+        resetSelection, // Ensure resetSelection is exported
     };
+
+    // REMOVED resetSelection definition from here
+
+    // REMOVED duplicate return block
 });

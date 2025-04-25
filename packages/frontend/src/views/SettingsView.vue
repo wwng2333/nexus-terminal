@@ -404,6 +404,31 @@
                      </div>
                  </form>
               </div>
+              <hr class="border-border/50"> <!-- NEW: Separator -->
+              <!-- Command Input Sync Target -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.commandInputSync.title', '命令输入同步') }}</h3>
+                 <form @submit.prevent="handleUpdateCommandInputSyncTarget" class="space-y-4">
+                   <div>
+                     <label for="commandInputSyncTargetSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.commandInputSync.selectLabel', '同步目标') }}</label>
+                     <select id="commandInputSyncTargetSelect" v-model="commandInputSyncTargetLocal"
+                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                             style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+                       <option value="none">{{ $t('settings.commandInputSync.targetNone', '无') }}</option>
+                       <option value="quickCommands">{{ $t('settings.commandInputSync.targetQuickCommands', '快捷指令') }}</option>
+                       <option value="commandHistory">{{ $t('settings.commandInputSync.targetCommandHistory', '历史命令') }}</option>
+                     </select>
+                     <p class="text-xs text-text-secondary mt-1">{{ $t('settings.commandInputSync.description', '将命令输入框的内容实时同步到所选面板的搜索框。') }}</p>
+                   </div>
+                   <div class="flex items-center justify-between">
+                      <button type="submit" :disabled="commandInputSyncLoading"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                        {{ commandInputSyncLoading ? $t('common.saving') : $t('common.save') }}
+                      </button>
+                      <p v-if="commandInputSyncMessage" :class="['text-sm', commandInputSyncSuccess ? 'text-success' : 'text-error']">{{ commandInputSyncMessage }}</p>
+                   </div>
+                 </form>
+              </div>
             </div>
           </div>
 
@@ -505,6 +530,7 @@ const {
     language: storeLanguage,
     workspaceSidebarPersistentBoolean,
     captchaSettings, // <-- Import CAPTCHA settings state
+    commandInputSyncTarget, // NEW: Import command input sync target getter
 } = storeToRefs(settingsStore);
 
 // --- Local state for forms ---
@@ -517,6 +543,7 @@ const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store
 });
 const popupEditorEnabled = ref(true); // 本地状态，用于 v-model
 const workspaceSidebarPersistentEnabled = ref(false); // 新增：侧边栏固定设置的本地状态
+const commandInputSyncTargetLocal = ref<'none' | 'quickCommands' | 'commandHistory'>('none'); // NEW: Local state for command input sync target
 
 // --- Local UI feedback state ---
 const ipWhitelistLoading = ref(false);
@@ -551,6 +578,9 @@ const statusMonitorSuccess = ref(false);
 const workspaceSidebarPersistentLoading = ref(false); // 新增
 const workspaceSidebarPersistentMessage = ref(''); // 新增
 const workspaceSidebarPersistentSuccess = ref(false); // 新增
+const commandInputSyncLoading = ref(false); // NEW
+const commandInputSyncMessage = ref(''); // NEW
+const commandInputSyncSuccess = ref(false); // NEW
 
 // CAPTCHA Form State
 const captchaForm = reactive<UpdateCaptchaSettingsDto>({ // Use reactive for the form object
@@ -584,6 +614,7 @@ watch(settings, (newSettings, oldSettings) => {
   dockerExpandDefault.value = dockerDefaultExpandBoolean.value; // 同步 Docker 默认展开状态
   statusMonitorIntervalLocal.value = statusMonitorIntervalSecondsNumber.value; // 同步状态监控间隔
   workspaceSidebarPersistentEnabled.value = workspaceSidebarPersistentBoolean.value; // 新增：同步侧边栏固定设置
+  commandInputSyncTargetLocal.value = commandInputSyncTarget.value; // NEW: Sync command input sync target
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -733,6 +764,24 @@ const handleUpdateWorkspaceSidebarSetting = async () => {
         workspaceSidebarPersistentSuccess.value = false;
     } finally {
         workspaceSidebarPersistentLoading.value = false;
+    }
+};
+
+// --- Command Input Sync Target setting method ---
+const handleUpdateCommandInputSyncTarget = async () => {
+    commandInputSyncLoading.value = true;
+    commandInputSyncMessage.value = '';
+    commandInputSyncSuccess.value = false;
+    try {
+        await settingsStore.updateSetting('commandInputSyncTarget', commandInputSyncTargetLocal.value);
+        commandInputSyncMessage.value = t('settings.commandInputSync.success.saved', '同步目标已保存'); // 需要添加翻译
+        commandInputSyncSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新命令输入同步目标失败:', error);
+        commandInputSyncMessage.value = error.message || t('settings.commandInputSync.error.saveFailed', '保存同步目标失败'); // 需要添加翻译
+        commandInputSyncSuccess.value = false;
+    } finally {
+        commandInputSyncLoading.value = false;
     }
 };
 

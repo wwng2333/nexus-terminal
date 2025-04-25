@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose } from 'vue';
+import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed } from 'vue'; // Import computed
 import { useI18n } from 'vue-i18n';
+import { storeToRefs } from 'pinia'; // Import storeToRefs
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // 导入 Store
+import { useSettingsStore } from '../stores/settings.store'; // NEW: Import settings store
+import { useQuickCommandsStore } from '../stores/quickCommands.store'; // NEW: Import quick commands store
+import { useCommandHistoryStore } from '../stores/commandHistory.store'; // NEW: Import command history store
 // 假设你有一个图标库，例如 unplugin-icons 或类似库
 // import SearchIcon from '~icons/mdi/magnify';
 // import ArrowUpIcon from '~icons/mdi/arrow-up';
@@ -11,6 +15,18 @@ import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // 导入
 const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search']); // 移除 open-focus-switcher-config 事件
 const { t } = useI18n();
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化 Store +++
+const settingsStore = useSettingsStore(); // NEW: Instantiate settings store
+const quickCommandsStore = useQuickCommandsStore(); // NEW: Instantiate quick commands store
+const commandHistoryStore = useCommandHistoryStore(); // NEW: Instantiate command history store
+
+// Get reactive setting from store
+const { commandInputSyncTarget } = storeToRefs(settingsStore);
+// Get reactive state and actions from quick commands store
+const { selectedIndex: quickCommandsSelectedIndex, filteredAndSortedCommands: quickCommandsFiltered } = storeToRefs(quickCommandsStore);
+const { resetSelection: resetQuickCommandsSelection } = quickCommandsStore;
+// Get reactive state and actions from command history store
+const { selectedIndex: historySelectedIndex, filteredHistory: historyFiltered } = storeToRefs(commandHistoryStore);
+const { resetSelection: resetHistorySelection } = commandHistoryStore;
 
 // Props definition is now empty as search results are no longer handled here
 const props = defineProps<{
@@ -61,6 +77,17 @@ watch(searchTerm, (newValue) => {
   }
 });
 
+// NEW: Watch commandInput and sync searchTerm based on settings
+watch(commandInput, (newValue) => {
+  const target = commandInputSyncTarget.value;
+  if (target === 'quickCommands') {
+    quickCommandsStore.setSearchTerm(newValue);
+  } else if (target === 'commandHistory') {
+    commandHistoryStore.setSearchTerm(newValue);
+  }
+  // If target is 'none', do nothing
+});
+
 // 可以在这里添加一个 ref 用于聚焦搜索框
 const searchInputRef = ref<HTMLInputElement | null>(null);
 const commandInputRef = ref<HTMLInputElement | null>(null); // Ref for command input
@@ -74,7 +101,66 @@ const handleCommandInputKeydown = (event: KeyboardEvent) => {
     nextTick(() => {
       searchInputRef.value?.focus();
     });
+  } else if (event.key === 'ArrowUp') {
+    const target = commandInputSyncTarget.value;
+    if (target === 'quickCommands') {
+      event.preventDefault();
+      quickCommandsStore.selectPreviousCommand();
+    } else if (target === 'commandHistory') {
+      event.preventDefault();
+      commandHistoryStore.selectPreviousCommand();
+    }
+  } else if (event.key === 'ArrowDown') {
+    const target = commandInputSyncTarget.value;
+    if (target === 'quickCommands') {
+      event.preventDefault();
+      quickCommandsStore.selectNextCommand();
+    } else if (target === 'commandHistory') {
+      event.preventDefault();
+      commandHistoryStore.selectNextCommand();
+    }
+  } else if (event.altKey && event.key === 'Enter') {
+    const target = commandInputSyncTarget.value;
+    let selectedCommand: string | undefined;
+
+    if (target === 'quickCommands') {
+      const index = quickCommandsSelectedIndex.value;
+      const commands = quickCommandsFiltered.value;
+      if (index >= 0 && index < commands.length) {
+        selectedCommand = commands[index].command;
+        resetQuickCommandsSelection(); // Reset selection after execution
+      }
+    } else if (target === 'commandHistory') {
+      const index = historySelectedIndex.value;
+      const history = historyFiltered.value;
+      if (index >= 0 && index < history.length) {
+        selectedCommand = history[index].command;
+        resetHistorySelection(); // Reset selection after execution
+      }
+    }
+
+    if (selectedCommand !== undefined) {
+      event.preventDefault();
+      console.log(`[CommandInputBar] Alt+Enter detected. Sending selected command: ${selectedCommand}`);
+      emit('send-command', selectedCommand + '\n');
+      commandInput.value = ''; // Clear input after sending selected command
+    }
+  } else if (!event.altKey && event.key === 'Enter') {
+     // Handle regular Enter key press - send current input
+     event.preventDefault(); // Prevent default if needed, e.g., form submission
+     sendCommand(); // Call the existing sendCommand function
   }
+};
+
+// NEW: Handle blur event on command input
+const handleCommandInputBlur = () => {
+    // Reset selection in the target store when input loses focus
+    const target = commandInputSyncTarget.value;
+    if (target === 'quickCommands') {
+        resetQuickCommandsSelection();
+    } else if (target === 'commandHistory') {
+        resetHistorySelection();
+    }
 };
 
 // +++ 监听 Store 中的触发器以激活终端搜索 +++
@@ -151,11 +237,12 @@ onBeforeUnmount(() => {
         v-model="commandInput"
         :placeholder="t('commandInputBar.placeholder')"
         class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out"
-        :class="{ 'flex-basis-3/4': isSearching, 'flex-basis-full': !isSearching }"
+        :class="{ 'basis-3/4': isSearching, 'basis-full': !isSearching }"
         ref="commandInputRef"
         data-focus-id="commandInput"
-        @keydown.enter="sendCommand"
+        
         @keydown="handleCommandInputKeydown"
+        @blur="handleCommandInputBlur"
       />
 
       <!-- Search Input (Conditional rendering with v-show for transition) -->
@@ -164,7 +251,7 @@ onBeforeUnmount(() => {
         type="text"
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
-        class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out flex-basis-1/4 ml-1.5"
+        class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out basis-1/4 ml-1.5"
         data-focus-id="terminalSearch"
         @keydown.enter.prevent="findNext"
         @keydown.shift.enter.prevent="findPrevious"

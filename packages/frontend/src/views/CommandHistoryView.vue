@@ -10,7 +10,7 @@
           :value="searchTerm"
           data-focus-id="commandHistorySearch"
           @input="updateSearchTerm($event)"
-          @keydown="handleKeydown"
+          @keydown="handleSearchInputKeydown"
           ref="searchInputRef"
           class="flex-grow min-w-[8px] px-2 py-1 border border-border rounded-sm bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
         />
@@ -25,17 +25,17 @@
             v-for="(entry, index) in filteredHistory"
             :key="entry.id"
             class="group flex justify-between items-center px-3 py-2 cursor-pointer border-b border-border last:border-b-0 hover:bg-header/50 transition-colors duration-150"
-            :class="{ 'bg-primary/10 text-primary': index === selectedIndex }"
-            @mouseover="hoveredItemId = entry.id; selectedIndex = index"
-            @mouseleave="hoveredItemId = null; selectedIndex = -1"
+            :class="{ 'bg-primary/10 text-primary': index === storeSelectedIndex }"
+            
+            
             @click="executeCommand(entry.command)"
           >
-            <span class="truncate mr-2 flex-grow font-mono text-sm text-foreground" :class="{'text-primary': index === selectedIndex}">{{ entry.command }}</span>
+            <span class="truncate mr-2 flex-grow font-mono text-sm text-foreground" :class="{'text-primary': index === storeSelectedIndex}">{{ entry.command }}</span>
             <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-              <button @click.stop="copyCommand(entry.command)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :class="{'text-primary': index === selectedIndex}" :title="$t('commandHistory.copy', '复制')">
+              <button @click.stop="copyCommand(entry.command)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :class="{'text-primary': index === storeSelectedIndex}" :title="$t('commandHistory.copy', '复制')">
                 <i class="fas fa-copy text-xs"></i>
               </button>
-              <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1 text-text-secondary hover:text-error transition-colors duration-150" :class="{'text-primary': index === selectedIndex}" :title="$t('commandHistory.delete', '删除')">
+              <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1 text-text-secondary hover:text-error transition-colors duration-150" :class="{'text-primary': index === storeSelectedIndex}" :title="$t('commandHistory.delete', '删除')">
                 <i class="fas fa-times text-xs"></i>
               </button>
             </div>
@@ -53,7 +53,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, nextTick, defineExpose } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, defineExpose, watch } from 'vue'; // Import watch
+import { storeToRefs } from 'pinia'; // Import storeToRefs
 import { useCommandHistoryStore, CommandHistoryEntryFE } from '../stores/commandHistory.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
@@ -65,7 +66,7 @@ const uiNotificationsStore = useUiNotificationsStore();
 const { t } = useI18n();
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 const hoveredItemId = ref<number | null>(null);
-const selectedIndex = ref<number>(-1); // -1 表示没有选中
+// const selectedIndex = ref<number>(-1); // REMOVED: Use store's selectedIndex
 const historyListRef = ref<HTMLUListElement | null>(null); // Ref for the history list UL
 const searchInputRef = ref<HTMLInputElement | null>(null); // +++ Ref for the search input +++
 let unregisterFocus: (() => void) | null = null; // +++ 保存注销函数 +++
@@ -75,6 +76,7 @@ const searchTerm = computed(() => commandHistoryStore.searchTerm);
 // 使用 store 的 filteredHistory getter
 const filteredHistory = computed(() => commandHistoryStore.filteredHistory);
 const isLoading = computed(() => commandHistoryStore.isLoading);
+const { selectedIndex: storeSelectedIndex } = storeToRefs(commandHistoryStore); // Get selectedIndex reactively
 
 // --- 事件定义 ---
 // 定义组件发出的事件
@@ -108,16 +110,16 @@ onBeforeUnmount(() => {
 const updateSearchTerm = (event: Event) => {
   const target = event.target as HTMLInputElement;
   commandHistoryStore.setSearchTerm(target.value);
-  selectedIndex.value = -1; // Reset selection when search term changes
+  // selectedIndex.value = -1; // REMOVED: Store handles resetting index
 };
 
 // 滚动到选中的项目
-const scrollToSelected = async () => {
+const scrollToSelected = async (index: number) => { // Accept index as argument
   await nextTick(); // 等待 DOM 更新
-  if (selectedIndex.value < 0 || !historyListRef.value) return;
+  if (index < 0 || !historyListRef.value) return;
 
   const listElement = historyListRef.value;
-  const selectedItem = listElement.children[selectedIndex.value] as HTMLLIElement;
+  const selectedItem = listElement.children[index] as HTMLLIElement;
 
   if (selectedItem) {
     const listRect = listElement.getBoundingClientRect();
@@ -133,31 +135,35 @@ const scrollToSelected = async () => {
   }
 };
 
-// 处理键盘事件
-const handleKeydown = (event: KeyboardEvent) => {
+// Watch for changes in the store's selectedIndex and scroll
+watch(storeSelectedIndex, (newIndex) => {
+  scrollToSelected(newIndex);
+});
+
+// Renamed function to avoid conflict if needed, and added logic
+const handleSearchInputKeydown = (event: KeyboardEvent) => {
   const history = filteredHistory.value;
   if (!history.length) return;
 
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault();
-      selectedIndex.value = (selectedIndex.value + 1) % history.length;
-      scrollToSelected();
+      commandHistoryStore.selectNextCommand(); // Use store action
+      // scrollToSelected is handled by watcher
       break;
     case 'ArrowUp':
       event.preventDefault();
-      selectedIndex.value = (selectedIndex.value - 1 + history.length) % history.length;
-      scrollToSelected();
+      commandHistoryStore.selectPreviousCommand(); // Use store action
+      // scrollToSelected is handled by watcher
       break;
     case 'Enter':
       event.preventDefault();
-      if (selectedIndex.value >= 0 && selectedIndex.value < history.length) {
-        executeCommand(history[selectedIndex.value].command);
+      if (storeSelectedIndex.value >= 0 && storeSelectedIndex.value < history.length) {
+        executeCommand(history[storeSelectedIndex.value].command);
       }
       break;
   }
 };
-
 
 // 确认清空所有历史记录
 const confirmClearAll = () => {
@@ -186,7 +192,7 @@ const deleteSingleCommand = (id: number) => {
 const executeCommand = (command: string) => {
   emit('execute-command', command);
   // Optionally reset selection after execution
-  // selectedIndex.value = -1;
+  // selectedIndex.value = -1; // REMOVED: Store handles index
 };
 
 // +++ 新增：聚焦搜索框的方法 +++

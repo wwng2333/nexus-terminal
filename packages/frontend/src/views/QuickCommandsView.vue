@@ -10,7 +10,7 @@
           :value="searchTerm"
           data-focus-id="quickCommandsSearch"
           @input="updateSearchTerm($event)"
-          @keydown="handleKeydown"
+          @keydown="handleSearchInputKeydown"
           ref="searchInputRef"
           class="flex-grow min-w-[8px] px-2 py-1 border border-border rounded-sm bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
         />
@@ -28,9 +28,9 @@
             v-for="(cmd, index) in filteredAndSortedCommands"
             :key="cmd.id"
             class="group flex justify-between items-center px-3 py-2 cursor-pointer border-b border-border last:border-b-0 hover:bg-header/50 transition-colors duration-150"
-            :class="{ 'bg-primary/10 text-primary': index === selectedIndex }"
-            @mouseover="hoveredItemId = cmd.id; selectedIndex = index"
-            @mouseleave="hoveredItemId = null; selectedIndex = -1"
+            :class="{ 'bg-primary/10 text-primary': index === storeSelectedIndex }"
+            
+            
             @click="executeCommand(cmd)"
           >
             <div class="flex flex-col overflow-hidden mr-2 flex-grow">
@@ -38,11 +38,11 @@
               <span class="text-xs text-text-secondary truncate font-mono" :class="{ 'text-sm text-foreground': !cmd.name }">{{ cmd.command }}</span>
             </div>
             <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-               <span class="text-xs text-text-secondary bg-border px-1.5 py-0.5 rounded mr-1" :class="{'text-primary bg-primary/20': index === selectedIndex}" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
-              <button @click.stop="openEditForm(cmd)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :class="{'text-primary': index === selectedIndex}" :title="$t('common.edit', '编辑')">
+               <span class="text-xs text-text-secondary bg-border px-1.5 py-0.5 rounded mr-1" :class="{'text-primary bg-primary/20': index === storeSelectedIndex}" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
+              <button @click.stop="openEditForm(cmd)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :class="{'text-primary': index === storeSelectedIndex}" :title="$t('common.edit', '编辑')">
                 <i class="fas fa-edit text-xs"></i>
               </button>
-              <button @click.stop="confirmDelete(cmd)" class="p-1 text-text-secondary hover:text-error transition-colors duration-150" :class="{'text-primary': index === selectedIndex}" :title="$t('common.delete', '删除')">
+              <button @click.stop="confirmDelete(cmd)" class="p-1 text-text-secondary hover:text-error transition-colors duration-150" :class="{'text-primary': index === storeSelectedIndex}" :title="$t('common.delete', '删除')">
                 <i class="fas fa-times text-xs"></i>
               </button>
             </div>
@@ -67,7 +67,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed, nextTick, defineExpose } from 'vue';
+import { ref, onMounted, onBeforeUnmount, computed, nextTick, defineExpose, watch } from 'vue'; // Import watch
+import { storeToRefs } from 'pinia'; // Import storeToRefs
 import { useQuickCommandsStore, type QuickCommandFE, type QuickCommandSortByType } from '../stores/quickCommands.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
@@ -82,7 +83,7 @@ const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换
 const hoveredItemId = ref<number | null>(null);
 const isFormVisible = ref(false);
 const commandToEdit = ref<QuickCommandFE | null>(null);
-const selectedIndex = ref<number>(-1); // -1 表示没有选中
+// const selectedIndex = ref<number>(-1); // REMOVED: Use store's selectedIndex
 const commandListRef = ref<HTMLUListElement | null>(null); // Ref for the command list UL
 const searchInputRef = ref<HTMLInputElement | null>(null); // +++ Ref for the search input +++
 let unregisterFocus: (() => void) | null = null; // +++ 保存注销函数 +++
@@ -92,6 +93,7 @@ const searchTerm = computed(() => quickCommandsStore.searchTerm);
 const sortBy = computed(() => quickCommandsStore.sortBy);
 const filteredAndSortedCommands = computed(() => quickCommandsStore.filteredAndSortedCommands);
 const isLoading = computed(() => quickCommandsStore.isLoading);
+const { selectedIndex: storeSelectedIndex } = storeToRefs(quickCommandsStore); // Get selectedIndex reactively
 
 // --- 事件定义 ---
 const emit = defineEmits<{
@@ -120,16 +122,16 @@ onBeforeUnmount(() => {
 const updateSearchTerm = (event: Event) => {
   const target = event.target as HTMLInputElement;
   quickCommandsStore.setSearchTerm(target.value);
-  selectedIndex.value = -1; // Reset selection when search term changes
+  // selectedIndex.value = -1; // REMOVED: Store handles resetting index
 };
 
 // 滚动到选中的项目
-const scrollToSelected = async () => {
+const scrollToSelected = async (index: number) => { // Accept index as argument
   await nextTick(); // 等待 DOM 更新
-  if (selectedIndex.value < 0 || !commandListRef.value) return;
+  if (index < 0 || !commandListRef.value) return;
 
   const listElement = commandListRef.value;
-  const selectedItem = listElement.children[selectedIndex.value] as HTMLLIElement;
+  const selectedItem = listElement.children[index] as HTMLLIElement;
 
   if (selectedItem) {
     const listRect = listElement.getBoundingClientRect();
@@ -147,32 +149,35 @@ const scrollToSelected = async () => {
   }
 };
 
+// Watch for changes in the store's selectedIndex and scroll
+watch(storeSelectedIndex, (newIndex) => {
+  scrollToSelected(newIndex);
+});
 
-// 处理键盘事件
-const handleKeydown = (event: KeyboardEvent) => {
+// Renamed function to avoid conflict if needed, and added logic
+const handleSearchInputKeydown = (event: KeyboardEvent) => {
   const commands = filteredAndSortedCommands.value;
   if (!commands.length) return;
 
   switch (event.key) {
     case 'ArrowDown':
       event.preventDefault();
-      selectedIndex.value = (selectedIndex.value + 1) % commands.length;
-      scrollToSelected();
+      quickCommandsStore.selectNextCommand(); // Use store action
+      // scrollToSelected is handled by watcher
       break;
     case 'ArrowUp':
       event.preventDefault();
-      selectedIndex.value = (selectedIndex.value - 1 + commands.length) % commands.length;
-      scrollToSelected();
+      quickCommandsStore.selectPreviousCommand(); // Use store action
+      // scrollToSelected is handled by watcher
       break;
     case 'Enter':
       event.preventDefault();
-      if (selectedIndex.value >= 0 && selectedIndex.value < commands.length) {
-        executeCommand(commands[selectedIndex.value]);
+      if (storeSelectedIndex.value >= 0 && storeSelectedIndex.value < commands.length) {
+        executeCommand(commands[storeSelectedIndex.value]);
       }
       break;
   }
 };
-
 
 // 切换排序方式
 const toggleSortBy = () => {
@@ -221,7 +226,7 @@ const executeCommand = (command: QuickCommandFE) => {
   // 2. 发出执行事件给父组件
   emit('execute-command', command.command);
   // Optionally reset selection after execution
-  // selectedIndex.value = -1;
+  // selectedIndex.value = -1; // REMOVED: Store handles index
 };
 
 // +++ 新增：聚焦搜索框的方法 +++

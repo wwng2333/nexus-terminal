@@ -17,6 +17,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     const isLoading = ref(false);
     const error = ref<string | null>(null);
     const uiNotificationsStore = useUiNotificationsStore();
+    const selectedIndex = ref<number>(-1); // NEW: Index of the selected command in the filtered list
 
     // --- Getters ---
 
@@ -52,6 +53,26 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     });
 
     // --- Actions ---
+
+    // NEW: Action to select the next command in the filtered list
+    const selectNextCommand = () => {
+        const commands = filteredAndSortedCommands.value;
+        if (commands.length === 0) {
+            selectedIndex.value = -1;
+            return;
+        }
+        selectedIndex.value = (selectedIndex.value + 1) % commands.length;
+    };
+
+    // NEW: Action to select the previous command in the filtered list
+    const selectPreviousCommand = () => {
+        const commands = filteredAndSortedCommands.value;
+        if (commands.length === 0) {
+            selectedIndex.value = -1;
+            return;
+        }
+        selectedIndex.value = (selectedIndex.value - 1 + commands.length) % commands.length;
+    };
 
     // 从后端获取快捷指令 (带排序)
     const fetchQuickCommands = async () => {
@@ -141,6 +162,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 设置搜索词
     const setSearchTerm = (term: string) => {
         searchTerm.value = term;
+        selectedIndex.value = -1; // Reset selection when search term changes
     };
 
     // 设置排序方式并重新获取数据
@@ -151,6 +173,13 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
         }
     };
 
+    // NEW: Action to reset the selection
+    const resetSelection = () => {
+        selectedIndex.value = -1;
+    };
+
+    // Removed duplicate resetSelection definition
+
     return {
         quickCommandsList,
         searchTerm,
@@ -158,6 +187,7 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
         isLoading,
         error,
         filteredAndSortedCommands, // 使用计算属性
+        selectedIndex, // NEW: Expose selected index
         fetchQuickCommands,
         addQuickCommand,
         updateQuickCommand,
@@ -165,5 +195,8 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
         incrementUsage,
         setSearchTerm,
         setSortBy,
+        selectNextCommand, // NEW: Expose action
+        selectPreviousCommand, // NEW: Expose action
+        resetSelection, // Ensure resetSelection is exported
     };
 });
