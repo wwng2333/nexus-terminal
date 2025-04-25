@@ -46,7 +46,7 @@ const handleItemClick = (item: ContextMenuItem) => {
           'px-4 py-1.5 cursor-pointer text-foreground text-sm flex items-center transition-colors duration-150 rounded',
           menuItem.disabled
             ? 'text-text-secondary cursor-not-allowed opacity-60 bg-background'
-            : 'hover:bg-hover'
+            : 'hover:bg-border' // Changed hover background for better visibility
         ]"
       >
         {{ menuItem.label }}
