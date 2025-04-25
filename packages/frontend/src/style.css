@@ -32,6 +32,12 @@
   --color-ssh-tab-active: var(--ssh-tab-active);
   --color-ssh-tab-background: var(--ssh-tab-background);
   --color-overlay: var(--overlay-bg-color); /* Added Overlay Background */
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-success-text: var(--color-success-text);
+  --color-warning-text: var(--color-warning-text);
+  --color-error-text: var(--color-error-text);
 }
 
 /* 全局样式和 CSS 变量定义 */
@@ -62,6 +68,14 @@
   --ssh-tab-active: transparent; /* Corrected value */
   --ssh-tab-background: transparent; /* Corrected value */
   --overlay-bg-color: rgba(0, 0, 0, 0.6); /* Added Overlay Background Color */
+
+  /* Status Colors */
+  --color-success: #28a745; /* Green */
+  --color-warning: #ffc107; /* Yellow */
+  --color-error: #dc3545;   /* Red */
+  --color-success-text: #ffffff; /* White text for green bg */
+  --color-warning-text: #212529; /* Dark text for yellow bg */
+  --color-error-text: #ffffff;   /* White text for red bg */
 
   /* 字体 */
   --font-family-sans-serif: sans-serif; /* 默认字体 */

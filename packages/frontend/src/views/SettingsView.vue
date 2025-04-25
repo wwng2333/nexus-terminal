@@ -83,7 +83,7 @@
                      </div>
                      <div class="flex items-center justify-between">
                         <button type="submit" :disabled="twoFactorLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                                class="px-4 py-2 bg-error text-error-text rounded-md shadow-sm hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
                           {{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.disable.button') }}
                         </button>
                      </div>
@@ -92,7 +92,7 @@
                  <div v-else>
                    <p class="text-sm text-text-secondary mb-4">{{ $t('settings.twoFactor.status.disabled') }}</p>
                    <button v-if="!isSettingUp2FA" @click="handleSetup2FA" :disabled="twoFactorLoading"
-                           class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                           class="px-4 py-2 bg-success text-success-text rounded-md shadow-sm hover:bg-success/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-success disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
                      {{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.enable.button') }}
                    </button>
                    <div v-if="isSettingUp2FA && setupData" class="mt-4 space-y-4 p-4 border border-border rounded-md bg-header/30">
@@ -107,7 +107,7 @@
                        </div>
                        <div class="flex items-center space-x-3">
                          <button type="submit" :disabled="twoFactorLoading"
-                                 class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                                 class="px-4 py-2 bg-success text-success-text rounded-md shadow-sm hover:bg-success/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-success disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
                            {{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.setup.verifyButton') }}
                          </button>
                          <button type="button" @click="cancelSetup" :disabled="twoFactorLoading"
@@ -196,7 +196,7 @@
                              <button
                                @click="handleDeleteIp(entry.ip)"
                                :disabled="blacklistDeleteLoading && blacklistToDeleteIp === entry.ip"
-                               class="px-2 py-1 bg-error text-white rounded text-xs font-medium hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                               class="px-2 py-1 bg-error text-error-text rounded text-xs font-medium hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
                              >
                                {{ (blacklistDeleteLoading && blacklistToDeleteIp === entry.ip) ? $t('settings.ipBlacklist.table.deleting') : $t('settings.ipBlacklist.table.removeButton') }}
                              </button>
