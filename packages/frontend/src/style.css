@@ -107,7 +107,6 @@ button:hover i, button:hover .fas, button:hover .far, button:hover .fab, /* 按�
 .icon-interactive:hover i, .icon-interactive:hover .fas, .icon-interactive:hover .far, .icon-interactive:hover .fab { /* 可交互图标容器 */
   color: var(--icon-hover-color);
 }
-
 /* 全局分割线样式 */
 hr {
   border: none;
@@ -192,4 +191,20 @@ input:focus, textarea:focus, select:focus {
     border-color: var(--input-focus-border-color) !important; /* Use new variable, !important might be needed depending on specificity */
     outline: 0;
     box-shadow: 0 0 0 3px rgba(var(--input-focus-glow-rgb), 0.2) !important; /* Use new variable, !important might be needed */
+}
+
+/* Ensure icons inside primary buttons are white */
+button.bg-primary i,
+button.bg-primary .fas,
+button.bg-primary .far,
+button.bg-primary .fab {
+  color: white !important; /* Force white color */
+}
+
+/* Optional: Keep icon white even on hover for primary buttons */
+button.bg-primary:hover i,
+button.bg-primary:hover .fas,
+button.bg-primary:hover .far,
+button.bg-primary:hover .fab {
+  color: white !important; /* Keep white on hover */
 }

@@ -1,6 +1,6 @@
 <template>
   <!-- Root element with padding, background, border, and text styles -->
-  <div class="status-monitor p-4 border-l border-border bg-background text-foreground h-full overflow-y-auto text-sm">
+  <div class="status-monitor p-4 bg-background text-foreground h-full overflow-y-auto text-sm">
     <!-- Title with margin, border, padding, font size, and color -->
     <h4 class="mt-0 mb-4 border-b border-border pb-2 text-base font-medium">
       {{ t('statusMonitor.title') }}

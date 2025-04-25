@@ -221,26 +221,25 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex items-center px-2.5 py-1.5 bg-background min-h-[30px] gap-1.5">
-    <div class="flex-grow flex items-center bg-transparent relative gap-1.5">
+  <div class="flex items-center px-2 py-1.5 bg-background gap-2"> <!-- Removed border-t and border-border/50 -->
+    <div class="flex-grow flex items-center bg-transparent relative gap-2"> <!-- Adjusted gap -->
       <!-- Focus Switcher Config Button -->
       <button
         @click="focusSwitcherStore.toggleConfigurator(true)"
-        class="flex-shrink-0 flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+        class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
         :title="t('commandInputBar.configureFocusSwitch', '配置焦点切换')"
       >
-        <i class="fas fa-keyboard text-base text-primary transition-colors duration-200"></i>
+        <i class="fas fa-keyboard text-base"></i> <!-- Removed text-primary -->
       </button>
       <!-- Command Input -->
       <input
         type="text"
         v-model="commandInput"
         :placeholder="t('commandInputBar.placeholder')"
-        class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out"
+        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
         :class="{ 'basis-3/4': isSearching, 'basis-full': !isSearching }"
         ref="commandInputRef"
         data-focus-id="commandInput"
-        
         @keydown="handleCommandInputKeydown"
         @blur="handleCommandInputBlur"
       />
@@ -251,7 +250,7 @@ onBeforeUnmount(() => {
         type="text"
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
-        class="flex-grow px-2.5 py-1.5 border border-border rounded text-sm bg-input text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-300 ease-in-out basis-1/4 ml-1.5"
+        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out basis-1/4"
         data-focus-id="terminalSearch"
         @keydown.enter.prevent="findNext"
         @keydown.shift.enter.prevent="findPrevious"
@@ -261,30 +260,30 @@ onBeforeUnmount(() => {
       />
 
       <!-- Search Controls -->
-      <div class="flex items-center gap-1 flex-shrink-0">
+      <div class="flex items-center gap-1 flex-shrink-0"> <!-- Adjusted gap -->
         <button
           @click="toggleSearch"
-          class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+          class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
           :title="isSearching ? t('commandInputBar.closeSearch') : t('commandInputBar.openSearch')"
         >
-          <i v-if="!isSearching" class="fas fa-search text-base text-primary transition-colors duration-200"></i>
-          <i v-else class="fas fa-times text-base text-primary transition-colors duration-200"></i>
+          <i v-if="!isSearching" class="fas fa-search text-base"></i>
+          <i v-else class="fas fa-times text-base"></i>
         </button>
 
         <template v-if="isSearching">
           <button
             @click="findPrevious"
-            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+            class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
             :title="t('commandInputBar.findPrevious')"
           >
-            <i class="fas fa-arrow-up text-base text-primary transition-colors duration-200"></i>
+            <i class="fas fa-arrow-up text-base"></i>
           </button>
           <button
             @click="findNext"
-            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 hover:bg-black/10 hover:text-foreground"
+            class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
             :title="t('commandInputBar.findNext')"
           >
-            <i class="fas fa-arrow-down text-base text-primary transition-colors duration-200"></i>
+            <i class="fas fa-arrow-down text-base"></i>
           </button>
         </template>
       </div>

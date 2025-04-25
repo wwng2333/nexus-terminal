@@ -910,7 +910,7 @@ defineExpose({ focusSearchInput, startPathEdit });
 
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-foreground text-sm font-sans">
-    <div class="flex items-center justify-between flex-wrap gap-2 p-2 bg-header border-b border-border flex-shrink-0">
+    <div class="flex items-center justify-between flex-wrap gap-2 p-2 bg-header  flex-shrink-0">
         <!-- Path Bar -->
         <div class="flex items-center bg-background border border-border rounded px-1.5 py-0.5 overflow-hidden min-w-[100px] flex-shrink">
           <span v-show="!isEditingPath" class="text-text-secondary whitespace-nowrap overflow-x-auto pr-2">
@@ -1045,7 +1045,7 @@ defineExpose({ focusSearchInput, startPathEdit });
         </div>
 
         <!-- File Table -->
-        <table ref="tableRef" class="w-full border-collapse table-fixed border border-border rounded" @contextmenu.prevent>
+        <table ref="tableRef" class="w-full border-collapse table-fixed  border-border rounded" @contextmenu.prevent>
             <colgroup>
                  <col :style="{ width: `${colWidths.type}px` }">
                 <col :style="{ width: `${colWidths.name}px` }">

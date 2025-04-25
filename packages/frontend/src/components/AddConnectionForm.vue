@@ -387,7 +387,7 @@ const testButtonText = computed(() => {
       </form> <!-- End Form -->
 
       <!-- Form Actions -->
-      <div class="flex justify-between items-center pt-5 mt-6 border-t border-border flex-shrink-0">
+      <div class="flex justify-between items-center pt-5 mt-6 flex-shrink-0">
          <div class="flex flex-col items-start gap-1"> <!-- Test Area -->
              <div class="flex items-center gap-2"> <!-- Button and Icon -->
                  <button type="button" @click="handleTestConnection" :disabled="isLoading || testStatus === 'testing'"

@@ -1,33 +1,35 @@
 <template>
   <div class="fixed inset-0 bg-overlay flex justify-center items-center z-[1050]" @click.self="closeForm">
-    <div class="bg-background text-foreground p-6 rounded-lg border border-border shadow-xl w-[90%] max-w-lg"> <!-- Changed bg-dialog to bg-background, text-dialog-text to text-foreground -->
-      <h2 class="m-0 mb-6 text-center text-xl font-medium">{{ isEditing ? t('quickCommands.form.titleEdit', '编辑快捷指令') : t('quickCommands.form.titleAdd', '添加快捷指令') }}</h2>
-      <form @submit.prevent="handleSubmit">
-        <div class="mb-4">
-          <label for="qc-name" class="block mb-2 font-bold text-text-secondary text-sm">{{ t('quickCommands.form.name', '名称:') }}</label>
+    <div class="bg-background text-foreground p-6 rounded-xl border border-border/50 shadow-2xl w-[90%] max-w-lg">
+      <h2 class="m-0 mb-6 text-center text-xl font-semibold">{{ isEditing ? t('quickCommands.form.titleEdit', '编辑快捷指令') : t('quickCommands.form.titleAdd', '添加快捷指令') }}</h2>
+      <form @submit.prevent="handleSubmit" class="space-y-5">
+        <div>
+          <label for="qc-name" class="block mb-1.5 text-sm font-medium text-text-secondary">{{ t('quickCommands.form.name', '名称:') }}</label>
           <input
             id="qc-name"
             type="text"
             v-model="formData.name"
             :placeholder="t('quickCommands.form.namePlaceholder', '可选，用于快速识别')"
-            class="w-full px-3 py-2 border border-border rounded bg-input text-foreground text-base focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150"
+            class="w-full px-4 py-2 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out"
           />
         </div>
-        <div class="mb-4">
-          <label for="qc-command" class="block mb-2 font-bold text-text-secondary text-sm">{{ t('quickCommands.form.command', '指令:') }} <span class="text-error">*</span></label>
+        <div>
+          <label for="qc-command" class="block mb-1.5 text-sm font-medium text-text-secondary">{{ t('quickCommands.form.command', '指令:') }} <span class="text-error">*</span></label>
           <textarea
             id="qc-command"
             v-model="formData.command"
             required
-            rows="3"
+            rows="4"
             :placeholder="t('quickCommands.form.commandPlaceholder', '例如：ls -alh /home/user')"
-            class="w-full px-3 py-2 border border-border rounded bg-input text-foreground text-base resize-vertical min-h-[80px] focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors duration-150"
+            class="w-full px-4 py-2 border border-border/50 rounded-lg bg-input text-foreground text-sm resize-y min-h-[100px] shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out"
           ></textarea>
           <small v-if="commandError" class="text-error text-xs mt-1 block">{{ commandError }}</small>
         </div>
-        <div class="flex justify-end mt-6 pt-2 border-t border-border">
-          <button type="button" @click="closeForm" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-button text-button-text hover:bg-button-hover border border-border mr-2">{{ t('common.cancel', '取消') }}</button>
-          <button type="submit" :disabled="isSubmitting || !!commandError" class="py-2 px-4 rounded text-sm transition-colors duration-150 bg-primary text-white hover:bg-primary-dark disabled:bg-gray-400 disabled:opacity-70 disabled:cursor-not-allowed">
+        <div class="flex justify-end mt-8 pt-4 border-t border-border/50">
+          <!-- Secondary/Cancel Button -->
+          <button type="button" @click="closeForm" class="py-2 px-5 rounded-lg text-sm font-medium transition-colors duration-150 bg-background border border-border/50 text-text-secondary hover:bg-border hover:text-foreground mr-3">{{ t('common.cancel', '取消') }}</button>
+          <!-- Primary/Submit Button -->
+          <button type="submit" :disabled="isSubmitting || !!commandError" class="py-2 px-5 rounded-lg text-sm font-semibold transition-colors duration-150 bg-primary text-white border-none shadow-md hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:opacity-70 disabled:cursor-not-allowed">
             {{ isSubmitting ? t('common.saving', '保存中...') : (isEditing ? t('common.save', '保存') : t('quickCommands.form.add', '添加')) }}
           </button>
         </div>

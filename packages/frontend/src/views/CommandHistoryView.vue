@@ -2,8 +2,8 @@
   <div class="flex flex-col h-full overflow-hidden bg-background">
     <!-- Container for controls and list -->
     <div class="flex flex-col flex-grow overflow-hidden bg-background">
-      <!-- Controls embedded within the container -->
-      <div class="flex items-stretch p-2 border-b border-border flex-shrink-0 gap-1 bg-header"> 
+      <!-- Controls Area -->
+      <div class="flex items-center p-2 flex-shrink-0 gap-2 bg-background"> <!-- Reduced padding p-3 to p-2 -->
         <input
           type="text"
           :placeholder="$t('commandHistory.searchPlaceholder', '搜索历史记录...')"
@@ -12,41 +12,49 @@
           @input="updateSearchTerm($event)"
           @keydown="handleSearchInputKeydown"
           ref="searchInputRef"
-          class="flex-grow min-w-[8px] px-2 py-1 border border-border rounded-sm bg-background text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+          class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out"
         />
-        <button @click="confirmClearAll" class="w-8 py-1 border border-border rounded-sm text-text-secondary hover:bg-error/10 hover:text-error hover:border-error/50 transition-colors duration-150 flex-shrink-0 flex" :title="$t('commandHistory.clear', '清空')">
-          <i class="fas fa-trash-alt text-sm m-auto"></i>
+        <!-- Clear Button -->
+        <button @click="confirmClearAll" class="w-8 h-8 border border-border/50 rounded-lg text-text-secondary hover:bg-error/10 hover:text-error hover:border-error/50 transition-colors duration-150 flex-shrink-0 flex items-center justify-center" :title="$t('commandHistory.clear', '清空')"> <!-- Use w-8 h-8 -->
+          <i class="fas fa-trash-alt text-base"></i>
         </button>
       </div>
       <!-- List Area -->
-      <div class="flex-grow overflow-y-auto">
-        <ul ref="historyListRef" v-if="filteredHistory.length > 0" class="list-none p-0 m-0">
+      <div class="flex-grow overflow-y-auto p-2">
+        <!-- Loading State -->
+        <div v-if="isLoading" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
+          <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
+          <p>{{ $t('commandHistory.loading', '加载中...') }}</p>
+        </div>
+        <!-- Empty State -->
+        <div v-else-if="filteredHistory.length === 0" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
+          <i class="fas fa-history text-xl mb-2"></i>
+          <p>{{ $t('commandHistory.empty', '没有历史记录') }}</p>
+        </div>
+        <!-- History List -->
+        <ul ref="historyListRef" v-else class="list-none p-0 m-0">
           <li
             v-for="(entry, index) in filteredHistory"
             :key="entry.id"
-            class="group flex justify-between items-center px-3 py-2 cursor-pointer border-b border-border last:border-b-0 hover:bg-header/50 transition-colors duration-150"
-            :class="{ 'bg-primary/10 text-primary': index === storeSelectedIndex }"
-            
-            
+            class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
+            :class="{ 'bg-primary/20 text-white font-medium': index === storeSelectedIndex }"
             @click="executeCommand(entry.command)"
           >
-            <span class="truncate mr-2 flex-grow font-mono text-sm text-foreground" :class="{'text-primary': index === storeSelectedIndex}">{{ entry.command }}</span>
-            <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-              <button @click.stop="copyCommand(entry.command)" class="p-1 text-text-secondary hover:text-primary transition-colors duration-150" :class="{'text-primary': index === storeSelectedIndex}" :title="$t('commandHistory.copy', '复制')">
-                <i class="fas fa-copy text-xs"></i>
+            <!-- Command Text -->
+            <span class="truncate mr-2 flex-grow font-mono text-sm" :class="{'text-white': index === storeSelectedIndex, 'text-foreground': index !== storeSelectedIndex}">{{ entry.command }}</span>
+            <!-- Actions (Show on Hover) -->
+            <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+              <!-- Copy Button -->
+              <button @click.stop="copyCommand(entry.command)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150" :class="{'text-white hover:bg-white/20': index === storeSelectedIndex, 'text-text-secondary hover:text-primary': index !== storeSelectedIndex}" :title="$t('commandHistory.copy', '复制')">
+                <i class="fas fa-copy text-sm"></i>
               </button>
-              <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1 text-text-secondary hover:text-error transition-colors duration-150" :class="{'text-primary': index === storeSelectedIndex}" :title="$t('commandHistory.delete', '删除')">
-                <i class="fas fa-times text-xs"></i>
+              <!-- Delete Button -->
+              <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1.5 rounded hover:bg-black/10 transition-colors duration-150" :class="{'text-white hover:bg-white/20': index === storeSelectedIndex, 'text-text-secondary hover:text-error': index !== storeSelectedIndex}" :title="$t('commandHistory.delete', '删除')">
+                <i class="fas fa-times text-sm"></i>
               </button>
             </div>
           </li>
         </ul>
-        <div v-else-if="isLoading" class="p-6 text-center text-text-secondary text-sm">
-          {{ $t('commandHistory.loading', '加载中...') }}
-        </div>
-        <div v-else class="p-6 text-center text-text-secondary text-sm italic">
-          {{ $t('commandHistory.empty', '没有历史记录') }}
-        </div>
       </div>
     </div>
   </div>

@@ -301,96 +301,109 @@ const scrollToHighlighted = async () => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col overflow-hidden bg-background text-sm text-foreground">
-    <div v-if="connectionsLoading || tagsLoading" class="p-4 text-center text-text-secondary">
-      {{ t('common.loading') }}
+  <div class="h-full flex flex-col overflow-hidden bg-background text-foreground">
+    <!-- Loading / Error State -->
+    <div v-if="connectionsLoading || tagsLoading" class="flex items-center justify-center h-full text-text-secondary">
+      <i class="fas fa-spinner fa-spin mr-2"></i> {{ t('common.loading') }}
     </div>
-    <div v-else-if="connectionsError || tagsError" class="p-4 text-center text-red-600">
-      {{ connectionsError || tagsError }}
-    </div>
-
-    <!-- 搜索和添加栏 -->
-    <div class="flex p-2 border-b border-border bg-header">
-      <input
-        type="text"
-        v-model="searchTerm"
-        :placeholder="t('workspaceConnectionList.searchPlaceholder')"
-        ref="searchInputRef"
-        class="flex-grow min-w-0 px-3 py-1.5 border border-border rounded-l-md text-sm outline-none bg-background text-foreground focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-50 transition-colors duration-150"
-        data-focus-id="connectionListSearch"
-        @keydown="handleKeyDown"
-        @blur="handleBlur"
-      />
-      <button
-        class="px-3 py-1.5 border border-border border-l-0 bg-background cursor-pointer rounded-r-md text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150"
-        @click="handleMenuAction('add')"
-        :title="t('connections.addConnection')"
-      >
-        <i class="fas fa-plus"></i>
-      </button>
+    <div v-else-if="connectionsError || tagsError" class="flex items-center justify-center h-full text-error px-4 text-center">
+      <i class="fas fa-exclamation-triangle mr-2"></i> {{ connectionsError || tagsError }}
     </div>
 
-    <!-- 连接列表区域 -->
-    <div class="flex-grow overflow-y-auto" ref="listAreaRef">
-      <div v-if="connectionsLoading || tagsLoading" class="p-4 text-center text-text-secondary">
-        {{ t('common.loading') }}
+    <!-- Main Content Area -->
+    <div v-else class="flex flex-col h-full">
+      <!-- Search and Add Bar -->
+      <div class="flex p-2 border-b border-border/50"> <!-- Reduced padding p-3 to p-2 -->
+        <input
+          type="text"
+          v-model="searchTerm"
+          :placeholder="t('workspaceConnectionList.searchPlaceholder')"
+          ref="searchInputRef"
+          class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out"
+          data-focus-id="connectionListSearch"
+          @keydown="handleKeyDown"
+          @blur="handleBlur"
+        />
+        <button
+          class="ml-2 w-8 h-8 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 flex-shrink-0 flex items-center justify-center" 
+          @click="handleMenuAction('add')"
+          :title="t('connections.addConnection')"
+        >
+          <i class="fas fa-plus text-white"></i>
+        </button>
       </div>
-      <div v-else-if="connectionsError || tagsError" class="p-4 text-center text-red-600">
-        {{ connectionsError || tagsError }}
-      </div>
-      <div v-else-if="filteredAndGroupedConnections.length === 0 && connections.length > 0" class="p-4 text-center text-text-secondary">
-         {{ t('workspaceConnectionList.noResults') }} "{{ searchTerm }}"
-      </div>
-      <div v-else-if="connections.length === 0" class="p-4 text-center text-text-secondary">
-         {{ t('connections.noConnections') }}
-      </div>
-      <div v-else>
-        <!-- 循环分组 -->
-        <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="mb-0 last:mb-0">
-          <div class="group px-3 py-2 font-semibold cursor-pointer bg-header border-t border-b border-border flex items-center text-foreground hover:bg-border transition-colors duration-150" @click="toggleGroup(groupData.groupName)">
-            <i :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out']"></i>
-            <span>{{ groupData.groupName }}</span>
-          </div>
-          <!-- 连接项列表 -->
-          <ul v-show="expandedGroups[groupData.groupName]" class="list-none p-0 m-0">
-            <li
-              v-for="conn in groupData.connections"
-              :key="conn.id"
-              class="group py-2 pr-4 pl-6 cursor-pointer flex items-center border-b border-border whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-header/50 transition-colors duration-150"
-              :class="{ 'bg-primary/10 text-primary': conn.id === highlightedConnectionId }"
-              :data-conn-id="conn.id"
-              @click.left="handleConnect(conn.id)"
-              @contextmenu.prevent="showContextMenu($event, conn)"
+
+      <!-- Connection List Area -->
+      <div class="flex-grow overflow-y-auto p-2" ref="listAreaRef">
+        <!-- No Results / No Connections State -->
+        <div v-if="filteredAndGroupedConnections.length === 0 && connections.length > 0" class="p-6 text-center text-text-secondary">
+           <i class="fas fa-search text-xl mb-2"></i>
+           <p>{{ t('workspaceConnectionList.noResults') }} "{{ searchTerm }}"</p>
+        </div>
+        <div v-else-if="connections.length === 0" class="p-6 text-center text-text-secondary">
+           <i class="fas fa-plug text-xl mb-2"></i>
+           <p>{{ t('connections.noConnections') }}</p>
+           <button
+             class="mt-4 px-4 py-2 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+             @click="handleMenuAction('add')"
+           >
+             {{ t('connections.addFirstConnection') }} <!-- Need translation -->
+           </button>
+        </div>
+
+        <!-- Groups and Connections -->
+        <div v-else>
+          <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="mb-1 last:mb-0">
+            <!-- Group Header -->
+            <div
+              class="group px-3 py-2 font-semibold cursor-pointer flex items-center text-foreground rounded-md hover:bg-header/80 transition-colors duration-150"
+              @click="toggleGroup(groupData.groupName)"
             >
-              <i class="fas fa-server mr-2.5 w-4 text-center text-text-secondary group-hover:text-foreground" :class="{ 'text-primary': conn.id === highlightedConnectionId }"></i>
-              <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow" :title="conn.name || conn.host">
-                {{ conn.name || conn.host }}
-              </span>
-            </li>
-          </ul>
+              <i :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out', {'transform rotate-0': !expandedGroups[groupData.groupName]}]"></i>
+              <span class="text-sm">{{ groupData.groupName }}</span>
+            </div>
+            <!-- Connection Items List -->
+            <ul v-show="expandedGroups[groupData.groupName]" class="list-none p-0 m-0 pl-3">
+              <li
+                v-for="conn in groupData.connections"
+                :key="conn.id"
+                class="group my-0.5 py-2 pr-3 pl-4 cursor-pointer flex items-center rounded-md whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-primary/10 transition-colors duration-150"
+                :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }" 
+                :data-conn-id="conn.id"
+                @click.left="handleConnect(conn.id)"
+                @contextmenu.prevent="showContextMenu($event, conn)"
+                @mousedown.middle.prevent="handleOpenInNewTab(conn.id)"
+                @auxclick.prevent="handleOpenInNewTab(conn.id)"
+              >
+                <i class="fas fa-server mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary" :class="{ 'text-white': conn.id === highlightedConnectionId }"></i>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
+                  {{ conn.name || conn.host }}
+                </span>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 右键菜单 -->
+    <!-- Context Menu -->
     <div
       v-if="contextMenuVisible"
-      class="fixed bg-background border border-border shadow-lg rounded-md py-1 z-50 min-w-[160px]"
+      class="fixed bg-background border border-border/50 shadow-xl rounded-lg py-1.5 z-50 min-w-[180px]"
       :style="{ top: `${contextMenuPosition.y}px`, left: `${contextMenuPosition.x}px` }"
       @click.stop
     >
-      <!-- 防止点击菜单内部关闭菜单 -->
       <ul class="list-none p-0 m-0">
-        <li class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-header text-sm transition-colors duration-150" @click="handleMenuAction('add')">
-            <i class="fas fa-plus mr-3 w-4 text-center text-text-secondary group-hover:text-foreground"></i>
+        <li class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-primary/10 hover:text-primary text-sm transition-colors duration-150 rounded-md mx-1" @click="handleMenuAction('add')">
+            <i class="fas fa-plus mr-3 w-4 text-center text-text-secondary group-hover:text-primary"></i>
             <span>{{ t('connections.addConnection') }}</span>
         </li>
-        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-header text-sm transition-colors duration-150" @click="handleMenuAction('edit')">
-            <i class="fas fa-edit mr-3 w-4 text-center text-text-secondary group-hover:text-foreground"></i>
+        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-primary/10 hover:text-primary text-sm transition-colors duration-150 rounded-md mx-1" @click="handleMenuAction('edit')">
+            <i class="fas fa-edit mr-3 w-4 text-center text-text-secondary group-hover:text-primary"></i>
             <span>{{ t('connections.actions.edit') }}</span>
         </li>
-        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-red-600 hover:bg-red-500/10 text-sm transition-colors duration-150" @click="handleMenuAction('delete')">
-            <i class="fas fa-trash-alt mr-3 w-4 text-center text-red-500 group-hover:text-red-600"></i>
+        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-error hover:bg-error/10 text-sm transition-colors duration-150 rounded-md mx-1" @click="handleMenuAction('delete')">
+            <i class="fas fa-trash-alt mr-3 w-4 text-center text-error/80 group-hover:text-error"></i>
             <span>{{ t('connections.actions.delete') }}</span>
         </li>
       </ul>
