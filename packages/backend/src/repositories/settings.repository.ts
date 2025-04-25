@@ -1,10 +1,12 @@
 // packages/backend/src/repositories/settings.repository.ts
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { SidebarConfig, LayoutNode, PaneName } from '../types/settings.types'; // <-- Import LayoutNode and PaneName
+import { CaptchaSettings } from '../types/settings.types'; // <-- Import CaptchaSettings
 import * as sqlite3 from 'sqlite3'; // Import sqlite3 for Database type hint
 
 // Define keys for specific settings
 const SIDEBAR_CONFIG_KEY = 'sidebarConfig';
+const CAPTCHA_CONFIG_KEY = 'captchaConfig'; // <-- Add key for CAPTCHA settings
 
 export interface Setting {
   key: string;
@@ -145,6 +147,74 @@ export const setSidebarConfig = async (config: SidebarConfig): Promise<void> => 
     }
 };
 
+// --- CAPTCHA Settings ---
+
+/**
+ * 获取 CAPTCHA 配置
+ * @returns Promise<CaptchaSettings> - 返回解析后的配置或默认值
+ */
+export const getCaptchaConfig = async (): Promise<CaptchaSettings> => {
+    const defaultValue: CaptchaSettings = {
+        enabled: false,
+        provider: 'none',
+        hcaptchaSiteKey: '',
+        hcaptchaSecretKey: '', // Secret keys should ideally not have defaults stored directly here if possible
+        recaptchaSiteKey: '',
+        recaptchaSecretKey: '', // Secret keys should ideally not have defaults stored directly here if possible
+    };
+    try {
+        const jsonString = await settingsRepository.getSetting(CAPTCHA_CONFIG_KEY);
+        if (jsonString) {
+            try {
+                const config = JSON.parse(jsonString);
+                // Basic validation (add more specific checks if needed)
+                if (config && typeof config.enabled === 'boolean' && typeof config.provider === 'string') {
+                     // Ensure all keys exist, even if undefined/null from older saves
+                     return {
+                        enabled: config.enabled ?? defaultValue.enabled,
+                        provider: config.provider ?? defaultValue.provider,
+                        hcaptchaSiteKey: config.hcaptchaSiteKey ?? defaultValue.hcaptchaSiteKey,
+                        hcaptchaSecretKey: config.hcaptchaSecretKey ?? defaultValue.hcaptchaSecretKey,
+                        recaptchaSiteKey: config.recaptchaSiteKey ?? defaultValue.recaptchaSiteKey,
+                        recaptchaSecretKey: config.recaptchaSecretKey ?? defaultValue.recaptchaSecretKey,
+                     } as CaptchaSettings;
+                }
+                console.warn(`[SettingsRepo] Invalid captchaConfig format found in DB: ${jsonString}. Returning default.`);
+            } catch (parseError) {
+                console.error(`[SettingsRepo] Failed to parse captchaConfig JSON from DB: ${jsonString}`, parseError);
+            }
+        }
+    } catch (error) {
+        console.error(`[SettingsRepo] Error fetching captcha config setting (key: ${CAPTCHA_CONFIG_KEY}):`, error);
+    }
+    // Return default if not found, invalid, or error occurred
+    return defaultValue;
+};
+
+/**
+ * 设置 CAPTCHA 配置
+ * @param config - The CAPTCHA configuration object
+ */
+export const setCaptchaConfig = async (config: CaptchaSettings): Promise<void> => {
+    try {
+        // Basic validation before stringifying
+        if (!config || typeof config !== 'object' || typeof config.enabled !== 'boolean' || typeof config.provider !== 'string') {
+             throw new Error('Invalid CAPTCHA config object provided.');
+        }
+        // Ensure secret keys are strings, even if empty
+        config.hcaptchaSecretKey = config.hcaptchaSecretKey || '';
+        config.recaptchaSecretKey = config.recaptchaSecretKey || '';
+        config.hcaptchaSiteKey = config.hcaptchaSiteKey || '';
+        config.recaptchaSiteKey = config.recaptchaSiteKey || '';
+
+        const jsonString = JSON.stringify(config);
+        await settingsRepository.setSetting(CAPTCHA_CONFIG_KEY, jsonString);
+    } catch (error) {
+        console.error(`[SettingsRepo] Error setting CAPTCHA config (key: ${CAPTCHA_CONFIG_KEY}):`, error);
+        throw new Error('Failed to save CAPTCHA configuration.');
+    }
+};
+
 
 // --- Initialization ---
 
@@ -200,6 +270,15 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
       right: []
     };
 
+    const defaultCaptchaSettings: CaptchaSettings = {
+        enabled: false,
+        provider: 'none',
+        hcaptchaSiteKey: '',
+        hcaptchaSecretKey: '',
+        recaptchaSiteKey: '',
+        recaptchaSecretKey: '',
+    };
+
     // --- Define All Default Settings ---
     const defaultSettings: Record<string, string> = {
         ipWhitelistEnabled: 'false',
@@ -216,6 +295,7 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
         dockerDefaultExpand: 'false', // Default Docker expand state
         statusMonitorIntervalSeconds: '3', // Default Status Monitor interval
         [SIDEBAR_CONFIG_KEY]: JSON.stringify(defaultSidebarPanesStructure), // Use the defined structure
+        [CAPTCHA_CONFIG_KEY]: JSON.stringify(defaultCaptchaSettings), // Add default CAPTCHA settings
         // Add other default settings here
     };
     const nowSeconds = Math.floor(Date.now() / 1000);

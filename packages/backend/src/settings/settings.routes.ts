@@ -51,3 +51,9 @@ router.put('/sidebar', settingsController.setSidebarConfig);
 
 
 export default router;
+
+// +++ 新增：CAPTCHA 配置路由 +++
+// GET /api/v1/settings/captcha - 获取公共 CAPTCHA 配置 (不含密钥)
+router.get('/captcha', settingsController.getCaptchaConfig);
+// PUT /api/v1/settings/captcha - 更新 CAPTCHA 配置
+router.put('/captcha', settingsController.setCaptchaConfig);

@@ -141,6 +141,76 @@
                    </div>
                  </form>
               </div>
+              <hr class="border-border/50"> <!-- Separator -->
+              <!-- CAPTCHA Settings -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.captcha.title') }}</h3>
+                 <p class="text-sm text-text-secondary mb-4">{{ $t('settings.captcha.description') }}</p>
+                 <div v-if="!captchaSettings" class="p-4 text-center text-text-secondary italic">
+                    {{ $t('common.loading') }}
+                 </div>
+                 <form v-else @submit.prevent="handleUpdateCaptchaSettings" class="space-y-4">
+                    <!-- Enable Switch -->
+                    <div class="flex items-center">
+                        <input type="checkbox" id="captchaEnabled" v-model="captchaForm.enabled"
+                               class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer">
+                        <label for="captchaEnabled" class="text-sm text-foreground cursor-pointer select-none">{{ $t('settings.captcha.enableLabel') }}</label>
+                    </div>
+
+                    <!-- Provider Select (Only show if enabled) -->
+                    <div v-if="captchaForm.enabled">
+                      <label for="captchaProvider" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.captcha.providerLabel') }}</label>
+                      <select id="captchaProvider" v-model="captchaForm.provider"
+                              class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                              style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+                        <option value="none">{{ $t('settings.captcha.providerNone') }}</option>
+                        <option value="hcaptcha">hCaptcha</option>
+                        <option value="recaptcha">Google reCAPTCHA v2</option>
+                      </select>
+                    </div>
+
+                    <!-- hCaptcha Settings (Only show if enabled and provider is hcaptcha) -->
+                    <div v-if="captchaForm.enabled && captchaForm.provider === 'hcaptcha'" class="space-y-4 pl-4 border-l-2 border-border/50 ml-1 pt-2">
+                       <p class="text-xs text-text-secondary">{{ $t('settings.captcha.hcaptchaHint') }} <a href="https://www.hcaptcha.com/" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">hCaptcha.com</a></p>
+                       <div>
+                         <label for="hcaptchaSiteKey" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.captcha.siteKeyLabel') }}</label>
+                         <input type="text" id="hcaptchaSiteKey" v-model="captchaForm.hcaptchaSiteKey"
+                                class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                       </div>
+                       <div>
+                         <label for="hcaptchaSecretKey" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.captcha.secretKeyLabel') }}</label>
+                         <input type="password" id="hcaptchaSecretKey" v-model="captchaForm.hcaptchaSecretKey" placeholder="••••••••••••" autocomplete="new-password"
+                                class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                         <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.captcha.secretKeyHint') }}</small>
+                       </div>
+                    </div>
+
+                    <!-- reCAPTCHA Settings (Only show if enabled and provider is recaptcha) -->
+                    <div v-if="captchaForm.enabled && captchaForm.provider === 'recaptcha'" class="space-y-4 pl-4 border-l-2 border-border/50 ml-1 pt-2">
+                       <p class="text-xs text-text-secondary">{{ $t('settings.captcha.recaptchaHint') }} <a href="https://www.google.com/recaptcha/" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Google reCAPTCHA</a></p>
+                       <div>
+                         <label for="recaptchaSiteKey" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.captcha.siteKeyLabel') }}</label>
+                         <input type="text" id="recaptchaSiteKey" v-model="captchaForm.recaptchaSiteKey"
+                                class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                       </div>
+                       <div>
+                         <label for="recaptchaSecretKey" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.captcha.secretKeyLabel') }}</label>
+                         <input type="password" id="recaptchaSecretKey" v-model="captchaForm.recaptchaSecretKey" placeholder="••••••••••••" autocomplete="new-password"
+                                class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                         <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.captcha.secretKeyHint') }}</small>
+                       </div>
+                    </div>
+
+                    <!-- Save Button & Message -->
+                    <div class="flex items-center justify-between pt-2">
+                       <button type="submit" :disabled="captchaLoading"
+                               class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                         {{ captchaLoading ? $t('common.saving') : $t('settings.captcha.saveButton') }}
+                       </button>
+                       <p v-if="captchaMessage" :class="['text-sm', captchaSuccess ? 'text-success' : 'text-error']">{{ captchaMessage }}</p>
+                    </div>
+                 </form>
+              </div>
             </div>
           </div>
 
@@ -395,6 +465,16 @@
 </template>
 
 <script setup lang="ts">
+// Define necessary types locally if not shared
+type CaptchaProvider = 'hcaptcha' | 'recaptcha' | 'none';
+interface UpdateCaptchaSettingsDto {
+    enabled?: boolean;
+    provider?: CaptchaProvider;
+    hcaptchaSiteKey?: string;
+    hcaptchaSecretKey?: string;
+    recaptchaSiteKey?: string;
+    recaptchaSecretKey?: string;
+}
 import { ref, onMounted, computed, reactive, watch } from 'vue';
 import { useAuthStore } from '../stores/auth.store';
 import { useSettingsStore } from '../stores/settings.store';
@@ -413,7 +493,19 @@ const { t } = useI18n();
 
 // --- Reactive state from store ---
 // 使用 storeToRefs 获取响应式 getter，包括 language
-const { settings, isLoading: settingsLoading, error: settingsError, showPopupFileEditorBoolean, shareFileEditorTabsBoolean, autoCopyOnSelectBoolean, dockerDefaultExpandBoolean, statusMonitorIntervalSecondsNumber, language: storeLanguage, workspaceSidebarPersistentBoolean } = storeToRefs(settingsStore); // +++ 添加 workspaceSidebarPersistentBoolean getter +++
+const {
+    settings,
+    isLoading: settingsLoading,
+    error: settingsError,
+    showPopupFileEditorBoolean,
+    shareFileEditorTabsBoolean,
+    autoCopyOnSelectBoolean,
+    dockerDefaultExpandBoolean,
+    statusMonitorIntervalSecondsNumber,
+    language: storeLanguage,
+    workspaceSidebarPersistentBoolean,
+    captchaSettings, // <-- Import CAPTCHA settings state
+} = storeToRefs(settingsStore);
 
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
@@ -460,6 +552,19 @@ const workspaceSidebarPersistentLoading = ref(false); // 新增
 const workspaceSidebarPersistentMessage = ref(''); // 新增
 const workspaceSidebarPersistentSuccess = ref(false); // 新增
 
+// CAPTCHA Form State
+const captchaForm = reactive<UpdateCaptchaSettingsDto>({ // Use reactive for the form object
+    enabled: false,
+    provider: 'none',
+    hcaptchaSiteKey: '',
+    hcaptchaSecretKey: '',
+    recaptchaSiteKey: '',
+    recaptchaSecretKey: '',
+});
+const captchaLoading = ref(false);
+const captchaMessage = ref('');
+const captchaSuccess = ref(false);
+
 
 // --- Watcher to sync local form state with store state ---
 watch(settings, (newSettings, oldSettings) => {
@@ -481,6 +586,27 @@ watch(settings, (newSettings, oldSettings) => {
   workspaceSidebarPersistentEnabled.value = workspaceSidebarPersistentBoolean.value; // 新增：同步侧边栏固定设置
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
+
+// Watcher for CAPTCHA settings
+watch(captchaSettings, (newCaptchaSettings) => {
+    if (newCaptchaSettings) {
+        captchaForm.enabled = newCaptchaSettings.enabled;
+        captchaForm.provider = newCaptchaSettings.provider;
+        captchaForm.hcaptchaSiteKey = newCaptchaSettings.hcaptchaSiteKey || '';
+        captchaForm.hcaptchaSecretKey = newCaptchaSettings.hcaptchaSecretKey || ''; // Keep secret keys local
+        captchaForm.recaptchaSiteKey = newCaptchaSettings.recaptchaSiteKey || '';
+        captchaForm.recaptchaSecretKey = newCaptchaSettings.recaptchaSecretKey || ''; // Keep secret keys local
+    } else {
+        // Reset form if settings are null (e.g., on error)
+        captchaForm.enabled = false;
+        captchaForm.provider = 'none';
+        captchaForm.hcaptchaSiteKey = '';
+        captchaForm.hcaptchaSecretKey = '';
+        captchaForm.recaptchaSiteKey = '';
+        captchaForm.recaptchaSecretKey = '';
+    }
+}, { immediate: true }); // immediate: true to run on initial load
+
 
 // --- Popup Editor setting method ---
 const handleUpdatePopupEditorSetting = async () => {
@@ -849,10 +975,42 @@ const handleUpdateBlacklistSettings = async () => {
     }
 };
 
+// --- CAPTCHA Settings Method ---
+const handleUpdateCaptchaSettings = async () => {
+    captchaLoading.value = true;
+    captchaMessage.value = '';
+    captchaSuccess.value = false;
+    try {
+        // Prepare DTO, ensuring keys are present even if empty
+        const dto: UpdateCaptchaSettingsDto = {
+            enabled: captchaForm.enabled,
+            provider: captchaForm.provider,
+            hcaptchaSiteKey: captchaForm.hcaptchaSiteKey || '',
+            hcaptchaSecretKey: captchaForm.hcaptchaSecretKey || '', // Send secret key
+            recaptchaSiteKey: captchaForm.recaptchaSiteKey || '',
+            recaptchaSecretKey: captchaForm.recaptchaSecretKey || '', // Send secret key
+        };
+        await settingsStore.updateCaptchaSettings(dto);
+        captchaMessage.value = t('settings.captcha.success.saved'); // Need translation
+        captchaSuccess.value = true;
+        // Clear secret key fields in the form after successful save for security
+        captchaForm.hcaptchaSecretKey = '';
+        captchaForm.recaptchaSecretKey = '';
+    } catch (error: any) {
+        console.error('更新 CAPTCHA 设置失败:', error);
+        captchaMessage.value = error.message || t('settings.captcha.error.saveFailed'); // Need translation
+        captchaSuccess.value = false;
+    } finally {
+        captchaLoading.value = false;
+    }
+};
+
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
   await checkTwoFactorStatus(); // Check 2FA status
   await fetchIpBlacklist(); // Fetch current blacklist entries
+  await settingsStore.loadCaptchaSettings(); // <-- Load CAPTCHA settings
   // Initial settings (including language, whitelist, blacklist config) are loaded in main.ts via settingsStore.loadInitialSettings()
 });
 
@@ -861,4 +1019,4 @@ onMounted(async () => {
 <style scoped>
 /* Remove all scoped styles as they are now handled by Tailwind utility classes */
 </style>
-]]>
+

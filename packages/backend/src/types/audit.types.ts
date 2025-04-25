@@ -31,6 +31,7 @@ export type AuditLogActionType =
   // Settings
   | 'SETTINGS_UPDATED' // General settings update
   | 'IP_WHITELIST_UPDATED' // Specific setting update
+| 'CAPTCHA_SETTINGS_UPDATED' // Specific setting update for CAPTCHA
   // | 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // Removed
 
   // Notifications

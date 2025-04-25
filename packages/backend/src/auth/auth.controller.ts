@@ -9,6 +9,8 @@ import { PasskeyService } from '../services/passkey.service'; // 导入 PasskeyS
 import { NotificationService } from '../services/notification.service'; // 导入 NotificationService
 import { AuditLogService } from '../services/audit.service'; // 导入 AuditLogService
 import { ipBlacklistService } from '../services/ip-blacklist.service'; // 导入 IP 黑名单服务
+import { captchaService } from '../services/captcha.service'; // <-- Import CaptchaService
+import { settingsService } from '../services/settings.service'; // <-- Import SettingsService for config check
 
 // Remove top-level db instance acquisition
 // const db = getDb();
@@ -51,6 +53,36 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     try {
+        // --- CAPTCHA Verification Step ---
+        const captchaConfig = await settingsService.getCaptchaConfig();
+        if (captchaConfig.enabled) {
+            const { captchaToken } = req.body;
+            if (!captchaToken) {
+                console.log(`[AuthController] 登录尝试失败: CAPTCHA 已启用但未提供令牌 - ${username}`);
+                // 记录审计日志等（可选，看是否需要区分）
+                return res.status(400).json({ message: '需要提供 CAPTCHA 令牌。' });
+            }
+            try {
+                const isCaptchaValid = await captchaService.verifyToken(captchaToken);
+                if (!isCaptchaValid) {
+                    console.log(`[AuthController] 登录尝试失败: CAPTCHA 验证失败 - ${username}`);
+                    const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+                    ipBlacklistService.recordFailedAttempt(clientIp); // Record failed attempt for invalid CAPTCHA
+                    auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
+                    notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
+                    return res.status(401).json({ message: 'CAPTCHA 验证失败。' });
+                }
+                console.log(`[AuthController] CAPTCHA 验证成功 - ${username}`);
+            } catch (captchaError: any) {
+                console.error(`[AuthController] CAPTCHA 验证过程中出错 (${username}):`, captchaError.message);
+                // 如果是配置错误或 API 请求失败，返回 500
+                return res.status(500).json({ message: 'CAPTCHA 验证服务出错，请稍后重试或检查配置。' });
+            }
+        } else {
+            console.log(`[AuthController] CAPTCHA 未启用，跳过验证 - ${username}`);
+        }
+        // --- End CAPTCHA Verification ---
+
         const db = await getDbInstance(); // Get DB instance inside the function
         // Use the promisified getDb helper
         const user = await getDb<User>(db, 'SELECT id, username, hashed_password, two_factor_secret FROM users WHERE username = ?', [username]);
@@ -773,4 +805,36 @@ export const logout = (req: Request, res: Response): void => {
             res.status(200).json({ message: '已成功登出。' });
         }
     });
+};
+
+/**
+ * 获取公共 CAPTCHA 配置 (GET /api/v1/auth/captcha/config)
+ * 返回给前端用于显示 CAPTCHA 小部件所需的信息 (不含密钥)。
+ */
+export const getPublicCaptchaConfig = async (req: Request, res: Response): Promise<void> => {
+    try {
+        console.log('[AuthController] Received request for public CAPTCHA config.');
+        const fullConfig = await settingsService.getCaptchaConfig(); // Use settingsService
+
+        // *** IMPORTANT: Filter out secret keys before sending to frontend ***
+        const publicConfig = {
+            enabled: fullConfig.enabled,
+            provider: fullConfig.provider,
+            hcaptchaSiteKey: fullConfig.hcaptchaSiteKey,
+            recaptchaSiteKey: fullConfig.recaptchaSiteKey,
+        };
+
+        console.log('[AuthController] Sending public CAPTCHA config to client:', publicConfig);
+        res.status(200).json(publicConfig);
+    } catch (error: any) {
+        console.error('[AuthController] 获取公共 CAPTCHA 配置时出错:', error);
+        // 即使出错，也返回一个“禁用”状态，避免前端出错
+        res.status(500).json({
+             enabled: false,
+             provider: 'none',
+             hcaptchaSiteKey: '',
+             recaptchaSiteKey: '',
+             error: '获取 CAPTCHA 配置失败'
+        });
+    }
 };

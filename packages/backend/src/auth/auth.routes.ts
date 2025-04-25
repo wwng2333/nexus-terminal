@@ -11,13 +11,19 @@ import {
   verifyPasskeyRegistration,          // 导入 Passkey 方法
   needsSetup,                         // 导入 needsSetup 控制器
   setupAdmin,                         // 导入 setupAdmin 控制器
-  logout                              // *** 新增：导入 logout 控制器 ***
+  logout,                             // *** 新增：导入 logout 控制器 ***
+  getPublicCaptchaConfig              // <-- Import public CAPTCHA config controller
 } from './auth.controller';
 import { isAuthenticated } from './auth.middleware';
 import { ipBlacklistCheckMiddleware } from './ipBlacklistCheck.middleware'; // 导入 IP 黑名单检查中间件
 
 const router = Router();
 
+// --- Public CAPTCHA Configuration ---
+// GET /api/v1/auth/captcha/config - 获取公共 CAPTCHA 配置 (公开访问)
+router.get('/captcha/config', getPublicCaptchaConfig);
+
+// --- Setup Routes (Public) ---
 // GET /api/v1/auth/needs-setup - 检查是否需要初始设置 (公开访问)
 router.get('/needs-setup', needsSetup);
 

@@ -1,5 +1,19 @@
-import { settingsRepository, Setting, getSidebarConfig as getSidebarConfigFromRepo, setSidebarConfig as setSidebarConfigInRepo } from '../repositories/settings.repository'; // Import specific repo functions
-import { SidebarConfig, PaneName, UpdateSidebarConfigDto } from '../types/settings.types';
+import {
+    settingsRepository,
+    Setting,
+    getSidebarConfig as getSidebarConfigFromRepo,
+    setSidebarConfig as setSidebarConfigInRepo,
+    getCaptchaConfig as getCaptchaConfigFromRepo, // <-- Import CAPTCHA repo getter
+    setCaptchaConfig as setCaptchaConfigInRepo, // <-- Import CAPTCHA repo setter
+} from '../repositories/settings.repository';
+import {
+    SidebarConfig,
+    PaneName,
+    UpdateSidebarConfigDto,
+    CaptchaSettings, // <-- Import CAPTCHA types
+    UpdateCaptchaSettingsDto, // <-- Import CAPTCHA types
+    CaptchaProvider, // <-- Import CAPTCHA types
+} from '../types/settings.types';
 
 // +++ 定义焦点切换完整配置接口 (与前端 store 保持一致) +++
 interface FocusItemConfig { // 单个项目的配置
@@ -378,6 +392,76 @@ export const settingsService = {
      // Directly call the specific repository function
      await setSidebarConfigInRepo(configToSave);
      console.log('[SettingsService] Sidebar config successfully set.');
- } // <-- No comma after the last method in the object
+ }, // <-- Add comma here
+
+ // --- CAPTCHA Settings Specific Functions ---
+
+ /**
+  * 获取 CAPTCHA 配置
+  * @returns Promise<CaptchaSettings>
+  */
+ async getCaptchaConfig(): Promise<CaptchaSettings> {
+     console.log('[SettingsService] Getting CAPTCHA config...');
+     // Directly call the specific repository function
+     const config = await getCaptchaConfigFromRepo();
+     // Mask secret keys before logging
+     const maskedConfig = { ...config, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' };
+     console.log('[SettingsService] Returning CAPTCHA config:', maskedConfig);
+     return config;
+ },
+
+ /**
+  * 设置 CAPTCHA 配置
+  * @param configDto - The CAPTCHA configuration object from DTO
+  * @returns Promise<void>
+  */
+ async setCaptchaConfig(configDto: UpdateCaptchaSettingsDto): Promise<void> {
+     console.log('[SettingsService] Setting CAPTCHA config (DTO):', { ...configDto, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' }); // Mask secrets in log
+
+     // --- Validation ---
+     if (!configDto || typeof configDto !== 'object') {
+         throw new Error('无效的 CAPTCHA 配置格式。');
+     }
+
+     // Fetch the current settings to merge with the DTO
+     const currentConfig = await getCaptchaConfigFromRepo();
+     const configToSave: CaptchaSettings = { ...currentConfig };
+
+     // Validate and update individual fields from DTO
+     if (configDto.enabled !== undefined) {
+         if (typeof configDto.enabled !== 'boolean') throw new Error('captcha.enabled 必须是布尔值。');
+         configToSave.enabled = configDto.enabled;
+     }
+     if (configDto.provider !== undefined) {
+         const validProviders: CaptchaProvider[] = ['hcaptcha', 'recaptcha', 'none'];
+         if (!validProviders.includes(configDto.provider)) throw new Error(`无效的 CAPTCHA 提供商: ${configDto.provider}`);
+         configToSave.provider = configDto.provider;
+     }
+     if (configDto.hcaptchaSiteKey !== undefined) {
+         if (typeof configDto.hcaptchaSiteKey !== 'string') throw new Error('hcaptchaSiteKey 必须是字符串。');
+         configToSave.hcaptchaSiteKey = configDto.hcaptchaSiteKey;
+     }
+     if (configDto.hcaptchaSecretKey !== undefined) {
+         if (typeof configDto.hcaptchaSecretKey !== 'string') throw new Error('hcaptchaSecretKey 必须是字符串。');
+         configToSave.hcaptchaSecretKey = configDto.hcaptchaSecretKey;
+     }
+     if (configDto.recaptchaSiteKey !== undefined) {
+         if (typeof configDto.recaptchaSiteKey !== 'string') throw new Error('recaptchaSiteKey 必须是字符串。');
+         configToSave.recaptchaSiteKey = configDto.recaptchaSiteKey;
+     }
+     if (configDto.recaptchaSecretKey !== undefined) {
+         if (typeof configDto.recaptchaSecretKey !== 'string') throw new Error('recaptchaSecretKey 必须是字符串。');
+         configToSave.recaptchaSecretKey = configDto.recaptchaSecretKey;
+     }
+
+     // Ensure consistency: if disabled, provider should ideally be 'none' (optional enforcement)
+     // if (!configToSave.enabled) {
+     //     configToSave.provider = 'none';
+     // }
+
+     // Directly call the specific repository function with the full, validated config
+     await setCaptchaConfigInRepo(configToSave);
+     console.log('[SettingsService] CAPTCHA config successfully set.');
+ } // <-- No comma after the last method
 
 }; // <-- End of settingsService object definition

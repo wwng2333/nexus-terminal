@@ -3,7 +3,6 @@ import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import router from '../router'; // 引入 router 用于重定向
 import { setLocale } from '../i18n'; // 导入 setLocale
 
-// 扩展的用户信息接口，包含 2FA 状态
 // 扩展的用户信息接口，包含 2FA 状态和语言偏好
 interface UserInfo {
     id: number;
@@ -19,6 +18,14 @@ interface LoginPayload {
     rememberMe?: boolean; // 可选的“记住我”标志
 }
 
+// Public CAPTCHA Config Interface (mirrors backend public config)
+interface PublicCaptchaConfig {
+    enabled: boolean;
+    provider: 'hcaptcha' | 'recaptcha' | 'none';
+    hcaptchaSiteKey?: string;
+    recaptchaSiteKey?: string;
+}
+
 // Auth Store State 接口
 interface AuthState {
     isAuthenticated: boolean;
@@ -26,12 +33,13 @@ interface AuthState {
     isLoading: boolean;
     error: string | null;
     loginRequires2FA: boolean; // 新增状态：标记登录是否需要 2FA
-    // 新增：存储 IP 黑名单数据
+    // 新增：存储 IP 黑名单数据 (虽然 actions 在这里，但 state 结构保持)
     ipBlacklist: {
         entries: any[]; // TODO: Define a proper type for blacklist entries
         total: number;
     };
     needsSetup: boolean; // 新增：是否需要初始设置
+    publicCaptchaConfig: PublicCaptchaConfig | null; // NEW: Public CAPTCHA config
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -43,20 +51,21 @@ export const useAuthStore = defineStore('auth', {
         loginRequires2FA: false, // 初始为不需要
         ipBlacklist: { entries: [], total: 0 }, // 初始化黑名单状态
         needsSetup: false, // 初始假设不需要设置
+        publicCaptchaConfig: null, // NEW: Initialize CAPTCHA config as null
     }),
     getters: {
         // 可以添加一些 getter，例如获取用户名
         loggedInUser: (state) => state.user?.username,
     },
     actions: {
-        // 登录 Action - 更新为接受 LoginPayload
-        async login(payload: LoginPayload) {
+        // 登录 Action - 更新为接受 LoginPayload + optional captchaToken
+        async login(payload: LoginPayload & { captchaToken?: string }) { // Add captchaToken to payload
             this.isLoading = true;
             this.error = null;
             this.loginRequires2FA = false; // 重置 2FA 状态
             try {
                 // 后端可能返回 user 或 requiresTwoFactor
-                // 将完整的 payload (包含 rememberMe) 发送给后端
+                // 将完整的 payload (包含 rememberMe 和 captchaToken) 发送给后端
                 const response = await apiClient.post<{ message: string; user?: UserInfo; requiresTwoFactor?: boolean }>('/auth/login', payload); // 使用 apiClient
 
                 if (response.data.requiresTwoFactor) {
@@ -148,34 +157,6 @@ export const useAuthStore = defineStore('auth', {
             }
         },
 
-        // TODO: 添加检查登录状态的 Action (例如应用启动时调用)
-        // TODO: 添加检查登录状态的 Action (例如应用启动时调用)
-        // async checkAuthStatus() {
-        //     const token = localStorage.getItem('authToken'); // 假设 token 存储在 localStorage
-        //     if (token) {
-        //         try {
-        //             // 可选: 向后端发送请求验证 token 有效性
-        //             // const response = await axios.get('/api/v1/auth/me', { headers: { Authorization: `Bearer ${token}` } });
-        //             // this.isAuthenticated = true;
-        //             // this.user = response.data.user;
-        //
-        //             // 暂时只基于 localStorage 状态恢复
-        //             const storedAuth = localStorage.getItem('auth'); // pinia-plugin-persistedstate 默认 key
-        //             if (storedAuth) {
-        //                 const parsedAuth = JSON.parse(storedAuth);
-        //                 if (parsedAuth.isAuthenticated && parsedAuth.user) {
-        //                     this.isAuthenticated = true;
-        //                     this.user = parsedAuth.user;
-        //                     console.log('Auth status restored from localStorage');
-        //                 }
-        //             }
-        //         } catch (error) {
-        //             console.error('Failed to restore auth status:', error);
-        //             this.logout(); // 如果验证失败或出错，则登出
-        //         }
-        //     }
-        // }
-
         // 新增：检查并更新认证状态 Action
         async checkAuthStatus() {
             this.isLoading = true;
@@ -245,9 +226,9 @@ export const useAuthStore = defineStore('auth', {
                 const response = await apiClient.get('/settings/ip-blacklist', { // 使用 apiClient
                     params: { limit, offset }
                 });
-                // 注意：这里需要将获取到的数据存储在 state 中，
-                // 但当前 AuthState 没有定义相关字段。
-                // 暂时只返回数据，需要在 state 中添加 ipBlacklist 字段。
+                // 更新本地状态
+                this.ipBlacklist.entries = response.data.entries;
+                this.ipBlacklist.total = response.data.total;
                 console.log('获取 IP 黑名单成功:', response.data);
                 return response.data; // { entries: [], total: number }
             } catch (err: any) {
@@ -270,7 +251,9 @@ export const useAuthStore = defineStore('auth', {
             try {
                 await apiClient.delete(`/settings/ip-blacklist/${encodeURIComponent(ip)}`); // 使用 apiClient
                 console.log(`IP ${ip} 已从黑名单删除`);
-                // 成功后需要重新获取列表或从本地 state 中移除
+                // 从本地 state 中移除 (或者重新获取列表)
+                this.ipBlacklist.entries = this.ipBlacklist.entries.filter(entry => entry.ip !== ip);
+                this.ipBlacklist.total = Math.max(0, this.ipBlacklist.total - 1);
                 return true;
             } catch (err: any) {
                 console.error(`删除 IP ${ip} 失败:`, err);
@@ -297,6 +280,27 @@ export const useAuthStore = defineStore('auth', {
                 return false;
             }
         },
+
+        // NEW: 获取公共 CAPTCHA 配置
+        async fetchCaptchaConfig() {
+            // Avoid refetching if already loaded
+            if (this.publicCaptchaConfig !== null) return;
+
+            // Don't set isLoading for this, it should be quick background fetch
+            try {
+                console.log('[AuthStore] Fetching public CAPTCHA config...');
+                const response = await apiClient.get<PublicCaptchaConfig>('/auth/captcha/config');
+                this.publicCaptchaConfig = response.data;
+                console.log('[AuthStore] Public CAPTCHA config loaded:', this.publicCaptchaConfig);
+            } catch (error: any) {
+                console.error('获取公共 CAPTCHA 配置失败:', error.response?.data?.message || error.message);
+                // Set a default disabled config on error to prevent blocking login UI
+                this.publicCaptchaConfig = {
+                    enabled: false,
+                    provider: 'none',
+                };
+            }
+        },
     },
-    persist: true, // 使用默认持久化配置 (localStorage, 持久化所有 state)
+    persist: true, // Revert to simple persistence to fix TS error for now
 });

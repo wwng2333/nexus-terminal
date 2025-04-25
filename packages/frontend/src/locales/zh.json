@@ -98,7 +98,12 @@
     "loggingIn": "正在登录...",
     "twoFactorPrompt": "请输入两步验证码:",
     "verifyButton": "验证",
-    "rememberMe": "记住我 (7 天)"
+    "rememberMe": "记住我 (7 天)",
+    "captchaPrompt": "请完成下方的验证：",
+    "error": {
+        "captchaLoadFailed": "加载 CAPTCHA 失败，请尝试刷新页面。",
+        "captchaRequired": "请完成 CAPTCHA 验证。"
+    }
   },
   "connections": {
     "addConnection": "添加新连接",
@@ -602,6 +607,25 @@
         "invalidBanDuration": "封禁时长必须是正整数（秒）。",
         "updateConfigFailed": "更新黑名单配置失败"
       }
+    },
+    "captcha": {
+        "title": "CAPTCHA 设置",
+        "description": "为登录页面配置 CAPTCHA 验证，以防止自动化攻击。",
+        "enableLabel": "在登录页面启用 CAPTCHA",
+        "providerLabel": "CAPTCHA 提供商:",
+        "providerNone": "无 (禁用)",
+        "hcaptchaHint": "请从",
+        "recaptchaHint": "请从",
+        "siteKeyLabel": "站点密钥 (公开):",
+        "secretKeyLabel": "秘密密钥 (私有):",
+        "secretKeyHint": "请妥善保管此密钥，它将安全地存储在服务器上。",
+        "saveButton": "保存 CAPTCHA 设置",
+        "success": {
+            "saved": "CAPTCHA 设置已成功保存。"
+        },
+        "error": {
+            "saveFailed": "保存 CAPTCHA 设置失败。"
+        }
     }
   },
   "common": {

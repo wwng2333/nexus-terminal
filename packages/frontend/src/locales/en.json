@@ -98,7 +98,12 @@
     "loggingIn": "Logging in...",
     "twoFactorPrompt": "Enter your two-factor authentication code:",
     "verifyButton": "Verify",
-    "rememberMe": "Remember Me (7 days)"
+    "rememberMe": "Remember Me (7 days)",
+    "captchaPrompt": "Please complete the verification below:",
+    "error": {
+        "captchaLoadFailed": "Failed to load CAPTCHA. Please try refreshing.",
+        "captchaRequired": "Please complete the CAPTCHA verification."
+    }
   },
   "connections": {
     "addConnection": "Add New Connection",
@@ -602,6 +607,25 @@
         "invalidBanDuration": "Ban duration must be a positive integer (seconds).",
         "updateConfigFailed": "Failed to update blacklist configuration"
       }
+    },
+    "captcha": {
+        "title": "CAPTCHA Settings",
+        "description": "Configure CAPTCHA verification for the login page to prevent automated attacks.",
+        "enableLabel": "Enable CAPTCHA on Login Page",
+        "providerLabel": "CAPTCHA Provider:",
+        "providerNone": "None (Disabled)",
+        "hcaptchaHint": "Get keys from",
+        "recaptchaHint": "Get keys from",
+        "siteKeyLabel": "Site Key (Public):",
+        "secretKeyLabel": "Secret Key (Private):",
+        "secretKeyHint": "Keep this secret. It is stored securely on the server.",
+        "saveButton": "Save CAPTCHA Settings",
+        "success": {
+            "saved": "CAPTCHA settings saved successfully."
+        },
+        "error": {
+            "saveFailed": "Failed to save CAPTCHA settings."
+        }
     }
   },
   "common": {

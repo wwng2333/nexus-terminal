@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { settingsService } from '../services/settings.service';
 import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
 import { ipBlacklistService } from '../services/ip-blacklist.service';
-import { UpdateSidebarConfigDto } from '../types/settings.types'; // <-- Correct import path
+import { UpdateSidebarConfigDto, UpdateCaptchaSettingsDto, CaptchaSettings } from '../types/settings.types'; // <-- Import CAPTCHA types
 
 const auditLogService = new AuditLogService();
 
@@ -358,6 +358,69 @@ export const settingsController = {
               res.status(500).json({ message: '设置侧栏配置失败', error: error.message });
          }
      }
- } // <-- No comma after the last method
+}, // <-- Add comma here
+
+// --- CAPTCHA Settings Controller Methods ---
+
+/**
+ * 获取公共 CAPTCHA 配置 (不含密钥)
+ */
+async getCaptchaConfig(req: Request, res: Response): Promise<void> {
+    try {
+        console.log('[Controller] Received request to get CAPTCHA config.');
+        const fullConfig = await settingsService.getCaptchaConfig();
+
+        // *** IMPORTANT: Filter out secret keys before sending to frontend ***
+        const publicConfig = {
+            enabled: fullConfig.enabled,
+            provider: fullConfig.provider,
+            hcaptchaSiteKey: fullConfig.hcaptchaSiteKey,
+            recaptchaSiteKey: fullConfig.recaptchaSiteKey,
+        };
+
+        console.log('[Controller] Sending public CAPTCHA config to client:', publicConfig);
+        res.json(publicConfig);
+    } catch (error: any) {
+        console.error('[Controller] 获取 CAPTCHA 配置时出错:', error);
+        res.status(500).json({ message: '获取 CAPTCHA 配置失败', error: error.message });
+    }
+},
+
+/**
+ * 设置 CAPTCHA 配置
+ */
+async setCaptchaConfig(req: Request, res: Response): Promise<void> {
+    console.log('[Controller] Received request to set CAPTCHA config.');
+    try {
+        const configDto: UpdateCaptchaSettingsDto = req.body;
+        // Mask secrets immediately if logging the DTO
+        console.log('[Controller] Request body (DTO, secrets masked):', { ...configDto, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' });
+
+        // --- DTO Validation (Basic) ---
+        if (!configDto || typeof configDto !== 'object') {
+            console.warn('[Controller] Invalid CAPTCHA config format received (not an object):', configDto);
+            res.status(400).json({ message: '无效的请求体，应为 JSON 对象' });
+            return;
+        }
+        // More specific validation happens in the service layer
+
+        console.log('[Controller] Calling settingsService.setCaptchaConfig...');
+        await settingsService.setCaptchaConfig(configDto);
+        console.log('[Controller] settingsService.setCaptchaConfig completed successfully.');
+
+        auditLogService.logAction('CAPTCHA_SETTINGS_UPDATED'); // Add audit log
+
+        console.log('[Controller] Sending success response.');
+        res.status(200).json({ message: 'CAPTCHA 配置已成功更新' });
+    } catch (error: any) {
+        console.error('[Controller] 设置 CAPTCHA 配置时出错:', error);
+        // Handle specific validation errors from the service
+        if (error.message.includes('无效的') || error.message.includes('必须是')) { // Basic check for validation errors
+             res.status(400).json({ message: `设置 CAPTCHA 配置失败: ${error.message}` });
+        } else {
+             res.status(500).json({ message: '设置 CAPTCHA 配置失败', error: error.message });
+        }
+    }
+} // <-- No comma after the last method
 
 }; // <-- End of settingsController object

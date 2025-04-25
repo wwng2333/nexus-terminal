@@ -3,6 +3,26 @@ import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue'; // 移除 watch
 import i18n, { setLocale, defaultLng } from '../i18n'; // Import i18n instance and setLocale
 import type { PaneName } from './layout.store'; // +++ Import PaneName type +++
+// Import CAPTCHA types from backend (adjust path if needed, assuming types are mirrored or shared)
+// For now, let's assume they are available via a shared types definition or manually defined here
+// Assuming manual definition for now if no shared types exist:
+type CaptchaProvider = 'hcaptcha' | 'recaptcha' | 'none';
+interface CaptchaSettings {
+    enabled: boolean;
+    provider: CaptchaProvider;
+    hcaptchaSiteKey?: string;
+    hcaptchaSecretKey?: string; // Store locally but don't expose via getters easily
+    recaptchaSiteKey?: string;
+    recaptchaSecretKey?: string; // Store locally but don't expose via getters easily
+}
+interface UpdateCaptchaSettingsDto {
+    enabled?: boolean;
+    provider?: CaptchaProvider;
+    hcaptchaSiteKey?: string;
+    hcaptchaSecretKey?: string;
+    recaptchaSiteKey?: string;
+    recaptchaSecretKey?: string;
+}
 // 移除 ITheme 和默认主题定义，这些移到 appearance.store.ts
 
 // 定义通用设置状态类型
@@ -32,6 +52,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const settings = ref<Partial<SettingsState>>({}); // 通用设置状态
   const parsedSidebarPaneWidths = ref<Record<string, string>>({}); // NEW: 解析后的侧边栏宽度对象
   const parsedFileManagerColWidths = ref<Record<string, number>>({}); // NEW: 解析后的文件管理器列宽对象
+  const captchaSettings = ref<CaptchaSettings | null>(null); // NEW: CAPTCHA 设置状态
   const isLoading = ref(false);
   const error = ref<string | null>(null);
   // 移除外观相关状态: isStyleCustomizerVisible, currentUiTheme, currentXtermTheme
@@ -350,6 +371,65 @@ export const useSettingsStore = defineStore('settings', () => {
     }
   }
 
+  // --- CAPTCHA Settings Actions ---
+
+  /**
+   * Fetches CAPTCHA settings from the backend.
+   * Should be called when the settings component mounts.
+   */
+  async function loadCaptchaSettings() {
+    // Avoid reloading if already loaded, unless forced
+    // if (captchaSettings.value !== null && !force) return;
+
+    isLoading.value = true;
+    error.value = null;
+    try {
+      console.log('[SettingsStore] 加载 CAPTCHA 设置...');
+      // Use the correct endpoint defined in the backend routes
+      const response = await apiClient.get<CaptchaSettings>('/settings/captcha');
+      captchaSettings.value = response.data;
+      console.log('[SettingsStore] CAPTCHA 设置加载完成:', { ...response.data, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' }); // Mask secrets
+    } catch (err: any) {
+      console.error('加载 CAPTCHA 设置失败:', err);
+      error.value = err.response?.data?.message || err.message || '加载 CAPTCHA 设置失败';
+      captchaSettings.value = null; // Reset on error
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  /**
+   * Updates CAPTCHA settings on the backend.
+   * @param updates - An object containing the CAPTCHA settings fields to update.
+   */
+  async function updateCaptchaSettings(updates: UpdateCaptchaSettingsDto) {
+    isLoading.value = true;
+    error.value = null;
+    try {
+      console.log('[SettingsStore] 更新 CAPTCHA 设置:', { ...updates, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' }); // Mask secrets
+      // Use the correct endpoint defined in the backend routes
+      await apiClient.put('/settings/captcha', updates);
+
+      // Update local state after successful API call
+      // Merge updates into the existing state or reload
+      if (captchaSettings.value) {
+        captchaSettings.value = { ...captchaSettings.value, ...updates };
+      } else {
+        // If settings were null, reload them after update
+        await loadCaptchaSettings();
+      }
+      console.log('[SettingsStore] CAPTCHA 设置更新成功。');
+
+    } catch (err: any) {
+      console.error('更新 CAPTCHA 设置失败:', err);
+      error.value = err.response?.data?.message || err.message || '更新 CAPTCHA 设置失败';
+      throw error; // Re-throw to allow component to handle UI feedback
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+
   // 移除外观相关 actions: saveCustomThemes, resetCustomThemes, toggleStyleCustomizer
 
   // --- Getters ---
@@ -411,7 +491,14 @@ export const useSettingsStore = defineStore('settings', () => {
       return parsedFileManagerColWidths.value;
   });
 
-  return {
+  // --- CAPTCHA Getters (Public Only) ---
+  const isCaptchaEnabled = computed(() => captchaSettings.value?.enabled ?? false);
+  const captchaProvider = computed(() => captchaSettings.value?.provider ?? 'none');
+  const hcaptchaSiteKey = computed(() => captchaSettings.value?.hcaptchaSiteKey ?? '');
+  const recaptchaSiteKey = computed(() => captchaSettings.value?.recaptchaSiteKey ?? '');
+  // DO NOT expose secret keys via getters
+
+ return {
     settings, // 只包含通用设置
     isLoading,
     error,
@@ -426,6 +513,14 @@ export const useSettingsStore = defineStore('settings', () => {
     getSidebarPaneWidth, // +++ 暴露获取特定面板宽度的 getter +++
     fileManagerRowSizeMultiplierNumber, // +++ 暴露文件管理器行大小 getter +++
     fileManagerColWidthsObject, // +++ 暴露文件管理器列宽 getter +++
+    // CAPTCHA related exports
+    captchaSettings, // Expose the full (but reactive) object for the settings page v-model
+    isCaptchaEnabled,
+    captchaProvider,
+    hcaptchaSiteKey,
+    recaptchaSiteKey,
+    loadCaptchaSettings,
+    updateCaptchaSettings,
     // 移除外观相关的 getters 和 actions
     loadInitialSettings,
     updateSetting,
