@@ -29,8 +29,6 @@
   --color-split-line-hover: var(--split-line-hover-color);
   --color-input-focus-border: var(--input-focus-border-color);
   /* --color-input-focus-glow: var(--input-focus-glow); /* Glow might need direct var() use in shadow utilities */
-  --color-ssh-tab-active: var(--ssh-tab-active);
-  --color-ssh-tab-background: var(--ssh-tab-background);
   --color-overlay: var(--overlay-bg-color); /* Added Overlay Background */
   --color-success: var(--color-success);
   --color-warning: var(--color-warning);
@@ -65,8 +63,6 @@
   --split-line-hover-color: var(--border-color); /* 分割线悬停颜色 */
   --input-focus-border-color: var(--link-active-color); /* 输入框聚焦边框颜色 */
   --input-focus-glow: var(--link-active-color); /* 输入框聚焦光晕值 */
-  --ssh-tab-active: transparent; /* Corrected value */
-  --ssh-tab-background: transparent; /* Corrected value */
   --overlay-bg-color: rgba(0, 0, 0, 0.6); /* Added Overlay Background Color */
 
   /* Status Colors */

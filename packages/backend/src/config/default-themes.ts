@@ -49,8 +49,6 @@ export const defaultUiTheme: Record<string, string> = {
   '--split-line-hover-color': 'var(--border-color)', /* 分割线悬停颜色 */
   '--input-focus-border-color': 'var(--link-active-color)', /* 输入框聚焦边框颜色 (自动更新) */
   '--input-focus-glow': 'var(--link-active-color)', /* 输入框聚焦光晕值 (自动更新) */
-  '--ssh-tab-active': 'transparent', /* Added SSH Tab Active */
-  '--ssh-tab-background': 'transparent', /* Added SSH Tab Background */
   '--overlay-bg-color': 'rgba(0, 0, 0, 0.6)', /* Added Overlay Background - 恢复 rgba 以支持透明度 */
   // End added variables
   '--font-family-sans-serif': 'sans-serif',

@@ -207,8 +207,6 @@ const darkModeTheme = {
   '--split-line-hover-color': 'var(--border-color)',
   '--input-focus-border-color': 'var(--link-active-color)', // 自动更新
   '--input-focus-glow': 'var(--link-active-color)', // 自动更新
-  '--ssh-tab-active': 'transparent',
-  '--ssh-tab-background': 'transparent',
   '--overlay-bg-color': 'rgba(0, 0, 0, 0.8)',
   '--color-success': '#5cb85c',
   '--color-error': '#d9534f',
