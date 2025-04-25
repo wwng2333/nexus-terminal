@@ -833,7 +833,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             @click="currentTab = 'ui'"
             :class="[
               'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
-              { 'bg-button text-button-text font-bold': currentTab === 'ui' }
+              { '!bg-button !text-button-text !font-bold': currentTab === 'ui' } /* Added !important */
             ]"
           >
             {{ t('styleCustomizer.uiStyles') }}
@@ -842,7 +842,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             @click="currentTab = 'terminal'"
             :class="[
               'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
-              { 'bg-button text-button-text font-bold': currentTab === 'terminal' && !isEditingTheme }
+              { '!bg-button !text-button-text !font-bold': currentTab === 'terminal' && !isEditingTheme } /* Added !important */
             ]"
             :disabled="isEditingTheme"
           >
@@ -852,7 +852,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             @click="currentTab = 'background'"
             :class="[
               'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
-              { 'bg-button text-button-text font-bold': currentTab === 'background' }
+              { '!bg-button !text-button-text !font-bold': currentTab === 'background' } /* Added !important */
             ]"
             :disabled="isEditingTheme"
           >
@@ -862,7 +862,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             @click="currentTab = 'other'"
             :class="[
               'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
-              { 'bg-button text-button-text font-bold': currentTab === 'other' }
+              { '!bg-button !text-button-text !font-bold': currentTab === 'other' } /* Added !important */
             ]"
             :disabled="isEditingTheme"
           >
@@ -899,9 +899,9 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                   v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
                   type="text"
                   :value="editableUiTheme[key]"
-                  readonly
-                  class="flex-grow min-w-[80px] bg-header cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  class="flex-grow min-w-[80px] bg-background cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   @focus="handleFocusAndSelect"
+                  @input="editableUiTheme[key] = ($event.target as HTMLInputElement).value"
                 />
                 <!-- Fallback for non-color values -->
                 <input
@@ -1147,6 +1147,3 @@ const handleFocusAndSelect = (event: FocusEvent) => {
   </div>
 </template>
 
-<style scoped>
-
-</style>
