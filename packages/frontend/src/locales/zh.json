@@ -464,7 +464,7 @@
         "webhookMethod": "HTTP 方法:",
         "webhookHeaders": "自定义 Headers",
         "webhookBodyTemplate": "请求体模板 (可选)",
-        "webhookBodyPlaceholder": "默认: JSON 格式负载。可使用 {{event}}, {{timestamp}}, {{details}}。",
+        "webhookBodyPlaceholder": "默认: JSON 格式负载。可使用 event, timestamp, details 变量。",
         "emailTo": "收件人邮箱:",
         "emailToHelp": "多个邮箱用逗号分隔。",
         "emailSubjectTemplate": "邮件主题模板 (可选)",
@@ -486,7 +486,7 @@
         "telegramMessageTemplate": "消息模板 (可选)",
         "telegramMessagePlaceholder": "默认: Markdown 格式。可使用 {{event}}, {{timestamp}}, {{details}}。",
         "enabledEvents": "启用的事件:",
-        "templateHelp": "可用占位符: {{event}}, {{timestamp}}, {{details}} (JSON 字符串)",
+        "templateHelp": "可用占位符: event, timestamp, details (JSON 字符串)",
         "invalidJson": "无效的 JSON 格式"
       },
       "events": {
