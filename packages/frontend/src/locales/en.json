@@ -103,7 +103,8 @@
     "error": {
         "captchaLoadFailed": "Failed to load CAPTCHA. Please try refreshing.",
         "captchaRequired": "Please complete the CAPTCHA verification."
-    }
+    },
+    "recaptchaV3Notice": "This site is protected by reCAPTCHA and the Google Privacy Policy and Terms of Service apply."
   },
   "connections": {
     "addConnection": "Add New Connection",
