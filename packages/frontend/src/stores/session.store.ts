@@ -197,7 +197,7 @@ export const useSessionStore = defineStore('session', () => {
 const hostname = window.location.hostname;
 // 添加详细日志
 console.log(`[SessionStore openNewSession] Protocol: ${protocol}, Hostname: ${hostname}`);
-    const wsUrl = `${protocol}//${window.location.hostname}/`;
+    const wsUrl = `${protocol}//${window.location.hostname}/ws/`; // 添加 /ws/ 路径
     console.log(`[SessionStore] Generated WebSocket URL: ${wsUrl}`); // 添加日志记录生成的 URL
     wsManager.connect(wsUrl);
     console.log(`[SessionStore] 已为会话 ${newSessionId} 启动 WebSocket 连接。`);
@@ -378,7 +378,7 @@ console.log(`[SessionStore openNewSession] Protocol: ${protocol}, Hostname: ${ho
           // 满足最高优先级：重连当前活动会话
           console.log(`[SessionStore] 活动会话 ${activeSessionId.value} 已断开或出错，尝试重连...`);
           const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-          const wsUrl = `${protocol}//${window.location.hostname}/`; // 与 openNewSession 保持一致
+          const wsUrl = `${protocol}//${window.location.hostname}/ws/`; // 添加 /ws/ 路径并与 openNewSession 保持一致
 const hostname = window.location.hostname;
           // 添加详细日志
           console.log(`[SessionStore handleConnectRequest] Protocol: ${protocol}, Hostname: ${hostname}`);

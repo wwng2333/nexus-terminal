@@ -308,8 +308,8 @@ export const useLayoutStore = defineStore('layout', () => {
     }
 
     // --- Log the final layout configuration after initialization ---
-    console.log('[Layout Store] Final Initialized Layout Tree:', JSON.stringify(layoutTree.value, null, 2));
-    console.log('[Layout Store] Final Initialized Sidebar Panes:', JSON.stringify(sidebarPanes.value, null, 2));
+    // console.log('[Layout Store] Final Initialized Layout Tree:', JSON.stringify(layoutTree.value, null, 2));
+    // console.log('[Layout Store] Final Initialized Sidebar Panes:', JSON.stringify(sidebarPanes.value, null, 2));
   }
 
   // --- Helper for debounced persistence ---
