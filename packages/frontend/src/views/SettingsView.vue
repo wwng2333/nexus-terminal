@@ -83,7 +83,7 @@
                      </div>
                      <div class="flex items-center justify-between">
                         <button type="submit" :disabled="twoFactorLoading"
-                                class="px-4 py-2 bg-error text-white rounded-md shadow-sm hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
                           {{ twoFactorLoading ? $t('common.loading') : $t('settings.twoFactor.disable.button') }}
                         </button>
                      </div>
