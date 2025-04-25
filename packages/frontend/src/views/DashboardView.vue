@@ -68,10 +68,12 @@ onMounted(async () => {
   // 加载最新的审计日志
   try {
     // 只需要加载少量日志用于摘要，并按时间倒序
+    // 调用 fetchLogs 并明确指示这是仪表盘请求以启用缓存
     await auditLogStore.fetchLogs({
         page: 1,
-        limit: maxRecentLogs, // 传递 limit
-        sortOrder: 'desc'     // 传递 sortOrder
+        limit: maxRecentLogs,
+        sortOrder: 'desc',
+        isDashboardRequest: true // <--- 添加此标志
     });
   } catch (error) {
     console.error("加载审计日志失败:", error);

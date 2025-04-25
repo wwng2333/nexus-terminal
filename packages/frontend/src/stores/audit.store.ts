@@ -11,54 +11,103 @@ export const useAuditLogStore = defineStore('auditLog', () => {
     const currentPage = ref(1);
     const logsPerPage = ref(50); // Default page size
 
-    // fetchLogs 现在接受一个选项对象作为参数
+    // fetchLogs 现在接受一个选项对象作为参数，并增加了缓存逻辑
     const fetchLogs = async (options: {
         page?: number;
-        limit?: number; // 新增 limit 参数
+        limit?: number;
         searchTerm?: string;
         actionType?: AuditLogActionType | '';
-        sortOrder?: 'asc' | 'desc'; // 新增 sortOrder 参数
+        sortOrder?: 'asc' | 'desc';
+        // 新增一个标志，明确指示是否为仪表盘调用，以启用缓存
+        isDashboardRequest?: boolean;
     } = {}) => {
         const {
             page = 1,
-            limit = logsPerPage.value, // 优先使用传入的 limit，否则使用 store 的默认值
+            limit = logsPerPage.value,
             searchTerm,
             actionType,
-            sortOrder
+            sortOrder,
+            isDashboardRequest = false // 默认为 false
         } = options;
 
-        isLoading.value = true;
-        error.value = null;
-        currentPage.value = page; // 仍然更新当前页码状态
-        const offset = (page - 1) * limit; // offset 计算基于实际使用的 limit
+        const cacheKey = 'dashboardAuditLogsCache';
+        error.value = null; // 重置错误
 
+        // --- 缓存逻辑 (仅当 isDashboardRequest 为 true 时触发) ---
+        if (isDashboardRequest) {
+            try {
+                const cachedData = localStorage.getItem(cacheKey);
+                if (cachedData) {
+                    console.log('[AuditLogStore] Loading dashboard logs from cache.');
+                    // 仪表盘只关心日志列表，不关心 totalLogs 或 currentPage
+                    logs.value = JSON.parse(cachedData);
+                    isLoading.value = false; // 先显示缓存
+                } else {
+                    isLoading.value = true; // 无缓存，初始加载
+                }
+            } catch (e) {
+                console.error('[AuditLogStore] Failed to load or parse dashboard logs cache:', e);
+                localStorage.removeItem(cacheKey);
+                isLoading.value = true; // 缓存无效，需要加载
+            }
+        } else {
+            // 非仪表盘请求（如完整日志页），总是显示加载状态
+            isLoading.value = true;
+            currentPage.value = page; // 更新分页状态
+        }
+
+        // --- API 请求逻辑 ---
+        isLoading.value = true; // 标记正在获取（或后台获取）
+        const offset = (page - 1) * limit;
         try {
             const params: Record<string, any> = {
-                limit: limit, // 使用实际的 limit
+                limit: limit,
                 offset: offset,
-                // 条件性添加其他参数
                 ...(searchTerm && { search: searchTerm }),
                 ...(actionType && { action_type: actionType }),
-                ...(sortOrder && { sort_order: sortOrder }), // 添加 sort_order 参数
+                ...(sortOrder && { sort_order: sortOrder }),
             };
 
-            const response = await apiClient.get<AuditLogApiResponse>('/audit-logs', { params }); // 使用 apiClient
-            // 注意：如果 fetchLogs 被用于分页，这里直接赋值 logs.value 可能不是最佳实践
-            // 但对于仪表盘只获取少量最新日志的场景是可行的。
-            // 如果需要支持加载更多，需要修改这里的逻辑为追加或替换。
-            logs.value = response.data.logs;
-            totalLogs.value = response.data.total;
+            console.log(`[AuditLogStore] Fetching logs from server (isDashboard: ${isDashboardRequest}). Params:`, params);
+            const response = await apiClient.get<AuditLogApiResponse>('/audit-logs', { params });
+            const freshLogs = response.data.logs;
+            const freshTotal = response.data.total;
+
+            // --- 更新状态和缓存 ---
+            if (isDashboardRequest) {
+                const freshLogsString = JSON.stringify(freshLogs);
+                const currentLogsString = JSON.stringify(logs.value);
+
+                if (currentLogsString !== freshLogsString) {
+                    console.log('[AuditLogStore] Dashboard logs data changed, updating state and cache.');
+                    logs.value = freshLogs;
+                    localStorage.setItem(cacheKey, freshLogsString); // 更新缓存
+                } else {
+                    console.log('[AuditLogStore] Dashboard logs data is up-to-date.');
+                }
+                // 仪表盘请求不更新 totalLogs 或 currentPage
+            } else {
+                // 非仪表盘请求，直接更新日志和总数
+                console.log('[AuditLogStore] Updating logs for full view.');
+                logs.value = freshLogs;
+                totalLogs.value = freshTotal;
+            }
+            error.value = null; // 清除错误
+
         } catch (err: any) {
-            console.error('Error fetching audit logs:', err);
+            console.error('[AuditLogStore] Error fetching audit logs:', err);
             error.value = err.response?.data?.message || '获取审计日志失败';
-            logs.value = [];
-            totalLogs.value = 0;
+            // 如果是仪表盘请求失败，保留缓存数据；否则清空
+            if (!isDashboardRequest) {
+                logs.value = [];
+                totalLogs.value = 0;
+            }
         } finally {
-            isLoading.value = false;
+            isLoading.value = false; // 加载完成
         }
     };
 
-    // Function to change page size and refetch
+    // Function to change page size and refetch (非仪表盘场景)
     const setLogsPerPage = (size: number) => {
         logsPerPage.value = size;
         fetchLogs({ page: 1 }); // 重置到第一页，使用默认 limit

@@ -31,28 +31,60 @@ export const useConnectionsStore = defineStore('connections', {
         error: null,
     }),
     actions: {
-        // 获取连接列表 Action
+        // 获取连接列表 Action (带缓存)
         async fetchConnections() {
-            this.isLoading = true;
-            this.error = null;
+            const cacheKey = 'connectionsCache';
+            this.error = null; // 重置错误状态
+
+            // 1. 尝试从 localStorage 加载缓存
             try {
-                // 注意：axios 默认会携带 cookie，因此如果用户已登录，会话 cookie 会被发送
-                const response = await apiClient.get<ConnectionInfo[]>('/connections'); // 使用 apiClient
-                this.connections = response.data;
+                const cachedData = localStorage.getItem(cacheKey);
+                if (cachedData) {
+                    console.log('[ConnectionsStore] Loading connections from cache.');
+                    this.connections = JSON.parse(cachedData);
+                    this.isLoading = false; // 先显示缓存，设置为 false
+                } else {
+                    // 没有缓存时，初始加载状态设为 true
+                    this.isLoading = true;
+                }
+            } catch (e) {
+                console.error('[ConnectionsStore] Failed to load or parse connections cache:', e);
+                localStorage.removeItem(cacheKey); // 解析失败则移除缓存
+                this.isLoading = true; // 缓存无效，需要加载
+            }
+
+            // 2. 后台获取最新数据
+            this.isLoading = true; // 标记正在后台获取
+            try {
+                console.log('[ConnectionsStore] Fetching latest connections from server...');
+                const response = await apiClient.get<ConnectionInfo[]>('/connections');
+                const freshData = response.data;
+                const freshDataString = JSON.stringify(freshData);
+
+                // 3. 对比并更新
+                const currentDataString = JSON.stringify(this.connections);
+                if (currentDataString !== freshDataString) {
+                    console.log('[ConnectionsStore] Connections data changed, updating state and cache.');
+                    this.connections = freshData;
+                    localStorage.setItem(cacheKey, freshDataString); // 更新缓存
+                } else {
+                    console.log('[ConnectionsStore] Connections data is up-to-date.');
+                }
+                this.error = null; // 清除之前的错误（如果有）
             } catch (err: any) {
-                console.error('获取连接列表失败:', err);
+                console.error('[ConnectionsStore] 获取连接列表失败:', err);
                 this.error = err.response?.data?.message || err.message || '获取连接列表时发生未知错误。';
-                // 如果是 401 未授权，可能需要触发重新登录逻辑
+                // 保留缓存数据，仅设置错误状态
                 if (err.response?.status === 401) {
-                    // TODO: 处理未授权情况，例如跳转到登录页
-                    console.warn('未授权，需要登录才能获取连接列表。');
+                    console.warn('[ConnectionsStore] 未授权，需要登录才能获取连接列表。');
+                    // 可能需要触发全局的未授权处理逻辑
                 }
             } finally {
-                this.isLoading = false;
+                this.isLoading = false; // 无论成功失败，最终加载完成
             }
         },
 
-        // 添加新连接 Action
+        // 添加新连接 Action (添加后应清除缓存或重新获取)
         // 更新参数类型以接受新的认证字段
         async addConnection(newConnectionData: {
             name: string;
@@ -70,8 +102,11 @@ export const useConnectionsStore = defineStore('connections', {
             this.error = null;
             try {
                 const response = await apiClient.post<{ message: string; connection: ConnectionInfo }>('/connections', newConnectionData); // 使用 apiClient
-                // 添加成功后，将新连接添加到列表前面 (或重新获取整个列表)
-                this.connections.unshift(response.data.connection);
+                // 添加成功后，清除缓存以便下次获取最新数据
+                localStorage.removeItem('connectionsCache');
+                // 可以选择重新获取整个列表，或者仅在本地添加
+                // this.connections.unshift(response.data.connection); // 本地添加可能导致与缓存不一致，建议重新获取
+                await this.fetchConnections(); // 推荐重新获取以保证数据一致性
                 return true; // 表示成功
             } catch (err: any) {
                 console.error('添加连接失败:', err);
@@ -102,8 +137,14 @@ export const useConnectionsStore = defineStore('connections', {
                     // 注意：后端返回的 connection 可能不包含敏感信息，但应包含更新后的非敏感字段
                     this.connections[index] = { ...this.connections[index], ...response.data.connection };
                 } else {
-                    // 如果本地找不到，可能需要重新获取列表
-                    await this.fetchConnections();
+                    // 如果本地找不到，fetchConnections 会处理
+                    // await this.fetchConnections(); // fetchConnections 内部会处理
+                }
+                 // 更新成功后，清除缓存以便下次获取最新数据
+                localStorage.removeItem('connectionsCache');
+                // 重新获取以确保数据同步（如果上面没有找到 index 并调用 fetchConnections）
+                if (index !== -1) { // 只有在本地找到并更新后才需要手动触发刷新缓存
+                   await this.fetchConnections(); // 重新获取以更新缓存和状态
                 }
                 return true; // 表示成功
             } catch (err: any) {
@@ -126,8 +167,12 @@ export const useConnectionsStore = defineStore('connections', {
                 // 发送 DELETE 请求到 /api/v1/connections/:id
                 await apiClient.delete(`/connections/${connectionId}`); // 使用 apiClient
 
-                // 删除成功后，从本地列表中移除该连接
+                // 删除成功后，清除缓存以便下次获取最新数据
+                localStorage.removeItem('connectionsCache');
+                // 从本地列表中移除该连接
                 this.connections = this.connections.filter(conn => conn.id !== connectionId);
+                // 可以选择重新获取，但 filter 已经更新了本地状态，下次 fetch 会自动更新缓存
+                // await this.fetchConnections();
                 return true; // 表示成功
             } catch (err: any) {
                 console.error(`删除连接 ${connectionId} 失败:`, err);

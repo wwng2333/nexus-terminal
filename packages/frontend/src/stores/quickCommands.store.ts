@@ -74,29 +74,75 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
         selectedIndex.value = (selectedIndex.value - 1 + commands.length) % commands.length;
     };
 
-    // 从后端获取快捷指令 (带排序)
+    // 从后端获取快捷指令 (带缓存和排序)
     const fetchQuickCommands = async () => {
-        isLoading.value = true;
-        error.value = null;
+        const cacheKey = 'quickCommandsCache';
+        // 将排序方式加入缓存键，确保不同排序有不同缓存
+        const cacheKeyWithSort = `${cacheKey}_${sortBy.value}`;
+        error.value = null; // 重置错误
+
+        // 1. 尝试从 localStorage 加载缓存
         try {
-            const response = await apiClient.get<QuickCommandFE[]>('/quick-commands', { // 使用 apiClient
-                params: { sortBy: sortBy.value } // 将排序参数传递给后端
+            const cachedData = localStorage.getItem(cacheKeyWithSort);
+            if (cachedData) {
+                console.log(`[QuickCmdStore] Loading commands from cache (sort: ${sortBy.value}).`);
+                quickCommandsList.value = JSON.parse(cachedData);
+                isLoading.value = false; // 先显示缓存
+            } else {
+                isLoading.value = true; // 无缓存，初始加载
+            }
+        } catch (e) {
+            console.error('[QuickCmdStore] Failed to load or parse commands cache:', e);
+            localStorage.removeItem(cacheKeyWithSort); // 解析失败则移除缓存
+            isLoading.value = true; // 缓存无效，需要加载
+        }
+
+        // 2. 后台获取最新数据
+        isLoading.value = true; // 标记正在后台获取
+        try {
+            console.log(`[QuickCmdStore] Fetching latest commands from server (sort: ${sortBy.value})...`);
+            const response = await apiClient.get<QuickCommandFE[]>('/quick-commands', {
+                params: { sortBy: sortBy.value }
             });
-            quickCommandsList.value = response.data;
+            const freshData = response.data;
+            const freshDataString = JSON.stringify(freshData);
+
+            // 3. 对比并更新
+            const currentDataString = JSON.stringify(quickCommandsList.value);
+            if (currentDataString !== freshDataString) {
+                console.log('[QuickCmdStore] Commands data changed, updating state and cache.');
+                quickCommandsList.value = freshData;
+                localStorage.setItem(cacheKeyWithSort, freshDataString); // 更新对应排序的缓存
+            } else {
+                console.log('[QuickCmdStore] Commands data is up-to-date.');
+            }
+            error.value = null; // 清除错误
         } catch (err: any) {
-            console.error('获取快捷指令失败:', err);
+            console.error('[QuickCmdStore] 获取快捷指令失败:', err);
             error.value = err.response?.data?.message || '获取快捷指令时发生错误';
+            // 保留缓存数据，仅设置错误状态
             uiNotificationsStore.showError(error.value ?? '未知错误');
         } finally {
-            isLoading.value = false;
+            isLoading.value = false; // 加载完成
         }
     };
 
-    // 添加快捷指令
+    // 清除所有排序的快捷指令缓存
+    const clearQuickCommandsCache = () => {
+        const cacheKeyBase = 'quickCommandsCache';
+        // 移除两种排序的缓存
+        localStorage.removeItem(`${cacheKeyBase}_name`);
+        localStorage.removeItem(`${cacheKeyBase}_usage_count`);
+        console.log('[QuickCmdStore] Cleared all quick commands caches.');
+    };
+
+
+    // 添加快捷指令 (添加后清除缓存)
     const addQuickCommand = async (name: string | null, command: string): Promise<boolean> => {
         try {
-            await apiClient.post('/quick-commands', { name, command }); // 使用 apiClient
-            await fetchQuickCommands(); // 添加成功后刷新列表
+            await apiClient.post('/quick-commands', { name, command });
+            clearQuickCommandsCache(); // 清除所有排序缓存
+            await fetchQuickCommands(); // 刷新当前排序的列表和缓存
             uiNotificationsStore.showSuccess('快捷指令已添加');
             return true;
         } catch (err: any) {
@@ -110,8 +156,9 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 更新快捷指令
     const updateQuickCommand = async (id: number, name: string | null, command: string): Promise<boolean> => {
          try {
-            await apiClient.put(`/quick-commands/${id}`, { name, command }); // 使用 apiClient
-            await fetchQuickCommands(); // 更新成功后刷新列表
+            await apiClient.put(`/quick-commands/${id}`, { name, command });
+            clearQuickCommandsCache(); // 清除所有排序缓存
+            await fetchQuickCommands(); // 刷新当前排序的列表和缓存
             uiNotificationsStore.showSuccess('快捷指令已更新');
             return true;
         } catch (err: any) {
@@ -125,8 +172,9 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     // 删除快捷指令
     const deleteQuickCommand = async (id: number) => {
         try {
-            await apiClient.delete(`/quick-commands/${id}`); // 使用 apiClient
-            // 从本地列表中移除，避免重新请求
+            await apiClient.delete(`/quick-commands/${id}`);
+            clearQuickCommandsCache(); // 清除所有排序缓存
+            // 从本地列表中移除
             const index = quickCommandsList.value.findIndex(cmd => cmd.id === id);
             if (index !== -1) {
                 quickCommandsList.value.splice(index, 1);
@@ -149,7 +197,8 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
                 command.usage_count += 1;
                 // 如果当前是按使用次数排序，可能需要重新排序或刷新列表
                 if (sortBy.value === 'usage_count') {
-                    // 简单起见，重新获取并排序
+                    // 清除所有排序缓存并重新获取当前排序
+                    clearQuickCommandsCache();
                     await fetchQuickCommands();
                 }
             }
@@ -169,7 +218,8 @@ export const useQuickCommandsStore = defineStore('quickCommands', () => {
     const setSortBy = async (newSortBy: QuickCommandSortByType) => {
         if (sortBy.value !== newSortBy) {
             sortBy.value = newSortBy;
-            await fetchQuickCommands(); // 排序方式改变，重新获取数据
+            // 排序方式改变，不需要清除缓存，fetchQuickCommands 会读取对应排序的缓存或重新获取
+            await fetchQuickCommands();
         }
     };
 
