@@ -454,39 +454,69 @@ const handleAddNewTheme = () => {
 };
 
 
-// 开始编辑主题 (用户主题或基于预设创建副本)
-const handleEditTheme = (theme: TerminalTheme) => {
+// 开始编辑主题 (用户主题或基于预设创建副本) - 改为异步加载数据
+const handleEditTheme = async (theme: TerminalTheme) => {
     saveThemeError.value = null; // 清除旧错误
     terminalThemeParseError.value = null; // 清除旧错误
-    let themeToEdit: TerminalTheme;
-    if (theme.isPreset) {
-        // 基于预设创建副本
-        const themeCopy = JSON.parse(JSON.stringify(theme));
-        themeCopy._id = undefined; // 清除 ID，表示是新建
-        themeCopy.name = `${theme.name} (Copy)`;
-        themeCopy.isPreset = false; // 副本不再是预设
-        themeToEdit = themeCopy;
-        console.log('创建预设主题副本进行编辑:', themeToEdit);
-    } else {
-        // 编辑用户自己的主题
-        themeToEdit = JSON.parse(JSON.stringify(theme));
-        console.log('编辑用户主题:', themeToEdit);
+
+    // 检查 theme._id 是否存在
+    if (!theme._id) {
+        console.error("尝试编辑没有 ID 的主题:", theme);
+        alert(t('styleCustomizer.errorEditThemeNoId')); // 需要添加翻译: "无法编辑没有 ID 的主题"
+        return;
     }
-    editingTheme.value = themeToEdit;
-    // 初始化 textarea (key: value 格式)
+
+    let themeDataToEdit: ITheme | null = null;
+    let themeNameToEdit = theme.name;
+    let themeIdToEdit: string | undefined = theme._id; // 保留原始 ID 用于更新，如果是预设副本则为 undefined
+
     try {
-        const themeObject = editingTheme.value.themeData;
-         if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
-            const lines = Object.entries(themeObject).map(([key, value]) => `${key}: ${value}`);
-            editableTerminalThemeString.value = lines.join('\n');
-        } else {
-            editableTerminalThemeString.value = '';
+        // 1. 加载主题数据
+        themeDataToEdit = await appearanceStore.loadTerminalThemeData(theme._id);
+        if (!themeDataToEdit) {
+            throw new Error(t('styleCustomizer.errorLoadThemeDataFailed')); // 需要添加翻译: "加载主题数据失败"
         }
-    } catch (e) {
-        console.error("格式化编辑终端主题字符串失败:", e);
-        editableTerminalThemeString.value = ''; // Fallback
+
+        // 2. 如果是预设主题，准备创建副本
+        if (theme.isPreset) {
+            themeNameToEdit = `${theme.name} (Copy)`;
+            themeIdToEdit = undefined; // 清除 ID，表示是新建
+            console.log('基于预设主题加载数据并创建副本进行编辑:', themeNameToEdit);
+        } else {
+            console.log('加载用户主题数据进行编辑:', themeNameToEdit);
+        }
+
+        // 3. 设置编辑状态
+        editingTheme.value = {
+            _id: themeIdToEdit, // 可能是 undefined (新建副本) 或原始 ID (编辑现有)
+            name: themeNameToEdit,
+            themeData: JSON.parse(JSON.stringify(themeDataToEdit)), // 深拷贝加载的数据
+            isPreset: false, // 编辑状态下总是不是预设
+        };
+
+        // 4. 初始化 textarea (key: value 格式)
+        try {
+            const themeObject = editingTheme.value.themeData;
+            if (themeObject && typeof themeObject === 'object' && Object.keys(themeObject).length > 0) {
+                const lines = Object.entries(themeObject).map(([key, value]) => `${key}: ${value}`);
+                editableTerminalThemeString.value = lines.join('\n');
+            } else {
+                editableTerminalThemeString.value = '';
+            }
+        } catch (e) {
+            console.error("格式化编辑终端主题字符串失败:", e);
+            editableTerminalThemeString.value = ''; // Fallback
+        }
+
+        isEditingTheme.value = true; // 进入编辑模式
+
+    } catch (error: any) {
+        console.error("编辑主题失败 (加载数据时):", error);
+        saveThemeError.value = error.message || t('styleCustomizer.errorEditThemeFailed'); // 需要添加翻译: "编辑主题失败"
+        // 不进入编辑模式
+        isEditingTheme.value = false;
+        editingTheme.value = null;
     }
-    isEditingTheme.value = true;
 };
 
 // 保存主题编辑 (新建或更新)

@@ -337,6 +337,51 @@ export const useAppearanceStore = defineStore('appearance', () => {
         }
     }
 
+/**
+     * 按需加载单个终端主题的详细数据
+     * @param themeId 主题的字符串 ID
+     * @returns 返回主题的 ITheme 数据，如果找不到或加载失败则返回 null
+     */
+    async function loadTerminalThemeData(themeId: string): Promise<ITheme | null> {
+        // 1. 尝试从已加载的列表中查找
+        const existingTheme = allTerminalThemes.value.find(t => t._id === themeId);
+
+        // 2. 如果找到且已有 themeData，直接返回
+        if (existingTheme?.themeData && Object.keys(existingTheme.themeData).length > 0) {
+            console.log(`[AppearanceStore] Theme data for ${themeId} already loaded.`);
+            return existingTheme.themeData;
+        }
+
+        // 3. 如果未找到或缺少 themeData，从后端加载
+        console.log(`[AppearanceStore] Loading theme data for ${themeId} from backend...`);
+        try {
+            const response = await apiClient.get<TerminalTheme>(`/terminal-themes/${themeId}`); // 假设后端提供此接口
+            const fullTheme = response.data;
+
+            if (fullTheme && fullTheme.themeData) {
+                // 更新 allTerminalThemes 列表中的对应项
+                const index = allTerminalThemes.value.findIndex(t => t._id === themeId);
+                if (index !== -1) {
+                    // 确保响应性，可以考虑替换整个对象或使用 Vue.set (在 Vue 3 中不推荐)
+                    // 简单的替换可能足够，因为 allTerminalThemes 本身是 ref
+                     allTerminalThemes.value[index] = { ...allTerminalThemes.value[index], themeData: fullTheme.themeData };
+                     console.log(`[AppearanceStore] Updated theme data for ${themeId} in local store.`);
+                } else {
+                    // 如果列表中不存在（理论上不应发生，因为初始加载了元数据），可以考虑添加到列表
+                     console.warn(`[AppearanceStore] Theme metadata for ${themeId} not found in initial list, but loaded data.`);
+                     // allTerminalThemes.value.push(fullTheme); // 或者不添加，仅返回数据
+                }
+                return fullTheme.themeData;
+            } else {
+                 console.error(`[AppearanceStore] Loaded data for theme ${themeId} is invalid or missing themeData.`);
+                 return null;
+            }
+        } catch (err: any) {
+            console.error(`加载终端主题 ${themeId} 数据失败:`, err);
+            error.value = err.response?.data?.message || err.message || `加载主题 ${themeId} 数据失败`;
+            return null; // 返回 null 表示加载失败
+        }
+    }
     // --- 背景图片 Actions ---
     /**
      * 上传页面背景图片
@@ -515,6 +560,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         // setTerminalBackgroundOpacity, // Removed
         removePageBackground,
         removeTerminalBackground,
+        loadTerminalThemeData, // <-- 新增导出
         // Visibility control
         isStyleCustomizerVisible,
         toggleStyleCustomizer,
