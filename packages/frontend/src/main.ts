@@ -12,8 +12,7 @@ import './style.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 // 导入 splitpanes CSS
 import 'splitpanes/dist/splitpanes.css';
-// 恢复导入 reCAPTCHA v3
-import { VueReCaptcha } from 'vue-recaptcha-v3';
+
 
 const pinia = createPinia(); // 创建 Pinia 实例
 pinia.use(piniaPluginPersistedstate); // 使用持久化插件
@@ -24,14 +23,7 @@ app.use(pinia); // 使用配置好的 Pinia 实例
 // 注意：在状态初始化完成前，暂时不 use(router)
 app.use(i18n); // 使用 i18n
 
-// 恢复初始化 reCAPTCHA v3
-// 重要提示：请将 'YOUR_RECAPTCHA_V3_SITE_KEY' 替换为您从 Google reCAPTCHA 获取的实际 Site Key
-app.use(VueReCaptcha, {
-  siteKey: 'YOUR_RECAPTCHA_V3_SITE_KEY', // <-- 在此处替换您的 Site Key
-  loaderOptions: {
-    autoHideBadge: true // 可选：自动隐藏 reCAPTCHA 徽章
-  }
-});
+
 
 // --- 应用初始化逻辑 ---
 // 使用 async IIFE 来允许顶层 await
