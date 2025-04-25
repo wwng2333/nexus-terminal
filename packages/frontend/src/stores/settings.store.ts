@@ -42,10 +42,9 @@ interface SettingsState {
   sidebarPaneWidths?: string; // NEW: 存储各侧边栏组件宽度的 JSON 字符串
   fileManagerRowSizeMultiplier?: string; // NEW: 文件管理器行大小乘数 (e.g., '1.0')
   fileManagerColWidths?: string; // NEW: 文件管理器列宽 JSON 字符串 (e.g., '{"name": 300, "size": 100}')
- fileManagerColWidths?: string; // NEW: 文件管理器列宽 JSON 字符串 (e.g., '{"name": 300, "size": 100}')
- commandInputSyncTarget?: 'quickCommands' | 'commandHistory' | 'none'; // NEW: 命令输入同步目标
- // Add other general settings keys here as needed
- [key: string]: string | undefined; // Allow other string settings
+  commandInputSyncTarget?: 'quickCommands' | 'commandHistory' | 'none'; // NEW: 命令输入同步目标
+  // Add other general settings keys here as needed
+  [key: string]: string | undefined; // Allow other string settings
 }
 
 
