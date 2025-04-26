@@ -25,7 +25,8 @@ if (availableLocales.length === 0) {
 
 // 类型推断 (基于第一个加载的语言文件，假设所有文件结构一致)
 // 如果没有加载到文件，则使用空对象作为 fallback，避免运行时错误
-type MessageSchema = typeof messages[availableLocales[0]] | {};
+// 使用更通用的类型 Record<string, any> 来避免动态索引的类型推断问题
+type MessageSchema = Record<string, any>;
 
 // 定义默认语言 (优先使用 'en-US'，如果不存在则使用第一个找到的语言)
 export const defaultLng = availableLocales.includes('en-US') ? 'en-US' : availableLocales[0] || 'en-US'; // 更新为 en-US
