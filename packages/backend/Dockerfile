@@ -26,6 +26,9 @@ WORKDIR /app
 
 
 COPY --from=builder /app/packages/backend/dist ./dist
+# --- 添加：复制 locales 目录 ---
+COPY --from=builder /app/packages/backend/src/locales ./dist/locales
+# --- 结束添加 ---
 COPY --from=builder /app/packages/backend/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
 
