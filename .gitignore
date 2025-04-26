@@ -140,3 +140,10 @@ dist
 /temp_iterm_schemes
 /packages/backend/sessions
 /data
+
+# Editor directories
+.idea/
+.vscode/
+
+# Build/Distribution scripts
+dist-scripts/
