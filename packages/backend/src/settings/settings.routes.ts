@@ -4,10 +4,14 @@ import { isAuthenticated } from '../auth/auth.middleware'; // 导入认证中间
 
 const router = express.Router();
 
-// 应用认证中间件，确保只有登录用户才能访问设置相关 API
+// +++ 新增：CAPTCHA 配置路由 (公开获取) +++
+// GET /api/v1/settings/captcha - 获取公共 CAPTCHA 配置 (不含密钥)
+router.get('/captcha', settingsController.getCaptchaConfig);
+
+// 应用认证中间件，确保只有登录用户才能访问【受保护的】设置相关 API
 router.use(isAuthenticated);
 
-// 定义路由
+// 定义【受保护的】路由
 router.get('/', settingsController.getAllSettings); // GET /api/v1/settings
 router.put('/', settingsController.updateSettings); // PUT /api/v1/settings
 
@@ -52,8 +56,6 @@ router.put('/sidebar', settingsController.setSidebarConfig);
 
 export default router;
 
-// +++ 新增：CAPTCHA 配置路由 +++
-// GET /api/v1/settings/captcha - 获取公共 CAPTCHA 配置 (不含密钥)
-router.get('/captcha', settingsController.getCaptchaConfig);
+// +++ 新增：CAPTCHA 配置路由 (需要认证更新) +++
 // PUT /api/v1/settings/captcha - 更新 CAPTCHA 配置
 router.put('/captcha', settingsController.setCaptchaConfig);
