@@ -103,7 +103,8 @@ const formatRelativeTime = (timestampInSeconds: number | null | undefined): stri
         return String(timestampInSeconds); // 返回原始值或错误提示
     }
     const date = new Date(timestampInMs);
-    const currentLocale = locale.value === 'zh' ? zhCN : enUS;
+    // Check if the locale starts with 'zh' to cover variants like 'zh-CN', 'zh-HK', etc.
+    const currentLocale = locale.value.startsWith('zh') ? zhCN : enUS;
     return formatDistanceToNow(date, { addSuffix: true, locale: currentLocale });
   } catch (e) {
     console.error("格式化日期失败:", e);
