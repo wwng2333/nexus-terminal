@@ -67,6 +67,33 @@
                     <p v-if="passkeyMessage" class="text-sm text-success">{{ passkeyMessage }}</p>
                     <p v-if="passkeyError" class="text-sm text-error">{{ passkeyError }}</p>
                  </div>
+                 <!-- Passkey List -->
+                 <div class="mt-6 pt-4 border-t border-border/50">
+                    <h4 class="text-sm font-semibold text-foreground mb-3">{{ $t('settings.passkey.registeredKeysTitle', '已注册的 Passkey') }}</h4>
+                    <!-- Loading State -->
+                    <div v-if="passkeysLoading" class="text-sm text-text-secondary italic">{{ $t('common.loading') }}</div>
+                    <!-- Error State -->
+                    <div v-else-if="passkeysError" class="text-sm text-error">{{ passkeysError }}</div>
+                    <!-- Empty State -->
+                    <div v-else-if="passkeys.length === 0" class="text-sm text-text-secondary italic">{{ $t('settings.passkey.noKeysRegistered', '尚未注册任何 Passkey。') }}</div>
+                    <!-- List -->
+                    <ul v-else class="space-y-3">
+                      <li v-for="key in passkeys" :key="key.id" class="flex items-center justify-between p-3 border border-border rounded-md bg-header/30 text-sm">
+                        <div>
+                          <span class="font-medium text-foreground mr-2">{{ key.name || $t('settings.passkey.unnamedKey', '未命名密钥') }}</span>
+                          <span class="text-xs text-text-secondary">({{ $t('settings.passkey.registeredOn', '注册于') }}: {{ formatDate(key.created_at) }})</span>
+                        </div>
+                        <button
+                          @click="handleDeletePasskey(key.id)"
+                          :disabled="deletingPasskeyId === key.id"
+                          class="px-2 py-1 bg-error text-error-text rounded text-xs font-medium hover:bg-error/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-error disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
+                        >
+                          {{ deletingPasskeyId === key.id ? $t('common.deleting') : $t('common.delete') }}
+                        </button>
+                      </li>
+                    </ul>
+                    <p v-if="deletePasskeyError" class="mt-2 text-sm text-error">{{ deletePasskeyError }}</p>
+                 </div>
               </div>
               <hr class="border-border/50">
               <!-- 2FA -->
@@ -561,6 +588,10 @@ const {
     commandInputSyncTarget, // NEW: Import command input sync target getter
 } = storeToRefs(settingsStore);
 
+// 从 authStore 获取 Passkey 相关状态
+const { passkeys, passkeysLoading, passkeysError } = storeToRefs(authStore);
+
+
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
 // 使用 store 的 language getter 初始化 selectedLanguage
@@ -632,6 +663,10 @@ const captchaForm = reactive<UpdateCaptchaSettingsDto>({ // Use reactive for the
 const captchaLoading = ref(false);
 const captchaMessage = ref('');
 const captchaSuccess = ref(false);
+// Passkey Deletion State
+const deletingPasskeyId = ref<number | null>(null);
+const deletePasskeyError = ref<string | null>(null);
+
 
 // 提供一些常用的时区供选择
 const commonTimezones = ref([
@@ -858,7 +893,7 @@ const openStyleCustomizer = () => {
     appearanceStore.toggleStyleCustomizer(true);
 };
 
-// --- Passkey state & methods --- (Keep as is)
+// --- Passkey state & methods ---
 const passkeyName = ref('');
 const passkeyMessage = ref<string | null>(null);
 const passkeyError = ref<string | null>(null);
@@ -876,6 +911,7 @@ const handleRegisterPasskey = async () => {
     await apiClient.post('/auth/passkey/verify-registration', { registrationResponse, name: passkeyName.value }); // 使用 apiClient
     passkeyMessage.value = t('settings.passkey.success.registered');
     passkeyName.value = '';
+    await authStore.fetchPasskeys(); // 注册成功后刷新列表
   } catch (error: any) {
     console.error('Passkey 注册流程出错:', error);
     if (error.name === 'NotAllowedError') {
@@ -887,6 +923,35 @@ const handleRegisterPasskey = async () => {
     }
   }
 };
+// 新增：处理 Passkey 删除
+const handleDeletePasskey = async (id: number) => {
+    deletingPasskeyId.value = id;
+    deletePasskeyError.value = null;
+    if (confirm(t('settings.passkey.confirmDelete', '确定要删除这个 Passkey 吗？'))) { // 需要添加翻译
+        try {
+            await authStore.deletePasskey(id);
+            // 列表会自动更新，因为 store action 修改了 state
+        } catch (error: any) {
+            console.error('删除 Passkey 失败:', error);
+            deletePasskeyError.value = error.message || t('settings.passkey.error.deleteFailed', '删除 Passkey 失败'); // 需要添加翻译
+        } finally {
+            deletingPasskeyId.value = null;
+        }
+    } else {
+        deletingPasskeyId.value = null;
+    }
+};
+// 新增：格式化日期函数
+const formatDate = (timestamp: number | undefined) => {
+    if (!timestamp) return t('statusMonitor.notAvailable');
+    try {
+        return new Date(timestamp * 1000).toLocaleString();
+    } catch (e) {
+        console.error("Error formatting date:", e);
+        return t('statusMonitor.notAvailable');
+    }
+};
+
 
 // --- Change Password state & methods --- (Keep as is)
 const currentPassword = ref('');
@@ -1128,6 +1193,7 @@ onMounted(async () => {
   await checkTwoFactorStatus(); // Check 2FA status
   await fetchIpBlacklist(); // Fetch current blacklist entries
   await settingsStore.loadCaptchaSettings(); // <-- Load CAPTCHA settings
+  await authStore.fetchPasskeys(); // <-- 获取 Passkey 列表
   // Initial settings (including language, whitelist, blacklist config) are loaded in main.ts via settingsStore.loadInitialSettings()
 });
 

@@ -104,7 +104,8 @@
         "captchaLoadFailed": "加载 CAPTCHA 失败，请尝试刷新页面。",
         "captchaRequired": "请完成 CAPTCHA 验证。"
     },
-    "recaptchaV3Notice": "此网站受 reCAPTCHA 保护，并适用 Google 隐私政策和服务条款。"
+    "recaptchaV3Notice": "此网站受 reCAPTCHA 保护，并适用 Google 隐私政策和服务条款。",
+    "passkeyLoginButton": "使用 Passkey 登录"
   },
   "connections": {
     "addConnection": "添加新连接",

@@ -4,8 +4,9 @@ import {
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
     VerifiedRegistrationResponse,
-    VerifiedAuthenticationResponse,
+    // VerifiedAuthenticationResponse, // Remove original import
 } from '@simplewebauthn/server';
+import type { VerifiedAuthenticationResponse as SimpleVerifiedAuthenticationResponse } from '@simplewebauthn/server'; // Import with alias
 import type {
     GenerateRegistrationOptionsOpts,
     GenerateAuthenticationOptionsOpts,
@@ -13,10 +14,18 @@ import type {
     VerifyAuthenticationResponseOpts,
     RegistrationResponseJSON,
     AuthenticationResponseJSON,
-} from '@simplewebauthn/server'; 
+} from '@simplewebauthn/server';
 import { PasskeyRepository, PasskeyRecord } from '../repositories/passkey.repository';
+import { getDbInstance, getDb } from '../database/connection'; // Import database functions
+import type { User } from '../auth/auth.controller'; // Import User type (assuming it's defined or importable from auth.controller)
 
-
+// Define extended verification response type including user info
+export interface VerifiedAuthenticationResponse extends SimpleVerifiedAuthenticationResponse {
+   userInfo?: {
+       userId: number;
+       username: string;
+   };
+}
 // 定义 Relying Party (RP) 信息 - 这些应该来自配置或设置
 const rpName = 'Nexus Terminal';
 // rpID 和 expectedOrigin 将从请求动态获取，不再在此处硬编码
@@ -63,6 +72,7 @@ export class PasskeyService {
 
     /**
      * 验证 Passkey 注册响应
+     * @param userId 当前登录用户的 ID
      * @param registrationResponse 来自客户端的注册响应
      * @param expectedChallenge 之前生成的、临时存储的挑战
      * @param hostname 请求的主机名
@@ -70,6 +80,7 @@ export class PasskeyService {
      * @param passkeyName 用户为这个 Passkey 起的名字 (可选)
      */
     async verifyRegistration(
+        userId: number, // 新增 userId 参数
         registrationResponse: RegistrationResponseJSON,
         expectedChallenge: string,
         hostname: string,
@@ -110,15 +121,16 @@ export class PasskeyService {
             // 获取 transports 信息
             const transports = registrationResponse.response.transports ?? null;
 
-            // 保存到数据库
+            // 保存到数据库，传入 userId
             await this.passkeyRepository.savePasskey(
+                userId, // 传递 userId
                 credentialIdBase64Url,
                 publicKeyBase64Url,
                 counter,
                 transports ? JSON.stringify(transports) : null,
                 passkeyName
             );
-            console.log(`Passkey 注册成功: ${credentialIdBase64Url}, Name: ${passkeyName ?? 'N/A'}`);
+            console.log(`用户 ${userId} Passkey 注册成功: ${credentialIdBase64Url}, Name: ${passkeyName ?? 'N/A'}`);
         } else {
             console.error('Passkey 注册验证失败:', verification);
         }
@@ -160,7 +172,7 @@ export class PasskeyService {
         expectedChallenge: string,
         hostname: string,
         origin: string
-    ): Promise<VerifiedAuthenticationResponse> {
+    ): Promise<VerifiedAuthenticationResponse> { // Return our extended type
 
         const credentialIdBase64Url = authenticationResponse.id; // 客户端传回的 ID 已经是 Base64URL
         const authenticator = await this.passkeyRepository.getPasskeyByCredentialId(credentialIdBase64Url);
@@ -204,6 +216,23 @@ export class PasskeyService {
             // 更新数据库中的计数器
             await this.passkeyRepository.updatePasskeyCounter(authenticator.credential_id, newCounter);
             console.log(`Passkey 认证成功: ${authenticator.credential_id}`);
+
+            // --- Added: Fetch user information ---
+            const db = await getDbInstance();
+            // Assuming PasskeyRecord has user_id
+            const user = await getDb<User>(db, 'SELECT id, username FROM users WHERE id = ?', [authenticator.user_id]);
+            if (!user) {
+                // This theoretically shouldn't happen if the authenticator exists
+                console.error(`Passkey authentication successful but associated user not found: UserID ${authenticator.user_id}, CredentialID ${authenticator.credential_id}`);
+                throw new Error('Passkey authentication successful but failed to find associated user information.');
+            }
+            // Attach user info to the verification result
+            (verification as VerifiedAuthenticationResponse).userInfo = {
+                userId: user.id,
+                username: user.username,
+            };
+            // --- End: Fetch user information ---
+
         } else {
              console.error('Passkey 认证验证失败:', verification);
         }
@@ -231,5 +260,15 @@ export class PasskeyService {
      */
     async deletePasskey(id: number): Promise<void> {
         await this.passkeyRepository.deletePasskeyById(id);
+    }
+
+    /**
+     * 根据 Credential ID 获取 Passkey 记录 (供认证验证使用)
+     * @param credentialIdBase64Url Base64URL 编码的 Credential ID
+     */
+    async getPasskeyByCredentialId(credentialIdBase64Url: string): Promise<PasskeyRecord | null> {
+        // 注意：PasskeyRepository 需要有 getPasskeyByCredentialId 方法
+        // 并且 PasskeyRecord 需要包含 user_id 以便后续查找用户
+        return this.passkeyRepository.getPasskeyByCredentialId(credentialIdBase64Url);
     }
 }

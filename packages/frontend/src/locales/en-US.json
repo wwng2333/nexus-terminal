@@ -37,6 +37,7 @@
     "themeCreatedSuccess": "Theme created successfully.",
     "themeSaveFailed": "Failed to save theme.",
     "themeDeletedSuccess": "Theme deleted successfully.",
+"passkeyLoginButton": "Login with Passkey",
     "themeDeleteFailed": "Failed to delete theme: {message}",
     "importSuccess": "Theme imported successfully.",
     "importFailed": "Theme import failed.",

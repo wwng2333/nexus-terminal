@@ -104,7 +104,8 @@
           "captchaLoadFailed": "CAPTCHA の読み込みに失敗しました。ページをリロードしてください。",
           "captchaRequired": "CAPTCHA を完了してください。"
       },
-      "recaptchaV3Notice": "このサイトは reCAPTCHA によって保護されており、Google のプライバシーポリシーと利用規約が適用されます。"
+      "recaptchaV3Notice": "このサイトは reCAPTCHA によって保護されており、Google のプライバシーポリシーと利用規約が適用されます。",
+      "passkeyLoginButton": "Passkeyでログイン"
     },
     "connections": {
       "addConnection": "新しい接続を追加",

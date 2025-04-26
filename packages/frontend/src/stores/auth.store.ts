@@ -36,6 +36,15 @@ interface FullCaptchaSettings {
     recaptchaSecretKey?: string; // We won't use this in authStore
 }
 
+// 新增：Passkey 信息接口 (根据后端返回调整)
+interface PasskeyInfo {
+    id: number; // 数据库中的 ID，用于删除
+    name?: string; // 用户设置的名称
+    transports?: string; // JSON string of transports like ["internal", "usb"]
+    created_at?: number; // Unix timestamp
+}
+
+
 // Auth Store State 接口
 interface AuthState {
     isAuthenticated: boolean;
@@ -50,6 +59,9 @@ interface AuthState {
     };
     needsSetup: boolean; // 新增：是否需要初始设置
     publicCaptchaConfig: PublicCaptchaConfig | null; // NEW: Public CAPTCHA config
+    passkeys: PasskeyInfo[]; // 新增：存储 Passkey 列表
+    passkeysLoading: boolean; // 新增：Passkey 列表加载状态
+    passkeysError: string | null; // 新增：Passkey 列表错误状态
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -62,12 +74,24 @@ export const useAuthStore = defineStore('auth', {
         ipBlacklist: { entries: [], total: 0 }, // 初始化黑名单状态
         needsSetup: false, // 初始假设不需要设置
         publicCaptchaConfig: null, // NEW: Initialize CAPTCHA config as null
+        passkeys: [], // 初始化 Passkey 列表为空
+        passkeysLoading: false,
+        passkeysError: null,
     }),
     getters: {
         // 可以添加一些 getter，例如获取用户名
         loggedInUser: (state) => state.user?.username,
     },
     actions: {
+        // 新增：清除错误状态
+        clearError() {
+            this.error = null;
+        },
+        // 新增：设置错误状态
+        setError(errorMessage: string) {
+            this.error = errorMessage;
+        },
+
         // 登录 Action - 更新为接受 LoginPayload + optional captchaToken
         async login(payload: LoginPayload & { captchaToken?: string }) { // Add captchaToken to payload
             this.isLoading = true;
@@ -156,6 +180,7 @@ export const useAuthStore = defineStore('auth', {
                 // 清除本地状态
                 this.isAuthenticated = false;
                 this.user = null;
+                this.passkeys = []; // 登出时清空 Passkey 列表
                 console.log('已登出');
                 // 登出后重定向到登录页
                 await router.push({ name: 'Login' });
@@ -185,6 +210,7 @@ export const useAuthStore = defineStore('auth', {
                     this.isAuthenticated = false;
                     this.user = null;
                     this.loginRequires2FA = false;
+                    this.passkeys = []; // 未认证时清空 Passkey 列表
                 }
             } catch (error: any) {
                 // 如果获取状态失败 (例如 session 过期)，则认为未认证
@@ -192,6 +218,7 @@ export const useAuthStore = defineStore('auth', {
                 this.isAuthenticated = false;
                 this.user = null;
                 this.loginRequires2FA = false;
+                this.passkeys = []; // 失败时也清空 Passkey 列表
                 // 可选：如果不是 401 错误，可以记录更详细的日志
             } finally {
                 this.isLoading = false;
@@ -323,6 +350,112 @@ export const useAuthStore = defineStore('auth', {
                     enabled: false,
                     provider: 'none',
                 };
+            }
+        },
+
+        // --- Passkey Actions ---
+        /**
+         * 获取当前用户的 Passkey 列表
+         */
+        async fetchPasskeys() {
+            if (!this.isAuthenticated) return; // 确保用户已登录
+            this.passkeysLoading = true;
+            this.passkeysError = null;
+            try {
+                const response = await apiClient.get<PasskeyInfo[]>('/auth/passkeys');
+                this.passkeys = response.data;
+                console.log('获取 Passkey 列表成功:', this.passkeys);
+            } catch (err: any) {
+                console.error('获取 Passkey 列表失败:', err);
+                this.passkeysError = err.response?.data?.message || err.message || '获取 Passkey 列表时发生未知错误。';
+                this.passkeys = []; // 出错时清空列表
+            } finally {
+                this.passkeysLoading = false;
+            }
+        },
+
+        /**
+         * 删除指定的 Passkey
+         * @param passkeyId 要删除的 Passkey 的 ID
+         */
+        async deletePasskey(passkeyId: number) {
+            if (!this.isAuthenticated) throw new Error('用户未登录');
+            // 可以添加一个 loading 状态 specific to deletion if needed
+            this.passkeysError = null; // Clear previous errors
+            try {
+                await apiClient.delete(`/auth/passkeys/${passkeyId}`);
+                console.log(`Passkey ID ${passkeyId} 已删除`);
+                // 从本地状态中移除
+                this.passkeys = this.passkeys.filter(key => key.id !== passkeyId);
+                return true; // Indicate success
+            } catch (err: any) {
+                console.error(`删除 Passkey ID ${passkeyId} 失败:`, err);
+                this.passkeysError = err.response?.data?.message || err.message || '删除 Passkey 时发生未知错误。';
+                // 抛出错误以便 UI 显示
+                throw new Error(this.passkeysError ?? '删除 Passkey 时发生未知错误。');
+            }
+        },
+
+        // --- Passkey Authentication Actions ---
+        /**
+         * 从后端获取 Passkey 认证选项
+         */
+        async getPasskeyAuthenticationOptions() {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                // 调用后端 API 获取选项
+                const response = await apiClient.post('/auth/passkey/authenticate-options');
+                console.log('获取 Passkey 认证选项成功:', response.data);
+                return response.data; // 返回选项给调用者 (LoginView)
+            } catch (err: any) {
+                console.error('获取 Passkey 认证选项失败:', err);
+                this.error = err.response?.data?.message || err.message || '获取 Passkey 认证选项时发生未知错误。';
+                // 返回 null 或抛出错误，让调用者知道失败了
+                return null;
+            } finally {
+                this.isLoading = false;
+            }
+        },
+
+        /**
+         * 验证 Passkey 认证响应并登录
+         * @param authenticationResponse 从 @simplewebauthn/browser 获取的响应
+         * @param rememberMe 用户是否勾选了“记住我”
+         */
+        async verifyPasskeyAuthentication(authenticationResponse: any, rememberMe: boolean) {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                // 调用后端 API 验证响应
+                const response = await apiClient.post<{ message: string; user: UserInfo }>('/auth/passkey/verify-authentication', {
+                    authenticationResponse,
+                    rememberMe // 将 rememberMe 状态传递给后端
+                });
+
+                // Passkey 认证和登录成功
+                this.isAuthenticated = true;
+                this.user = response.data.user;
+                this.loginRequires2FA = false; // Passkey 登录通常不需要额外 2FA
+                console.log('Passkey 登录成功:', this.user);
+
+                // 设置语言
+                if (this.user?.language) {
+                    setLocale(this.user.language);
+                }
+
+                // 跳转到工作区并刷新
+                window.location.href = '/';
+                return { success: true };
+
+            } catch (err: any) {
+                console.error('Passkey 认证验证失败:', err);
+                this.isAuthenticated = false;
+                this.user = null;
+                this.error = err.response?.data?.message || err.message || 'Passkey 登录时发生未知错误。';
+                return { success: false, error: this.error };
+            } finally {
+                this.isLoading = false;
             }
         },
     },

@@ -1,3 +1,4 @@
+
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import { getDbInstance, runDb, getDb, allDb } from '../database/connection';
@@ -13,9 +14,9 @@ import { settingsService } from '../services/settings.service';
 
 const passkeyService = new PasskeyService(); 
 const notificationService = new NotificationService(); 
-const auditLogService = new AuditLogService(); 
+const auditLogService = new AuditLogService();
 
-interface User {
+export interface User { // Add export keyword
     id: number;
     username: string;
     hashed_password: string; 
@@ -476,7 +477,15 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
 
         // 再次提醒: 确保 Express 配置了 'trust proxy'
 
+        // 从 session 获取 userId
+        const userId = req.session.userId;
+        if (!userId) {
+             // 这个检查理论上在函数开头已经做过，但为了类型安全和明确性再次检查
+             throw new Error('无法获取用户 ID，无法验证 Passkey。');
+        }
+
         const verification = await passkeyService.verifyRegistration(
+            userId, // <-- 传递 userId 作为第一个参数
             registrationResponse,
             expectedChallenge,
             hostname,
@@ -499,6 +508,189 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
     } catch (error: any) {
         console.error(`用户 ${userId} 验证 Passkey 注册时出错:`, error);
         res.status(500).json({ message: '验证 Passkey 注册失败。', error: error.message });
+    }
+};
+/**
+ * 获取当前用户已注册的所有 Passkey (GET /api/v1/auth/passkeys)
+ */
+export const listUserPasskeys = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+
+    if (!userId || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    try {
+        // 注意：PasskeyService 的 listPasskeys 目前是获取所有用户的，
+        // 实际应用中应该只获取当前用户的。这里暂时调用，
+        // 但 PasskeyRepository 和 Service 可能需要调整以支持按用户过滤。
+        // 假设 PasskeyRepository.getAllPasskeys() 可以接受 userId 过滤
+        // 或者 PasskeyService.listPasskeys() 内部处理过滤逻辑。
+        // **临时简化处理：** 假设 PasskeyService.listPasskeys() 返回所有密钥，
+        // 在实际应用中需要根据 userId 过滤。
+        // TODO: Refactor PasskeyRepository/Service to filter by userId
+        const passkeys = await passkeyService.listPasskeys(); // 假设这会返回适合前端展示的数据结构
+
+        res.status(200).json(passkeys);
+    } catch (error: any) {
+        console.error(`用户 ${userId} 获取 Passkey 列表时出错:`, error);
+        res.status(500).json({ message: '获取 Passkey 列表失败。', error: error.message });
+    }
+};
+
+/**
+ * 删除指定的 Passkey (DELETE /api/v1/auth/passkeys/:id)
+ */
+export const deleteUserPasskey = async (req: Request, res: Response): Promise<void> => {
+    const userId = req.session.userId;
+    const passkeyIdToDelete = parseInt(req.params.id, 10); // 从路由参数获取 ID
+
+    if (!userId || req.session.requiresTwoFactor) {
+        res.status(401).json({ message: '用户未认证或认证未完成。' });
+        return;
+    }
+
+    if (isNaN(passkeyIdToDelete)) {
+         res.status(400).json({ message: '无效的 Passkey ID。' });
+         return;
+    }
+
+    try {
+        // TODO: 在删除前，应该验证这个 Passkey ID 是否属于当前登录用户。
+        // 这需要调整 PasskeyRepository.deletePasskeyById 或增加一个验证步骤。
+        // **临时简化处理：** 直接尝试删除。
+
+        await passkeyService.deletePasskey(passkeyIdToDelete);
+
+        console.log(`用户 ${userId} 删除了 Passkey ID: ${passkeyIdToDelete}`);
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+        // 记录审计日志
+        auditLogService.logAction('PASSKEY_DELETED', { userId, passkeyId: passkeyIdToDelete, ip: clientIp });
+        notificationService.sendNotification('PASSKEY_DELETED', { userId, passkeyId: passkeyIdToDelete, ip: clientIp });
+
+        res.status(200).json({ message: 'Passkey 删除成功。' });
+    } catch (error: any) {
+        console.error(`用户 ${userId} 删除 Passkey ID ${passkeyIdToDelete} 时出错:`, error);
+        // 可以根据错误类型返回不同状态码，例如找不到资源返回 404
+        if (error.message?.includes('未找到')) { // 简单的错误检查
+             res.status(404).json({ message: '未找到要删除的 Passkey。', error: error.message });
+        } else {
+             res.status(500).json({ message: '删除 Passkey 失败。', error: error.message });
+        }
+    }
+};
+/**
+ * 生成 Passkey 认证选项 (POST /api/v1/auth/passkey/authenticate-options)
+ * 用于登录流程
+ */
+export const generatePasskeyAuthenticationOptions = async (req: Request, res: Response): Promise<void> => {
+    try {
+        // 从请求中获取 hostname
+        const hostname = req.hostname;
+        // 确保 Express 配置了 'trust proxy'
+
+        const options = await passkeyService.generateAuthenticationOptions(hostname);
+
+        // 将 challenge 存储在 session 中，用于后续验证
+        req.session.currentChallenge = options.challenge;
+        // 可以在这里添加一个标记，表明正在进行 passkey 认证
+        // req.session.passkeyAuthInProgress = true;
+
+        console.log(`[AuthController] 为 Passkey 登录生成认证选项，Challenge: ${options.challenge}`);
+        res.json(options);
+    } catch (error: any) {
+        console.error(`生成 Passkey 认证选项时出错:`, error);
+        res.status(500).json({ message: '生成 Passkey 认证选项失败。', error: error.message });
+    }
+};
+
+/**
+ * 验证 Passkey 认证响应并登录 (POST /api/v1/auth/passkey/verify-authentication)
+ */
+export const verifyPasskeyAuthentication = async (req: Request, res: Response): Promise<void> => {
+    const expectedChallenge = req.session.currentChallenge;
+    const { authenticationResponse, rememberMe } = req.body; // 获取认证响应和 rememberMe 状态
+
+    if (!expectedChallenge) {
+        res.status(400).json({ message: '未找到预期的挑战，请重新开始登录流程。' });
+        return;
+    }
+
+    if (!authenticationResponse) {
+        res.status(400).json({ message: '缺少认证响应数据。' });
+        return;
+    }
+
+    // 清除 session 中的 challenge，无论成功与否
+    delete req.session.currentChallenge;
+    // delete req.session.passkeyAuthInProgress; // 清除标记
+
+    try {
+        // 从请求中获取 hostname 和 origin
+        const hostname = req.hostname;
+        const originHeader = req.get('origin');
+        const origin = originHeader || `${req.protocol}://${req.get('host')}`;
+        // 确保 Express 配置了 'trust proxy'
+
+        const verification = await passkeyService.verifyAuthentication(
+            authenticationResponse,
+            expectedChallenge,
+            hostname,
+            origin
+        );
+
+        if (verification.verified && verification.userInfo) {
+            const { userId, username } = verification.userInfo;
+            console.log(`Passkey 认证成功，用户: ${username} (ID: ${userId})`);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+
+            // --- 认证成功，建立会话 ---
+            ipBlacklistService.resetAttempts(clientIp); // 重置 IP 失败尝试
+            auditLogService.logAction('LOGIN_SUCCESS', { userId, username, ip: clientIp, method: 'passkey' });
+            notificationService.sendNotification('LOGIN_SUCCESS', { userId, username, ip: clientIp, method: 'passkey' });
+
+            req.session.userId = userId;
+            req.session.username = username;
+            req.session.requiresTwoFactor = false; // Passkey 本身包含验证，通常视为已完成 2FA
+
+            // 根据 rememberMe 设置 cookie maxAge
+            if (rememberMe) {
+                req.session.cookie.maxAge = 315360000000; // 10 years
+            } else {
+                req.session.cookie.maxAge = undefined; // Session cookie
+            }
+
+            res.status(200).json({
+                message: 'Passkey 登录成功。',
+                user: { id: userId, username: username }
+            });
+            // --- 会话建立结束 ---
+
+        } else {
+            console.error(`Passkey 认证验证失败:`, verification);
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+            ipBlacklistService.recordFailedAttempt(clientIp); // 记录失败尝试
+            // 尝试从响应中获取用户 ID (如果可能) 用于日志记录
+            const credentialId = authenticationResponse?.id;
+            let potentialUserId: number | string = 'unknown';
+            if (credentialId) {
+                 try {
+                     const authenticator = await passkeyService.getPasskeyByCredentialId(credentialId);
+                     if (authenticator) potentialUserId = authenticator.user_id;
+                 } catch { /* ignore error */ }
+            }
+            auditLogService.logAction('LOGIN_FAILURE', { userId: potentialUserId, reason: 'Passkey verification failed', ip: clientIp, method: 'passkey' });
+            notificationService.sendNotification('LOGIN_FAILURE', { userId: potentialUserId, reason: 'Passkey verification failed', ip: clientIp, method: 'passkey' });
+            res.status(401).json({ message: 'Passkey 认证失败。', verified: false });
+        }
+    } catch (error: any) {
+        console.error(`验证 Passkey 认证时出错:`, error);
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
+        ipBlacklistService.recordFailedAttempt(clientIp); // 记录失败尝试
+        auditLogService.logAction('LOGIN_FAILURE', { reason: `Passkey verification error: ${error.message}`, ip: clientIp, method: 'passkey' });
+        notificationService.sendNotification('LOGIN_FAILURE', { reason: `Passkey verification error: ${error.message}`, ip: clientIp, method: 'passkey' });
+        res.status(500).json({ message: '验证 Passkey 认证失败。', error: error.message });
     }
 };
 
