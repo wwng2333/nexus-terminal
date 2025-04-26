@@ -1,16 +1,20 @@
 services:
   frontend:
-    image: heavrnl/nexus-terminal-frontend
+    build:
+      context: .
+      dockerfile: packages/frontend/Dockerfile
     container_name: nexus-terminal-frontend
     ports:
       - "18111:80"
     depends_on:
-      - backend）
+      - backend
     networks:
       - nexus-terminal-network
 
   backend:
-    image: heavrnl/nexus-terminal-backend
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
     container_name: nexus-terminal-backend
     ports:
       - "18112:3001"
