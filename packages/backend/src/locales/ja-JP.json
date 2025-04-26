@@ -37,12 +37,9 @@
       "NOTIFICATION_SETTING_CREATED": "通知設定を作成しました",
       "NOTIFICATION_SETTING_UPDATED": "通知設定を更新しました",
       "NOTIFICATION_SETTING_DELETED": "通知設定を削除しました",
-      "SFTP_ACTION": "SFTP 操作",
       "SSH_CONNECT_SUCCESS": "SSH 接続成功",
       "SSH_CONNECT_FAILURE": "SSH 接続失敗",
       "SSH_SHELL_FAILURE": "SSH Shell オープン失敗",
-      "SERVER_STARTED": "サーバー起動",
-      "SERVER_ERROR": "サーバーエラー",
       "DATABASE_MIGRATION": "データベース移行",
       "ADMIN_SETUP_COMPLETE": "初期管理者設定完了"
     }

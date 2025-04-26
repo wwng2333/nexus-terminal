@@ -23,12 +23,9 @@
     "NOTIFICATION_SETTING_CREATED": "通知设置已创建",
     "NOTIFICATION_SETTING_UPDATED": "通知设置已更新",
     "NOTIFICATION_SETTING_DELETED": "通知设置已删除",
-    "SFTP_ACTION": "SFTP 操作",
     "SSH_CONNECT_SUCCESS": "SSH 连接成功",
     "SSH_CONNECT_FAILURE": "SSH 连接失败",
     "SSH_SHELL_FAILURE": "SSH Shell 打开失败",
-    "SERVER_STARTED": "服务器已启动",
-    "SERVER_ERROR": "服务器错误",
     "DATABASE_MIGRATION": "数据库迁移",
     "ADMIN_SETUP_COMPLETE": "初始管理员设置完成",
     "testNotification": "测试通知"

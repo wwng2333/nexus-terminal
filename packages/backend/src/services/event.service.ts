@@ -27,12 +27,9 @@ export enum AppEventType {
   NotificationSettingCreated = 'NOTIFICATION_SETTING_CREATED',
   NotificationSettingUpdated = 'NOTIFICATION_SETTING_UPDATED',
   NotificationSettingDeleted = 'NOTIFICATION_SETTING_DELETED',
-  SftpAction = 'SFTP_ACTION',
   SshConnectSuccess = 'SSH_CONNECT_SUCCESS',
   SshConnectFailure = 'SSH_CONNECT_FAILURE',
   SshShellFailure = 'SSH_SHELL_FAILURE',
-  ServerStarted = 'SERVER_STARTED',
-  ServerError = 'SERVER_ERROR',
   DatabaseMigration = 'DATABASE_MIGRATION',
   AdminSetupComplete = 'ADMIN_SETUP_COMPLETE',
   // 可以根据需要添加更多事件类型

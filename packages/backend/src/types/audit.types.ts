@@ -38,17 +38,12 @@ export type AuditLogActionType =
   | 'NOTIFICATION_SETTING_DELETED'
 
 
-  // SFTP (Consider logging specific actions if needed, e.g., UPLOAD, DOWNLOAD, DELETE_FILE)
-  | 'SFTP_ACTION' // Generic SFTP action for now
-
   // SSH Actions (via WebSocket)
   | 'SSH_CONNECT_SUCCESS'
   | 'SSH_CONNECT_FAILURE'
   | 'SSH_SHELL_FAILURE'
 
   // System/Error
-  | 'SERVER_STARTED'
-  | 'SERVER_ERROR'
   | 'DATABASE_MIGRATION'
   | 'ADMIN_SETUP_COMPLETE';
 

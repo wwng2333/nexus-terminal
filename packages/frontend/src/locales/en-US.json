@@ -515,8 +515,6 @@
         "SSH_CONNECT_SUCCESS": "SSH Connection Successful",
         "SSH_CONNECT_FAILURE": "SSH Connection Failed",
         "SSH_SHELL_FAILURE": "SSH Shell Open Failed",
-        "SERVER_STARTED": "Server Started",
-        "SERVER_ERROR": "Server Error",
         "DATABASE_MIGRATION": "Database Migration",
         "ADMIN_SETUP_COMPLETE": "Initial Admin Setup Completed"
       }
@@ -737,8 +735,6 @@
         "SSH_CONNECT_SUCCESS": "SSH Connection Successful",
         "SSH_CONNECT_FAILURE": "SSH Connection Failed",
         "SSH_SHELL_FAILURE": "SSH Shell Open Failed",
-        "SERVER_STARTED": "Server Started",
-        "SERVER_ERROR": "Server Error",
         "DATABASE_MIGRATION": "Database Migration",
         "ADMIN_SETUP_COMPLETE": "Initial Admin Setup Completed",
         "REMOTE_DESKTOP_CONNECTING": "Remote Desktop Connecting",

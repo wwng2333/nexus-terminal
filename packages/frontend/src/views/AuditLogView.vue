@@ -127,7 +127,7 @@ const allActionTypes: AuditLogActionType[] = [
     // SSH Actions
     'SSH_CONNECT_SUCCESS', 'SSH_CONNECT_FAILURE', 'SSH_SHELL_FAILURE',
     // System/Error
-    'SERVER_STARTED', 'SERVER_ERROR', 'DATABASE_MIGRATION', 'ADMIN_SETUP_COMPLETE'
+    'DATABASE_MIGRATION', 'ADMIN_SETUP_COMPLETE'
     // Settings (Specific)
     // 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // Removed Focus Switcher type from dropdown
 ];

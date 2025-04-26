@@ -25,7 +25,6 @@
     "CONNECTION_CREATED": "Connection Created",
     "CONNECTION_UPDATED": "Connection Updated",
     "CONNECTION_DELETED": "Connection Deleted",
-    "CONNECTION_TESTED": "Connection Tested",
     "PROXY_CREATED": "Proxy Created",
     "PROXY_UPDATED": "Proxy Updated",
     "PROXY_DELETED": "Proxy Deleted",
@@ -37,12 +36,9 @@
     "NOTIFICATION_SETTING_CREATED": "Notification Setting Created",
     "NOTIFICATION_SETTING_UPDATED": "Notification Setting Updated",
     "NOTIFICATION_SETTING_DELETED": "Notification Setting Deleted",
-    "SFTP_ACTION": "SFTP Action",
     "SSH_CONNECT_SUCCESS": "SSH Connection Successful",
     "SSH_CONNECT_FAILURE": "SSH Connection Failed",
     "SSH_SHELL_FAILURE": "SSH Shell Open Failed",
-    "SERVER_STARTED": "Server Started",
-    "SERVER_ERROR": "Server Error",
     "DATABASE_MIGRATION": "Database Migration",
     "ADMIN_SETUP_COMPLETE": "Initial Admin Setup Completed"
   }
