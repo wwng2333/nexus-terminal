@@ -110,22 +110,23 @@ export class PasskeyService {
         }
 
 
-        // --- 添加日志记录 ---
-        console.log('[PasskeyService] Verification result:', JSON.stringify(verification, null, 2));
+        // --- 移除日志记录 ---
+        // console.log('[PasskeyService] Verification result:', JSON.stringify(verification, null, 2));
         // --- 结束日志记录 ---
 
         if (verification.verified && verification.registrationInfo) {
             const registrationInfo = verification.registrationInfo as any;
-            // --- 添加日志记录 ---
-            console.log('[PasskeyService] Extracted registrationInfo:', JSON.stringify(registrationInfo, null, 2));
-            console.log('[PasskeyService] credentialPublicKey type:', typeof registrationInfo.credentialPublicKey, 'value:', registrationInfo.credentialPublicKey);
-            console.log('[PasskeyService] credentialID type:', typeof registrationInfo.credentialID, 'value:', registrationInfo.credentialID);
+            // --- 移除日志记录 ---
+            // console.log('[PasskeyService] Extracted registrationInfo:', JSON.stringify(registrationInfo, null, 2));
+            // console.log('[PasskeyService] credentialPublicKey type:', typeof registrationInfo.credentialPublicKey, 'value:', registrationInfo.credentialPublicKey);
+            // console.log('[PasskeyService] credentialID type:', typeof registrationInfo.credentialID, 'value:', registrationInfo.credentialID);
             // --- 结束日志记录 ---
-            const { credentialPublicKey, credentialID, counter } = registrationInfo;
+            // const { credentialPublicKey, credentialID, counter } = registrationInfo; // <-- 移除错误的解构
+            const counter = registrationInfo.counter; // 直接获取 counter
 
-
-            const credentialIdBase64Url = Buffer.from(credentialID).toString('base64url');
-            const publicKeyBase64Url = Buffer.from(credentialPublicKey).toString('base64url');
+            // --- 直接使用 registrationInfo 的属性 ---
+            const credentialIdBase64Url = Buffer.from(registrationInfo.credentialID).toString('base64url');
+            const publicKeyBase64Url = Buffer.from(registrationInfo.credentialPublicKey).toString('base64url');
 
             // 获取 transports 信息
             const transports = registrationResponse.response.transports ?? null;
