@@ -483,6 +483,31 @@
                    </div>
                  </form>
               </div>
+              <hr class="border-border/50"> <!-- NEW: Separator -->
+              <!-- Timezone Setting -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.timezone.title', '时区设置') }}</h3>
+                 <form @submit.prevent="handleUpdateTimezone" class="space-y-4">
+                   <div>
+                     <label for="timezoneSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.timezone.selectLabel', '选择时区') }}</label>
+                     <select id="timezoneSelect" v-model="selectedTimezone"
+                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                             style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+                       <option v-for="tz in commonTimezones" :key="tz" :value="tz">
+                         {{ tz }}
+                       </option>
+                     </select>
+                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.timezone.description', '通知中的时间戳将根据此时区进行格式化。') }}</small>
+                   </div>
+                   <div class="flex items-center justify-between">
+                      <button type="submit" :disabled="timezoneLoading"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                        {{ timezoneLoading ? $t('common.saving') : t('common.save') }}
+                      </button>
+                      <p v-if="timezoneMessage" :class="['text-sm', timezoneSuccess ? 'text-success' : 'text-error']">{{ timezoneMessage }}</p>
+                   </div>
+                 </form>
+              </div>
             </div>
           </div>
         </div>
@@ -591,7 +616,10 @@ const workspaceSidebarPersistentSuccess = ref(false); // 新增
 const commandInputSyncLoading = ref(false); // NEW
 const commandInputSyncMessage = ref(''); // NEW
 const commandInputSyncSuccess = ref(false); // NEW
-
+const selectedTimezone = ref('UTC'); // 本地状态，用于时区 v-model
+const timezoneLoading = ref(false);
+const timezoneMessage = ref('');
+const timezoneSuccess = ref(false);
 // CAPTCHA Form State
 const captchaForm = reactive<UpdateCaptchaSettingsDto>({ // Use reactive for the form object
     enabled: false,
@@ -605,6 +633,17 @@ const captchaLoading = ref(false);
 const captchaMessage = ref('');
 const captchaSuccess = ref(false);
 
+// 提供一些常用的时区供选择
+const commonTimezones = ref([
+  'UTC',
+  'Etc/GMT+12', 'Pacific/Midway', 'Pacific/Honolulu', 'America/Anchorage',
+  'America/Los_Angeles', 'America/Denver', 'America/Chicago', 'America/New_York',
+  'America/Caracas', 'America/Halifax', 'America/Sao_Paulo', 'Atlantic/Azores',
+  'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Moscow',
+  'Asia/Dubai', 'Asia/Karachi', 'Asia/Dhaka', 'Asia/Bangkok',
+  'Asia/Shanghai', 'Asia/Tokyo', 'Australia/Sydney', 'Pacific/Auckland',
+  'Etc/GMT-14'
+]);
 
 // --- Watcher to sync local form state with store state ---
 watch(settings, (newSettings, oldSettings) => {
@@ -625,6 +664,7 @@ watch(settings, (newSettings, oldSettings) => {
   statusMonitorIntervalLocal.value = statusMonitorIntervalSecondsNumber.value; // 同步状态监控间隔
   workspaceSidebarPersistentEnabled.value = workspaceSidebarPersistentBoolean.value; // 新增：同步侧边栏固定设置
   commandInputSyncTargetLocal.value = commandInputSyncTarget.value; // NEW: Sync command input sync target
+  selectedTimezone.value = newSettings.timezone || 'UTC'; // 同步时区设置
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -792,6 +832,24 @@ const handleUpdateCommandInputSyncTarget = async () => {
         commandInputSyncSuccess.value = false;
     } finally {
         commandInputSyncLoading.value = false;
+    }
+};
+
+// --- Timezone setting method ---
+const handleUpdateTimezone = async () => {
+    timezoneLoading.value = true;
+    timezoneMessage.value = '';
+    timezoneSuccess.value = false;
+    try {
+        await settingsStore.updateSetting('timezone', selectedTimezone.value);
+        timezoneMessage.value = t('settings.timezone.success.saved', '时区设置已保存'); // 需要添加翻译
+        timezoneSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新时区设置失败:', error);
+        timezoneMessage.value = error.message || t('settings.timezone.error.saveFailed', '保存时区设置失败'); // 需要添加翻译
+        timezoneSuccess.value = false;
+    } finally {
+        timezoneLoading.value = false;
     }
 };
 

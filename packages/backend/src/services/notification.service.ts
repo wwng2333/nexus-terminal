@@ -14,6 +14,7 @@ import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
 import i18next, { defaultLng, supportedLngs } from '../i18n'; // Import supportedLngs
 import { settingsService } from './settings.service';
+import { formatInTimeZone } from 'date-fns-tz'; // NEW: Import timezone formatting
 
 
 const testSubjectKey = 'testNotification.subject';
@@ -269,24 +270,27 @@ export class NotificationService {
         console.log(`[通知] 事件触发: ${event}`, details || '');
 
         let userLang = defaultLng;
+        let userTimezone = 'UTC'; // NEW: Default timezone
         try {
-            const langSetting = await settingsService.getSetting('language');
-            // --- 添加调试日志 ---
-            console.log(`[通知调试] 刚从数据库获取的 langSetting: ${langSetting}`);
-            // --- 结束调试日志 ---
-            // --- 添加调试日志 ---
-            console.log(`[通知调试] Checking langSetting against supportedLngs:`, supportedLngs);
-            // --- 结束调试日志 ---
+            // Fetch language and timezone settings concurrently
+            const [langSetting, timezoneSetting] = await Promise.all([
+                settingsService.getSetting('language'),
+                settingsService.getSetting('timezone') // NEW: Fetch timezone
+            ]);
             if (langSetting && supportedLngs.includes(langSetting)) {
                 userLang = langSetting;
             }
+            // NEW: Validate and set timezone
+            if (timezoneSetting) {
+                 // Basic validation: Check if it's a non-empty string.
+                 // More robust validation could involve checking against Intl.supportedValuesOf('timeZone')
+                 // but that might be overkill depending on how timezones are set/validated elsewhere.
+                 userTimezone = timezoneSetting;
+            }
         } catch (error) {
-            console.error(`[通知] 获取事件 ${event} 的语言设置时出错:`, error);
+            console.error(`[通知] 获取事件 ${event} 的语言或时区设置时出错:`, error); // Modified log
         }
-        // --- 添加调试日志 ---
-        console.log(`[通知调试] 最终决定使用的 userLang: ${userLang}`);
-        // --- 结束调试日志 ---
-        console.log(`[通知] 事件 ${event} 使用语言 '${userLang}'`);
+        console.log(`[通知] 事件 ${event} 使用语言 '${userLang}', 时区 '${userTimezone}'`); // Modified log
 
         const payload: NotificationPayload = {
             event,
@@ -305,11 +309,11 @@ export class NotificationService {
             const sendPromises = applicableSettings.map(setting => {
                 switch (setting.channel_type) {
                     case 'webhook':
-                        return this._sendWebhook(setting, payload, userLang);
+                        return this._sendWebhook(setting, payload, userLang, userTimezone); // Pass timezone
                     case 'email':
-                        return this._sendEmail(setting, payload, userLang);
+                        return this._sendEmail(setting, payload, userLang, userTimezone); // Pass timezone
                     case 'telegram':
-                        return this._sendTelegram(setting, payload, userLang);
+                        return this._sendTelegram(setting, payload, userLang, userTimezone); // Pass timezone
                     default:
                         console.warn(`[通知] 未知渠道类型: ${setting.channel_type} (设置 ID: ${setting.id})`);
                         return Promise.resolve(); // 如果有一个未知，不要让所有都失败
@@ -345,7 +349,7 @@ export class NotificationService {
         return rendered;
     }
 
-    private async _sendWebhook(setting: NotificationSetting, payload: NotificationPayload, userLang: string): Promise<void> {
+    private async _sendWebhook(setting: NotificationSetting, payload: NotificationPayload, userLang: string, userTimezone: string): Promise<void> { // Add userTimezone
         const config = setting.config as WebhookConfig;
         if (!config.url) {
             console.error(`[通知] Webhook 设置 ID ${setting.id} 缺少 URL。`);
@@ -363,7 +367,8 @@ export class NotificationService {
         const templateDataWebhook: Record<string, string> = {
             event: translatedPayload.event,
             eventDisplay: eventDisplayName, // Assuming no markdown needed for webhook
-            timestamp: new Date(translatedPayload.timestamp).toISOString(),
+            // NEW: Format timestamp using user's timezone
+            timestamp: formatInTimeZone(new Date(translatedPayload.timestamp), userTimezone, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"), // Example format, adjust as needed
             // Use the translated message if available, otherwise stringify
             details: (typeof translatedPayload.details === 'object' && translatedPayload.details?.message)
                      ? translatedPayload.details.message
@@ -394,7 +399,7 @@ export class NotificationService {
         }
     }
 
-    private async _sendEmail(setting: NotificationSetting, payload: NotificationPayload, userLang: string): Promise<void> {
+    private async _sendEmail(setting: NotificationSetting, payload: NotificationPayload, userLang: string, userTimezone: string): Promise<void> { // Add userTimezone
         const config = setting.config as EmailConfig;
         if (!config.to || !config.smtpHost || !config.smtpPort || !config.from) {
              console.error(`[通知] 邮件设置 ID ${setting.id} 缺少必要的 SMTP 配置 (to, smtpHost, smtpPort, from)。`);
@@ -432,7 +437,8 @@ export class NotificationService {
         const templateDataEmailSubject: Record<string, string> = {
              event: payload.event,
              eventDisplay: eventDisplayName, // Assuming subject doesn't need markdown
-             timestamp: new Date(payload.timestamp).toISOString(),
+             // NEW: Format timestamp using user's timezone
+             timestamp: formatInTimeZone(new Date(payload.timestamp), userTimezone, "yyyy-MM-dd HH:mm:ss zzz"), // Example format for email
              details: typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2),
              // Add other relevant fields from i18nOptions if needed by subject template
              ...Object.entries(i18nOptions).reduce((acc, [key, value]) => {
@@ -447,9 +453,11 @@ export class NotificationService {
 
         const bodyKey = `eventBody.${payload.event}`;
         const detailsString = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2);
-        const defaultBodyText = `Event: ${eventDisplayName}\nTimestamp: ${new Date(payload.timestamp).toISOString()}\nDetails:\n${detailsString}`;
-        const body = i18next.t(bodyKey, { ...i18nOptions, defaultValue: defaultBodyText, eventDisplay: eventDisplayName });
-
+        // NEW: Use formatted timestamp in default body text
+        const formattedTimestampForEmail = formatInTimeZone(new Date(payload.timestamp), userTimezone, "yyyy-MM-dd HH:mm:ss zzz");
+        const defaultBodyText = `Event: ${eventDisplayName}\nTimestamp: ${formattedTimestampForEmail}\nDetails:\n${detailsString}`;
+        // Pass formatted timestamp to i18n interpolation as well
+        const body = i18next.t(bodyKey, { ...i18nOptions, timestamp: formattedTimestampForEmail, defaultValue: defaultBodyText, eventDisplay: eventDisplayName });
         const mailOptions: Mail.Options = {
             from: config.from,
             to: config.to,
@@ -466,8 +474,8 @@ export class NotificationService {
         }
     }
 
-    private async _sendTelegram(setting: NotificationSetting, payload: NotificationPayload, userLang: string): Promise<void> {
-        console.log(`[_sendTelegram] Initiating for event: ${payload.event}, Setting ID: ${setting.id}, Lang: ${userLang}`);
+    private async _sendTelegram(setting: NotificationSetting, payload: NotificationPayload, userLang: string, userTimezone: string): Promise<void> { // Add userTimezone
+        console.log(`[_sendTelegram] Initiating for event: ${payload.event}, Setting ID: ${setting.id}, Lang: ${userLang}, Timezone: ${userTimezone}`); // Modified log
         console.log(`[_sendTelegram] Received payload:`, JSON.stringify(payload, null, 2));
         const config = setting.config as TelegramConfig;
         if (!config.botToken || !config.chatId) {
@@ -496,8 +504,8 @@ export class NotificationService {
         const templateData: Record<string, string> = {
             // Assign the *translated* event name to the 'event' key (NO escaping)
             event: translatedEventName,
-            // ISO timestamp (usually safe)
-            timestamp: new Date(payload.timestamp).toISOString(),
+            // NEW: Format timestamp using user's timezone for Telegram (adjust format as needed)
+            timestamp: formatInTimeZone(new Date(payload.timestamp), userTimezone, "yyyy-MM-dd HH:mm:ss zzz"),
             // Formatted details string (NO escaping)
             details: detailsText
             // Note: We no longer create eventDisplay key

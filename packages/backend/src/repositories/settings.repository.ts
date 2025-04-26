@@ -267,6 +267,7 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
         statusMonitorIntervalSeconds: '3',
         [SIDEBAR_CONFIG_KEY]: JSON.stringify(defaultSidebarPanesStructure),
         [CAPTCHA_CONFIG_KEY]: JSON.stringify(defaultCaptchaSettings),
+        timezone: 'UTC', // NEW: 添加时区默认值
     };
     const nowSeconds = Math.floor(Date.now() / 1000);
     const sqlInsertOrIgnore = `INSERT OR IGNORE INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)`;
