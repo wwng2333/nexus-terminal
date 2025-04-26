@@ -14,6 +14,16 @@ import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer'; // Import Mail type for transporter
 import i18next, { defaultLng, supportedLngs } from '../i18n'; // Import i18next instance and config
 import { settingsService } from './settings.service'; // Import settings service
+// Removed logger import
+
+
+// Define translation keys for test notifications for clarity
+const testSubjectKey = 'testNotification.subject';
+const testEmailBodyKey = 'testNotification.email.body';
+const testEmailBodyHtmlKey = 'testNotification.email.bodyHtml'; // Separate key for HTML version
+const testWebhookDetailsKey = 'testNotification.webhook.detailsMessage';
+const testTelegramDetailsKey = 'testNotification.telegram.detailsMessage';
+const testTelegramBodyTemplateKey = 'testNotification.telegram.bodyTemplate'; // Key for the template itself
 
 export class NotificationService {
     private repository: NotificationSettingsRepository;
@@ -65,9 +75,24 @@ export class NotificationService {
 
     // Specific test method for Email
     private async _testEmailSetting(config: EmailConfig): Promise<{ success: boolean; message: string }> {
+        console.log('[Notification Test - Email] Starting test...'); // Added log
         if (!config.to || !config.smtpHost || !config.smtpPort || !config.from) {
+             console.error('[Notification Test - Email] Missing required config.'); // Added log
             return { success: false, message: '测试邮件失败：缺少必要的 SMTP 配置信息 (收件人, 主机, 端口, 发件人)。' };
         }
+
+        // --- Fetch User Language ---
+        let userLang = defaultLng;
+        try {
+            const langSetting = await settingsService.getSetting('language');
+            if (langSetting && supportedLngs.includes(langSetting)) {
+                userLang = langSetting;
+            }
+             console.log(`[Notification Test - Email] Using language: ${userLang}`); // Added log
+        } catch (error) {
+            console.error(`[Notification Test - Email] Error fetching language setting, using default (${defaultLng}):`, error);
+        }
+        // --- End Fetch User Language ---
 
         // Let TypeScript infer the options type for SMTP
         const transporterOptions = {
@@ -86,46 +111,72 @@ export class NotificationService {
 
         const transporter = nodemailer.createTransport(transporterOptions);
 
+        // Translate event display name first
+        const eventDisplayName = i18next.t(`eventDisplay.SETTINGS_UPDATED`, { lng: userLang, defaultValue: 'SETTINGS_UPDATED' }); // Hardcoding event for test email
+
         const mailOptions: Mail.Options = {
             from: config.from,
             to: config.to, // Use the 'to' from config for testing
-            subject: 'Nexus Terminal Test Notification',
-            text: `This is a test email from Nexus Terminal.\n\nIf you received this, your SMTP configuration is working.\n\nTimestamp: ${new Date().toISOString()}`,
-            html: `<p>This is a test email from <b>Nexus Terminal</b>.</p><p>If you received this, your SMTP configuration is working.</p><p>Timestamp: ${new Date().toISOString()}</p>`,
+            // Use i18next for subject and body, using fetched user language
+            subject: i18next.t(testSubjectKey, { lng: userLang, defaultValue: 'Nexus Terminal Test Notification ({eventDisplay})', eventDisplay: eventDisplayName }),
+            text: i18next.t(testEmailBodyKey, { lng: userLang, timestamp: new Date().toISOString(), defaultValue: `This is a test email from Nexus Terminal for event '{{eventDisplay}}'.\n\nIf you received this, your SMTP configuration is working.\n\nTimestamp: {{timestamp}}`, eventDisplay: eventDisplayName }),
+            html: i18next.t(testEmailBodyHtmlKey, { lng: userLang, timestamp: new Date().toISOString(), defaultValue: `<p>This is a test email from <b>Nexus Terminal</b> for event '{{eventDisplay}}'.</p><p>If you received this, your SMTP configuration is working.</p><p>Timestamp: {{timestamp}}</p>`, eventDisplay: eventDisplayName }),
         };
 
         try {
-            console.log(`[Notification Test] Attempting to send test email via ${config.smtpHost}:${config.smtpPort} to ${config.to}`);
+            console.log(`[Notification Test - Email] Attempting to send test email via ${config.smtpHost}:${config.smtpPort} to ${config.to}`); // Updated log prefix
             const info = await transporter.sendMail(mailOptions);
-            console.log(`[Notification Test] Test email sent successfully: ${info.messageId}`);
+            console.log(`[Notification Test - Email] Test email sent successfully: ${info.messageId}`); // Updated log prefix
             // Verify connection if possible (optional)
             // await transporter.verify();
-            // console.log('[Notification Test] SMTP Connection verified.');
+            // console.log('[Notification Test - Email] SMTP Connection verified.');
             return { success: true, message: '测试邮件发送成功！请检查收件箱。' };
         } catch (error: any) {
-            console.error(`[Notification Test] Error sending test email:`, error);
+            console.error(`[Notification Test - Email] Error sending test email:`, error); // Updated log prefix
             return { success: false, message: `测试邮件发送失败: ${error.message || '未知错误'}` };
         }
     }
 
     // Specific test method for Webhook
     private async _testWebhookSetting(config: WebhookConfig): Promise<{ success: boolean; message: string }> {
+        console.log('[Notification Test - Webhook] Starting test...'); // Added log
         if (!config.url) {
+             console.error('[Notification Test - Webhook] Missing URL.'); // Added log
             return { success: false, message: '测试 Webhook 失败：缺少 URL。' };
         }
+
+        // --- Fetch User Language ---
+        let userLang = defaultLng;
+        try {
+            const langSetting = await settingsService.getSetting('language');
+            if (langSetting && supportedLngs.includes(langSetting)) {
+                userLang = langSetting;
+            }
+             console.log(`[Notification Test - Webhook] Using language: ${userLang}`); // Added log
+        } catch (error) {
+            console.error(`[Notification Test - Webhook] Error fetching language setting, using default (${defaultLng}):`, error);
+        }
+        // --- End Fetch User Language ---
 
         // Use a valid event type for the test payload
         const testPayload: NotificationPayload = {
             event: 'SETTINGS_UPDATED', // Use a valid event type
             timestamp: Date.now(),
-            details: { message: 'This is a test notification from Nexus Terminal (Webhook).' } // Add channel type
+            // Use i18next for the details message, using fetched user language
+            details: { message: i18next.t(testWebhookDetailsKey, { lng: userLang, defaultValue: 'This is a test notification from Nexus Terminal (Webhook).' }) }
         };
+        // Log the translated message safely
+        const translatedWebhookMessage = (typeof testPayload.details === 'object' && testPayload.details?.message) ? testPayload.details.message : 'Details is not an object with message property';
+        console.log(`[Notification Test - Webhook] Test payload created. Translated details.message:`, translatedWebhookMessage); // Added log with type check
 
         // Use the same rendering logic as actual sending
+        // Translate event display name
+        const eventDisplayName = i18next.t(`eventDisplay.${testPayload.event}`, { lng: userLang, defaultValue: testPayload.event });
         // Default body for webhook test, using single braces
         const defaultBody = JSON.stringify(testPayload, null, 2);
-        const defaultBodyTemplate = `Default: JSON payload. Use {event}, {timestamp}, {details}.`; // Default template text
-        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, testPayload, defaultBody); // Use default template if user input is empty
+        const defaultBodyTemplate = `Default: JSON payload. Use {eventDisplay}, {timestamp}, {details}.`; // Updated default template text
+        // Pass eventDisplayName to renderTemplate
+        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, testPayload, defaultBody, eventDisplayName);
 
         const requestConfig: AxiosRequestConfig = {
             method: config.method || 'POST',
@@ -139,55 +190,103 @@ export class NotificationService {
         };
 
         try {
-            console.log(`[Notification Test] Sending test Webhook to ${config.url}`);
+            console.log(`[Notification Test - Webhook] Sending test Webhook to ${config.url}`); // Updated log prefix
             const response = await axios(requestConfig);
-            console.log(`[Notification Test] Test Webhook sent successfully to ${config.url}. Status: ${response.status}`);
+            console.log(`[Notification Test - Webhook] Test Webhook sent successfully to ${config.url}. Status: ${response.status}`); // Updated log prefix
             return { success: true, message: `测试 Webhook 发送成功 (状态码: ${response.status})。` };
         } catch (error: any) {
             const errorMessage = error.response?.data?.message || error.response?.data || error.message || '未知错误';
-            console.error(`[Notification Test] Error sending test Webhook to ${config.url}:`, errorMessage);
+            console.error(`[Notification Test - Webhook] Error sending test Webhook to ${config.url}:`, errorMessage); // Updated log prefix
             return { success: false, message: `测试 Webhook 发送失败: ${errorMessage}` };
         }
     }
 
      // Specific test method for Telegram
     private async _testTelegramSetting(config: TelegramConfig): Promise<{ success: boolean; message: string }> {
+        console.log('[Notification Test - Telegram] Starting test...');
         if (!config.botToken || !config.chatId) {
+            console.error('[Notification Test - Telegram] Missing botToken or chatId.');
             return { success: false, message: '测试 Telegram 失败：缺少机器人 Token 或聊天 ID。' };
         }
 
+        // --- Fetch User Language ---
+        let userLang = defaultLng;
+        try {
+            const langSetting = await settingsService.getSetting('language');
+            if (langSetting && supportedLngs.includes(langSetting)) {
+                userLang = langSetting;
+            }
+             console.log(`[Notification Test - Telegram] Using language: ${userLang}`); // Added log
+        } catch (error) {
+            console.error(`[Notification Test - Telegram] Error fetching language setting, using default (${defaultLng}):`, error);
+        }
+        // --- End Fetch User Language ---
+
          // Use a valid event type for the test payload
-         const testPayload: NotificationPayload = {
-            event: 'SETTINGS_UPDATED', // Use a valid event type
+        // Declare payload first, details will be added after translation
+        const testPayload: NotificationPayload = {
+            event: 'SETTINGS_UPDATED',
             timestamp: Date.now(),
-            details: { message: 'This is a test notification from Nexus Terminal (Telegram).' } // Add channel type
+            details: undefined // Initialize details as undefined
         };
 
+        // --- Translation Start ---
+        // Log options before calling t() for details message
+        const detailsOptions = { lng: userLang, defaultValue: 'Fallback: This is a test notification from Nexus Terminal (Telegram).' }; // Use userLang
+        const keyWithNamespace = `notifications:${testTelegramDetailsKey}`; // Explicitly add namespace
+        // console.log(`[Notification Test - Telegram] Calling i18next.t for key '${keyWithNamespace}' with options:`, detailsOptions);
+        const translatedDetailsMessage = i18next.t(keyWithNamespace, detailsOptions); // Use key with namespace
+        // console.log(`[Notification Test - Telegram] Result from i18next.t for key '${keyWithNamespace}':`, translatedDetailsMessage);
+        // --- Translation End ---
+
+        // Assign the translated details to the existing payload object
+        testPayload.details = { message: translatedDetailsMessage };
+
+
+        // Log the translated message safely
+        const messageFromPayload = (typeof testPayload.details === 'object' && testPayload.details?.message) ? testPayload.details.message : 'Details is not an object with message property';
+        console.log(`[Notification Test - Telegram] Test payload created. Final details.message in payload:`, messageFromPayload); // Updated log description
+
         // Use the same rendering logic as actual sending
-        // Default message for Telegram test, using single braces and avoiding Markdown issues
-        const defaultMessageTemplate = `Nexus Terminal Test Notification\nEvent: {event}\nTimestamp: {timestamp}\nDetails:\n{details}`;
-        const messageText = this._renderTemplate(config.messageTemplate || defaultMessageTemplate, testPayload, ''); // Render template, default is now the template itself
+        // Get the default template from i18n, fallback to a hardcoded default if key not found
+        // Also explicitly specify namespace and use userLang for the template key
+        const templateKeyWithNamespace = `notifications:${testTelegramBodyTemplateKey}`;
+        const defaultMessageTemplateFromI18n = i18next.t(templateKeyWithNamespace, {
+            lng: userLang, // Use userLang
+            defaultValue: `Fallback Template: *Nexus Terminal Test Notification*\nEvent: \`{event}\`\nTimestamp: {timestamp}\nDetails:\n\`\`\`\n{details}\n\`\`\`` // Added Fallback prefix
+        });
+        console.log(`[Notification Test - Telegram] Default template from i18n (using lang '${userLang}', key '${templateKeyWithNamespace}'):`, defaultMessageTemplateFromI18n); // Updated log
+
+        // Determine which template to use (user's or default from i18n)
+        const templateToUse = config.messageTemplate || defaultMessageTemplateFromI18n;
+        console.log(`[Notification Test - Telegram] Template to render:`, templateToUse); // Added log
+
+        // Translate event display name
+        const eventDisplayName = i18next.t(`eventDisplay.${testPayload.event}`, { lng: userLang, defaultValue: testPayload.event });
+        // Render the template, passing eventDisplayName
+        const messageText = this._renderTemplate(templateToUse, testPayload, '', eventDisplayName);
+        console.log(`[Notification Test - Telegram] Rendered message text:`, messageText);
 
         const telegramApiUrl = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
         try {
-             console.log(`[Notification Test] Sending test Telegram message to chat ID ${config.chatId}`);
+             console.log(`[Notification Test - Telegram] Sending test Telegram message to chat ID ${config.chatId}`); // Updated log prefix
             const response = await axios.post(telegramApiUrl, {
                 chat_id: config.chatId,
                 text: messageText,
-                // No parse_mode for testing to avoid issues with braces
+                parse_mode: 'Markdown' // Add parse_mode for testing consistency
             }, { timeout: 15000 }); // Slightly longer timeout for testing
 
             if (response.data?.ok) {
-                 console.log(`[Notification Test] Test Telegram message sent successfully.`);
-                 return { success: true, message: '测试 Telegram 消息发送成功！' };
-            } else {
-                 console.error(`[Notification Test] Telegram API returned error:`, response.data?.description);
-                 return { success: false, message: `测试 Telegram 发送失败: ${response.data?.description || 'API 返回失败'}` };
-            }
-        } catch (error: any) {
-             const errorMessage = error.response?.data?.description || error.response?.data || error.message || '未知错误';
-            console.error(`[Notification Test] Error sending test Telegram message:`, errorMessage);
+                 console.log(`[Notification Test - Telegram] Test Telegram message sent successfully.`); // Updated log prefix
+                     return { success: true, message: '测试 Telegram 消息发送成功！' };
+                } else {
+                     console.error(`[Notification Test - Telegram] Telegram API returned error:`, response.data?.description); // Updated log prefix
+                     return { success: false, message: `测试 Telegram 发送失败: ${response.data?.description || 'API 返回失败'}` };
+                }
+            } catch (error: any) {
+                 const errorMessage = error.response?.data?.description || error.response?.data || error.message || '未知错误';
+                console.error(`[Notification Test - Telegram] Error sending test Telegram message:`, errorMessage); // Updated log prefix
             return { success: false, message: `测试 Telegram 发送失败: ${errorMessage}` };
         }
     }
@@ -253,11 +352,13 @@ export class NotificationService {
 
     // --- Private Sending Helpers ---
 
-    private _renderTemplate(template: string | undefined, payload: NotificationPayload, defaultText: string): string {
+    // Updated to accept eventDisplayName
+    private _renderTemplate(template: string | undefined, payload: NotificationPayload, defaultText: string, eventDisplayName?: string): string {
         if (!template) return defaultText;
         let rendered = template;
         // Replace single-brace placeholders
-        rendered = rendered.replace(/\{event\}/g, payload.event);
+        rendered = rendered.replace(/\{event\}/g, payload.event); // Keep original event code if needed
+        rendered = rendered.replace(/\{eventDisplay\}/g, eventDisplayName || payload.event); // Use translated name, fallback to original code
         rendered = rendered.replace(/\{timestamp\}/g, new Date(payload.timestamp).toISOString());
         const detailsString = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2);
         rendered = rendered.replace(/\{details\}/g, detailsString);
@@ -272,16 +373,19 @@ export class NotificationService {
             return;
         }
 
+        // Translate event display name
+        const eventDisplayName = i18next.t(`eventDisplay.${payload.event}`, { lng: userLang, defaultValue: payload.event });
+
         // Translate payload details if they match a known key structure
         const translatedDetails = this._translatePayloadDetails(payload.details, userLang);
-        const translatedPayload = { ...payload, details: translatedDetails };
+        const translatedPayload = { ...payload, details: translatedDetails }; // Keep original payload structure for details translation
 
-        const defaultBody = JSON.stringify(translatedPayload, null, 2);
+        const defaultBody = JSON.stringify(translatedPayload, null, 2); // Default body still uses the potentially translated details
         // Note: Webhook body templates might need adjustments if they expect specific structures
-        // or if they should also be translated. For now, we only translate the 'details'.
         // Use default template text if user hasn't provided one
-        const defaultBodyTemplate = `Default: JSON payload. Use {event}, {timestamp}, {details}.`;
-        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, translatedPayload, defaultBody);
+        const defaultBodyTemplate = `Default: JSON payload. Use {eventDisplay}, {timestamp}, {details}.`; // Updated placeholder
+        // Pass eventDisplayName to renderTemplate
+        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, translatedPayload, defaultBody, eventDisplayName);
 
         const requestConfig: AxiosRequestConfig = {
             method: config.method || 'POST',
@@ -335,20 +439,30 @@ export class NotificationService {
           i18nOptions.details = payload.details; // Pass non-object details directly if needed
         }
 
+        // Translate event display name first
+        const eventDisplayName = i18next.t(`eventDisplay.${payload.event}`, { lng: userLang, defaultValue: payload.event });
+
         // Try to translate the event itself for the subject, fallback to event name
-        const defaultSubjectKey = `event.${payload.event}`;
-        const defaultSubjectFallback = `星枢终端通知: {event}`; // Use single brace
-        const subjectText = i18next.t(defaultSubjectKey, { ...i18nOptions, defaultValue: defaultSubjectFallback });
-        // Use default subject template if user hasn't provided one
-        const defaultSubjectTemplate = `Notification: {event}`;
-        const subject = this._renderTemplate(config.subjectTemplate || defaultSubjectTemplate, payload, subjectText);
+        const defaultSubjectKey = `event.${payload.event}`; // This key might not exist, rely on template or default below
+        const defaultSubjectFallback = `Nexus Terminal Notification: {eventDisplay}`; // Use eventDisplay in fallback
+        const subjectText = i18next.t(defaultSubjectKey, { ...i18nOptions, defaultValue: defaultSubjectFallback, eventDisplay: eventDisplayName }); // Pass eventDisplay for interpolation in fallback
+
+        // Use default subject template from i18n if user hasn't provided one
+        const defaultSubjectTemplateKey = 'testNotification.subject'; // Reuse test subject key structure
+        const defaultSubjectTemplate = i18next.t(defaultSubjectTemplateKey, { lng: userLang, defaultValue: defaultSubjectFallback, eventDisplay: eventDisplayName });
+        // Render the subject template, passing the translated event display name
+        const subject = this._renderTemplate(config.subjectTemplate || defaultSubjectTemplate, payload, subjectText, eventDisplayName);
+
 
         // Translate the main body content based on event type if a key exists
         const bodyKey = `eventBody.${payload.event}`;
         const detailsString = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2);
-        const defaultBodyText = `事件: ${payload.event}\n时间: ${new Date(payload.timestamp).toISOString()}\n详情:\n${detailsString}`;
-        const body = i18next.t(bodyKey, { ...i18nOptions, defaultValue: defaultBodyText });
-        // Note: Email body templates are not implemented in this version. Using translated/default text.
+        // Use eventDisplay in the default body text
+        const defaultBodyText = `Event: ${eventDisplayName}\nTimestamp: ${new Date(payload.timestamp).toISOString()}\nDetails:\n${detailsString}`;
+        // Pass eventDisplay for interpolation if the translation key uses it
+        const body = i18next.t(bodyKey, { ...i18nOptions, defaultValue: defaultBodyText, eventDisplay: eventDisplayName });
+        // Note: Email body templates are not implemented. Using translated/default text.
+        // If templates were implemented, we'd use _renderTemplate here too.
 
         const mailOptions: Mail.Options = {
             from: config.from,
@@ -383,13 +497,23 @@ export class NotificationService {
         } else if (payload.details !== undefined) {
           i18nOptions.details = payload.details; // Pass non-object details directly if needed
         }
-        const messageKey = `eventBody.${payload.event}`; // Use same key as email body for consistency
-        const detailsStr = payload.details ? `\n详情: \`\`\`\n${typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details, null, 2)}\n\`\`\`` : '';
-        const defaultMessageTemplate = `*Nexus Terminal Notification*\n\nEvent: \`{event}\`\nTimestamp: {timestamp}${detailsStr}`; // Use single brace
-        const translatedBody = i18next.t(messageKey, { ...i18nOptions, defaultValue: defaultMessageTemplate });
+        // Translate event display name first
+        const eventDisplayName = i18next.t(`eventDisplay.${payload.event}`, { lng: userLang, defaultValue: payload.event });
 
-        // Allow template override, use default template if user input is empty
-        const messageText = this._renderTemplate(config.messageTemplate || defaultMessageTemplate, payload, translatedBody);
+        const messageKey = `eventBody.${payload.event}`; // Use same key as email body for consistency
+        const detailsStr = payload.details ? `\nDetails: \`\`\`\n${typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details, null, 2)}\n\`\`\`` : '';
+        // Use eventDisplay in the default message template fallback
+        const defaultMessageTemplateFallback = `*Nexus Terminal Notification*\n\nEvent: \`{eventDisplay}\`\nTimestamp: {timestamp}${detailsStr}`;
+        // Pass eventDisplay for interpolation if the translation key uses it
+        const translatedBody = i18next.t(messageKey, { ...i18nOptions, defaultValue: defaultMessageTemplateFallback, eventDisplay: eventDisplayName });
+
+        // Get the default template from i18n (using the test key structure)
+        const defaultTemplateKey = `notifications:${testTelegramBodyTemplateKey}`;
+        const defaultMessageTemplateFromI18n = i18next.t(defaultTemplateKey, { lng: userLang, defaultValue: translatedBody, eventDisplay: eventDisplayName });
+
+        // Allow template override, use default template from i18n if user input is empty
+        // Pass eventDisplayName to renderTemplate
+        const messageText = this._renderTemplate(config.messageTemplate || defaultMessageTemplateFromI18n, payload, translatedBody, eventDisplayName);
         const telegramApiUrl = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
         try {

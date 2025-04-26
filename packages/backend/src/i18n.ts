@@ -9,10 +9,11 @@ export const defaultLng = 'en';
 i18next
   .use(Backend)
   .init({
-    // debug: process.env.NODE_ENV === 'development', // 可选：开发模式下开启调试
+    debug: process.env.NODE_ENV === 'development', // Enable debug logging in dev
     supportedLngs,
     fallbackLng: defaultLng,
-    lng: defaultLng, // 默认语言
+    // lng: defaultLng, // Remove explicit lng setting here, let it be determined later or by detector
+    preload: supportedLngs, // Preload all supported languages
     ns: ['notifications'], // 命名空间，用于组织翻译
     defaultNS: 'notifications',
     backend: {
@@ -20,8 +21,15 @@ i18next
       loadPath: path.join(__dirname, 'locales/{{lng}}/{{ns}}.json'),
     },
     interpolation: {
-      escapeValue: false, // 不对插值进行转义，因为我们可能需要 HTML 或 Markdown
+      escapeValue: false, // Not needed for react apps
     },
+  }, (err, t) => { // Add init callback
+    if (err) {
+        return console.error('[i18next] Error during initialization:', err);
+    }
+    console.log('[i18next] Initialization complete. Loaded languages:', Object.keys(i18next.store.data));
+    // console.log('[i18next] Example translation (en):', t('testNotification.subject', { lng: 'en' })); // Optional test
+    // console.log('[i18next] Example translation (zh):', t('testNotification.subject', { lng: 'zh' })); // Optional test
   });
 
 export default i18next;

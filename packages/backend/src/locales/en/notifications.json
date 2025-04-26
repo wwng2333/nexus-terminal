@@ -1,0 +1,64 @@
+{
+  "testNotification": {
+    "subject": "Nexus Terminal Test Notification ({eventDisplay})",
+    "email": {
+      "body": "This is a test email from Nexus Terminal for event '{{eventDisplay}}'.\n\nIf you received this, your SMTP configuration is working.\n\nTimestamp: {{timestamp}}",
+      "bodyHtml": "<p>This is a test email from <b>Nexus Terminal</b> for event '{{eventDisplay}}'.</p><p>If you received this, your SMTP configuration is working.</p><p>Timestamp: {{timestamp}}</p>" 
+    },
+    "webhook": {
+      "detailsMessage": "This is a test notification from Nexus Terminal (Webhook - i18n) for event '{{eventDisplay}}'."
+    },
+    "telegram": {
+      "detailsMessage": "This is a test notification from Nexus Terminal (Telegram - i18n) for event '{{eventDisplay}}'.", 
+      "bodyTemplate": "*Nexus Terminal Test Notification*\nEvent: `{eventDisplay}`\nTimestamp: {timestamp}\nDetails:\n```\n{details}\n```" 
+    }
+  },
+  "eventDisplay": {
+    "LOGIN_SUCCESS": "Login Success",
+    "LOGIN_FAILURE": "Login Failure",
+    "LOGOUT": "Logout",
+    "PASSWORD_CHANGED": "Password Changed",
+    "2FA_ENABLED": "2FA Enabled",
+    "2FA_DISABLED": "2FA Disabled",
+    "PASSKEY_REGISTERED": "Passkey Registered",
+    "PASSKEY_DELETED": "Passkey Deleted",
+    "CONNECTION_CREATED": "Connection Created",
+    "CONNECTION_UPDATED": "Connection Updated",
+    "CONNECTION_DELETED": "Connection Deleted",
+    "CONNECTION_TESTED": "Connection Tested",
+    "CONNECTIONS_IMPORTED": "Connections Imported",
+    "CONNECTIONS_EXPORTED": "Connections Exported",
+    "PROXY_CREATED": "Proxy Created",
+    "PROXY_UPDATED": "Proxy Updated",
+    "PROXY_DELETED": "Proxy Deleted",
+    "TAG_CREATED": "Tag Created",
+    "TAG_UPDATED": "Tag Updated",
+    "TAG_DELETED": "Tag Deleted",
+    "SETTINGS_UPDATED": "Settings Updated",
+    "IP_WHITELIST_UPDATED": "IP Whitelist Updated",
+    "NOTIFICATION_SETTING_CREATED": "Notification Setting Created",
+    "NOTIFICATION_SETTING_UPDATED": "Notification Setting Updated",
+    "NOTIFICATION_SETTING_DELETED": "Notification Setting Deleted",
+    "SFTP_ACTION": "SFTP Action",
+    "SSH_CONNECT_SUCCESS": "SSH Connection Successful",
+    "SSH_CONNECT_FAILURE": "SSH Connection Failed",
+    "SSH_SHELL_FAILURE": "SSH Shell Open Failed",
+    "SERVER_STARTED": "Server Started",
+    "SERVER_ERROR": "Server Error",
+    "DATABASE_MIGRATION": "Database Migration",
+    "ADMIN_SETUP_COMPLETE": "Initial Admin Setup Completed"
+
+  },
+  "eventBody": {
+
+    "SETTINGS_UPDATED": "Event: {{eventDisplay}}\nTimestamp: {{timestamp}}\nDetails:\n{{details}}"
+  },
+  "connection": {
+    "testSuccess": "Connection test successful for '{{name}}'!",
+    "testFailed": "Connection test failed for '{{name}}': {{error}}"
+  },
+  "settings": {
+    "ipWhitelistUpdated": "IP Whitelist updated successfully.",
+    "updated": "Settings updated successfully."
+  }
+}
