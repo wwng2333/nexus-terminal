@@ -122,8 +122,10 @@ export class NotificationService {
         };
 
         // Use the same rendering logic as actual sending
+        // Default body for webhook test, using single braces
         const defaultBody = JSON.stringify(testPayload, null, 2);
-        const requestBody = this._renderTemplate(config.bodyTemplate, testPayload, defaultBody);
+        const defaultBodyTemplate = `Default: JSON payload. Use {event}, {timestamp}, {details}.`; // Default template text
+        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, testPayload, defaultBody); // Use default template if user input is empty
 
         const requestConfig: AxiosRequestConfig = {
             method: config.method || 'POST',
@@ -162,8 +164,9 @@ export class NotificationService {
         };
 
         // Use the same rendering logic as actual sending
-        const defaultMessage = `*Nexus Terminal Test Notification*\n\nEvent: \`${testPayload.event}\`\nTimestamp: ${new Date(testPayload.timestamp).toISOString()}\nDetails: \`\`\`\n${JSON.stringify(testPayload.details, null, 2)}\n\`\`\``;
-        const messageText = this._renderTemplate(config.messageTemplate, testPayload, defaultMessage);
+        // Default message for Telegram test, using single braces and avoiding Markdown issues
+        const defaultMessageTemplate = `Nexus Terminal Test Notification\nEvent: {event}\nTimestamp: {timestamp}\nDetails:\n{details}`;
+        const messageText = this._renderTemplate(config.messageTemplate || defaultMessageTemplate, testPayload, ''); // Render template, default is now the template itself
 
         const telegramApiUrl = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
@@ -172,7 +175,7 @@ export class NotificationService {
             const response = await axios.post(telegramApiUrl, {
                 chat_id: config.chatId,
                 text: messageText,
-                parse_mode: 'Markdown',
+                // No parse_mode for testing to avoid issues with braces
             }, { timeout: 15000 }); // Slightly longer timeout for testing
 
             if (response.data?.ok) {
@@ -253,11 +256,11 @@ export class NotificationService {
     private _renderTemplate(template: string | undefined, payload: NotificationPayload, defaultText: string): string {
         if (!template) return defaultText;
         let rendered = template;
-        rendered = rendered.replace(/\{\{event\}\}/g, payload.event);
-        rendered = rendered.replace(/\{\{timestamp\}\}/g, new Date(payload.timestamp).toISOString());
-        // Simple details replacement, might need more robust templating engine for complex objects
+        // Replace single-brace placeholders
+        rendered = rendered.replace(/\{event\}/g, payload.event);
+        rendered = rendered.replace(/\{timestamp\}/g, new Date(payload.timestamp).toISOString());
         const detailsString = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2);
-        rendered = rendered.replace(/\{\{details\}\}/g, detailsString);
+        rendered = rendered.replace(/\{details\}/g, detailsString);
         return rendered;
     }
 
@@ -276,7 +279,9 @@ export class NotificationService {
         const defaultBody = JSON.stringify(translatedPayload, null, 2);
         // Note: Webhook body templates might need adjustments if they expect specific structures
         // or if they should also be translated. For now, we only translate the 'details'.
-        const requestBody = this._renderTemplate(config.bodyTemplate, translatedPayload, defaultBody);
+        // Use default template text if user hasn't provided one
+        const defaultBodyTemplate = `Default: JSON payload. Use {event}, {timestamp}, {details}.`;
+        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, translatedPayload, defaultBody);
 
         const requestConfig: AxiosRequestConfig = {
             method: config.method || 'POST',
@@ -332,9 +337,11 @@ export class NotificationService {
 
         // Try to translate the event itself for the subject, fallback to event name
         const defaultSubjectKey = `event.${payload.event}`;
-        const defaultSubjectFallback = `星枢终端通知: ${payload.event}`;
+        const defaultSubjectFallback = `星枢终端通知: {event}`; // Use single brace
         const subjectText = i18next.t(defaultSubjectKey, { ...i18nOptions, defaultValue: defaultSubjectFallback });
-        const subject = this._renderTemplate(config.subjectTemplate, payload, subjectText); // Allow template override
+        // Use default subject template if user hasn't provided one
+        const defaultSubjectTemplate = `Notification: {event}`;
+        const subject = this._renderTemplate(config.subjectTemplate || defaultSubjectTemplate, payload, subjectText);
 
         // Translate the main body content based on event type if a key exists
         const bodyKey = `eventBody.${payload.event}`;
@@ -378,11 +385,11 @@ export class NotificationService {
         }
         const messageKey = `eventBody.${payload.event}`; // Use same key as email body for consistency
         const detailsStr = payload.details ? `\n详情: \`\`\`\n${typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details, null, 2)}\n\`\`\`` : '';
-        const defaultMessageText = `*星枢终端通知*\n\n事件: \`${payload.event}\`\n时间: ${new Date(payload.timestamp).toISOString()}${detailsStr}`;
-        const translatedBody = i18next.t(messageKey, { ...i18nOptions, defaultValue: defaultMessageText });
+        const defaultMessageTemplate = `*Nexus Terminal Notification*\n\nEvent: \`{event}\`\nTimestamp: {timestamp}${detailsStr}`; // Use single brace
+        const translatedBody = i18next.t(messageKey, { ...i18nOptions, defaultValue: defaultMessageTemplate });
 
-        // Allow template override
-        const messageText = this._renderTemplate(config.messageTemplate, payload, translatedBody);
+        // Allow template override, use default template if user input is empty
+        const messageText = this._renderTemplate(config.messageTemplate || defaultMessageTemplate, payload, translatedBody);
         const telegramApiUrl = `https://api.telegram.org/bot${config.botToken}/sendMessage`;
 
         try {
@@ -390,7 +397,7 @@ export class NotificationService {
             const response = await axios.post(telegramApiUrl, {
                 chat_id: config.chatId,
                 text: messageText,
-                parse_mode: 'Markdown', // Or 'HTML' depending on template needs
+                parse_mode: 'Markdown', // Keep Markdown for actual sending, user is responsible for valid syntax
             }, { timeout: 10000 }); // Add timeout
              console.log(`[Notification] Telegram message sent successfully. Response OK:`, response.data?.ok);
         } catch (error: any) {

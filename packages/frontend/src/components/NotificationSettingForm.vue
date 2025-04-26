@@ -62,9 +62,9 @@
         </div>
         <div>
           <label for="webhook-body" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.webhookBodyTemplate') }}</label>
-          <textarea id="webhook-body" v-model="webhookConfig.bodyTemplate" rows="3" :placeholder="`${$t('settings.notifications.form.webhookBodyPlaceholder')} {{event}}, {{timestamp}}, {{details}}`"
+          <textarea id="webhook-body" v-model="webhookConfig.bodyTemplate" rows="3" :placeholder="`${$t('settings.notifications.form.webhookBodyPlaceholder')} {event}, {timestamp}, {details}`"
                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
-          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }} </small>
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }} {event}, {timestamp}, {details} (JSON string)</small>
         </div>
       </div>
 
@@ -78,7 +78,7 @@
         </div>
         <div>
           <label for="email-subject" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.emailSubjectTemplate') }}</label>
-          <input type="text" id="email-subject" v-model="emailConfig.subjectTemplate" :placeholder="`${$t('settings.notifications.form.emailSubjectPlaceholder')} {{event}}`"
+          <input type="text" id="email-subject" v-model="emailConfig.subjectTemplate" :placeholder="`${$t('settings.notifications.form.emailSubjectPlaceholder')} {event}`"
                  class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
           <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }}</small>
         </div>
@@ -135,7 +135,7 @@
         </div>
         <div>
           <label for="telegram-message" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.telegramMessageTemplate') }}</label>
-          <textarea id="telegram-message" v-model="telegramConfig.messageTemplate" rows="3" :placeholder="`${$t('settings.notifications.form.telegramMessagePlaceholder')} {{event}}, {{timestamp}}, {{details}}.`"
+          <textarea id="telegram-message" v-model="telegramConfig.messageTemplate" rows="3" :placeholder="`${$t('settings.notifications.form.telegramMessagePlaceholder')} {event}, {timestamp}, {details}.`"
                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
           <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }}</small>
         </div>
