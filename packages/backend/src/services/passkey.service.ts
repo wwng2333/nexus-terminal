@@ -203,7 +203,11 @@ export class PasskeyService {
     ): Promise<VerifiedAuthenticationResponse> { // Return our extended type
 
         const credentialIdBase64Url = authenticationResponse.id; // 客户端传回的 ID 已经是 Base64URL
+        console.log(`[PasskeyService VerifyAuth] Received credentialId from client: ${credentialIdBase64Url}`); // Log received ID
+
+        console.log(`[PasskeyService VerifyAuth] Calling passkeyRepository.getPasskeyByCredentialId with: ${credentialIdBase64Url}`);
         const authenticator = await this.passkeyRepository.getPasskeyByCredentialId(credentialIdBase64Url);
+        console.log(`[PasskeyService VerifyAuth] Result from getPasskeyByCredentialId: ${authenticator ? 'Found' : 'Not Found'}`); // Log lookup result
 
         if (!authenticator) {
             throw new Error(`未找到 Credential ID 为 ${credentialIdBase64Url} 的认证器`);
