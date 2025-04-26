@@ -4,6 +4,7 @@ import { AuditLogService } from '../services/audit.service';
 import { NotificationService } from '../services/notification.service'; // 添加导入
 import { ipBlacklistService } from '../services/ip-blacklist.service';
 import { UpdateSidebarConfigDto, UpdateCaptchaSettingsDto, CaptchaSettings } from '../types/settings.types'; // <-- Import CAPTCHA types
+import i18next from '../i18n'; // +++ Import i18next +++
 
 const auditLogService = new AuditLogService();
 const notificationService = new NotificationService(); // 添加实例
@@ -401,7 +402,6 @@ async setCaptchaConfig(req: Request, res: Response): Promise<void> {
         await settingsService.setCaptchaConfig(configDto);
         console.log('[控制器] settingsService.setCaptchaConfig 成功完成。');
 
-        auditLogService.logAction('CAPTCHA_SETTINGS_UPDATED');
 
         console.log('[控制器] 发送成功响应。');
         res.status(200).json({ message: 'CAPTCHA 配置已成功更新' });
