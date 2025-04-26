@@ -238,6 +238,9 @@ export class PasskeyService {
             requireUserVerification: true, // Keep user verification requirement
         } as any;
         // Log the constructed verificationOptions, especially the authenticator part
+        console.log(`[PasskeyService VerifyAuth] Full authenticationResponse from client: ${JSON.stringify(authenticationResponse, null, 2)}`); // Added log
+        console.log(`[PasskeyService VerifyAuth] Authenticator Data (Base64URL): ${authenticationResponse.response.authenticatorData}`); // Added log
+        console.log(`[PasskeyService VerifyAuth] Client Data JSON (Base64URL): ${authenticationResponse.response.clientDataJSON}`); // Added log
         console.log(`[PasskeyService VerifyAuth] Constructed verificationOptions for library: ${JSON.stringify(verificationOptions, null, 2)}`);
 
         let verification: VerifiedAuthenticationResponse;
