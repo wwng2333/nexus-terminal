@@ -12,7 +12,7 @@ import {
 } from '../types/notification.types';
 import * as nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer';
-import i18next, { defaultLng, supportedLngs } from '../i18n';
+import i18next, { defaultLng, supportedLngs } from '../i18n'; // Import supportedLngs
 import { settingsService } from './settings.service';
 
 
@@ -273,6 +273,9 @@ export class NotificationService {
             const langSetting = await settingsService.getSetting('language');
             // --- 添加调试日志 ---
             console.log(`[通知调试] 刚从数据库获取的 langSetting: ${langSetting}`);
+            // --- 结束调试日志 ---
+            // --- 添加调试日志 ---
+            console.log(`[通知调试] Checking langSetting against supportedLngs:`, supportedLngs);
             // --- 结束调试日志 ---
             if (langSetting && supportedLngs.includes(langSetting)) {
                 userLang = langSetting;

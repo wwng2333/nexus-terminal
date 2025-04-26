@@ -5,6 +5,9 @@ import fs from 'fs';
 
 // --- 动态确定支持的语言 ---
 const localesDir = path.join(__dirname, 'locales');
+// --- 添加调试日志 ---
+console.log(`[i18next-debug] Calculated locales directory path: ${localesDir}`);
+// --- 结束调试日志 ---
 let dynamicSupportedLngs: string[] = [];
 try {
   const entries = fs.readdirSync(localesDir, { withFileTypes: true });
