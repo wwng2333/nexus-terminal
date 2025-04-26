@@ -97,10 +97,23 @@ const getChannelTypeName = (type: NotificationChannelType): string => {
   }
 };
 
+// Helper function to translate a single event name
+const getSingleEventDisplayName = (event: NotificationEvent): string => {
+    const i18nKey = `settings.notifications.events.${event}`;
+    const translated = t(i18nKey);
+    // Fallback if translation is missing
+    if (translated === i18nKey) {
+        console.warn(`Missing translation for notification event: ${i18nKey}`);
+        return event.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+    }
+    return translated;
+};
+
 const getEventNames = (events: NotificationEvent[]): string => {
   if (!events || events.length === 0) return t('settings.notifications.noEventsEnabled');
-  // TODO: Translate event names if needed
-  return t('settings.notifications.triggers') + ': ' + events.join(', ');
+  // Translate each event name
+  const translatedNames = events.map(event => getSingleEventDisplayName(event));
+  return t('settings.notifications.triggers') + ': ' + translatedNames.join(', ');
 };
 
 const editSetting = (setting: NotificationSetting) => {
