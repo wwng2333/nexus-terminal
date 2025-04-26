@@ -154,3 +154,6 @@ dist-scripts/
 /packages/frontend/node_modules/
 /packages/frontend/dist/
 /packages/frontend/.vite/
+
+# Ignore specific generated file in root
+/tsc
