@@ -5,6 +5,7 @@ import { getDbInstance, runDb, getDb, allDb } from '../database/connection';
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
 import { PasskeyService } from '../services/passkey.service';
+import type { RegistrationResponseJSON } from '@simplewebauthn/server'; // 添加类型导入
 import { NotificationService } from '../services/notification.service';
 import { AuditLogService } from '../services/audit.service';
 import { ipBlacklistService } from '../services/ip-blacklist.service';
@@ -450,6 +451,7 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
     const expectedChallenge = req.session.currentChallenge;
     // 将 name 提取出来，其余部分作为 registrationData 对象
     const { name, ...registrationData } = req.body;
+    console.log(`[AuthController VerifyReg] Received request body: name=${name}, registrationData=${JSON.stringify(registrationData)}`); // Log received data
 
     if (!userId || req.session.requiresTwoFactor) {
         res.status(401).json({ message: '用户未认证或认证未完成。' });
@@ -485,16 +487,17 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
              // 这个检查理论上在函数开头已经做过，但为了类型安全和明确性再次检查
              throw new Error('无法获取用户 ID，无法验证 Passkey。');
         }
+        console.log(`[AuthController VerifyReg] Calling passkeyService.verifyRegistration with: userId=${userId}, expectedChallenge=${expectedChallenge}, hostname=${hostname}, origin=${origin}, name=${name}`); // Log parameters before calling service
 
         const verification = await passkeyService.verifyRegistration(
-            userId, // <-- 传递 userId 作为第一个参数
-            registrationData as any, // 将收集到的字段作为 registrationResponse 传递，可能需要类型断言
+            userId,
+            registrationData as RegistrationResponseJSON, // 将收集到的字段重新构造成符合类型的对象
             expectedChallenge,
             hostname,
             origin,
             name
         );
-
+        console.log(`[AuthController VerifyReg] Received verification result from service: verified=${verification.verified}`); // Log service result
 
         if (verification.verified && verification.registrationInfo) {
              const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';

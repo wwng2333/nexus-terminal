@@ -88,6 +88,9 @@ export class PasskeyService {
         passkeyName?: string
     ): Promise<VerifiedRegistrationResponse> {
 
+        console.log(`[PasskeyService VerifyReg] Received parameters: userId=${userId}, expectedChallenge=${expectedChallenge}, hostname=${hostname}, origin=${origin}, name=${passkeyName}`); // Log received parameters
+        console.log(`[PasskeyService VerifyReg] Received registrationResponse: ${JSON.stringify(registrationResponse)}`); // Log the raw registrationResponse
+
         const expectedRPID = hostname;
         const expectedOrigin = origin;
 
@@ -98,10 +101,13 @@ export class PasskeyService {
             expectedRPID: expectedRPID,
             requireUserVerification: true, // 强制要求用户验证, simplewebauthn defaults this to true now
         };
+        console.log(`[PasskeyService VerifyReg] Constructed verificationOptions: ${JSON.stringify(verificationOptions)}`); // Log options before verification
 
         let verification: VerifiedRegistrationResponse;
         try {
-             verification = await verifyRegistrationResponse(verificationOptions);
+            console.log('[PasskeyService VerifyReg] Calling @simplewebauthn/server verifyRegistrationResponse...');
+            verification = await verifyRegistrationResponse(verificationOptions);
+            console.log(`[PasskeyService VerifyReg] verifyRegistrationResponse returned: verified=${verification.verified}, registrationInfo exists=${!!verification.registrationInfo}`); // Log verification result
         } catch (error: any) {
             console.error('Passkey 注册验证时发生异常:', error);
             // Provide more context in the error
@@ -115,19 +121,17 @@ export class PasskeyService {
         // --- 结束日志记录 ---
 
         if (verification.verified && verification.registrationInfo) {
-            const registrationInfo = verification.registrationInfo as any;
-            // --- 移除日志记录 ---
-            // console.log('[PasskeyService] Extracted registrationInfo:', JSON.stringify(registrationInfo, null, 2));
-            // console.log('[PasskeyService] credentialPublicKey type:', typeof registrationInfo.credentialPublicKey, 'value:', registrationInfo.credentialPublicKey);
-            // console.log('[PasskeyService] credentialID type:', typeof registrationInfo.credentialID, 'value:', registrationInfo.credentialID);
-            // --- 结束日志记录 ---
-            // const { credentialPublicKey, credentialID, counter } = registrationInfo; // <-- 移除错误的解构
+            const registrationInfo = verification.registrationInfo as any; // Keep type assertion for now
+            console.log(`[PasskeyService VerifyReg] Verification successful. Extracted registrationInfo: ${JSON.stringify(registrationInfo)}`); // Log extracted info
+
+            // Log the critical fields BEFORE using them
+            console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credentialID): Type=${typeof registrationInfo.credentialID}, Value=${registrationInfo.credentialID}`);
+            console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credentialPublicKey): Type=${typeof registrationInfo.credentialPublicKey}, Value=${registrationInfo.credentialPublicKey}`);
+
             const counter = registrationInfo.counter; // 直接获取 counter
 
             // --- 直接使用 registrationInfo 的属性 ---
-            // console.log('[PasskeyService] BEFORE Buffer.from(credentialID): Type=', typeof registrationInfo.credentialID, 'Value=', registrationInfo.credentialID); // <-- 移除日志
             const credentialIdBase64Url = Buffer.from(registrationInfo.credentialID).toString('base64url');
-            // console.log('[PasskeyService] BEFORE Buffer.from(credentialPublicKey): Type=', typeof registrationInfo.credentialPublicKey, 'Value=', registrationInfo.credentialPublicKey); // <-- 移除日志
             const publicKeyBase64Url = Buffer.from(registrationInfo.credentialPublicKey).toString('base64url');
 
             // 获取 transports 信息
