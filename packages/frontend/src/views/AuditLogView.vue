@@ -128,10 +128,7 @@ const allActionTypes: AuditLogActionType[] = [
     'SSH_CONNECT_SUCCESS', 'SSH_CONNECT_FAILURE', 'SSH_SHELL_FAILURE',
     // System/Error
     'DATABASE_MIGRATION', 'ADMIN_SETUP_COMPLETE'
-    // Settings (Specific)
-    // 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // Removed Focus Switcher type from dropdown
 ];
-// --- End Filtering State ---
 
 const logs = computed(() => store.logs);
 const totalLogs = computed(() => store.totalLogs);

@@ -288,7 +288,7 @@ const getDefaultFormData = (): Omit<NotificationSetting, 'id' | 'created_at' | '
   enabled: true,
   channel_type: 'webhook',
   config: {}, // Will be populated based on channel_type
-  enabled_events: ['LOGIN_FAILURE', 'SERVER_ERROR'], // Sensible defaults
+  enabled_events: ['LOGIN_FAILURE'], // Sensible defaults
 });
 
 const formData = reactive(getDefaultFormData());
