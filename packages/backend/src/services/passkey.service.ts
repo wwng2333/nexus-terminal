@@ -212,6 +212,8 @@ export class PasskeyService {
         console.log(`[PasskeyService VerifyAuth] Calling passkeyRepository.getPasskeyByCredentialId with: ${credentialIdBase64Url}`);
         const authenticator = await this.passkeyRepository.getPasskeyByCredentialId(credentialIdBase64Url);
         console.log(`[PasskeyService VerifyAuth] Result from getPasskeyByCredentialId: ${authenticator ? 'Found' : 'Not Found'}`); // Log lookup result
+        // Log the raw authenticator object fetched from DB
+        console.log(`[PasskeyService VerifyAuth] Authenticator data from DB: ${JSON.stringify(authenticator)}`);
 
         if (!authenticator) {
             throw new Error(`未找到 Credential ID 为 ${credentialIdBase64Url} 的认证器`);
@@ -234,6 +236,8 @@ export class PasskeyService {
             },
             requireUserVerification: true,
         } as any;
+        // Log the constructed verificationOptions, especially the authenticator part
+        console.log(`[PasskeyService VerifyAuth] Constructed verificationOptions for library: ${JSON.stringify(verificationOptions, null, 2)}`);
 
         let verification: VerifiedAuthenticationResponse;
          try {
