@@ -628,8 +628,22 @@
         "error": {
             "saveFailed": "保存 CAPTCHA 设置失败。"
         }
+    },
+    "commandInputSync": {
+      "title": "命令输入同步",
+      "selectLabel": "同步目标:",
+      "targetNone": "无",
+      "targetQuickCommands": "快捷指令",
+      "targetCommandHistory": "命令历史",
+      "description": "将命令输入栏的内容实时同步到所选面板的搜索框。",
+      "success": {
+        "saved": "同步目标已保存。"
+      },
+      "error": {
+        "saveFailed": "保存同步目标失败。"
+      }
     }
-  },
+},
   "common": {
     "loading": "加载中...",
     "cancel": "取消",

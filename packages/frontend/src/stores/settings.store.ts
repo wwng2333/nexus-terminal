@@ -210,17 +210,23 @@ export const useSettingsStore = defineStore('settings', () => {
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
-      // 检查从设置加载的语言是否在可用语言列表中
+      // 检查从设置加载的语言 (完整区域代码) 是否在可用语言列表中
       if (langFromSettings && availableLocales.includes(langFromSettings)) {
           determinedLang = langFromSettings;
       } else {
-          // 如果设置中的语言无效或缺失，尝试浏览器语言
-          const navigatorLang = navigator.language?.split('-')[0];
-          if (navigatorLang && availableLocales.includes(navigatorLang)) {
-              determinedLang = navigatorLang;
+          // 如果设置中的语言无效或缺失，尝试浏览器提供的完整区域代码
+          const navigatorLocale = navigator.language;
+          if (navigatorLocale && availableLocales.includes(navigatorLocale)) {
+              determinedLang = navigatorLocale;
           } else {
-              // 最后回退到 i18n 配置的默认语言
-              determinedLang = defaultLng;
+              // (可选) 尝试浏览器语言的主语言部分
+              const navigatorLangPart = navigatorLocale?.split('-')[0];
+              if (navigatorLangPart && availableLocales.includes(navigatorLangPart)) {
+                  determinedLang = navigatorLangPart;
+              } else {
+                  // 最后回退到 i18n 配置的默认语言
+                  determinedLang = defaultLng;
+              }
           }
           console.warn(`[SettingsStore] Invalid or missing language setting ('${langFromSettings}') received from backend. Falling back to '${determinedLang}'.`);
           // Optionally save the fallback language back
@@ -242,8 +248,15 @@ export const useSettingsStore = defineStore('settings', () => {
       error.value = err.response?.data?.message || err.message || 'Failed to load settings';
       // 出错时（例如未登录），根据浏览器语言设置回退语言
       const navigatorLang = navigator.language?.split('-')[0];
-      // 错误时也检查浏览器语言是否可用
-      const fallbackLang = (navigatorLang && availableLocales.includes(navigatorLang)) ? navigatorLang : defaultLng;
+      // 错误时也尝试浏览器完整区域代码，然后主语言部分，最后默认
+      const navigatorLocale = navigator.language;
+      const navigatorLangPart = navigatorLocale?.split('-')[0];
+      let fallbackLang = defaultLng; // Start with default
+      if (navigatorLocale && availableLocales.includes(navigatorLocale)) {
+          fallbackLang = navigatorLocale;
+      } else if (navigatorLangPart && availableLocales.includes(navigatorLangPart)) {
+          fallbackLang = navigatorLangPart;
+      }
       console.log(`[SettingsStore] Error loading settings. Falling back to language: ${fallbackLang}. Calling setLocale...`); // <-- 添加日志
       setLocale(fallbackLang);
     } finally {
@@ -466,6 +479,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // 移除外观相关 actions: saveCustomThemes, resetCustomThemes, toggleStyleCustomizer
 
   // --- Getters ---
+  // Use defaultLng (which is now 'en-US' or the first available) from i18n.ts as the final fallback
   const language = computed(() => settings.value.language || defaultLng);
 
   // Getter for the popup editor setting, returning boolean

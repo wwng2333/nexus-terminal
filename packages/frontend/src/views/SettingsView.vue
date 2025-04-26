@@ -542,9 +542,9 @@ const ipWhitelistInput = ref('');
 const selectedLanguage = ref<string>(storeLanguage.value); // 改为 string 类型以支持动态语言
 // 可选：创建一个语言名称映射
 const languageNames: Record<string, string> = {
-  en: 'English',
-  zh: '中文',
-  jp: '日本語', // 添加日语或其他语言
+  'en-US': 'English', // 更新为 en-US
+  'zh-CN': '中文',
+  'ja-JP': '日本語', // 更新为 ja-JP (如果您的文件名是 ja-JP.json)
   // Add more languages here as needed
 };
 const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store state name

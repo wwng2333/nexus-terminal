@@ -21,7 +21,7 @@ try {
 }
 
 // 确保默认语言在支持列表中，如果目录扫描失败则添加
-export const defaultLng = 'en';
+export const defaultLng = 'en-US'; // 更新为 en-US
 if (!dynamicSupportedLngs.includes(defaultLng)) {
     dynamicSupportedLngs.push(defaultLng);
     console.warn(`[i18next] Default language '${defaultLng}' not found in detected directories, adding it to supported list.`);

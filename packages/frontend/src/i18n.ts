@@ -27,23 +27,37 @@ if (availableLocales.length === 0) {
 // 如果没有加载到文件，则使用空对象作为 fallback，避免运行时错误
 type MessageSchema = typeof messages[availableLocales[0]] | {};
 
-// 定义默认语言 (优先使用 'en'，如果不存在则使用第一个找到的语言)
-export const defaultLng = availableLocales.includes('en') ? 'en' : availableLocales[0] || 'en'; // 添加 'en' 作为最终 fallback
+// 定义默认语言 (优先使用 'en-US'，如果不存在则使用第一个找到的语言)
+export const defaultLng = availableLocales.includes('en-US') ? 'en-US' : availableLocales[0] || 'en-US'; // 更新为 en-US
 const localStorageKey = 'user-locale';
 
 // 尝试从 localStorage 获取语言，否则回退
 const getInitialLocale = (): string => {
   const storedLocale = localStorage.getItem(localStorageKey);
-  // 检查存储的 locale 是否在当前可用的语言列表中
+  // 1. 检查 localStorage 中存储的完整 locale 是否可用
   if (storedLocale && availableLocales.includes(storedLocale)) {
+    console.log(`[i18n] Using locale from localStorage: ${storedLocale}`);
     return storedLocale;
   }
-  // 回退逻辑：检查浏览器语言是否可用
-  const navigatorLang = navigator.language?.split('-')[0];
-  if (navigatorLang && availableLocales.includes(navigatorLang)) {
-      return navigatorLang;
+
+  // 2. 回退逻辑：检查浏览器提供的完整区域代码 (e.g., 'zh-CN') 是否可用
+  const navigatorLocale = navigator.language; // 获取完整代码，如 'zh-CN'
+  if (navigatorLocale && availableLocales.includes(navigatorLocale)) {
+    console.log(`[i18n] Using locale from navigator.language: ${navigatorLocale}`);
+    return navigatorLocale;
   }
-  // 最后回退到默认语言
+
+  // 3. (可选，但更健壮) 检查浏览器语言的主语言部分 (e.g., 'zh') 是否可用
+  //    这在只有 'zh-CN' 但浏览器是 'zh-TW' 时可能有用，如果想回退到 'en' 而不是 'zh-CN'
+  //    或者如果我们未来添加了通用的 'zh' 文件
+  const navigatorLangPart = navigatorLocale?.split('-')[0];
+  if (navigatorLangPart && availableLocales.includes(navigatorLangPart)) {
+      console.log(`[i18n] Using locale based on navigator language part: ${navigatorLangPart}`);
+      return navigatorLangPart;
+  }
+
+  // 4. 最后回退到默认语言
+  console.log(`[i18n] Falling back to default locale: ${defaultLng}`);
   return defaultLng;
 };
 
