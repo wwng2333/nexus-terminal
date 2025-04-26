@@ -5,7 +5,7 @@ services:
     ports:
       - "18111:80"
     depends_on:
-      - backend）
+      - backend
     networks:
       - nexus-terminal-network
 
