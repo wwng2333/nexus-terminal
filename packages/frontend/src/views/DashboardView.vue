@@ -9,7 +9,8 @@ import type { ConnectionInfo } from '../stores/connections.store'; // 只导入 
 import type { AuditLogEntry } from '../types/audit.types'; // 引入本地 AuditLogEntry 类型
 import { storeToRefs } from 'pinia';
 import { formatDistanceToNow } from 'date-fns';
-import { zhCN, enUS } from 'date-fns/locale'; // 导入语言包
+import { zhCN, enUS, ja } from 'date-fns/locale'; // 导入所有需要的语言包
+import type { Locale } from 'date-fns'; // 导入 Locale 类型
 
 const { t, locale } = useI18n();
 const router = useRouter();
@@ -91,21 +92,48 @@ const connectTo = (connection: ConnectionInfo) => {
 };
 
 
+// --- 动态语言包映射 ---
+const dateFnsLocales: Record<string, Locale> = {
+  'en-US': enUS,
+  'zh-CN': zhCN,
+  'ja-JP': ja,
+  // 主语言回退
+  'en': enUS,
+  'zh': zhCN,
+  'ja': ja,
+};
+
 // 修正函数签名，接受 number | null | undefined
 const formatRelativeTime = (timestampInSeconds: number | null | undefined): string => {
   if (!timestampInSeconds) return t('connections.status.never');
   try {
     // 将秒级时间戳转换为毫秒级
     const timestampInMs = timestampInSeconds * 1000;
-    // 检查转换后的值是否有效 (虽然输入是 number，但以防万一)
+    // 检查转换后的值是否有效
     if (isNaN(timestampInMs)) {
         console.warn(`[Dashboard] Invalid timestamp received: ${timestampInSeconds}`);
         return String(timestampInSeconds); // 返回原始值或错误提示
     }
     const date = new Date(timestampInMs);
-    // Check if the locale starts with 'zh' to cover variants like 'zh-CN', 'zh-HK', etc.
-    const currentLocale = locale.value.startsWith('zh') ? zhCN : enUS;
-    return formatDistanceToNow(date, { addSuffix: true, locale: currentLocale });
+
+    const currentI18nLocale = locale.value; // 获取 vue-i18n 当前 locale (e.g., 'zh-CN')
+    const langPart = currentI18nLocale.split('-')[0]; // 获取主语言部分 (e.g., 'zh')
+
+    // 1. 尝试精确匹配 (e.g., 'zh-CN' -> zhCN)
+    let targetDateFnsLocale = dateFnsLocales[currentI18nLocale];
+
+    // 2. 如果无精确匹配，尝试匹配主语言 (e.g., 'zh' -> zhCN)
+    if (!targetDateFnsLocale) {
+      targetDateFnsLocale = dateFnsLocales[langPart];
+    }
+
+    // 3. 如果仍然找不到，回退到默认 enUS
+    if (!targetDateFnsLocale) {
+      console.warn(`[Dashboard] date-fns locale not found for ${currentI18nLocale} or ${langPart}. Falling back to en-US.`);
+      targetDateFnsLocale = enUS; // 默认回退到 enUS
+    }
+
+    return formatDistanceToNow(date, { addSuffix: true, locale: targetDateFnsLocale });
   } catch (e) {
     console.error("格式化日期失败:", e);
     return String(timestampInSeconds); // 出错时返回原始字符串
