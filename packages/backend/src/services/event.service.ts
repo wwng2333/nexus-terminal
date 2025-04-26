@@ -10,8 +10,6 @@ export enum AppEventType {
   PasswordChanged = 'PASSWORD_CHANGED',
   TwoFactorEnabled = '2FA_ENABLED',
   TwoFactorDisabled = '2FA_DISABLED',
-  PasskeyRegistered = 'PASSKEY_REGISTERED',
-  PasskeyDeleted = 'PASSKEY_DELETED',
   ConnectionCreated = 'CONNECTION_CREATED',
   ConnectionUpdated = 'CONNECTION_UPDATED',
   ConnectionDeleted = 'CONNECTION_DELETED',

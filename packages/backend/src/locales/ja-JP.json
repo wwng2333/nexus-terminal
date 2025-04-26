@@ -20,8 +20,6 @@
       "PASSWORD_CHANGED": "パスワード変更",
       "2FA_ENABLED": "2段階認証有効",
       "2FA_DISABLED": "2段階認証無効",
-      "PASSKEY_REGISTERED": "パスキー登録",
-      "PASSKEY_DELETED": "パスキー削除",
       "CONNECTION_CREATED": "接続を作成しました",
       "CONNECTION_UPDATED": "接続を更新しました",
       "CONNECTION_DELETED": "接続を削除しました",

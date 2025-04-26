@@ -269,7 +269,7 @@ const canTestUnsaved = computed(() => {
 // Define all possible events (aligned with AuditLogView's allActionTypes)
 const allNotificationEvents: NotificationEvent[] = [
     'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'PASSWORD_CHANGED', // Added LOGOUT, PASSWORD_CHANGED
-    '2FA_ENABLED', '2FA_DISABLED', 'PASSKEY_REGISTERED', 'PASSKEY_DELETED', // Added 2FA, changed PASSKEY_ADDED
+    '2FA_ENABLED', '2FA_DISABLED', // Added 2FA,
     'CONNECTION_CREATED', 'CONNECTION_UPDATED', 'CONNECTION_DELETED', 'CONNECTION_TESTED', // Changed _ADDED, added _TESTED
     'PROXY_CREATED', 'PROXY_UPDATED', 'PROXY_DELETED', // Changed _ADDED
     'TAG_CREATED', 'TAG_UPDATED', 'TAG_DELETED', // Changed _ADDED

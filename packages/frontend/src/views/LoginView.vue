@@ -2,7 +2,7 @@
 import { reactive, ref, onMounted } from 'vue'; // computed 不再直接使用，移除
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import { startAuthentication } from '@simplewebauthn/browser'; // <-- 导入 Passkey 函数
+// Removed Passkey import: import { startAuthentication } from '@simplewebauthn/browser';
 import { useAuthStore } from '../stores/auth.store';
 import VueHcaptcha from '@hcaptcha/vue3-hcaptcha';
 import VueRecaptcha from 'vue3-recaptcha2'; // 使用默认导入
@@ -98,46 +98,7 @@ onMounted(() => {
   authStore.fetchCaptchaConfig();
 });
 
-// --- Passkey Login Handler ---
-const handlePasskeyLogin = async () => {
-  authStore.clearError(); // 清除之前的错误
-  captchaError.value = null; // 清除 CAPTCHA 错误
-  try {
-    // 1. 从后端获取认证选项 (包含 challenge)
-    //    需要 authStore 中添加 getPasskeyAuthenticationOptions action
-    const options = await authStore.getPasskeyAuthenticationOptions();
-    if (!options) {
-      // 错误已在 store action 中处理
-      return;
-    }
-
-    // 2. 使用浏览器 API 开始认证
-    let authenticationResponse;
-    try {
-      authenticationResponse = await startAuthentication(options);
-    } catch (err: any) {
-      console.error('Passkey authentication failed (startAuthentication):', err);
-      // 用户取消或浏览器不支持等情况
-      if (err.name === 'NotAllowedError') {
-        authStore.setError(t('login.error.passkeyCancelled'));
-      } else {
-        authStore.setError(t('login.error.passkeyFailed', { error: err.message || err.name || 'Unknown error' }));
-      }
-      return;
-    }
-
-    // 3. 将认证响应发送到后端进行验证
-    //    需要 authStore 中添加 verifyPasskeyAuthentication action
-    await authStore.verifyPasskeyAuthentication(authenticationResponse, rememberMe.value);
-    // 成功后的重定向由 store action 处理
-    // 失败会更新 error 状态并在模板中显示
-
-  } catch (err) {
-    // Store action 中的错误已处理，这里无需额外操作
-    console.error('Error during passkey login flow:', err);
-  }
-};
-// --- End Passkey Login Handler ---
+// --- Passkey Login Handler Removed ---
 
 </script>
 <template>
@@ -237,15 +198,8 @@ const handlePasskeyLogin = async () => {
             {{ isLoading ? t('login.loggingIn') : (loginRequires2FA ? t('login.verifyButton') : t('login.loginButton')) }}
           </button>
  
-          <!-- Passkey Login Button -->
-          <button type="button" @click="handlePasskeyLogin" :disabled="isLoading"
-                  class="w-full mt-3 py-3 px-4 bg-secondary text-secondary-foreground border border-border/50 rounded-lg text-base font-semibold cursor-pointer shadow-sm transition-colors duration-200 ease-in-out hover:bg-secondary/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary disabled:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-70">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2 -mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 11c.828 0 1.5.672 1.5 1.5S12.828 14 12 14s-1.5-.672-1.5-1.5S11.172 11 12 11zm0-9a7 7 0 00-7 7c0 1.886.738 3.627 1.946 4.946.06.061.117.122.17.185l-.018.018-.002.002A9.5 9.5 0 0012 21.5a9.5 9.5 0 007.89-4.352l-.002-.002-.018-.018a6.965 6.965 0 001.946-4.946 7 7 0 00-7-7zm0 1.5a5.5 5.5 0 110 11 5.5 5.5 0 010-11z" />
-            </svg>
-            {{ t('login.passkeyLoginButton', '使用 Passkey 登录') }}
-          </button>
- 
+          <!-- Passkey Login Button Removed -->
+
         </form>
       </div>
     </div>

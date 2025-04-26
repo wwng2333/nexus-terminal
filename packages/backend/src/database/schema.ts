@@ -28,20 +28,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 // );
 // `;
 
-export const createPasskeysTableSQL = `
-CREATE TABLE IF NOT EXISTS passkeys (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,          -- 新增：关联到用户 ID
-    credential_id TEXT UNIQUE NOT NULL, -- Base64URL encoded
-    public_key TEXT NOT NULL,          -- Base64URL encoded
-    counter INTEGER NOT NULL,
-    transports TEXT,                   -- JSON array as string, e.g., '["internal", "usb"]'
-    name TEXT,                         -- User-provided name for the key
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE -- 新增：外键约束
-);
-`;
+// Removed Passkeys table definition (lines 31-44 from original)
 
 export const createNotificationSettingsTableSQL = `
 CREATE TABLE IF NOT EXISTS notification_settings (

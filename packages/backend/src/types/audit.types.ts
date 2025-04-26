@@ -7,8 +7,7 @@ export type AuditLogActionType =
   | 'PASSWORD_CHANGED'
   | '2FA_ENABLED'
   | '2FA_DISABLED'
-  | 'PASSKEY_REGISTERED'
-  | 'PASSKEY_DELETED'
+  // Removed Passkey events
 
   // Connections
   | 'CONNECTION_CREATED'
