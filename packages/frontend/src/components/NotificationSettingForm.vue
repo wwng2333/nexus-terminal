@@ -209,8 +209,6 @@ import { ref, reactive, computed, watch, PropType, nextTick } from 'vue';
 import { useNotificationsStore } from '../stores/notifications.store';
 import {
     NotificationSetting,
-    NotificationSettingData,
-    NotificationChannelType,
     NotificationEvent,
     WebhookConfig,
     EmailConfig, // Keep this, but we'll add SMTP fields
