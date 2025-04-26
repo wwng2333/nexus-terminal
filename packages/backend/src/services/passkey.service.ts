@@ -110,8 +110,17 @@ export class PasskeyService {
         }
 
 
+        // --- 添加日志记录 ---
+        console.log('[PasskeyService] Verification result:', JSON.stringify(verification, null, 2));
+        // --- 结束日志记录 ---
+
         if (verification.verified && verification.registrationInfo) {
             const registrationInfo = verification.registrationInfo as any;
+            // --- 添加日志记录 ---
+            console.log('[PasskeyService] Extracted registrationInfo:', JSON.stringify(registrationInfo, null, 2));
+            console.log('[PasskeyService] credentialPublicKey type:', typeof registrationInfo.credentialPublicKey, 'value:', registrationInfo.credentialPublicKey);
+            console.log('[PasskeyService] credentialID type:', typeof registrationInfo.credentialID, 'value:', registrationInfo.credentialID);
+            // --- 结束日志记录 ---
             const { credentialPublicKey, credentialID, counter } = registrationInfo;
 
 
