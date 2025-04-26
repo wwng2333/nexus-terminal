@@ -46,10 +46,10 @@ class EmailSenderService implements INotificationSender {
                  throw new Error(`Invalid SMTP port configured: ${finalSmtpPort}`);
             }
 
-
-            const transporterOptions: nodemailer.TransportOptions = {
-                host: finalSmtpHost,
-                port: finalSmtpPort,
+           // Remove explicit type annotation to let TypeScript infer the type
+           const transporterOptions = {
+               host: finalSmtpHost,
+               port: finalSmtpPort,
                 secure: finalSmtpSecure, // true for 465, false for other ports
                 auth: (finalSmtpUser && finalSmtpPass) ? {
                     user: finalSmtpUser,
