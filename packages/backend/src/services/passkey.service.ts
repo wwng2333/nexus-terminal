@@ -125,14 +125,23 @@ export class PasskeyService {
             console.log(`[PasskeyService VerifyReg] Verification successful. Extracted registrationInfo: ${JSON.stringify(registrationInfo)}`); // Log extracted info
 
             // Log the critical fields BEFORE using them
-            console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credentialID): Type=${typeof registrationInfo.credentialID}, Value=${registrationInfo.credentialID}`);
-            console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credentialPublicKey): Type=${typeof registrationInfo.credentialPublicKey}, Value=${registrationInfo.credentialPublicKey}`);
+            // 从嵌套的 credential 对象中获取 id 和 publicKey
+            const credentialId = registrationInfo.credential?.id;
+            const credentialPublicKey = registrationInfo.credential?.publicKey;
+            const counter = registrationInfo.counter; // counter 仍在顶层
 
-            const counter = registrationInfo.counter; // 直接获取 counter
+            console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credential.id): Type=${typeof credentialId}, Value=${credentialId}`);
+            console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credential.publicKey): Type=${typeof credentialPublicKey}, Value=${credentialPublicKey}`);
 
-            // --- 直接使用 registrationInfo 的属性 ---
-            const credentialIdBase64Url = Buffer.from(registrationInfo.credentialID).toString('base64url');
-            const publicKeyBase64Url = Buffer.from(registrationInfo.credentialPublicKey).toString('base64url');
+            if (!credentialId || !credentialPublicKey) {
+                 console.error('[PasskeyService VerifyReg] Error: credential.id or credential.publicKey is missing in registrationInfo.');
+                 throw new Error('Verification successful, but credential ID or Public Key is missing in registration info.');
+            }
+
+
+            // --- 使用 credential.id 和 credential.publicKey ---
+            const credentialIdBase64Url = Buffer.from(credentialId).toString('base64url');
+            const publicKeyBase64Url = Buffer.from(credentialPublicKey).toString('base64url');
 
             // 获取 transports 信息
             const transports = registrationResponse.response.transports ?? null;
