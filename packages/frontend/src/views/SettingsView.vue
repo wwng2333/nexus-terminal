@@ -299,8 +299,9 @@
                      <select id="languageSelect" v-model="selectedLanguage"
                              class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
                              style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
-                       <option value="en">English</option>
-                       <option value="zh">中文</option>
+                       <option v-for="locale in availableLocales" :key="locale" :value="locale">
+                         {{ languageNames[locale] || locale }} <!-- Display mapped name or locale code -->
+                       </option>
                      </select>
                    </div>
                    <div class="flex items-center justify-between">
@@ -508,6 +509,7 @@ import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 // setLocale is handled by the store now
+import { availableLocales } from '../i18n'; // 导入可用语言列表
 import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { isAxiosError } from 'axios'; // 单独导入 isAxiosError
 import { startRegistration } from '@simplewebauthn/browser';
@@ -537,7 +539,14 @@ const {
 // --- Local state for forms ---
 const ipWhitelistInput = ref('');
 // 使用 store 的 language getter 初始化 selectedLanguage
-const selectedLanguage = ref<'en' | 'zh'>(storeLanguage.value);
+const selectedLanguage = ref<string>(storeLanguage.value); // 改为 string 类型以支持动态语言
+// 可选：创建一个语言名称映射
+const languageNames: Record<string, string> = {
+  en: 'English',
+  zh: '中文',
+  jp: '日本語', // 添加日语或其他语言
+  // Add more languages here as needed
+};
 const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store state name
     maxLoginAttempts: '5', // 初始值将在 watcher 中被 store 值覆盖
     loginBanDuration: '300', // 初始值将在 watcher 中被 store 值覆盖

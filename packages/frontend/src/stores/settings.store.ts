@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue'; // 移除 watch
-import i18n, { setLocale, defaultLng } from '../i18n'; // Import i18n instance and setLocale
+import i18n, { setLocale, defaultLng, availableLocales } from '../i18n'; // Import i18n instance, setLocale, defaultLng, and availableLocales
 import type { PaneName } from './layout.store'; // +++ Import PaneName type +++
 import { useAuthStore } from './auth.store'; // <--- 导入 authStore
 // Import CAPTCHA types from backend (adjust path if needed, assuming types are mirrored or shared)
@@ -28,7 +28,7 @@ interface UpdateCaptchaSettingsDto {
 
 // 定义通用设置状态类型
 interface SettingsState {
-  language?: 'en' | 'zh'; // 语言现在是可选的，因为可能在 appearance store 中处理
+  language?: string; // 改为 string 以支持动态语言
   ipWhitelist?: string;
   maxLoginAttempts?: string;
   loginBanDuration?: string;
@@ -70,7 +70,7 @@ export const useSettingsStore = defineStore('settings', () => {
   async function loadInitialSettings() {
     isLoading.value = true;
     error.value = null;
-    let fetchedLang: 'en' | 'zh' | undefined;
+    let determinedLang: string | undefined; // 使用 string 类型
 
     try {
       console.log('[SettingsStore] 加载通用设置...');
@@ -210,19 +210,26 @@ export const useSettingsStore = defineStore('settings', () => {
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
-      if (langFromSettings === 'en' || langFromSettings === 'zh') {
-        fetchedLang = langFromSettings;
+      // 检查从设置加载的语言是否在可用语言列表中
+      if (langFromSettings && availableLocales.includes(langFromSettings)) {
+          determinedLang = langFromSettings;
       } else {
-        const navigatorLang = navigator.language?.split('-')[0];
-        fetchedLang = navigatorLang === 'zh' ? 'zh' : defaultLng;
-        console.warn(`[SettingsStore] Invalid language setting ('${langFromSettings}') received from backend or missing. Falling back to '${fetchedLang}'.`); // <-- 修改日志
-        // Optionally save the fallback language back
-        // await updateSetting('language', fetchedLang);
+          // 如果设置中的语言无效或缺失，尝试浏览器语言
+          const navigatorLang = navigator.language?.split('-')[0];
+          if (navigatorLang && availableLocales.includes(navigatorLang)) {
+              determinedLang = navigatorLang;
+          } else {
+              // 最后回退到 i18n 配置的默认语言
+              determinedLang = defaultLng;
+          }
+          console.warn(`[SettingsStore] Invalid or missing language setting ('${langFromSettings}') received from backend. Falling back to '${determinedLang}'.`);
+          // Optionally save the fallback language back
+          // await updateSetting('language', determinedLang);
       }
 
-      if (fetchedLang) {
-        console.log(`[SettingsStore] Determined language: ${fetchedLang}. Calling setLocale...`); // <-- 添加日志
-        setLocale(fetchedLang);
+      if (determinedLang) {
+        console.log(`[SettingsStore] Determined language: ${determinedLang}. Calling setLocale...`); // <-- 添加日志
+        setLocale(determinedLang);
       } else {
         // This case should theoretically not happen with the fallback logic above
         console.error('[SettingsStore] Could not determine a valid language. This should not happen.');
@@ -235,7 +242,8 @@ export const useSettingsStore = defineStore('settings', () => {
       error.value = err.response?.data?.message || err.message || 'Failed to load settings';
       // 出错时（例如未登录），根据浏览器语言设置回退语言
       const navigatorLang = navigator.language?.split('-')[0];
-      const fallbackLang = navigatorLang === 'zh' ? 'zh' : defaultLng;
+      // 错误时也检查浏览器语言是否可用
+      const fallbackLang = (navigatorLang && availableLocales.includes(navigatorLang)) ? navigatorLang : defaultLng;
       console.log(`[SettingsStore] Error loading settings. Falling back to language: ${fallbackLang}. Calling setLocale...`); // <-- 添加日志
       setLocale(fallbackLang);
     } finally {
@@ -274,10 +282,12 @@ export const useSettingsStore = defineStore('settings', () => {
       // Update store state *after* successful API call
       settings.value = { ...settings.value, [key]: value };
 
-      // If updating language, also update i18n
-      if (key === 'language' && (value === 'en' || value === 'zh')) {
+      // If updating language, check if it's valid and update i18n
+      if (key === 'language' && availableLocales.includes(value)) {
         console.log(`[SettingsStore] updateSetting: Language updated to ${value}. Calling setLocale...`); // <-- 添加日志
         setLocale(value);
+      } else if (key === 'language') {
+        console.warn(`[SettingsStore] updateSetting: Attempted to set invalid language '${value}'. Ignoring i18n update.`);
       }
     } catch (err: any) {
       console.error(`更新设置项 '${key}' 失败:`, err);
@@ -303,13 +313,19 @@ export const useSettingsStore = defineStore('settings', () => {
         'commandInputSyncTarget' // +++ 添加命令输入同步目标键 +++
     ];
     const filteredUpdates: Partial<SettingsState> = {};
-    let languageUpdate: 'en' | 'zh' | undefined = undefined;
+    let languageUpdate: string | undefined = undefined; // Use string type
 
     for (const key in updates) {
         if (allowedKeys.includes(key as keyof SettingsState)) {
             filteredUpdates[key as keyof SettingsState] = updates[key];
-            if (key === 'language' && (updates[key] === 'en' || updates[key] === 'zh')) {
-                languageUpdate = updates[key] as 'en' | 'zh';
+            if (key === 'language') {
+                // Check if the language update is valid before storing it for setLocale
+                const langValue = updates[key];
+                if (langValue && availableLocales.includes(langValue)) {
+                    languageUpdate = langValue; // Store the valid language code
+                } else {
+                    console.warn(`[SettingsStore] updateMultipleSettings: Received invalid language update '${langValue}'. Ignoring.`);
+                }
             }
         } else {
              console.warn(`[SettingsStore] 尝试批量更新不允许的设置键: ${key}`);

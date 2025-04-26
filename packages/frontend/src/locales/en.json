@@ -628,6 +628,20 @@
         "error": {
             "saveFailed": "Failed to save CAPTCHA settings."
         }
+    },
+    "commandInputSync": {
+      "title": "Command Input Sync",
+      "selectLabel": "Sync Target:",
+      "targetNone": "None",
+      "targetQuickCommands": "Quick Commands",
+      "targetCommandHistory": "Command History",
+      "description": "Sync the content of the command input bar to the search box of the selected panel in real-time.",
+      "success": {
+        "saved": "Sync target saved."
+      },
+      "error": {
+        "saveFailed": "Failed to save sync target."
+      }
     }
   },
   "common": {
