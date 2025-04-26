@@ -19,11 +19,9 @@ import { PasskeyRepository, PasskeyRecord } from '../repositories/passkey.reposi
 
 // 定义 Relying Party (RP) 信息 - 这些应该来自配置或设置
 const rpName = 'Nexus Terminal';
-// 重要: rpID 应该是你的网站域名 (不包含协议和端口)
-// 对于本地开发，通常是 'localhost'
-const rpID = process.env.NODE_ENV === 'development' ? 'localhost' : 'YOUR_PRODUCTION_DOMAIN'; // 需要替换为实际域名
-// 重要: origin 应该是你的前端应用的完整源 (包含协议和端口)
-const expectedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'; // 确保与前端 URL 匹配
+// rpID 和 expectedOrigin 将从请求动态获取，不再在此处硬编码
+// const rpID = process.env.NODE_ENV === 'development' ? 'localhost' : 'YOUR_PRODUCTION_DOMAIN';
+// const expectedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 export class PasskeyService {
     private passkeyRepository: PasskeyRepository;
@@ -36,10 +34,13 @@ export class PasskeyService {
 
     /**
      * 生成 Passkey 注册选项 (挑战)
+     * @param hostname 请求的主机名 (例如 'myapp.example.com' 或 'localhost')
+     * @param userName WebAuthn 需要的用户名
      */
-    async generateRegistrationOptions(userName: string = 'nexus-user') { // WebAuthn 需要一个用户名
+    async generateRegistrationOptions(hostname: string, userName: string = 'nexus-user') {
         // 暂时不获取已存在的凭证，允许同一用户注册多个设备
 
+        const rpID = hostname; // 使用请求的主机名作为 RP ID
 
         const options: GenerateRegistrationOptionsOpts = {
             rpName,
@@ -64,19 +65,26 @@ export class PasskeyService {
      * 验证 Passkey 注册响应
      * @param registrationResponse 来自客户端的注册响应
      * @param expectedChallenge 之前生成的、临时存储的挑战
+     * @param hostname 请求的主机名
+     * @param origin 请求的源 (例如 'https://myapp.example.com' 或 'http://localhost:5173')
      * @param passkeyName 用户为这个 Passkey 起的名字 (可选)
      */
     async verifyRegistration(
         registrationResponse: RegistrationResponseJSON,
         expectedChallenge: string,
+        hostname: string,
+        origin: string,
         passkeyName?: string
     ): Promise<VerifiedRegistrationResponse> {
+
+        const expectedRPID = hostname;
+        const expectedOrigin = origin;
 
         const verificationOptions: VerifyRegistrationResponseOpts = {
             response: registrationResponse,
             expectedChallenge: expectedChallenge,
             expectedOrigin: expectedOrigin,
-            expectedRPID: rpID,
+            expectedRPID: expectedRPID,
             requireUserVerification: true, // 强制要求用户验证, simplewebauthn defaults this to true now
         };
 
@@ -120,9 +128,11 @@ export class PasskeyService {
 
     /**
      * 生成 Passkey 认证选项 (挑战)
+     * @param hostname 请求的主机名
      */
-    async generateAuthenticationOptions(): Promise<ReturnType<typeof generateAuthenticationOptions>> {
+    async generateAuthenticationOptions(hostname: string): Promise<ReturnType<typeof generateAuthenticationOptions>> {
 
+        const rpID = hostname;
 
         const options: GenerateAuthenticationOptionsOpts = {
             rpID,
@@ -142,10 +152,14 @@ export class PasskeyService {
      * 验证 Passkey 认证响应
      * @param authenticationResponse 来自客户端的认证响应
      * @param expectedChallenge 之前生成的、临时存储的挑战
+     * @param hostname 请求的主机名
+     * @param origin 请求的源
      */
     async verifyAuthentication(
         authenticationResponse: AuthenticationResponseJSON,
-        expectedChallenge: string
+        expectedChallenge: string,
+        hostname: string,
+        origin: string
     ): Promise<VerifiedAuthenticationResponse> {
 
         const credentialIdBase64Url = authenticationResponse.id; // 客户端传回的 ID 已经是 Base64URL
@@ -155,12 +169,14 @@ export class PasskeyService {
             throw new Error(`未找到 Credential ID 为 ${credentialIdBase64Url} 的认证器`);
         }
 
+        const expectedRPID = hostname;
+        const expectedOrigin = origin;
 
         const verificationOptions: VerifyAuthenticationResponseOpts = {
             response: authenticationResponse,
             expectedChallenge: expectedChallenge,
             expectedOrigin: expectedOrigin,
-            expectedRPID: rpID,
+            expectedRPID: expectedRPID,
 
             authenticator: {
                 credentialID: Buffer.from(authenticator.credential_id, 'base64url'),

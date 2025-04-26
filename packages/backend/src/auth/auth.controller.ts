@@ -423,7 +423,13 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
     }
 
     try {
-        const options = await passkeyService.generateRegistrationOptions(username);
+        // 从请求中获取 hostname
+        const hostname = req.hostname;
+        // 注意: 确保 Express 配置了 'trust proxy' 如果应用在反向代理后面，
+        // 否则 req.hostname 可能返回不正确的值 (例如 'localhost')。
+        // 可以在 Express 初始化时设置 app.set('trust proxy', true);
+
+        const options = await passkeyService.generateRegistrationOptions(hostname, username);
 
         // 将 challenge 存储在 session 中，用于后续验证
         req.session.currentChallenge = options.challenge;
@@ -462,9 +468,19 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
     delete req.session.currentChallenge;
 
     try {
+        // 从请求中获取 hostname 和 origin
+        const hostname = req.hostname;
+        // 尝试从 Origin header 获取，如果不存在，则根据协议和主机名构造
+        const originHeader = req.get('origin');
+        const origin = originHeader || `${req.protocol}://${req.get('host')}`; // req.get('host') 包含端口
+
+        // 再次提醒: 确保 Express 配置了 'trust proxy'
+
         const verification = await passkeyService.verifyRegistration(
             registrationResponse,
             expectedChallenge,
+            hostname,
+            origin,
             name
         );
 
