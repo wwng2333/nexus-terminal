@@ -232,9 +232,10 @@ export class PasskeyService {
                 credentialID: Buffer.from(authenticator.credential_id, 'base64url'),
                 credentialPublicKey: Buffer.from(authenticator.public_key, 'base64url'),
                 counter: authenticator.counter,
-                transports: authenticator.transports ? JSON.parse(authenticator.transports) : undefined,
+                // Temporarily remove transports to test if it causes issues
+                // transports: authenticator.transports ? JSON.parse(authenticator.transports) : undefined,
             },
-            requireUserVerification: true,
+            requireUserVerification: true, // Keep user verification requirement
         } as any;
         // Log the constructed verificationOptions, especially the authenticator part
         console.log(`[PasskeyService VerifyAuth] Constructed verificationOptions for library: ${JSON.stringify(verificationOptions, null, 2)}`);
