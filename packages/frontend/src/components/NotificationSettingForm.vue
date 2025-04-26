@@ -211,14 +211,14 @@ import {
     NotificationSetting,
     NotificationEvent,
     WebhookConfig,
-    EmailConfig, // Keep this, but we'll add SMTP fields
+    EmailConfig,
     TelegramConfig
 } from '../types/server.types';
 import { useI18n } from 'vue-i18n';
 
-// Extend EmailConfig for SMTP fields
-interface SmtpEmailConfig extends Omit<EmailConfig, 'subjectTemplate'> { // Omit subjectTemplate from base
-    bodyTemplate?: string; // Add bodyTemplate
+
+interface SmtpEmailConfig extends Omit<EmailConfig, 'subjectTemplate'> {
+    bodyTemplate?: string; 
     smtpHost?: string;
     smtpPort?: number;
     smtpSecure?: boolean;
