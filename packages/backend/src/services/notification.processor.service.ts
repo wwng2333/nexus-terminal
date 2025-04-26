@@ -215,29 +215,12 @@ class NotificationProcessorService extends EventEmitter {
         // Use user-defined template first, then the GENERIC fallback
         switch (setting.channel_type) {
             case 'email':
-console.log(`[NotificationProcessor NEW DEBUG] Raw setting.config:`, JSON.stringify(setting.config));
-
-
-console.log(`[NotificationProcessor NEW DEBUG] Parsed emailConfig:`, JSON.stringify(emailConfig));
-if (emailConfig && typeof emailConfig === 'object') {
-                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig.subjectTemplate:`, emailConfig.subjectTemplate);
-                } else {
-                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig is not a valid object.`);
-                }
-
                 const emailConfig = setting.config as EmailConfig;
                 // Subject is now fixed to the translated event name
-if (emailConfig && typeof emailConfig === 'object') {
-                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig.subjectTemplate:`, emailConfig.subjectTemplate);
-                } else {
-                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig is not a valid object.`);
-                }
                 subject = translatedEvent;
 
-                // Use user-defined template (from subjectTemplate field) for the BODY, or generic fallback
-
-                
-                const bodyTemplate = emailConfig.subjectTemplate || genericEmailBody;
+                // Use user-defined template (from bodyTemplate field) for the BODY, or generic fallback
+                const bodyTemplate = emailConfig?.bodyTemplate || genericEmailBody; // Use optional chaining and correct property
                 body = this.interpolate(bodyTemplate, baseInterpolationData);
                 break;
 
