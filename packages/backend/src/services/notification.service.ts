@@ -268,27 +268,22 @@ export class NotificationService {
     async sendNotification(event: NotificationEvent, details?: Record<string, any> | string): Promise<void> {
         console.log(`[通知] 事件触发: ${event}`, details || '');
 
-        let userLang = defaultLng; // Start with default
-
-        // --- 修改开始 ---
-        // 如果是设置更新事件，并且更新了语言，直接从 details 中获取新语言值
-        if (event === 'SETTINGS_UPDATED' && typeof details === 'object' && details?.updatedKeys?.includes('language') && typeof details?.language === 'string' && supportedLngs.includes(details.language)) {
-             userLang = details.language;
-             console.log(`[通知] 事件 ${event} 检测到语言更新，直接使用新值 '${userLang}' (来自事件详情)`);
-        } else {
-            // 对于其他事件或未更新语言的设置更新，才从数据库查询
-            try {
-                const langSetting = await settingsService.getSetting('language');
-                if (langSetting && supportedLngs.includes(langSetting)) {
-                    userLang = langSetting;
-                }
-            } catch (error) {
-                console.error(`[通知] 获取事件 ${event} 的语言设置时出错:`, error);
+        let userLang = defaultLng;
+        try {
+            const langSetting = await settingsService.getSetting('language');
+            // --- 添加调试日志 ---
+            console.log(`[通知调试] 刚从数据库获取的 langSetting: ${langSetting}`);
+            // --- 结束调试日志 ---
+            if (langSetting && supportedLngs.includes(langSetting)) {
+                userLang = langSetting;
             }
-            console.log(`[通知] 事件 ${event} 使用语言 '${userLang}' (来自数据库或默认)`);
+        } catch (error) {
+            console.error(`[通知] 获取事件 ${event} 的语言设置时出错:`, error);
         }
-        // --- 修改结束 ---
-
+        // --- 添加调试日志 ---
+        console.log(`[通知调试] 最终决定使用的 userLang: ${userLang}`);
+        // --- 结束调试日志 ---
+        console.log(`[通知] 事件 ${event} 使用语言 '${userLang}'`);
 
         const payload: NotificationPayload = {
             event,

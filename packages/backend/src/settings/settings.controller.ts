@@ -62,8 +62,8 @@ export const settingsController = {
           } else {
               auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys });
               notificationService.sendNotification('SETTINGS_UPDATED', { updatedKeys }); // 添加通知调用
-          }
-      }
+            }
+        }
       res.status(200).json({ message: '设置已成功更新' });
     } catch (error: any) {
       console.error('更新设置时出错:', error);
