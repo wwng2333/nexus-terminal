@@ -150,7 +150,7 @@ onMounted(() => {
 
          <!-- CAPTCHA Area -->
          <!-- 恢复原始的 v-if 条件 -->
-         <div v-if="publicCaptchaConfig?.enabled && !loginRequires2FA" class="space-y-2">
+         <div v-if="publicCaptchaConfig && publicCaptchaConfig.enabled && !loginRequires2FA" class="space-y-2">
             <!-- 提示标签 -->
             <label class="block text-sm font-medium text-text-secondary">{{ t('login.captchaPrompt') }}</label>
             <!-- hCaptcha Component -->
