@@ -124,3 +124,26 @@ export const uploadTerminalBackgroundController = async (req: Request, res: Resp
 // 导出 multer 中间件以便在路由中使用
 export const uploadPageBackgroundMiddleware = backgroundUpload.single('pageBackgroundFile');
 export const uploadTerminalBackgroundMiddleware = backgroundUpload.single('terminalBackgroundFile');
+/**
+ * 移除页面背景图片
+ */
+export const removePageBackgroundController = async (req: Request, res: Response): Promise<void> => {
+    try {
+        await appearanceService.removePageBackground();
+        res.status(200).json({ message: '页面背景已移除' });
+    } catch (error: any) {
+        res.status(500).json({ message: '移除页面背景失败', error: error.message });
+    }
+};
+
+/**
+ * 移除终端背景图片
+ */
+export const removeTerminalBackgroundController = async (req: Request, res: Response): Promise<void> => {
+    try {
+        await appearanceService.removeTerminalBackground();
+        res.status(200).json({ message: '终端背景已移除' });
+    } catch (error: any) {
+        res.status(500).json({ message: '移除终端背景失败', error: error.message });
+    }
+};

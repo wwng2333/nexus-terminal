@@ -27,6 +27,10 @@ router.post(
     appearanceController.uploadTerminalBackgroundController
 );
 
-// TODO: 可能需要添加删除背景图片的路由
+// DELETE /api/v1/appearance/background/page - 删除页面背景图片
+router.delete('/background/page', appearanceController.removePageBackgroundController);
+
+// DELETE /api/v1/appearance/background/terminal - 删除终端背景图片
+router.delete('/background/terminal', appearanceController.removeTerminalBackgroundController);
 
 export default router;

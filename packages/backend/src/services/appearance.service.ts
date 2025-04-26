@@ -1,3 +1,5 @@
+import fs from 'fs/promises'; // 使用 promises API
+import path from 'path';
 import * as appearanceRepository from '../repositories/appearance.repository';
 import { AppearanceSettings, UpdateAppearanceDto } from '../types/appearance.types';
 import * as terminalThemeRepository from '../repositories/terminal-theme.repository';
@@ -65,6 +67,74 @@ export const updateSettings = async (settingsDto: UpdateAppearanceDto): Promise<
   // TODO: 如果实现了背景图片上传，这里需要处理文件路径或 URL 的验证/保存逻辑
 
   return appearanceRepository.updateAppearanceSettings(settingsDto);
+};
+/**
+ * 移除页面背景图片
+ * 1. 获取当前设置中的文件路径
+ * 2. 如果路径存在，删除文件系统中的文件
+ * 3. 更新数据库中的路径为空字符串
+ */
+export const removePageBackground = async (): Promise<boolean> => {
+    const currentSettings = await getSettings();
+    const filePath = currentSettings.pageBackgroundImage;
+
+    if (filePath) {
+        // 构建文件的绝对路径
+        // 注意：这里的路径拼接逻辑需要与上传时的逻辑一致
+        // 假设 filePath 是相对于项目根目录的 /uploads/backgrounds/xxx
+        const absolutePath = path.join(__dirname, '../../', filePath); // 调整相对路径层级
+
+        try {
+            await fs.unlink(absolutePath);
+            console.log(`[AppearanceService] 已删除页面背景文件: ${absolutePath}`);
+        } catch (error: any) {
+            // 如果文件不存在或其他删除错误，记录日志但继续执行以清空数据库记录
+            if (error.code === 'ENOENT') {
+                console.warn(`[AppearanceService] 尝试删除页面背景文件但未找到: ${absolutePath}`);
+            } else {
+                console.error(`[AppearanceService] 删除页面背景文件时出错 (${absolutePath}):`, error);
+                // 可以选择抛出错误，或者仅记录并继续
+                // throw new Error(`删除页面背景文件失败: ${error.message}`);
+            }
+        }
+    } else {
+        console.log('[AppearanceService] 没有页面背景文件路径需要删除。');
+    }
+
+    // 无论文件删除是否成功（或文件是否存在），都尝试清空数据库记录
+    return updateSettings({ pageBackgroundImage: '' });
+};
+
+/**
+ * 移除终端背景图片
+ * 1. 获取当前设置中的文件路径
+ * 2. 如果路径存在，删除文件系统中的文件
+ * 3. 更新数据库中的路径为空字符串
+ */
+export const removeTerminalBackground = async (): Promise<boolean> => {
+    const currentSettings = await getSettings();
+    const filePath = currentSettings.terminalBackgroundImage;
+
+    if (filePath) {
+        const absolutePath = path.join(__dirname, '../../', filePath); // 调整相对路径层级
+
+        try {
+            await fs.unlink(absolutePath);
+            console.log(`[AppearanceService] 已删除终端背景文件: ${absolutePath}`);
+        } catch (error: any) {
+            if (error.code === 'ENOENT') {
+                console.warn(`[AppearanceService] 尝试删除终端背景文件但未找到: ${absolutePath}`);
+            } else {
+                console.error(`[AppearanceService] 删除终端背景文件时出错 (${absolutePath}):`, error);
+                // throw new Error(`删除终端背景文件失败: ${error.message}`);
+            }
+        }
+    } else {
+         console.log('[AppearanceService] 没有终端背景文件路径需要删除。');
+    }
+
+    // 无论文件删除是否成功（或文件是否存在），都尝试清空数据库记录
+    return updateSettings({ terminalBackgroundImage: '' });
 };
 
 

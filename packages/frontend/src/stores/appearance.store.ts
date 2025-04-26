@@ -427,14 +427,30 @@ export const useAppearanceStore = defineStore('appearance', () => {
      * 移除页面背景
      */
     async function removePageBackground() {
-        await updateAppearanceSettings({ pageBackgroundImage: '' }); // 设置为空字符串或其他表示移除的值
+        try {
+            // 先调用后端删除接口
+            await apiClient.delete('/appearance/background/page');
+            // 成功后再更新数据库记录
+            await updateAppearanceSettings({ pageBackgroundImage: '' });
+        } catch (err: any) {
+            console.error('移除页面背景失败:', err);
+            throw new Error(err.response?.data?.message || err.message || '移除页面背景失败');
+        }
     }
 
     /**
      * 移除终端背景
      */
     async function removeTerminalBackground() {
-        await updateAppearanceSettings({ terminalBackgroundImage: '' });
+        try {
+            // 先调用后端删除接口
+            await apiClient.delete('/appearance/background/terminal');
+            // 成功后再更新数据库记录
+            await updateAppearanceSettings({ terminalBackgroundImage: '' });
+        } catch (err: any) {
+            console.error('移除终端背景失败:', err);
+            throw new Error(err.response?.data?.message || err.message || '移除终端背景失败');
+        }
     }
 
 
