@@ -126,16 +126,19 @@ export class PasskeyService {
 
             // Log the critical fields BEFORE using them
             // 从嵌套的 credential 对象中获取 id 和 publicKey
+            // 从嵌套的 credential 对象中获取 id, publicKey 和 counter
             const credentialId = registrationInfo.credential?.id;
             const credentialPublicKey = registrationInfo.credential?.publicKey;
-            const counter = registrationInfo.counter; // counter 仍在顶层
+            const counter = registrationInfo.credential?.counter; // counter 也在 credential 内部
 
             console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credential.id): Type=${typeof credentialId}, Value=${credentialId}`);
             console.log(`[PasskeyService VerifyReg] BEFORE Buffer.from(credential.publicKey): Type=${typeof credentialPublicKey}, Value=${credentialPublicKey}`);
+            console.log(`[PasskeyService VerifyReg] Extracted counter: Type=${typeof counter}, Value=${counter}`); // Log counter
 
-            if (!credentialId || !credentialPublicKey) {
-                 console.error('[PasskeyService VerifyReg] Error: credential.id or credential.publicKey is missing in registrationInfo.');
-                 throw new Error('Verification successful, but credential ID or Public Key is missing in registration info.');
+            // 检查所有必要字段
+            if (!credentialId || !credentialPublicKey || counter === undefined || counter === null) {
+                 console.error('[PasskeyService VerifyReg] Error: credential.id, credential.publicKey, or counter is missing or invalid in registrationInfo.');
+                 throw new Error('Verification successful, but credential ID, Public Key, or Counter is missing or invalid in registration info.');
             }
 
 
