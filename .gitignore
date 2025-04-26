@@ -147,3 +147,10 @@ dist
 
 # Build/Distribution scripts
 dist-scripts/
+
+# Sub-package specific ignores
+/packages/backend/node_modules/
+/packages/backend/dist/
+/packages/frontend/node_modules/
+/packages/frontend/dist/
+/packages/frontend/.vite/
