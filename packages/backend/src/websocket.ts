@@ -7,8 +7,9 @@ import { getDbInstance } from './database/connection';
 import { SftpService } from './services/sftp.service';
 import { StatusMonitorService } from './services/status-monitor.service';
 import * as SshService from './services/ssh.service';
-import { DockerService } from './services/docker.service'; 
+import { DockerService } from './services/docker.service';
 import { AuditLogService } from './services/audit.service';
+import { NotificationService } from './services/notification.service'; // 添加导入
 import { settingsService } from './services/settings.service';
 
 // 扩展 WebSocket 类型以包含会话 ID
@@ -138,6 +139,7 @@ export const clientStates = new Map<string, ClientState>();
 const sftpService = new SftpService(clientStates);
 const statusMonitorService = new StatusMonitorService(clientStates);
 const auditLogService = new AuditLogService(); // 实例化 AuditLogService
+const notificationService = new NotificationService(); // 添加实例
 const dockerService = new DockerService(); // 实例化 DockerService (主要用于类型或未来可能的本地调用)
 
 /**
@@ -527,6 +529,13 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                     sessionId: newSessionId,
                                     ip: newState.ipAddress
                                 });
+                                notificationService.sendNotification('SSH_CONNECT_SUCCESS', { // 添加通知调用
+                                    userId: ws.userId,
+                                    username: ws.username,
+                                    connectionId: dbConnectionId,
+                                    sessionId: newSessionId,
+                                    ip: newState.ipAddress
+                                });
 
                                 // 7. 异步初始化 SFTP 和启动状态监控
                                 console.log(`WebSocket: 会话 ${newSessionId} 正在异步初始化 SFTP...`);
@@ -620,6 +629,14 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                     ip: newState.ipAddress,
                                     reason: shellError.message
                                 });
+                                notificationService.sendNotification('SSH_SHELL_FAILURE', { // 添加通知调用
+                                    userId: ws.userId,
+                                    username: ws.username,
+                                    connectionId: dbConnectionId,
+                                    sessionId: newSessionId,
+                                    ip: newState.ipAddress,
+                                    reason: shellError.message
+                                });
                                 ws.send(JSON.stringify({ type: 'ssh:error', payload: `打开 Shell 失败: ${shellError.message}` }));
                                 cleanupClientConnection(newSessionId);
                             }
@@ -645,8 +662,15 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                 ip: clientIp,
                                 reason: connectError.message
                             });
+                            notificationService.sendNotification('SSH_CONNECT_FAILURE', { // 添加通知调用
+                                userId: ws.userId,
+                                username: ws.username,
+                                connectionId: dbConnectionId,
+                                ip: clientIp,
+                                reason: connectError.message
+                            });
                             ws.send(JSON.stringify({ type: 'ssh:error', payload: `连接失败: ${connectError.message}` }));
-                        }
+                    }
                         break;
                     } 
 

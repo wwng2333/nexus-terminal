@@ -62,7 +62,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
                     const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
                     ipBlacklistService.recordFailedAttempt(clientIp);
                     auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
-                    notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
+                    // notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp }); // 保留原有调用，因为这里已经有了
                     res.status(401).json({ message: 'CAPTCHA 验证失败。' });
                     return; 
                 }
@@ -89,8 +89,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             ipBlacklistService.recordFailedAttempt(clientIp);
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
-            // 发送登录失败通知
-            notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
+            // 发送登录失败通知 (保留原有调用)
+            // notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
@@ -104,8 +104,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             ipBlacklistService.recordFailedAttempt(clientIp);
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
-            // 发送登录失败通知
-            notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
+            // 发送登录失败通知 (保留原有调用)
+            // notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
@@ -126,6 +126,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             ipBlacklistService.resetAttempts(clientIp);
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('LOGIN_SUCCESS', { userId: user.id, username, ip: clientIp });
+            notificationService.sendNotification('LOGIN_SUCCESS', { userId: user.id, username, ip: clientIp }); // 添加通知调用
             req.session.userId = user.id;
             req.session.username = user.username;
             req.session.requiresTwoFactor = false; // 明确标记不需要 2FA
@@ -235,6 +236,7 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
             ipBlacklistService.resetAttempts(clientIp);
             // 记录审计日志 (2FA 成功也算登录成功) (添加 IP)
             auditLogService.logAction('LOGIN_SUCCESS', { userId: user.id, username: user.username, ip: clientIp, twoFactor: true });
+            notificationService.sendNotification('LOGIN_SUCCESS', { userId: user.id, username: user.username, ip: clientIp, twoFactor: true }); // 添加通知调用
             // 验证成功，建立完整会话
             req.session.username = user.username;
             req.session.requiresTwoFactor = false; // 标记 2FA 已完成
@@ -261,6 +263,7 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
             ipBlacklistService.recordFailedAttempt(clientIp);
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('LOGIN_FAILURE', { userId: user.id, username: user.username, reason: 'Invalid 2FA token', ip: clientIp });
+            notificationService.sendNotification('LOGIN_FAILURE', { userId: user.id, username: user.username, reason: 'Invalid 2FA token', ip: clientIp }); // 添加通知调用
             res.status(401).json({ message: '验证码无效。' });
         }
 
@@ -336,6 +339,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
         // 记录审计日志 (添加 IP)
         auditLogService.logAction('PASSWORD_CHANGED', { userId, ip: clientIp });
+        notificationService.sendNotification('PASSWORD_CHANGED', { userId, ip: clientIp }); // 添加通知调用
 
         res.status(200).json({ message: '密码已成功修改。' });
 
@@ -470,6 +474,7 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
              // 记录审计日志 (添加 IP)
             const regInfo: any = verification.registrationInfo;
             auditLogService.logAction('PASSKEY_REGISTERED', { userId, passkeyId: regInfo.credentialID, name, ip: clientIp });
+            notificationService.sendNotification('PASSKEY_REGISTERED', { userId, passkeyId: regInfo.credentialID, name, ip: clientIp }); // 添加通知调用
             res.status(201).json({ message: 'Passkey 注册成功！', verified: true });
         } else {
             console.error(`用户 ${userId} Passkey 注册验证失败:`, verification);
@@ -531,6 +536,7 @@ export const verifyAndActivate2FA = async (req: Request, res: Response): Promise
             const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('2FA_ENABLED', { userId, ip: clientIp });
+            notificationService.sendNotification('2FA_ENABLED', { userId, ip: clientIp }); // 添加通知调用
 
             // 清除 session 中的临时密钥
             delete req.session.tempTwoFactorSecret;
@@ -594,6 +600,7 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
         const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
         // 记录审计日志 (添加 IP)
         auditLogService.logAction('2FA_DISABLED', { userId, ip: clientIp });
+        notificationService.sendNotification('2FA_DISABLED', { userId, ip: clientIp }); // 添加通知调用
 
         res.status(200).json({ message: '两步验证已成功禁用。' });
 
@@ -679,6 +686,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
         const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
         // 记录审计日志 (添加 IP)
         auditLogService.logAction('ADMIN_SETUP_COMPLETE', { userId: newUser.id, username, ip: clientIp });
+        notificationService.sendNotification('ADMIN_SETUP_COMPLETE', { userId: newUser.id, username, ip: clientIp }); // 添加通知调用
 
         res.status(201).json({ message: '初始管理员账号创建成功！' });
 
@@ -708,6 +716,7 @@ export const logout = (req: Request, res: Response): void => {
             if (userId) { // 仅在能获取到 userId 时记录
                  const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
                  auditLogService.logAction('LOGOUT', { userId, username, ip: clientIp });
+                 notificationService.sendNotification('LOGOUT', { userId, username, ip: clientIp }); // 添加通知调用
             }
             res.status(200).json({ message: '已成功登出。' });
         }

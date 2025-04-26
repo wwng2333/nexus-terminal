@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { settingsService } from '../services/settings.service';
 import { AuditLogService } from '../services/audit.service';
+import { NotificationService } from '../services/notification.service'; // 添加导入
 import { ipBlacklistService } from '../services/ip-blacklist.service';
 import { UpdateSidebarConfigDto, UpdateCaptchaSettingsDto, CaptchaSettings } from '../types/settings.types'; // <-- Import CAPTCHA types
 
 const auditLogService = new AuditLogService();
+const notificationService = new NotificationService(); // 添加实例
 
 export const settingsController = {
   /**
@@ -59,6 +61,7 @@ export const settingsController = {
               auditLogService.logAction('IP_WHITELIST_UPDATED', { updatedKeys });
           } else {
               auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys });
+              notificationService.sendNotification('SETTINGS_UPDATED', { updatedKeys }); // 添加通知调用
           }
       }
       res.status(200).json({ message: '设置已成功更新' });

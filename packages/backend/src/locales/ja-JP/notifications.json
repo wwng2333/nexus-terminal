@@ -1,19 +1,19 @@
 {
     "testNotification": {
-      "subject": "星枢ターミナル テスト通知 ({eventDisplay})",
+      "subject": "星枢ターミナル テスト通知 ({event})",
       "email": {
-        "body": "これは、星枢ターミナルからのイベント'{{eventDisplay}}'に関するテストメールです。\n\nこのメールを受信した場合、SMTP 設定は正常に機能しています。\n\nタイムスタンプ: {{timestamp}}",
-        "bodyHtml": "<p>これは、<b>星枢ターミナル</b>からのイベント'{{eventDisplay}}'に関するテストメールです。</p><p>このメールを受信した場合、SMTP 設定は正常に機能しています。</p><p>タイムスタンプ: {{timestamp}}</p>"
+        "body": "これは、星枢ターミナルからのイベント'{{event}}'に関するテストメールです。\n\nこのメールを受信した場合、SMTP 設定は正常に機能しています。\n\nタイムスタンプ: {{timestamp}}",
+        "bodyHtml": "<p>これは、<b>星枢ターミナル</b>からのイベント'{{event}}'に関するテストメールです。</p><p>このメールを受信した場合、SMTP 設定は正常に機能しています。</p><p>タイムスタンプ: {{timestamp}}</p>"
       },
       "webhook": {
-        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Webhook - i18n) です。 イベント：'{{eventDisplay}}'。"
+        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Webhook - i18n) です。 イベント：'{{event}}'。"
       },
       "telegram": {
-        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Telegram - i18n) です。 イベント：'{{eventDisplay}}'。",
-        "bodyTemplate": "*星枢ターミナル テスト通知*\nイベント: `{eventDisplay}`\nタイムスタンプ: {timestamp}\n詳細:\n```\n{details}\n```"
+        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Telegram - i18n) です。 イベント：'{{event}}'。",
+        "bodyTemplate": "*星枢ターミナル テスト通知*\nイベント: `{event}`\nタイムスタンプ: {timestamp}\n詳細:\n```\n{details}\n```"
       }
     },
-    "eventDisplay": {
+    "event": {
       "LOGIN_SUCCESS": "ログイン成功",
       "LOGIN_FAILURE": "ログイン失敗",
       "LOGOUT": "ログアウト",
@@ -49,7 +49,7 @@
       "ADMIN_SETUP_COMPLETE": "初期管理者設定完了"
     },
     "eventBody": {
-      "SETTINGS_UPDATED": "イベント: {{eventDisplay}}\nタイムスタンプ: {{timestamp}}\n詳細:\n{{details}}"
+      "SETTINGS_UPDATED": "イベント: {{event}}\nタイムスタンプ: {{timestamp}}\n詳細:\n{{details}}"
     },
     "connection": {
       "testSuccess": "接続 '{{name}}' のテストに成功しました！",

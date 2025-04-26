@@ -1,19 +1,19 @@
 {
   "testNotification": {
-    "subject": "星枢终端测试通知 ({eventDisplay})",
+    "subject": "星枢终端测试通知 ({event})",
     "email": {
-      "body": "这是一封来自星枢终端关于事件 '{{eventDisplay}}' 的测试邮件。\n\n如果您收到此邮件，表示您的 SMTP 配置工作正常。\n\n时间戳: {{timestamp}}",
-      "bodyHtml": "<p>这是一封来自 <b>星枢终端</b> 关于事件 '{{eventDisplay}}' 的测试邮件。</p><p>如果您收到此邮件，表示您的 SMTP 配置工作正常。</p><p>时间戳: {{timestamp}}</p>" 
+      "body": "这是一封来自星枢终端关于事件 '{{event}}' 的测试邮件。\n\n如果您收到此邮件，表示您的 SMTP 配置工作正常。\n\n时间戳: {{timestamp}}",
+      "bodyHtml": "<p>这是一封来自 <b>星枢终端</b> 关于事件 '{{event}}' 的测试邮件。</p><p>如果您收到此邮件，表示您的 SMTP 配置工作正常。</p><p>时间戳: {{timestamp}}</p>"
     },
     "webhook": {
-      "detailsMessage": "这是一条来自星枢终端的测试通知 (Webhook - i18n)，事件：'{{eventDisplay}}'。"
+      "detailsMessage": "这是一条来自星枢终端的测试通知 (Webhook - i18n)，事件：'{{event}}'。"
     },
     "telegram": {
-      "detailsMessage": "这是一条来自星枢终端的测试通知 (Telegram - i18n)，事件：'{{eventDisplay}}'。", 
-      "bodyTemplate": "*星枢终端测试通知*\n事件: `{eventDisplay}`\n时间戳: {timestamp}\n详情:\n```\n{details}\n```" 
+      "detailsMessage": "这是一条来自星枢终端的测试通知 (Telegram - i18n)，事件：'{{event}}'。",
+      "bodyTemplate": "*星枢终端测试通知*\n事件: `{event}`\n时间戳: {timestamp}\n详情:\n```\n{details}\n```"
     }
   },
-  "eventDisplay": {
+  "event": {
     "LOGIN_SUCCESS": "登录成功",
     "LOGIN_FAILURE": "登录失败",
     "LOGOUT": "登出",
@@ -51,7 +51,7 @@
   },
   "eventBody": {
     
-    "SETTINGS_UPDATED": "事件: {{eventDisplay}}\n时间戳: {{timestamp}}\n详情:\n{{details}}"
+    "SETTINGS_UPDATED": "事件: {{event}}\n时间戳: {{timestamp}}\n详情:\n{{details}}"
   },
   "connection": {
     "testSuccess": "连接 '{{name}}' 测试成功！",
