@@ -6,16 +6,16 @@ import {
   setup2FA,
   verifyAndActivate2FA,
   disable2FA,
-  getAuthStatus,     // 导入获取状态的方法
-  generatePasskeyRegistrationOptions, // 导入 Passkey 方法
-  verifyPasskeyRegistration,          // 导入 Passkey 方法
-  needsSetup,                         // 导入 needsSetup 控制器
-  setupAdmin,                         // 导入 setupAdmin 控制器
-  logout,                             // *** 新增：导入 logout 控制器 ***
-  getPublicCaptchaConfig              // <-- Import public CAPTCHA config controller
+  getAuthStatus,   
+  generatePasskeyRegistrationOptions, 
+  verifyPasskeyRegistration,
+  needsSetup,              
+  setupAdmin,                      
+  logout,                          
+  getPublicCaptchaConfig        
 } from './auth.controller';
 import { isAuthenticated } from './auth.middleware';
-import { ipBlacklistCheckMiddleware } from './ipBlacklistCheck.middleware'; // 导入 IP 黑名单检查中间件
+import { ipBlacklistCheckMiddleware } from './ipBlacklistCheck.middleware';
 
 const router = Router();
 
@@ -64,8 +64,5 @@ router.post('/passkey/verify-registration', isAuthenticated, verifyPasskeyRegist
 // POST /api/v1/auth/logout - 用户登出接口 (公开访问)
 router.post('/logout', logout);
 
-// 未来可以添加的其他认证相关路由
-// router.get('/status', getStatus); // 获取当前登录状态
-// router.post('/setup', setupAdmin); // 已移到上面
 
 export default router;

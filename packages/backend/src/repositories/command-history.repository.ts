@@ -1,5 +1,4 @@
-// packages/backend/src/repositories/command-history.repository.ts
-import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection'; // Import new async helpers
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
 // 定义命令历史记录的接口
 export interface CommandHistoryEntry {
@@ -8,7 +7,6 @@ export interface CommandHistoryEntry {
     timestamp: number; // Unix 时间戳 (秒)
 }
 
-// Define the expected row structure from the database if it matches CommandHistoryEntry
 type DbCommandHistoryRow = CommandHistoryEntry;
 
 /**
@@ -94,7 +92,7 @@ export const clearAllCommands = async (): Promise<number> => {
     try {
         const db = await getDbInstance();
         const result = await runDb(db, sql);
-        return result.changes; // Return the number of deleted rows
+        return result.changes;
     } catch (err: any) {
         console.error('清空命令历史记录时出错:', err.message);
         throw new Error('无法清空命令历史记录');

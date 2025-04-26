@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import * as terminalThemeService from '../services/terminal-theme.service';
 import { CreateTerminalThemeDto, UpdateTerminalThemeDto } from '../types/terminal-theme.types';
 import type { ITheme } from 'xterm';
-import multer from 'multer'; // 用于处理文件上传
+import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 

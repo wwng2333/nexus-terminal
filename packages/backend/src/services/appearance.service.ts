@@ -1,6 +1,6 @@
 import * as appearanceRepository from '../repositories/appearance.repository';
 import { AppearanceSettings, UpdateAppearanceDto } from '../types/appearance.types';
-import * as terminalThemeRepository from '../repositories/terminal-theme.repository'; // 需要验证 activeTerminalThemeId
+import * as terminalThemeRepository from '../repositories/terminal-theme.repository';
 
 /**
  * 获取外观设置
@@ -67,4 +67,4 @@ export const updateSettings = async (settingsDto: UpdateAppearanceDto): Promise<
   return appearanceRepository.updateAppearanceSettings(settingsDto);
 };
 
-// 注意：背景图片上传/处理逻辑需要根据最终决定（URL vs 上传）来添加。
+

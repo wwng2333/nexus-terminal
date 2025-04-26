@@ -1,20 +1,16 @@
-// packages/backend/src/repositories/settings.repository.ts
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
-import { SidebarConfig, LayoutNode, PaneName } from '../types/settings.types'; // <-- Import LayoutNode and PaneName
-import { CaptchaSettings } from '../types/settings.types'; // <-- Import CaptchaSettings
-import * as sqlite3 from 'sqlite3'; // Import sqlite3 for Database type hint
+import { SidebarConfig, LayoutNode, PaneName } from '../types/settings.types';
+import { CaptchaSettings } from '../types/settings.types';
+import * as sqlite3 from 'sqlite3';
 
-// Define keys for specific settings
 const SIDEBAR_CONFIG_KEY = 'sidebarConfig';
-const CAPTCHA_CONFIG_KEY = 'captchaConfig'; // <-- Add key for CAPTCHA settings
+const CAPTCHA_CONFIG_KEY = 'captchaConfig';
 
 export interface Setting {
   key: string;
   value: string;
 }
 
-// Define the expected row structure from the database if different from Setting
-// In this case, it seems Setting matches the SELECT columns.
 type DbSettingRow = Setting;
 
 export const settingsRepository = {
@@ -30,13 +26,12 @@ export const settingsRepository = {
   },
 
   async getSetting(key: string): Promise<string | null> {
-    console.log(`[Repository] Attempting to get setting with key: ${key}`);
+    console.log(`[仓库] 尝试获取键为 ${key} 的设置`);
     try {
       const db = await getDbInstance();
-      // Use the correct type for the expected row structure
       const row = await getDbRow<{ value: string }>(db, 'SELECT value FROM settings WHERE key = ?', [key]);
       const value = row ? row.value : null;
-      console.log(`[Repository] Found value for key ${key}:`, value);
+      console.log(`[仓库] 找到键 ${key} 的值:`, value);
       return value;
     } catch (err: any) {
       console.error(`[Repository] 获取设置项 ${key} 时出错:`, err.message);
@@ -45,7 +40,7 @@ export const settingsRepository = {
   },
 
   async setSetting(key: string, value: string): Promise<void> {
-    const now = Math.floor(Date.now() / 1000); // Use seconds
+    const now = Math.floor(Date.now() / 1000);
     const sql = `INSERT INTO settings (key, value, created_at, updated_at)
          VALUES (?, ?, ?, ?)
          ON CONFLICT(key) DO UPDATE SET
@@ -53,27 +48,27 @@ export const settingsRepository = {
            updated_at = excluded.updated_at`;
     const params = [key, value, now, now];
 
-    console.log(`[Repository] Attempting to set setting. Key: ${key}, Value: ${value}`);
-    console.log(`[Repository] Executing SQL: ${sql} with params: ${JSON.stringify(params)}`);
+    console.log(`[仓库] 尝试设置设置项。键: ${key}, 值: ${value}`);
+    console.log(`[仓库] 执行 SQL: ${sql}，参数: ${JSON.stringify(params)}`);
 
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, params);
-      console.log(`[Repository] Successfully set setting for key: ${key}. Rows affected: ${result.changes}`);
+      console.log(`[仓库] 成功设置键为 ${key} 的设置项。影响行数: ${result.changes}`);
     } catch (err: any) {
       console.error(`[Repository] 设置设置项 ${key} 时出错:`, err.message);
       throw new Error(`设置设置项 ${key} 失败`);
     }
   },
 
-  async deleteSetting(key: string): Promise<boolean> { // Return boolean indicating success
-    console.log(`[Repository] Attempting to delete setting with key: ${key}`);
+  async deleteSetting(key: string): Promise<boolean> {
+    console.log(`[仓库] 尝试删除键为 ${key} 的设置`);
     const sql = 'DELETE FROM settings WHERE key = ?';
     try {
       const db = await getDbInstance();
       const result = await runDb(db, sql, [key]);
-      console.log(`[Repository] Successfully deleted setting for key: ${key}. Rows affected: ${result.changes}`);
-      return result.changes > 0; // Return true if a row was deleted
+      console.log(`[仓库] 成功删除键为 ${key} 的设置。影响行数: ${result.changes}`);
+      return result.changes > 0;
     } catch (err: any) {
       console.error(`[Repository] 删除设置项 ${key} 时出错:`, err.message);
       throw new Error(`删除设置项 ${key} 失败`);
@@ -81,28 +76,23 @@ export const settingsRepository = {
   },
 
   async setMultipleSettings(settings: Record<string, string>): Promise<void> {
-    console.log('[Repository] setMultipleSettings called with:', JSON.stringify(settings));
-    // Use Promise.all with the async setSetting method
-    // Note: 'this' inside map refers to the settingsRepository object correctly here
+    console.log('[仓库] 调用 setMultipleSettings，参数:', JSON.stringify(settings));
     const promises = Object.entries(settings).map(([key, value]) =>
       this.setSetting(key, value)
     );
     try {
         await Promise.all(promises);
-        console.log('[Repository] setMultipleSettings finished successfully.');
+        console.log('[仓库] setMultipleSettings 成功完成。');
     } catch (error) {
-        console.error('[Repository] setMultipleSettings failed:', error);
-        // Re-throw the error or handle it as needed
+        console.error('[仓库] setMultipleSettings 失败:', error);
         throw new Error('批量设置失败');
     }
   },
 };
 
-// --- Specific Setting Getters/Setters ---
 
 /**
  * 获取侧栏配置
- * @returns Promise<SidebarConfig> - Returns the parsed config or default
  */
 export const getSidebarConfig = async (): Promise<SidebarConfig> => {
     const defaultValue: SidebarConfig = { left: [], right: [] };
@@ -111,43 +101,37 @@ export const getSidebarConfig = async (): Promise<SidebarConfig> => {
         if (jsonString) {
             try {
                 const config = JSON.parse(jsonString);
-                // Basic validation
                 if (config && Array.isArray(config.left) && Array.isArray(config.right)) {
-                    // TODO: Add deeper validation if needed (e.g., check if items are valid PaneName)
+                    // TODO: 如果需要，添加更深入的验证（例如，检查项目是否为有效的 PaneName）
                     return config as SidebarConfig;
                 }
-                console.warn(`[SettingsRepo] Invalid sidebarConfig format found in DB: ${jsonString}. Returning default.`);
+                console.warn(`[设置仓库] 在数据库中发现无效的 sidebarConfig 格式: ${jsonString}。返回默认值。`);
             } catch (parseError) {
-                console.error(`[SettingsRepo] Failed to parse sidebarConfig JSON from DB: ${jsonString}`, parseError);
+                console.error(`[设置仓库] 从数据库解析 sidebarConfig JSON 失败: ${jsonString}`, parseError);
             }
         }
     } catch (error) {
-        console.error(`[SettingsRepo] Error fetching sidebar config setting (key: ${SIDEBAR_CONFIG_KEY}):`, error);
+        console.error(`[设置仓库] 获取侧边栏配置设置时出错 (键: ${SIDEBAR_CONFIG_KEY}):`, error);
     }
-    // Return default if not found, invalid, or error occurred
     return defaultValue;
 };
 
 /**
  * 设置侧栏配置
- * @param config - The sidebar configuration object
  */
 export const setSidebarConfig = async (config: SidebarConfig): Promise<void> => {
     try {
-        // Basic validation before stringifying
         if (!config || typeof config !== 'object' || !Array.isArray(config.left) || !Array.isArray(config.right)) {
-             throw new Error('Invalid sidebar config object provided.');
+             throw new Error('提供了无效的侧边栏配置对象。');
         }
-        // TODO: Add deeper validation if needed (e.g., check PaneName validity)
+        // TODO: 如果需要，添加更深入的验证（例如，检查 PaneName 的有效性）
         const jsonString = JSON.stringify(config);
         await settingsRepository.setSetting(SIDEBAR_CONFIG_KEY, jsonString);
     } catch (error) {
-        console.error(`[SettingsRepo] Error setting sidebar config (key: ${SIDEBAR_CONFIG_KEY}):`, error);
-        throw new Error('Failed to save sidebar configuration.');
+        console.error(`[设置仓库] 设置侧边栏配置时出错 (键: ${SIDEBAR_CONFIG_KEY}):`, error);
+        throw new Error('保存侧边栏配置失败。');
     }
 };
-
-// --- CAPTCHA Settings ---
 
 /**
  * 获取 CAPTCHA 配置
@@ -158,18 +142,16 @@ export const getCaptchaConfig = async (): Promise<CaptchaSettings> => {
         enabled: false,
         provider: 'none',
         hcaptchaSiteKey: '',
-        hcaptchaSecretKey: '', // Secret keys should ideally not have defaults stored directly here if possible
+        hcaptchaSecretKey: '',
         recaptchaSiteKey: '',
-        recaptchaSecretKey: '', // Secret keys should ideally not have defaults stored directly here if possible
+        recaptchaSecretKey: '',
     };
     try {
         const jsonString = await settingsRepository.getSetting(CAPTCHA_CONFIG_KEY);
         if (jsonString) {
             try {
                 const config = JSON.parse(jsonString);
-                // Basic validation (add more specific checks if needed)
                 if (config && typeof config.enabled === 'boolean' && typeof config.provider === 'string') {
-                     // Ensure all keys exist, even if undefined/null from older saves
                      return {
                         enabled: config.enabled ?? defaultValue.enabled,
                         provider: config.provider ?? defaultValue.provider,
@@ -179,29 +161,25 @@ export const getCaptchaConfig = async (): Promise<CaptchaSettings> => {
                         recaptchaSecretKey: config.recaptchaSecretKey ?? defaultValue.recaptchaSecretKey,
                      } as CaptchaSettings;
                 }
-                console.warn(`[SettingsRepo] Invalid captchaConfig format found in DB: ${jsonString}. Returning default.`);
+                console.warn(`[设置仓库] 在数据库中发现无效的 captchaConfig 格式: ${jsonString}。返回默认值。`);
             } catch (parseError) {
-                console.error(`[SettingsRepo] Failed to parse captchaConfig JSON from DB: ${jsonString}`, parseError);
+                console.error(`[设置仓库] 从数据库解析 captchaConfig JSON 失败: ${jsonString}`, parseError);
             }
         }
     } catch (error) {
-        console.error(`[SettingsRepo] Error fetching captcha config setting (key: ${CAPTCHA_CONFIG_KEY}):`, error);
+        console.error(`[设置仓库] 获取 CAPTCHA 配置设置时出错 (键: ${CAPTCHA_CONFIG_KEY}):`, error);
     }
-    // Return default if not found, invalid, or error occurred
     return defaultValue;
 };
 
 /**
  * 设置 CAPTCHA 配置
- * @param config - The CAPTCHA configuration object
  */
 export const setCaptchaConfig = async (config: CaptchaSettings): Promise<void> => {
     try {
-        // Basic validation before stringifying
         if (!config || typeof config !== 'object' || typeof config.enabled !== 'boolean' || typeof config.provider !== 'string') {
-             throw new Error('Invalid CAPTCHA config object provided.');
+             throw new Error('提供了无效的 CAPTCHA 配置对象。');
         }
-        // Ensure secret keys are strings, even if empty
         config.hcaptchaSecretKey = config.hcaptchaSecretKey || '';
         config.recaptchaSecretKey = config.recaptchaSecretKey || '';
         config.hcaptchaSiteKey = config.hcaptchaSiteKey || '';
@@ -210,22 +188,16 @@ export const setCaptchaConfig = async (config: CaptchaSettings): Promise<void> =
         const jsonString = JSON.stringify(config);
         await settingsRepository.setSetting(CAPTCHA_CONFIG_KEY, jsonString);
     } catch (error) {
-        console.error(`[SettingsRepo] Error setting CAPTCHA config (key: ${CAPTCHA_CONFIG_KEY}):`, error);
-        throw new Error('Failed to save CAPTCHA configuration.');
+        console.error(`[设置仓库] 设置 CAPTCHA 配置时出错 (键: ${CAPTCHA_CONFIG_KEY}):`, error);
+        throw new Error('保存 CAPTCHA 配置失败。');
     }
 };
 
-
-// --- Initialization ---
-
 /**
- * Ensures default settings exist in the settings table.
- * This function should be called during database initialization.
- * @param db - The active database instance
+ * 确保设置表中存在默认设置。
+ * 此函数应在数据库初始化期间调用。
  */
 export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<void> => {
-    // --- Define Default Structures Here ---
-    // Use OmitIdRecursive helper type if needed, or define structure without IDs
     type OmitIdRecursive<T> = T extends object
       ? { [K in keyof Omit<T, 'id'>]: OmitIdRecursive<T[K]> }
       : T;
@@ -279,36 +251,34 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
         recaptchaSecretKey: '',
     };
 
-    // --- Define All Default Settings ---
     const defaultSettings: Record<string, string> = {
         ipWhitelistEnabled: 'false',
         ipWhitelist: '',
         maxLoginAttempts: '5',
-        loginBanDuration: '300', // 5 minutes in seconds
-        focusSwitcherSequence: JSON.stringify(["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"]), // Default focus sequence
-        navBarVisible: 'true', // Default nav bar visibility
-        layoutTree: JSON.stringify(defaultLayoutTreeStructure), // Use the defined structure
-        autoCopyOnSelect: 'false', // Default auto copy setting
-        showPopupFileEditor: 'false', // Default popup editor setting
-        shareFileEditorTabs: 'true', // Default editor tab sharing
-        dockerStatusIntervalSeconds: '5', // Default Docker refresh interval
-        dockerDefaultExpand: 'false', // Default Docker expand state
-        statusMonitorIntervalSeconds: '3', // Default Status Monitor interval
-        [SIDEBAR_CONFIG_KEY]: JSON.stringify(defaultSidebarPanesStructure), // Use the defined structure
-        [CAPTCHA_CONFIG_KEY]: JSON.stringify(defaultCaptchaSettings), // Add default CAPTCHA settings
-        // Add other default settings here
+        loginBanDuration: '300',
+        focusSwitcherSequence: JSON.stringify(["quickCommandsSearch", "commandHistorySearch", "fileManagerSearch", "commandInput", "terminalSearch"]),
+        navBarVisible: 'true',
+        layoutTree: JSON.stringify(defaultLayoutTreeStructure),
+        autoCopyOnSelect: 'false',
+        showPopupFileEditor: 'false',
+        shareFileEditorTabs: 'true',
+        dockerStatusIntervalSeconds: '5',
+        dockerDefaultExpand: 'false',
+        statusMonitorIntervalSeconds: '3',
+        [SIDEBAR_CONFIG_KEY]: JSON.stringify(defaultSidebarPanesStructure),
+        [CAPTCHA_CONFIG_KEY]: JSON.stringify(defaultCaptchaSettings),
     };
     const nowSeconds = Math.floor(Date.now() / 1000);
     const sqlInsertOrIgnore = `INSERT OR IGNORE INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)`;
 
-    console.log('[SettingsRepo] Ensuring default settings exist...');
+    console.log('[设置仓库] 确保默认设置存在...');
     try {
         for (const [key, value] of Object.entries(defaultSettings)) {
             await runDb(db, sqlInsertOrIgnore, [key, value, nowSeconds, nowSeconds]);
         }
-        console.log('[SettingsRepo] Default settings check complete.');
+        console.log('[设置仓库] 默认设置检查完成。');
     } catch (err: any) {
-        console.error(`[SettingsRepo] Error ensuring default settings:`, err.message);
-        throw new Error(`Failed to ensure default settings: ${err.message}`);
+        console.error(`[设置仓库] 确保默认设置时出错:`, err.message);
+        throw new Error(`确保默认设置失败: ${err.message}`);
     }
 };

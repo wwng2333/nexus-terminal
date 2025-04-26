@@ -23,7 +23,6 @@ export const ipBlacklistCheckMiddleware = async (req: Request, res: Response, ne
             // 可以返回更通用的错误信息，避免泄露封禁状态
             res.status(403).json({ message: '访问被拒绝。' });
             // 或者返回更具体的错误
-            // res.status(429).json({ message: '尝试次数过多，请稍后再试。' });
             return; // 显式返回 void
         }
         // IP 未被封禁，继续处理请求

@@ -39,7 +39,6 @@ export class AuditController {
                  res.status(400).json({ message: '无效的 endDate 参数' });
                 return;
             }
-            // TODO: 可以添加对 actionType 是否有效的验证
 
             // 将 searchTerm 传递给 service
             const result = await auditLogService.getLogs(limit, offset, actionType, startDate, endDate, searchTerm);
@@ -52,7 +51,7 @@ export class AuditController {
                         parsedDetails = JSON.parse(log.details);
                     } catch (e) {
                         console.warn(`[Audit Log] Failed to parse details for log ID ${log.id}:`, e);
-                        parsedDetails = { raw: log.details, parseError: true }; // 保留原始字符串并标记错误
+                        parsedDetails = { raw: log.details, parseError: true };
                     }
                 }
                 return { ...log, details: parsedDetails };

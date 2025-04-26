@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { DockerService, DockerCommand } from '../services/docker.service'; // 导入服务和命令类型
+import { DockerService, DockerCommand } from '../services/docker.service';
 
 // 由于没有 typedi，我们将手动实例化服务或通过其他方式获取实例
 // 简单起见，这里直接 new 一个实例。在实际项目中，可能需要更复杂的实例管理。
@@ -55,8 +55,6 @@ export class DockerController {
            // 其他执行错误，可能是 Docker 守护进程错误等
            res.status(500).json({ message: error.message || 'Failed to execute Docker command.' }); // Internal Server Error
        }
-       // 注意：这里没有调用 next(error)，因为我们已经处理了响应。
-       // 如果希望使用统一的错误处理中间件，则应该调用 next(error)。
     }
   }
 }

@@ -1,6 +1,3 @@
-// packages/backend/src/repositories/passkey.repository.ts
-import { Database } from 'sqlite3';
-// Import new async helpers and the instance getter
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
 // 定义 Passkey 数据库记录的接口
@@ -9,18 +6,16 @@ export interface PasskeyRecord {
     credential_id: string; // Base64URL encoded
     public_key: string;    // Base64URL encoded
     counter: number;
-    transports: string | null; // JSON string or null
+    transports: string | null;
     name: string | null;
     created_at: number;
     updated_at: number;
 }
 
-// Define the expected row structure from the database if it matches PasskeyRecord
+
 type DbPasskeyRow = PasskeyRecord;
 
 export class PasskeyRepository {
-    // Remove constructor or leave it empty, db instance will be fetched in each method
-    // constructor() { }
 
     /**
      * 保存新的 Passkey 凭证
@@ -48,7 +43,6 @@ export class PasskeyRepository {
             return result.lastID;
         } catch (err: any) {
             console.error('保存 Passkey 时出错:', err.message);
-            // Handle potential UNIQUE constraint errors on credential_id
             if (err.message.includes('UNIQUE constraint failed')) {
                  throw new Error(`Credential ID "${credentialId}" 已存在。`);
             }
@@ -76,12 +70,10 @@ export class PasskeyRepository {
      * 获取所有已注册的 Passkey 记录 (仅选择必要字段)
      * @returns Promise<Partial<PasskeyRecord>[]> 所有记录的部分信息的数组
      */
-    // Adjust return type based on selected columns
     async getAllPasskeys(): Promise<Array<Pick<PasskeyRecord, 'id' | 'credential_id' | 'name' | 'transports' | 'created_at'>>> {
         const sql = `SELECT id, credential_id, name, transports, created_at FROM passkeys ORDER BY created_at DESC`;
         try {
             const db = await getDbInstance();
-            // Adjust the generic type for allDb to match the selected columns
             const rows = await allDb<Pick<PasskeyRecord, 'id' | 'credential_id' | 'name' | 'transports' | 'created_at'>>(db, sql);
             return rows;
         } catch (err: any) {
@@ -173,11 +165,3 @@ export class PasskeyRepository {
     }
 }
 
-// Export an instance or the class itself depending on usage pattern
-// If used as a singleton service, export an instance:
-// export const passkeyRepository = new PasskeyRepository();
-// If instantiated elsewhere (e.g., dependency injection), export the class:
-// export { PasskeyRepository };
-// For now, let's assume it's used like other repositories (exporting functions/class)
-// Exporting the class seems more appropriate given its structure
-// Removed redundant export below as the class is already exported with 'export class'

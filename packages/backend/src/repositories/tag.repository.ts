@@ -1,13 +1,8 @@
-// packages/backend/src/repositories/tag.repository.ts
-import { Database, Statement } from 'sqlite3'; // Keep Statement if using prepare directly, otherwise remove
-// Import new async helpers and the instance getter
+import { Database, Statement } from 'sqlite3';
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
-// Remove top-level db instance
-// const db = getDb();
 
 // 定义 Tag 类型 (可以共享到 types 文件)
-// Let's assume TagData is the correct interface for a row from the 'tags' table
 export interface TagData {
     id: number;
     name: string;
@@ -24,7 +19,7 @@ export const findAllTags = async (): Promise<TagData[]> => {
         const rows = await allDb<TagData>(db, `SELECT * FROM tags ORDER BY name ASC`);
         return rows;
     } catch (err: any) {
-        console.error('Repository: 查询标签列表时出错:', err.message);
+        console.error('[仓库] 查询标签列表时出错:', err.message);
         throw new Error('获取标签列表失败');
     }
 };
@@ -38,7 +33,7 @@ export const findTagById = async (id: number): Promise<TagData | null> => {
         const row = await getDbRow<TagData>(db, `SELECT * FROM tags WHERE id = ?`, [id]);
         return row || null;
      } catch (err: any) {
-        console.error(`Repository: 查询标签 ${id} 时出错:`, err.message);
+        console.error(`[仓库] 查询标签 ${id} 时出错:`, err.message);
         throw new Error('获取标签信息失败');
      }
  };
@@ -48,19 +43,17 @@ export const findTagById = async (id: number): Promise<TagData | null> => {
  * 创建新标签
  */
 export const createTag = async (name: string): Promise<number> => {
-    const now = Math.floor(Date.now() / 1000); // Use seconds for consistency? Check table definition
+    const now = Math.floor(Date.now() / 1000);
     const sql = `INSERT INTO tags (name, created_at, updated_at) VALUES (?, ?, ?)`;
     try {
         const db = await getDbInstance();
         const result = await runDb(db, sql, [name, now, now]);
-        // Ensure lastID is valid before returning
         if (typeof result.lastID !== 'number' || result.lastID <= 0) {
              throw new Error('创建标签后未能获取有效的 lastID');
         }
         return result.lastID;
     } catch (err: any) {
-        console.error('Repository: 创建标签时出错:', err.message);
-        // Handle unique constraint error specifically if needed
+        console.error('[仓库] 创建标签时出错:', err.message);
         if (err.message.includes('UNIQUE constraint failed')) {
              throw new Error(`标签名称 "${name}" 已存在。`);
         }
@@ -79,8 +72,7 @@ export const updateTag = async (id: number, name: string): Promise<boolean> => {
         const result = await runDb(db, sql, [name, now, id]);
         return result.changes > 0;
     } catch (err: any) {
-         console.error(`Repository: 更新标签 ${id} 时出错:`, err.message);
-         // Handle unique constraint error specifically if needed
+         console.error(`[仓库] 更新标签 ${id} 时出错:`, err.message);
          if (err.message.includes('UNIQUE constraint failed')) {
              throw new Error(`标签名称 "${name}" 已存在。`);
          }
@@ -92,15 +84,13 @@ export const updateTag = async (id: number, name: string): Promise<boolean> => {
  * 删除标签
  */
 export const deleteTag = async (id: number): Promise<boolean> => {
-    // Note: connection_tags junction table has ON DELETE CASCADE for tag_id,
-    // so related entries there will be deleted automatically.
     const sql = `DELETE FROM tags WHERE id = ?`;
     try {
         const db = await getDbInstance();
         const result = await runDb(db, sql, [id]);
         return result.changes > 0;
     } catch (err: any) {
-        console.error(`Repository: 删除标签 ${id} 时出错:`, err.message);
+        console.error(`[仓库] 删除标签 ${id} 时出错:`, err.message);
         throw new Error('删除标签失败');
     }
 };

@@ -1,6 +1,5 @@
 import * as terminalThemeRepository from '../repositories/terminal-theme.repository';
 import { TerminalTheme, CreateTerminalThemeDto, UpdateTerminalThemeDto } from '../types/terminal-theme.types';
-// import { validate } from 'class-validator'; // 移除导入
 import type { ITheme } from 'xterm';
 
 /**
@@ -85,4 +84,3 @@ export const importTheme = async (themeData: ITheme, name: string): Promise<Term
     return createNewTheme(dto);
 };
 
-// 注意：导出功能通常在 Controller 层处理，根据 ID 获取主题数据后，设置响应头并发送 JSON 文件。

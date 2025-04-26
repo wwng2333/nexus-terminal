@@ -8,13 +8,13 @@ export type AuditLogActionType =
   | '2FA_ENABLED'
   | '2FA_DISABLED'
   | 'PASSKEY_REGISTERED'
-  | 'PASSKEY_DELETED' // Assuming deletion is possible later
+  | 'PASSKEY_DELETED'
 
   // Connections
   | 'CONNECTION_CREATED'
   | 'CONNECTION_UPDATED'
   | 'CONNECTION_DELETED'
-  | 'CONNECTION_TESTED' // Maybe log test attempts?
+  | 'CONNECTION_TESTED'
   | 'CONNECTIONS_IMPORTED'
   | 'CONNECTIONS_EXPORTED'
 
@@ -31,8 +31,8 @@ export type AuditLogActionType =
   // Settings
   | 'SETTINGS_UPDATED' // General settings update
   | 'IP_WHITELIST_UPDATED' // Specific setting update
-| 'CAPTCHA_SETTINGS_UPDATED' // Specific setting update for CAPTCHA
-  // | 'FOCUS_SWITCHER_SEQUENCE_UPDATED' // Removed
+| 'CAPTCHA_SETTINGS_UPDATED'
+
 
   // Notifications
   | 'NOTIFICATION_SETTING_CREATED'
@@ -53,9 +53,9 @@ export type AuditLogActionType =
 
   // System/Error
   | 'SERVER_STARTED'
-  | 'SERVER_ERROR' // Log significant backend errors
+  | 'SERVER_ERROR'
   | 'DATABASE_MIGRATION'
-  | 'ADMIN_SETUP_COMPLETE'; // *** 新增：初始管理员设置完成 ***
+  | 'ADMIN_SETUP_COMPLETE';
 
 // 审计日志条目的结构 (从数据库读取时)
 export interface AuditLogEntry {

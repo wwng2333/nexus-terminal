@@ -3,16 +3,16 @@ import {
     Setting,
     getSidebarConfig as getSidebarConfigFromRepo,
     setSidebarConfig as setSidebarConfigInRepo,
-    getCaptchaConfig as getCaptchaConfigFromRepo, // <-- Import CAPTCHA repo getter
-    setCaptchaConfig as setCaptchaConfigInRepo, // <-- Import CAPTCHA repo setter
+    getCaptchaConfig as getCaptchaConfigFromRepo,
+    setCaptchaConfig as setCaptchaConfigInRepo,
 } from '../repositories/settings.repository';
 import {
     SidebarConfig,
     PaneName,
     UpdateSidebarConfigDto,
-    CaptchaSettings, // <-- Import CAPTCHA types
-    UpdateCaptchaSettingsDto, // <-- Import CAPTCHA types
-    CaptchaProvider, // <-- Import CAPTCHA types
+    CaptchaSettings,
+    UpdateCaptchaSettingsDto,
+    CaptchaProvider,
 } from '../types/settings.types';
 
 // +++ 定义焦点切换完整配置接口 (与前端 store 保持一致) +++
@@ -128,8 +128,6 @@ export const settingsService = {
           Object.values(config.shortcuts).every((sc: any) => typeof sc === 'object' && sc !== null && (sc.shortcut === undefined || typeof sc.shortcut === 'string'))
         ) {
           console.log('[Service] Fetched and validated full focus switcher config:', JSON.stringify(config));
-          // TODO: 可能需要进一步验证 sequence 中的 id 是否仍然有效 (存在于某个地方定义的可用 ID 列表)
-          // TODO: 可能需要进一步验证 shortcuts 中的 key 是否是有效的 ID
           return config as FocusSwitcherFullConfig;
         } else {
           console.warn('[Service] Invalid full focus switcher config format found in settings. Returning default.');

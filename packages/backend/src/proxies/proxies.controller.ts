@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
 import * as ProxyService from '../services/proxy.service';
-import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
+import { AuditLogService } from '../services/audit.service';
 
-const auditLogService = new AuditLogService(); // 实例化 AuditLogService
+const auditLogService = new AuditLogService(); 
 
-// Helper function to remove sensitive fields for response
+
 const sanitizeProxy = (proxy: ProxyService.ProxyData | null): Partial<ProxyService.ProxyData> | null => {
     if (!proxy) return null;
     const { encrypted_password, encrypted_private_key, encrypted_passphrase, ...sanitized } = proxy;
@@ -15,7 +15,6 @@ const sanitizeProxy = (proxy: ProxyService.ProxyData | null): Partial<ProxyServi
 export const getAllProxies = async (req: Request, res: Response) => {
     try {
         const proxies = await ProxyService.getAllProxies();
-        // Sanitize each proxy before sending
         res.status(200).json(proxies.map(sanitizeProxy));
     } catch (error: any) {
         console.error('Controller: 获取代理列表失败:', error);
@@ -47,7 +46,6 @@ export const getProxyById = async (req: Request, res: Response) => {
 // 创建新的代理配置
 export const createProxy = async (req: Request, res: Response) => {
     try {
-        // Basic validation (more in service)
         const { name, type, host, port } = req.body;
         if (!name || !type || !host || !port) {
             return res.status(400).json({ message: '缺少必要的代理信息 (name, type, host, port)' });
@@ -61,7 +59,7 @@ export const createProxy = async (req: Request, res: Response) => {
         auditLogService.logAction('PROXY_CREATED', { proxyId: newProxy.id, name: newProxy.name, type: newProxy.type });
         res.status(201).json({
             message: '代理创建成功',
-            proxy: sanitizeProxy(newProxy) // Return sanitized proxy
+            proxy: sanitizeProxy(newProxy)
         });
 
     } catch (error: any) {
@@ -85,7 +83,6 @@ export const updateProxy = async (req: Request, res: Response) => {
             return res.status(400).json({ message: '无效的代理 ID' });
         }
 
-        // Basic validation (more in service)
         const { name, type, host, port, username, password, auth_method, private_key, passphrase } = req.body;
         if (!name && !type && !host && port === undefined && username === undefined && password === undefined && auth_method === undefined && private_key === undefined && passphrase === undefined) {
             return res.status(400).json({ message: '没有提供任何要更新的字段' });
@@ -97,7 +94,6 @@ export const updateProxy = async (req: Request, res: Response) => {
         const updatedProxy = await ProxyService.updateProxy(proxyId, req.body);
 
         if (updatedProxy) {
-            // 记录审计日志
             auditLogService.logAction('PROXY_UPDATED', { proxyId, updatedFields: Object.keys(req.body) });
             res.status(200).json({ message: '代理更新成功', proxy: sanitizeProxy(updatedProxy) });
         } else {

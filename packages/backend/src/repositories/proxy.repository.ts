@@ -1,12 +1,5 @@
-// packages/backend/src/repositories/proxy.repository.ts
-import { Database, Statement } from 'sqlite3';
-// Import new async helpers and the instance getter
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
-// Remove top-level db instance
-// const db = getDb();
-
-// 定义 Proxy 类型 (可以共享到 types 文件)
 export interface ProxyData {
     id: number;
     name: string;
@@ -22,7 +15,6 @@ export interface ProxyData {
     updated_at: number;
 }
 
-// Define the expected row structure from the database if it matches ProxyData
 type DbProxyRow = ProxyData;
 
 /**
@@ -59,14 +51,12 @@ export const createProxy = async (data: Omit<ProxyData, 'id' | 'created_at' | 'u
     try {
         const db = await getDbInstance();
         const result = await runDb(db, sql, params);
-        // Ensure lastID is valid before returning
         if (typeof result.lastID !== 'number' || result.lastID <= 0) {
              throw new Error('创建代理后未能获取有效的 lastID');
         }
         return result.lastID;
     } catch (err: any) {
         console.error('Repository: 创建代理时出错:', err.message);
-        // Handle potential UNIQUE constraint errors if needed (e.g., on name)
         throw new Error(`创建代理时出错: ${err.message}`);
     }
 };
@@ -108,11 +98,8 @@ export const findProxyById = async (id: number): Promise<ProxyData | null> => {
 export const updateProxy = async (id: number, data: Partial<Omit<ProxyData, 'id' | 'created_at'>>): Promise<boolean> => {
     const fieldsToUpdate: { [key: string]: any } = { ...data };
     const params: any[] = [];
-
-    // Remove fields that should not be updated directly
     delete fieldsToUpdate.id;
     delete fieldsToUpdate.created_at;
-    // updated_at will be set explicitly
 
     fieldsToUpdate.updated_at = Math.floor(Date.now() / 1000);
 
@@ -121,10 +108,10 @@ export const updateProxy = async (id: number, data: Partial<Omit<ProxyData, 'id'
 
     if (!setClauses) {
         console.warn(`[Repository] updateProxy called for ID ${id} with no fields to update.`);
-        return false; // Nothing to update
+        return false;
     }
 
-    params.push(id); // Add the ID for the WHERE clause
+    params.push(id);
 
     const sql = `UPDATE proxies SET ${setClauses} WHERE id = ?`;
 
@@ -134,7 +121,6 @@ export const updateProxy = async (id: number, data: Partial<Omit<ProxyData, 'id'
         return result.changes > 0;
     } catch (err: any) {
         console.error(`Repository: 更新代理 ${id} 时出错:`, err.message);
-        // Handle potential UNIQUE constraint errors if needed
         throw new Error('更新代理记录失败');
     }
 };
@@ -143,7 +129,6 @@ export const updateProxy = async (id: number, data: Partial<Omit<ProxyData, 'id'
  * 删除代理
  */
 export const deleteProxy = async (id: number): Promise<boolean> => {
-    // Note: connections table proxy_id foreign key has ON DELETE SET NULL.
     const sql = `DELETE FROM proxies WHERE id = ?`;
     try {
         const db = await getDbInstance();

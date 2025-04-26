@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import * as TagService from '../services/tag.service';
-import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
+import { AuditLogService } from '../services/audit.service';
 
-const auditLogService = new AuditLogService(); // 实例化 AuditLogService
+const auditLogService = new AuditLogService();
 
 /**
  * 创建新标签 (POST /api/v1/tags)
@@ -23,7 +23,7 @@ export const createTag = async (req: Request, res: Response): Promise<void> => {
     } catch (error: any) {
         console.error('Controller: 创建标签时发生错误:', error);
         if (error.message.includes('已存在')) {
-            res.status(409).json({ message: error.message }); // Conflict
+            res.status(409).json({ message: error.message }); 
         } else {
             res.status(500).json({ message: error.message || '创建标签时发生内部服务器错误。' });
         }
@@ -95,7 +95,7 @@ export const updateTag = async (req: Request, res: Response): Promise<void> => {
     } catch (error: any) {
         console.error(`Controller: 更新标签 ${tagId} 时发生错误:`, error);
          if (error.message.includes('已存在')) {
-            res.status(409).json({ message: error.message }); // Conflict
+            res.status(409).json({ message: error.message });
         } else if (error.message.includes('不能为空')) {
              res.status(400).json({ message: error.message });
         }

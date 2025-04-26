@@ -13,5 +13,3 @@ export const isAuthenticated = (req: Request, res: Response, next: NextFunction)
     }
 };
 
-// 未来可以添加基于角色的授权中间件等
-// export const isAdmin = ...

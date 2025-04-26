@@ -1,7 +1,7 @@
 import i18next from 'i18next';
 import Backend from 'i18next-fs-backend';
 import path from 'path';
-import fs from 'fs'; // 导入 fs 模块
+import fs from 'fs';
 
 // --- 动态确定支持的语言 ---
 const localesDir = path.join(__dirname, 'locales');
@@ -52,9 +52,6 @@ i18next
         return console.error('[i18next] Error during initialization:', err);
     }
     console.log('[i18next] Initialization complete. Loaded languages:', Object.keys(i18next.store.data));
-    // console.log('[i18next] Example translation (en):', t('testNotification.subject', { lng: 'en' })); // Optional test
-    // console.log('[i18next] Example translation (zh):', t('testNotification.subject', { lng: 'zh' })); // Optional test
-    // console.log('[i18next] Example translation (jp):', t('testNotification.subject', { lng: 'jp' })); // Optional test for newly added lang
   });
 
 export default i18next;

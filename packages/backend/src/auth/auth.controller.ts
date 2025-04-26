@@ -1,41 +1,35 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
-// Import the instance getter and promisified helpers
 import { getDbInstance, runDb, getDb, allDb } from '../database/connection';
-import sqlite3, { RunResult } from 'sqlite3'; // Keep sqlite3 for type hints if needed
 import speakeasy from 'speakeasy';
 import qrcode from 'qrcode';
-import { PasskeyService } from '../services/passkey.service'; // 导入 PasskeyService
-import { NotificationService } from '../services/notification.service'; // 导入 NotificationService
-import { AuditLogService } from '../services/audit.service'; // 导入 AuditLogService
-import { ipBlacklistService } from '../services/ip-blacklist.service'; // 导入 IP 黑名单服务
-import { captchaService } from '../services/captcha.service'; // <-- Import CaptchaService
-import { settingsService } from '../services/settings.service'; // <-- Import SettingsService for config check
+import { PasskeyService } from '../services/passkey.service';
+import { NotificationService } from '../services/notification.service';
+import { AuditLogService } from '../services/audit.service';
+import { ipBlacklistService } from '../services/ip-blacklist.service';
+import { captchaService } from '../services/captcha.service';
+import { settingsService } from '../services/settings.service'; 
 
-// Remove top-level db instance acquisition
-// const db = getDb();
-const passkeyService = new PasskeyService(); // 实例化 PasskeyService
-const notificationService = new NotificationService(); // 实例化 NotificationService
-const auditLogService = new AuditLogService(); // 实例化 AuditLogService
 
-// 用户数据结构占位符 (理想情况下应定义在共享的 types 文件中)
+const passkeyService = new PasskeyService(); 
+const notificationService = new NotificationService(); 
+const auditLogService = new AuditLogService(); 
+
 interface User {
     id: number;
     username: string;
-    hashed_password: string; // 数据库中存储的哈希密码
-    two_factor_secret?: string | null; // 2FA 密钥 (数据库中可能为 NULL)
-    // 其他可能的字段...
+    hashed_password: string; 
+    two_factor_secret?: string | null;
 }
 
-// 扩展 SessionData 接口以包含临时的 2FA 密钥
 declare module 'express-session' {
     interface SessionData {
         userId?: number;
         username?: string;
         tempTwoFactorSecret?: string;
         requiresTwoFactor?: boolean;
-        currentChallenge?: string; // 用于存储 Passkey 操作的挑战
-        rememberMe?: boolean; // 新增：临时存储“记住我”选项
+        currentChallenge?: string; 
+        rememberMe?: boolean;
     }
 }
 
@@ -58,54 +52,39 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         if (captchaConfig.enabled) {
             const { captchaToken } = req.body;
             if (!captchaToken) {
-                console.log(`[AuthController] 登录尝试失败: CAPTCHA 已启用但未提供令牌 - ${username}`);
-                // 记录审计日志等（可选，看是否需要区分）
                 res.status(400).json({ message: '需要提供 CAPTCHA 令牌。' });
-                return; // 添加 return 语句以确保函数在此处终止
+                return; 
             }
             try {
                 const isCaptchaValid = await captchaService.verifyToken(captchaToken);
                 if (!isCaptchaValid) {
                     console.log(`[AuthController] 登录尝试失败: CAPTCHA 验证失败 - ${username}`);
                     const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
-                    ipBlacklistService.recordFailedAttempt(clientIp); // Record failed attempt for invalid CAPTCHA
+                    ipBlacklistService.recordFailedAttempt(clientIp);
                     auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
                     notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
                     res.status(401).json({ message: 'CAPTCHA 验证失败。' });
-                    return; // 添加 return 语句以确保函数在此处终止
+                    return; 
                 }
                 console.log(`[AuthController] CAPTCHA 验证成功 - ${username}`);
             } catch (captchaError: any) {
                 console.error(`[AuthController] CAPTCHA 验证过程中出错 (${username}):`, captchaError.message);
-                // 如果是配置错误或 API 请求失败，返回 500
                 res.status(500).json({ message: 'CAPTCHA 验证服务出错，请稍后重试或检查配置。' });
-                return; // 添加 return 语句以确保函数在此处终止
+                return;
             }
         } else {
             console.log(`[AuthController] CAPTCHA 未启用，跳过验证 - ${username}`);
         }
-        // --- End CAPTCHA Verification ---
 
-        const db = await getDbInstance(); // Get DB instance inside the function
-        // Use the promisified getDb helper
+
+        const db = await getDbInstance(); 
         const user = await getDb<User>(db, 'SELECT id, username, hashed_password, two_factor_secret FROM users WHERE username = ?', [username]);
 
-        /* Original callback logic replaced by await getDb
-        const user = await new Promise<User | undefined>((resolve, reject) => {
-            // 查询用户，包含 2FA 密钥
-            db.get('SELECT id, username, hashed_password, two_factor_secret FROM users WHERE username = ?', [username], (err, row: User) => {
-                if (err) {
-                    console.error('查询用户时出错:', err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row);
-            });
-        });
-        */
+     
 
         if (!user) {
             console.log(`登录尝试失败: 用户未找到 - ${username}`);
-            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; 
             // 记录失败尝试
             ipBlacklistService.recordFailedAttempt(clientIp);
             // 记录审计日志 (添加 IP)
@@ -153,11 +132,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
             // 根据 rememberMe 设置 cookie maxAge
             if (rememberMe) {
-                // 如果勾选了“记住我”，设置 cookie 有效期为 1 年 (毫秒)
-                req.session.cookie.maxAge = 315360000000; // 10 years = 10 * 365 * 24 * 60 * 60 * 1000 (Effectively permanent)
+                // 如果勾选了“记住我”，设置 cookie 有效期为 10 年 (毫秒)
+                req.session.cookie.maxAge = 315360000000;
             } else {
                 // 如果未勾选，则不设置 maxAge，使其成为会话 cookie
-                req.session.cookie.maxAge = undefined; // 或者 null
+                req.session.cookie.maxAge = undefined;
             }
 
             res.status(200).json({
@@ -190,19 +169,7 @@ export const getAuthStatus = async (req: Request, res: Response): Promise<void> 
         // 查询用户的 2FA 状态 using promisified getDb
         const user = await getDb<{ two_factor_secret: string | null }>(db, 'SELECT two_factor_secret FROM users WHERE id = ?', [userId]);
 
-        /* Original callback logic replaced by await getDb
-        const user = await new Promise<{ two_factor_secret: string | null } | undefined>((resolve, reject) => {
-            db.get('SELECT two_factor_secret FROM users WHERE id = ?', [userId], (err, row: { two_factor_secret: string | null }) => {
-                if (err) {
-                    console.error(`查询用户 ${userId} 2FA 状态时出错:`, err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row);
-            });
-        });
-        */
-
-        // 如果找不到用户（理论上不应发生），也视为未认证
+        // 如果找不到用户，也视为未认证
         if (!user) {
              res.status(401).json({ isAuthenticated: false });
              return;
@@ -241,21 +208,11 @@ export const verifyLogin2FA = async (req: Request, res: Response): Promise<void>
     }
 
     try {
-        const db = await getDbInstance(); // Get DB instance
+        const db = await getDbInstance();
         // 获取用户的 2FA 密钥 using promisified getDb
         const user = await getDb<User>(db, 'SELECT id, username, two_factor_secret FROM users WHERE id = ?', [userId]);
 
-        /* Original callback logic replaced by await getDb
-        const user = await new Promise<User | undefined>((resolve, reject) => {
-            db.get('SELECT id, username, two_factor_secret FROM users WHERE id = ?', [userId], (err, row: User) => {
-                if (err) {
-                    console.error(`查询用户 ${userId} 的 2FA 密钥时出错:`, err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row);
-            });
-        });
-        */
+    
 
         if (!user || !user.two_factor_secret) {
             console.error(`2FA 验证错误: 未找到用户 ${userId} 或未设置密钥。`);
@@ -342,21 +299,10 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     }
 
     try {
-        const db = await getDbInstance(); // Get DB instance
-        // Use promisified getDb
+        const db = await getDbInstance(); 
         const user = await getDb<User>(db, 'SELECT id, hashed_password FROM users WHERE id = ?', [userId]);
 
-        /* Original callback logic replaced by await getDb
-        const user = await new Promise<User | undefined>((resolve, reject) => {
-            db.get('SELECT id, hashed_password FROM users WHERE id = ?', [userId], (err, row: User) => {
-                if (err) {
-                    console.error(`查询用户 ${userId} 时出错:`, err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row);
-            });
-        });
-        */
+
 
         if (!user) {
             console.error(`修改密码错误: 未找到 ID 为 ${userId} 的用户。`);
@@ -375,7 +321,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         const newHashedPassword = await bcrypt.hash(newPassword, saltRounds);
         const now = Math.floor(Date.now() / 1000);
 
-        // Use promisified runDb instead of prepare/run/finalize
+
         const result = await runDb(db,
             'UPDATE users SET hashed_password = ?, updated_at = ? WHERE id = ?',
             [newHashedPassword, now, userId]
@@ -383,7 +329,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 
         if (result.changes === 0) {
             console.error(`修改密码错误: 更新影响行数为 0 - 用户 ID ${userId}`);
-            throw new Error('未找到要更新的用户'); // Throw error to be caught below
+            throw new Error('未找到要更新的用户'); 
         }
 
         console.log(`用户 ${userId} 密码已成功修改。`);
@@ -413,20 +359,12 @@ export const setup2FA = async (req: Request, res: Response): Promise<void> => {
     }
 
     try {
-        const db = await getDbInstance(); // Get DB instance
+        const db = await getDbInstance();
         // 检查用户是否已启用 2FA using promisified getDb
         const user = await getDb<{ two_factor_secret: string | null }>(db, 'SELECT two_factor_secret FROM users WHERE id = ?', [userId]);
         const existingSecret = user ? user.two_factor_secret : null;
 
-        /* Original callback logic replaced by await getDb
-        const existingSecret = await new Promise<string | null>((resolve, reject) => {
-            db.get('SELECT two_factor_secret FROM users WHERE id = ?', [userId], (err, row: { two_factor_secret: string | null }) => {
-                if (err) reject(err);
-                else resolve(row ? row.two_factor_secret : null);
-            });
-        });
-        */
-
+    
         if (existingSecret) {
             res.status(400).json({ message: '两步验证已启用。如需重置，请先禁用。' });
             return;
@@ -466,7 +404,7 @@ export const setup2FA = async (req: Request, res: Response): Promise<void> => {
 };
 
 
-// --- 新增 Passkey 相关方法 ---
+// --- Passkey 相关方法 ---
 
 /**
  * 生成 Passkey 注册选项 (POST /api/v1/auth/passkey/register-options)
@@ -526,11 +464,10 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
             name
         );
 
-        // Check if verification was successful and registrationInfo is present
+
         if (verification.verified && verification.registrationInfo) {
-             const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+             const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
              // 记录审计日志 (添加 IP)
-            // Use type assertion 'as any' to bypass persistent TS error for now
             const regInfo: any = verification.registrationInfo;
             auditLogService.logAction('PASSKEY_REGISTERED', { userId, passkeyId: regInfo.credentialID, name, ip: clientIp });
             res.status(201).json({ message: 'Passkey 注册成功！', verified: true });
@@ -568,7 +505,7 @@ export const verifyAndActivate2FA = async (req: Request, res: Response): Promise
     }
 
     try {
-        const db = await getDbInstance(); // <<< Add this line to get the db instance
+        const db = await getDbInstance();
         // 使用临时密钥验证用户提交的令牌
         const verified = speakeasy.totp.verify({
             secret: tempSecret,
@@ -591,7 +528,7 @@ export const verifyAndActivate2FA = async (req: Request, res: Response): Promise
             }
 
             console.log(`用户 ${userId} 已成功激活两步验证。`);
-            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+            const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('2FA_ENABLED', { userId, ip: clientIp });
 
@@ -629,17 +566,10 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
     }
 
     try {
-        const db = await getDbInstance(); // Get DB instance
-        // 1. 验证当前密码 using promisified getDb
+        const db = await getDbInstance(); 
+        // 验证当前密码
         const user = await getDb<User>(db, 'SELECT id, hashed_password FROM users WHERE id = ?', [userId]);
 
-        /* Original callback logic replaced by await getDb
-        const user = await new Promise<User | undefined>((resolve, reject) => {
-            db.get('SELECT id, hashed_password FROM users WHERE id = ?', [userId], (err, row: User) => {
-                if (err) reject(err); else resolve(row);
-            });
-        });
-        */
         if (!user) {
             res.status(404).json({ message: '用户不存在。' }); return;
         }
@@ -648,7 +578,7 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
             res.status(400).json({ message: '当前密码不正确。' }); return;
         }
 
-        // 2. 清除数据库中的 2FA 密钥 using promisified runDb
+        // 清除数据库中的 2FA 密钥
         const now = Math.floor(Date.now() / 1000);
         const result = await runDb(db,
             'UPDATE users SET two_factor_secret = NULL, updated_at = ? WHERE id = ?',
@@ -661,7 +591,7 @@ export const disable2FA = async (req: Request, res: Response): Promise<void> => 
         }
 
         console.log(`用户 ${userId} 已成功禁用两步验证。`);
-        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
         // 记录审计日志 (添加 IP)
         auditLogService.logAction('2FA_DISABLED', { userId, ip: clientIp });
 
@@ -684,18 +614,6 @@ export const needsSetup = async (req: Request, res: Response): Promise<void> => 
         const row = await getDb<{ count: number }>(db, 'SELECT COUNT(*) as count FROM users');
         const userCount = row ? row.count : 0;
 
-        /* Original callback logic replaced by await getDb
-        const userCount = await new Promise<number>((resolve, reject) => {
-            db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => {
-                if (err) {
-                    console.error('检查 users 表时出错:', err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row ? row.count : 0); // 如果表为空，row 可能为 undefined
-            });
-        });
-        */
-
         res.status(200).json({ needsSetup: userCount === 0 });
 
     } catch (error) {
@@ -711,7 +629,7 @@ export const needsSetup = async (req: Request, res: Response): Promise<void> => 
 export const setupAdmin = async (req: Request, res: Response): Promise<void> => {
     const { username, password, confirmPassword } = req.body;
 
-    // 1. 基本输入验证
+    // 基本输入验证
     if (!username || !password || !confirmPassword) {
         res.status(400).json({ message: '用户名、密码和确认密码不能为空。' });
         return;
@@ -727,22 +645,10 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
 
 
     try {
-        const db = await getDbInstance(); // Get DB instance
-        // 2. 检查数据库中是否已存在用户 (关键安全检查) using promisified getDb
+        const db = await getDbInstance();
+        // 检查数据库中是否已存在用户
         const row = await getDb<{ count: number }>(db, 'SELECT COUNT(*) as count FROM users');
         const userCount = row ? row.count : 0;
-
-        /* Original callback logic replaced by await getDb
-        const userCount = await new Promise<number>((resolve, reject) => {
-            db.get('SELECT COUNT(*) as count FROM users', (err, row: { count: number }) => {
-                if (err) {
-                    console.error('检查 users 表时出错 (setupAdmin):', err.message);
-                    return reject(new Error('数据库查询失败'));
-                }
-                resolve(row ? row.count : 0);
-            });
-        });
-        */
 
         if (userCount > 0) {
             console.warn('尝试在已有用户的情况下执行初始设置。');
@@ -750,21 +656,19 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
             return;
         }
 
-        // 3. 哈希密码
+        // 哈希密码
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
         const now = Math.floor(Date.now() / 1000);
 
-        // 4. 插入新用户 using promisified runDb
+        // 插入新用户
         const result = await runDb(db,
             `INSERT INTO users (username, hashed_password, created_at, updated_at)
              VALUES (?, ?, ?, ?)`,
             [username, hashedPassword, now, now]
         );
 
-        // Check if insertion was successful and get the ID
         if (typeof result.lastID !== 'number' || result.lastID <= 0) {
-            // This might happen due to UNIQUE constraint or other issues caught by runDb's error handling
              console.error('创建初始管理员后未能获取有效的 lastID。可能原因：用户名已存在或其他数据库错误。');
              throw new Error('创建初始管理员失败，可能用户名已存在。');
         }
@@ -772,7 +676,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
 
 
         console.log(`初始管理员账号 '${username}' (ID: ${newUser.id}) 已成功创建。`);
-        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown'; // 获取客户端 IP
+        const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
         // 记录审计日志 (添加 IP)
         auditLogService.logAction('ADMIN_SETUP_COMPLETE', { userId: newUser.id, username, ip: clientIp });
 
@@ -788,7 +692,7 @@ export const setupAdmin = async (req: Request, res: Response): Promise<void> => 
  * 处理用户登出请求 (POST /api/v1/auth/logout)
  */
 export const logout = (req: Request, res: Response): void => {
-    const userId = req.session.userId; // 获取用户 ID 用于日志记录
+    const userId = req.session.userId;
     const username = req.session.username;
 
     req.session.destroy((err) => {
@@ -817,9 +721,8 @@ export const logout = (req: Request, res: Response): void => {
 export const getPublicCaptchaConfig = async (req: Request, res: Response): Promise<void> => {
     try {
         console.log('[AuthController] Received request for public CAPTCHA config.');
-        const fullConfig = await settingsService.getCaptchaConfig(); // Use settingsService
+        const fullConfig = await settingsService.getCaptchaConfig();
 
-        // *** IMPORTANT: Filter out secret keys before sending to frontend ***
         const publicConfig = {
             enabled: fullConfig.enabled,
             provider: fullConfig.provider,

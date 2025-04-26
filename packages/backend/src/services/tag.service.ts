@@ -21,16 +21,15 @@ export const getTagById = async (id: number): Promise<TagData | null> => {
  * 创建新标签
  */
 export const createTag = async (name: string): Promise<TagData> => {
-    // 1. Validate input
+
     if (!name || name.trim().length === 0) {
         throw new Error('标签名称不能为空。');
     }
     const trimmedName = name.trim();
 
-    // 2. Create tag record
+
     try {
         const newTagId = await TagRepository.createTag(trimmedName);
-        // 3. Fetch and return the newly created tag
         const newTag = await getTagById(newTagId);
         if (!newTag) {
             throw new Error('创建标签后无法检索到该标签。');
@@ -40,7 +39,7 @@ export const createTag = async (name: string): Promise<TagData> => {
         if (error.message.includes('UNIQUE constraint failed')) {
             throw new Error(`创建标签失败：标签名称 "${trimmedName}" 已存在。`);
         }
-        throw error; // Re-throw other errors
+        throw error;
     }
 };
 
@@ -48,25 +47,25 @@ export const createTag = async (name: string): Promise<TagData> => {
  * 更新标签名称
  */
 export const updateTag = async (id: number, name: string): Promise<TagData | null> => {
-    // 1. Validate input
+
     if (!name || name.trim().length === 0) {
         throw new Error('标签名称不能为空。');
     }
      const trimmedName = name.trim();
 
-    // 2. Update tag record
+
     try {
         const updated = await TagRepository.updateTag(id, trimmedName);
         if (!updated) {
-            return null; // Tag not found or not updated
+            return null; 
         }
-        // 3. Fetch and return the updated tag
+
         return getTagById(id);
     } catch (error: any) {
          if (error.message.includes('UNIQUE constraint failed')) {
             throw new Error(`更新标签失败：标签名称 "${trimmedName}" 已存在。`);
         }
-        throw error; // Re-throw other errors
+        throw error;
     }
 };
 
@@ -74,6 +73,5 @@ export const updateTag = async (id: number, name: string): Promise<TagData | nul
  * 删除标签
  */
 export const deleteTag = async (id: number): Promise<boolean> => {
-    // Repository handles cascading deletes in connection_tags
     return TagRepository.deleteTag(id);
 };

@@ -1,30 +1,27 @@
-// packages/backend/src/repositories/audit.repository.ts
 import { Database } from 'sqlite3';
-// Import new async helpers and the instance getter
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { AuditLogEntry, AuditLogActionType } from '../types/audit.types';
 
-// Define the expected row structure from the database if it matches AuditLogEntry
+
 type DbAuditLogRow = AuditLogEntry;
 
 export class AuditLogRepository {
-    // Remove constructor or leave it empty
-    // constructor() { }
+
 
     /**
-     * 添加一条审计日志记录
-     * @param actionType 操作类型
-     * @param details 可选的详细信息 (对象或字符串)
+     * 添加一条审计日志记录。
+     * @param actionType 操作类型。
+     * @param details 可选的详细信息（对象或字符串）。
      */
     async addLog(actionType: AuditLogActionType, details?: Record<string, any> | string | null): Promise<void> {
-        const timestamp = Math.floor(Date.now() / 1000); // Unix timestamp in seconds
+        const timestamp = Math.floor(Date.now() / 1000); 
         let detailsString: string | null = null;
 
         if (details) {
             try {
                 detailsString = typeof details === 'string' ? details : JSON.stringify(details);
             } catch (error: any) {
-                console.error(`[Audit Log] Failed to stringify details for action ${actionType}:`, error.message);
+                console.error(`[审计日志] 序列化操作 ${actionType} 的详情失败:`, error.message);
                 detailsString = JSON.stringify({ error: 'Failed to stringify details', originalDetails: String(details) }); // Ensure originalDetails is stringifiable
             }
         }
@@ -35,22 +32,20 @@ export class AuditLogRepository {
         try {
             const db = await getDbInstance();
             await runDb(db, sql, params);
-            // console.log(`[Audit Log] Logged action: ${actionType}`); // Optional: verbose logging
 
             // --- 添加日志清理逻辑 ---
             await this.cleanupOldLogs(db);
             // --- 清理逻辑结束 ---
 
         } catch (err: any) {
-            console.error(`[Audit Log] Error adding log entry for action ${actionType}: ${err.message}`);
-            // Decide if logging failure should throw an error or just be logged
-            // throw new Error(`Error adding log entry: ${err.message}`); // Uncomment to make it critical
+            console.error(`[审计日志] 添加操作 ${actionType} 的日志条目时出错: ${err.message}`);
+            // 决定日志记录失败是应该抛出错误还是仅记录日志
         }
     }
 
     /**
-     * 清理旧的审计日志，保持最多 MAX_LOG_ENTRIES 条记录
-     * @param db - 数据库实例
+     * 清理旧的审计日志，保持最多 MAX_LOG_ENTRIES 条记录。
+     * @param db - 数据库实例。
      */
     private async cleanupOldLogs(db: Database): Promise<void> {
         const MAX_LOG_ENTRIES = 50000; // 设置最大日志条数
@@ -71,24 +66,23 @@ export class AuditLogRepository {
 
             if (total > MAX_LOG_ENTRIES) {
                 const logsToDelete = total - MAX_LOG_ENTRIES;
-                console.log(`[Audit Log] Log count (${total}) exceeds limit (${MAX_LOG_ENTRIES}). Deleting ${logsToDelete} oldest entries.`);
+                console.log(`[审计日志] 日志数量 (${total}) 超过限制 (${MAX_LOG_ENTRIES})。正在删除 ${logsToDelete} 条最旧的记录。`);
                 await runDb(db, deleteSql, [logsToDelete]);
-                console.log(`[Audit Log] Successfully deleted ${logsToDelete} oldest log entries.`);
             }
         } catch (err: any) {
-            console.error(`[Audit Log] Error during log cleanup: ${err.message}`);
-            // 清理失败不应阻止主日志记录流程，仅记录错误
+            console.error(`[审计日志] 日志清理过程中出错: ${err.message}`);
+            // 清理失败不应阻止主日志记录流程，仅记录错误。
         }
     }
 
     /**
-     * 获取审计日志列表 (支持分页和基本过滤)
-     * @param limit 每页数量
-     * @param offset 偏移量
-     * @param actionType 可选的操作类型过滤
-     * @param startDate 可选的开始时间戳 (秒)
-     * @param endDate 可选的结束时间戳 (秒)
-     * @param searchTerm 可选的搜索关键词 (模糊匹配 details)
+     * 获取审计日志列表（支持分页和基本过滤）。
+     * @param limit 每页数量。
+     * @param offset 偏移量。
+     * @param actionType 可选的操作类型过滤。
+     * @param startDate 可选的开始时间戳（秒）。
+     * @param endDate 可选的结束时间戳（秒）。
+     * @param searchTerm 可选的搜索关键词（模糊匹配 details）。
      */
     async getLogs(
         limit: number = 50,
@@ -98,8 +92,7 @@ export class AuditLogRepository {
         endDate?: number,
         searchTerm?: string // 添加 searchTerm 参数
     ): Promise<{ logs: AuditLogEntry[], total: number }> {
-        console.log(`[Audit Repo] getLogs called with: actionType=${actionType}, searchTerm=${searchTerm}`); // 添加日志
-
+    
         let baseSql = 'SELECT * FROM audit_logs';
         let countSql = 'SELECT COUNT(*) as total FROM audit_logs';
         const whereClauses: string[] = [];
@@ -107,14 +100,12 @@ export class AuditLogRepository {
         const countParams: (string | number)[] = [];
 
         if (actionType) {
-            console.log(`[Audit Repo] Filtering by actionType: ${actionType}`); // 添加日志
             whereClauses.push('action_type = ?');
             params.push(actionType);
             countParams.push(actionType);
         }
         // 添加 searchTerm 的过滤逻辑
         if (searchTerm) {
-            console.log(`[Audit Repo] Filtering by searchTerm: ${searchTerm}`); // 添加日志
             // 搜索 details 字段，使用 LIKE 进行模糊匹配
             whereClauses.push('details LIKE ?');
             const searchTermLike = `%${searchTerm}%`;
@@ -132,25 +123,20 @@ export class AuditLogRepository {
         baseSql += ' ORDER BY timestamp DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
 
-        console.log(`[Audit Repo] Executing count SQL: ${countSql} with params:`, countParams); // 添加日志
-        console.log(`[Audit Repo] Executing base SQL: ${baseSql} with params:`, params); // 添加日志
 
         try {
             const db = await getDbInstance();
-            // First get the total count
             const countRow = await getDbRow<{ total: number }>(db, countSql, countParams);
             const total = countRow?.total ?? 0;
 
-            // Then get the paginated logs
             const logs = await allDb<DbAuditLogRow>(db, baseSql, params);
 
             return { logs, total };
         } catch (err: any) {
-            console.error(`Error fetching audit logs:`, err.message);
-            throw new Error(`Error fetching audit logs: ${err.message}`);
+            console.error(`获取审计日志时出错:`, err.message);
+            throw new Error(`获取审计日志时出错: ${err.message}`);
         }
     }
 }
 
-// Export the class (Removed redundant export below as class is already exported)
-// export { AuditLogRepository };
+

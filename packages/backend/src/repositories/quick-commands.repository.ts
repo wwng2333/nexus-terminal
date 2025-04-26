@@ -1,5 +1,4 @@
-// packages/backend/src/repositories/quick-commands.repository.ts
-import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection'; // Import new async helpers
+import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
 // 定义快捷指令的接口
 export interface QuickCommand {
@@ -11,7 +10,6 @@ export interface QuickCommand {
     updated_at: number; // Unix 时间戳 (秒)
 }
 
-// Define the expected row structure from the database if it matches QuickCommand
 type DbQuickCommandRow = QuickCommand;
 
 /**
@@ -25,7 +23,6 @@ export const addQuickCommand = async (name: string | null, command: string): Pro
     try {
         const db = await getDbInstance();
         const result = await runDb(db, sql, [name, command]);
-        // Ensure lastID is valid before returning
         if (typeof result.lastID !== 'number' || result.lastID <= 0) {
              throw new Error('添加快捷指令后未能获取有效的 lastID');
         }
@@ -34,7 +31,7 @@ export const addQuickCommand = async (name: string | null, command: string): Pro
         console.error('添加快捷指令时出错:', err.message);
         throw new Error('无法添加快捷指令');
     }
-}; // End of addQuickCommand
+};
 
 /**
  * 更新指定的快捷指令
@@ -53,7 +50,7 @@ export const updateQuickCommand = async (id: number, name: string | null, comman
         console.error('更新快捷指令时出错:', err.message);
         throw new Error('无法更新快捷指令');
     }
-}; // End of updateQuickCommand
+};
 
 /**
  * 根据 ID 删除指定的快捷指令
@@ -70,7 +67,7 @@ export const deleteQuickCommand = async (id: number): Promise<boolean> => {
         console.error('删除快捷指令时出错:', err.message);
         throw new Error('无法删除快捷指令');
     }
-}; // End of deleteQuickCommand
+};
 
 /**
  * 获取所有快捷指令
@@ -91,7 +88,7 @@ export const getAllQuickCommands = async (sortBy: 'name' | 'usage_count' = 'name
         console.error('获取快捷指令时出错:', err.message);
         throw new Error('无法获取快捷指令');
     }
-}; // End of getAllQuickCommands
+};
 
 /**
  * 增加指定快捷指令的使用次数
@@ -108,7 +105,7 @@ export const incrementUsageCount = async (id: number): Promise<boolean> => {
         console.error('增加快捷指令使用次数时出错:', err.message);
         throw new Error('无法增加快捷指令使用次数');
     }
-}; // End of incrementUsageCount
+};
 
 /**
  * 根据 ID 查找快捷指令 (用于编辑前获取数据)
@@ -120,9 +117,9 @@ export const findQuickCommandById = async (id: number): Promise<QuickCommand | u
     try {
         const db = await getDbInstance();
         const row = await getDbRow<DbQuickCommandRow>(db, sql, [id]);
-        return row; // Returns undefined if not found
+        return row;
     } catch (err: any) {
         console.error('查找快捷指令时出错:', err.message);
         throw new Error('无法查找快捷指令');
     }
-}; // End of findQuickCommandById
+};

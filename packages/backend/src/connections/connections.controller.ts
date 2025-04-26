@@ -1,15 +1,8 @@
 import { Request, Response } from 'express';
-// Removed duplicate import
 import * as ConnectionService from '../services/connection.service';
-import * as SshService from '../services/ssh.service'; // 引入 SshService
-import * as ImportExportService from '../services/import-export.service'; // 引入 ImportExportService
-// Removed AuditLogService import and instantiation
+import * as SshService from '../services/ssh.service';
+import * as ImportExportService from '../services/import-export.service';
 
-// --- 移除所有不再需要的导入和变量 ---
-// import { Statement } from 'sqlite3';
-// import { getDb } from '../database/connection'; // Updated import path in comment
-// const db = getDb();
-// --- 清理结束 ---
 
 
 /**
@@ -17,14 +10,11 @@ import * as ImportExportService from '../services/import-export.service'; // 引
  */
 export const createConnection = async (req: Request, res: Response): Promise<void> => {
     try {
-        // Controller performs minimal validation, Service layer handles detailed business logic validation.
-        // 将请求体传递给服务层处理 (Service layer now handles validation and audit logging)
         const newConnection = await ConnectionService.createConnection(req.body);
         res.status(201).json({ message: '连接创建成功。', connection: newConnection });
 
     } catch (error: any) {
         console.error('Controller: 创建连接时发生错误:', error);
-        // 根据错误类型返回不同的状态码，例如验证错误返回 400
         if (error.message.includes('缺少') || error.message.includes('需要提供')) {
              res.status(400).json({ message: error.message });
         } else {
@@ -81,20 +71,16 @@ export const updateConnection = async (req: Request, res: Response): Promise<voi
             return;
         }
 
-        // Controller performs minimal validation, Service layer handles detailed business logic validation.
-        // 注意：服务层会处理更复杂的验证，比如切换认证方式时凭证是否提供
 
         const updatedConnection = await ConnectionService.updateConnection(connectionId, req.body);
 
         if (!updatedConnection) {
             res.status(404).json({ message: '连接未找到。' });
         } else {
-            // Audit logging is now handled by the service layer
             res.status(200).json({ message: '连接更新成功。', connection: updatedConnection });
         }
     } catch (error: any) {
         console.error(`Controller: 更新连接 ${req.params.id} 时发生错误:`, error);
-         // 根据错误类型返回不同的状态码
          if (error.message.includes('需要提供')) {
               res.status(400).json({ message: error.message });
          } else {
@@ -119,8 +105,7 @@ export const deleteConnection = async (req: Request, res: Response): Promise<voi
         if (!deleted) {
             res.status(404).json({ message: '连接未找到。' });
         } else {
-            // Audit logging is now handled by the service layer
-            res.status(200).json({ message: '连接删除成功。' }); // 或使用 204 No Content
+            res.status(200).json({ message: '连接删除成功。' });
         }
     } catch (error: any) {
         console.error(`Controller: 删除连接 ${req.params.id} 时发生错误:`, error);
@@ -128,7 +113,7 @@ export const deleteConnection = async (req: Request, res: Response): Promise<voi
     }
 };
 
-// --- TODO: 将以下逻辑迁移到 SshService ---
+
 /**
  * 测试连接 (POST /api/v1/connections/:id/test)
  */
@@ -143,16 +128,10 @@ export const testConnection = async (req: Request, res: Response): Promise<void>
         // 调用 SshService 进行连接测试，现在它会返回延迟
         const { latency } = await SshService.testConnection(connectionId);
 
-        // 如果 SshService.testConnection 没有抛出错误，则表示成功
-        // 记录审计日志 (可选，看是否需要记录测试操作)
-        // auditLogService.logAction('CONNECTION_TESTED', { connectionId, success: true });
         res.status(200).json({ success: true, message: '连接测试成功。', latency }); // 返回延迟
 
     } catch (error: any) {
-        // 记录审计日志 (可选)
-        // auditLogService.logAction('CONNECTION_TESTED', { connectionId, success: false, error: error.message });
         console.error(`Controller: 测试连接 ${req.params.id} 时发生错误:`, error);
-        // SshService 会抛出包含具体原因的 Error
         res.status(500).json({ success: false, message: error.message || '测试连接时发生内部服务器错误。' });
     }
 };
@@ -221,7 +200,7 @@ export const testUnsavedConnection = async (req: Request, res: Response): Promis
 };
 
 
-// --- TODO: 将以下逻辑迁移到 ImportExportService ---
+
 /**
  * 导出所有连接配置 (GET /api/v1/connections/export)
  */
@@ -234,9 +213,6 @@ export const exportConnections = async (req: Request, res: Response): Promise<vo
         const filename = `nexus-terminal-connections-${timestamp}.json`;
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Type', 'application/json');
-        // Audit logging for export/import might still be relevant here or in the service
-        // For now, let's assume ImportExportService handles its own logging if needed
-        // auditLogService.logAction('CONNECTIONS_EXPORTED', { count: exportedData.length }); // Removed from controller
         res.status(200).json(exportedData);
 
     } catch (error: any) {
@@ -245,7 +221,6 @@ export const exportConnections = async (req: Request, res: Response): Promise<vo
     }
 };
 
-// --- TODO: 将以下逻辑迁移到 ImportExportService (和 ProxyService) ---
 /**
  * 导入连接配置 (POST /api/v1/connections/import)
  */
@@ -259,18 +234,14 @@ export const importConnections = async (req: Request, res: Response): Promise<vo
         const result = await ImportExportService.importConnections(req.file.buffer);
 
         if (result.failureCount > 0) {
-            // Partial success or complete failure
-             res.status(400).json({ // Use 400 for partial success with errors
+             res.status(400).json({ 
                  message: `导入完成，但存在 ${result.failureCount} 个错误。成功导入 ${result.successCount} 条。`,
                  successCount: result.successCount,
                  failureCount: result.failureCount,
                  errors: result.errors
              });
         } else {
-            // Complete success
-            // Audit logging for export/import might still be relevant here or in the service
-            // For now, let's assume ImportExportService handles its own logging if needed
-            // auditLogService.logAction('CONNECTIONS_IMPORTED', { successCount: result.successCount, failureCount: result.failureCount }); // Removed from controller
+
             res.status(200).json({
                 message: `导入成功完成。共导入 ${result.successCount} 条连接。`,
                 successCount: result.successCount,
@@ -279,12 +250,10 @@ export const importConnections = async (req: Request, res: Response): Promise<vo
         }
     } catch (error: any) {
         console.error('Controller: 导入连接时发生错误:', error);
-        // Handle specific errors like JSON parsing error from service
         if (error.message.includes('解析 JSON 文件失败')) {
              res.status(400).json({ message: error.message });
         } else {
              res.status(500).json({ message: error.message || '导入连接时发生内部服务器错误。' });
         }
     }
-    // No finally block needed here as db statements are handled in service/repo now
 };

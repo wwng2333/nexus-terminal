@@ -1,182 +1,118 @@
-// packages/backend/src/database/connection.ts
-import sqlite3, { OPEN_READWRITE, OPEN_CREATE } from 'sqlite3'; // Import flags
+
+import sqlite3, { OPEN_READWRITE, OPEN_CREATE } from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
-import * as schema from './schema';
-// Import the table definitions registry instead of individual repositories here
 import { tableDefinitions } from './schema.registry';
-// presetTerminalThemes might still be needed if passed directly, but likely handled in registry now
-// import { presetTerminalThemes } from '../config/preset-themes-definition';
-// Removed import for default-layout-data as logic is now in settings repository
 
-// --- Revert to original path and filename ---
-// 使用 process.cwd() 获取项目根目录，然后拼接路径，确保路径一致性
-// console.log('[Connection CWD]', process.cwd()); // 移除调试日志
-// 使用 __dirname 定位到 dist/database，然后回退两级到 packages/backend，再进入 data
+
 const dbDir = path.join(__dirname, '..', '..', 'data');
-const dbFilename = 'nexus-terminal.db'; // Revert to original filename
+const dbFilename = 'nexus-terminal.db';
 const dbPath = path.join(dbDir, dbFilename);
-// console.log(`[DB Path] Determined database directory: ${dbDir}`); // 移除调试日志
-// console.log(`[DB Path] Determined database file path: ${dbPath}`); // 移除调试日志
 
-// Add logging before checking/creating directory
-// console.log(`[DB FS] Checking existence of directory: ${dbDir}`); // 移除调试日志
 if (!fs.existsSync(dbDir)) {
-    // console.log(`[DB FS] Directory does not exist. Attempting to create: ${dbDir}`); // 移除调试日志
     try {
         fs.mkdirSync(dbDir, { recursive: true });
-        // console.log(`[DB FS] Directory successfully created: ${dbDir}`); // 移除调试日志
     } catch (mkdirErr: any) {
-        console.error(`[DB FS] Failed to create directory ${dbDir}:`, mkdirErr.message);
-        // Consider throwing error here to prevent proceeding if directory creation fails
-        throw new Error(`Failed to create database directory: ${mkdirErr.message}`);
+        console.error(`[数据库文件系统] 创建目录 ${dbDir} 失败:`, mkdirErr.message);
+        throw new Error(`创建数据库目录失败: ${mkdirErr.message}`);
     }
 } else {
-    // console.log(`[DB FS] Directory already exists: ${dbDir}`); // 移除调试日志
 }
 
 const verboseSqlite3 = sqlite3.verbose();
 let dbInstancePromise: Promise<sqlite3.Database> | null = null;
-
-// --- Promisified Database Operations ---
 
 interface RunResult {
     lastID: number;
     changes: number;
 }
 
-/**
- * Promisified version of db.run(). Resolves with { lastID, changes }.
- */
+
 export const runDb = (db: sqlite3.Database, sql: string, params: any[] = []): Promise<RunResult> => {
     return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err: Error | null) { // Use function() to access this
+        db.run(sql, params, function (err: Error | null) {
             if (err) {
-                console.error(`[DB Error] SQL: ${sql.substring(0, 100)}... Params: ${JSON.stringify(params)} Error: ${err.message}`);
+                console.error(`[数据库错误] SQL: ${sql.substring(0, 100)}... 参数: ${JSON.stringify(params)} 错误: ${err.message}`);
                 reject(err);
             } else {
-                // 'this' context provides lastID and changes for INSERT/UPDATE/DELETE
                 resolve({ lastID: this.lastID, changes: this.changes });
             }
         });
     });
 };
 
-/**
- * Promisified version of db.get(). Resolves with the row found, or undefined.
- */
+
 export const getDb = <T = any>(db: sqlite3.Database, sql: string, params: any[] = []): Promise<T | undefined> => {
     return new Promise((resolve, reject) => {
-        db.get(sql, params, (err: Error | null, row: T) => { // Add type annotation for row
+        db.get(sql, params, (err: Error | null, row: T) => {
             if (err) {
-                console.error(`[DB Error] SQL: ${sql.substring(0, 100)}... Params: ${JSON.stringify(params)} Error: ${err.message}`);
+                console.error(`[数据库错误] SQL: ${sql.substring(0, 100)}... 参数: ${JSON.stringify(params)} 错误: ${err.message}`);
                 reject(err);
             } else {
-                resolve(row); // row will be undefined if not found
+                resolve(row);
             }
         });
     });
 };
 
-/**
- * Promisified version of db.all(). Resolves with an array of rows found.
- */
+
 export const allDb = <T = any>(db: sqlite3.Database, sql: string, params: any[] = []): Promise<T[]> => {
     return new Promise((resolve, reject) => {
-        db.all(sql, params, (err: Error | null, rows: T[]) => { // Add type annotation for rows
+        db.all(sql, params, (err: Error | null, rows: T[]) => {
             if (err) {
-                console.error(`[DB Error] SQL: ${sql.substring(0, 100)}... Params: ${JSON.stringify(params)} Error: ${err.message}`);
+                console.error(`[数据库错误] SQL: ${sql.substring(0, 100)}... 参数: ${JSON.stringify(params)} 错误: ${err.message}`);
                 reject(err);
             } else {
-                resolve(rows); // rows will be an empty array if no matches
+                resolve(rows);
             }
         });
     });
 };
 
 
-/**
- * Executes the database initialization sequence: creates all tables, inserts preset/default data.
- * Now returns a Promise that resolves when all initializations are complete.
- * @param db The database instance
- */
 const runDatabaseInitializations = async (db: sqlite3.Database): Promise<void> => {
-    // console.log('[DB Init] 开始数据库初始化序列...'); // 移除调试日志
-
     try {
-        // 1. Enable foreign key constraints
-        await runDb(db, 'PRAGMA foreign_keys = ON;'); // Use promisified runDb
-        // console.log('[DB Init] 外键约束已启用。'); // 移除调试日志
-
-        // 2. Create tables and run initializations based on the registry
+        await runDb(db, 'PRAGMA foreign_keys = ON;');
         for (const tableDef of tableDefinitions) {
-            await runDb(db, tableDef.sql); // Create table (IF NOT EXISTS)
-            // console.log(`[DB Init] ${tableDef.name} 表已存在或已创建。`); // 移除调试日志
+            await runDb(db, tableDef.sql);
             if (tableDef.init) {
-                // Pass the db instance to the init function
                 await tableDef.init(db);
             }
         }
-
-        // Default layout/sidebar data is now handled within settingsRepository.ensureDefaultSettingsExist
-        // No separate call needed here anymore.
-
-        // Migrations (if any) would run after initial schema setup
-        // import { runMigrations } from './migrations';
-        // await runMigrations(db);
-        // console.log('[DB Init] 迁移检查完成。');
-
-        // console.log('[DB Init] 数据库初始化序列成功完成。'); // 移除调试日志
-
     } catch (error) {
         console.error('[DB Init] 数据库初始化序列失败:', error);
-        // Propagate the error to stop the application startup in index.ts
         throw error;
     }
 };
 
-/**
- * Gets the database instance. Initializes the connection and runs initializations if not already done.
- * Returns a Promise that resolves with the database instance once ready.
- */
-// Renamed original getDb to getDbInstance to avoid confusion with the promisified getDb helper
+
 export const getDbInstance = (): Promise<sqlite3.Database> => {
     if (!dbInstancePromise) {
         dbInstancePromise = new Promise((resolve, reject) => {
-            // Remove connectionFailed flag and double check logic
-
-            // Add logging before attempting connection
-            // console.log(`[DB Connection] Attempting to connect/open database file with explicit create flag: ${dbPath}`); // 移除调试日志
-            // Explicitly add OPEN_READWRITE and OPEN_CREATE flags
+        
             const db = new verboseSqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, async (err) => { // Mark callback as async
-                // --- Strict Error Check FIRST ---
+
                 if (err) {
-                    console.error(`[DB Connection] Error opening database file ${dbPath}:`, err.message);
-                    // connectionFailed = true; // Remove flag setting
-                    dbInstancePromise = null; // Reset promise on error
-                    reject(err); // Reject the main promise
-                    return; // Explicitly return
+                    console.error(`[数据库连接] 打开数据库文件 ${dbPath} 时出错:`, err.message);
+                    dbInstancePromise = null;
+                    reject(err);
+                    return;
                 }
-                // --- End Strict Error Check ---
 
-                // Remove Double Check Flag logic
 
-                // If no error, proceed with success logging and initialization
-                // console.log(`[DB Connection] Successfully connected to SQLite database: ${dbPath}`); // 移除调试日志
+        
                 try {
-                    // Wait for initializations to complete
+
                     await runDatabaseInitializations(db);
-                    // console.log('[DB] Database initialization complete. Ready.'); // 移除调试日志
-                    resolve(db); // Resolve the main promise with the db instance
+                    resolve(db);
                 } catch (initError) {
-                    console.error('[DB] Initialization failed after connection, closing connection...');
-                    // connectionFailed = true; // Remove flag setting
-                    dbInstancePromise = null; // Reset promise on error
+                    console.error('[数据库] 连接后初始化失败，正在关闭连接...');
+                    dbInstancePromise = null;
                     db.close((closeErr) => {
-                        if (closeErr) console.error('[DB] Error closing connection after init failure:', closeErr.message);
-                        reject(initError); // Reject with the initialization error
+                        if (closeErr) console.error('[数据库] 初始化失败后关闭连接时出错:', closeErr.message);
+                        reject(initError);
                     });
-                    // process.exit(1); // Consider exiting on init failure
+
                 }
             });
         });
@@ -184,15 +120,12 @@ export const getDbInstance = (): Promise<sqlite3.Database> => {
     return dbInstancePromise;
 };
 
-// Graceful shutdown remains the same, but it might need access to the resolved instance
-// Consider a way to get the instance if needed during shutdown, e.g., a global variable set after promise resolution.
-// For now, it checks the promise state indirectly.
-process.on('SIGINT', async () => { // Mark as async if needed
+
+process.on('SIGINT', async () => { 
     if (dbInstancePromise) {
         console.log('[DB] 收到 SIGINT，尝试关闭数据库连接...');
         try {
-            // We need the actual instance, not the promise, to close
-            // Let's assume if the promise exists, we try to resolve it to get the instance
+
             const db = await dbInstancePromise;
             db.close((err) => {
                 if (err) {
@@ -212,7 +145,4 @@ process.on('SIGINT', async () => { // Mark as async if needed
     }
 });
 
-// Note: We now export getDbInstance (the promise for the connection)
-// and the helper functions runDb, getDb, allDb.
-// Files needing the db instance will call `const db = await getDbInstance();`
-// and then use `await runDb(db, ...)` etc.
+

@@ -11,9 +11,6 @@ export const addCommandHistory = async (command: string): Promise<number> => {
     if (!command || command.trim().length === 0) {
         throw new Error('命令不能为空');
     }
-    // 可以在此添加去重逻辑，如果不想记录重复的命令
-    // const existing = await CommandHistoryRepository.findCommand(command); // 如果需要更复杂的去重逻辑
-    // if (existing) { ... }
 
     // 调用 upsertCommand 来处理插入或更新时间戳
     return CommandHistoryRepository.upsertCommand(command.trim());

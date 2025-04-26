@@ -34,7 +34,7 @@ const backgroundUpload = multer({
     },
     limits: { fileSize: 5 * 1024 * 1024 } // 限制文件大小为 5MB
 });
-// --- End Background Image Upload Config ---
+
 
 
 /**

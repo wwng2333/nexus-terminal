@@ -1,16 +1,12 @@
-// packages/backend/src/repositories/connection.repository.ts
-import { Database, Statement } from 'sqlite3';
-// Import new async helpers and the instance getter
+import { Database } from 'sqlite3';
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
-// Remove top-level db instance
-// const db = getDb();
 
 // Define Connection 类型 (可以从 controller 或 types 文件导入，暂时在此定义)
 // 注意：这里不包含加密字段，因为 Repository 不应处理解密
 interface ConnectionBase {
     id: number;
-    name: string | null; // 允许 name 为 null
+    name: string | null;
     host: string;
     port: number;
     username: string;
@@ -21,9 +17,8 @@ interface ConnectionBase {
     last_connected_at: number | null;
 }
 
-// Type for the result of the JOIN query in findAllConnectionsWithTags and findConnectionByIdWithTags
 interface ConnectionWithTagsRow extends ConnectionBase {
-    tag_ids_str: string | null; // Raw string from GROUP_CONCAT
+    tag_ids_str: string | null; 
 }
 
 export interface ConnectionWithTags extends ConnectionBase {
@@ -35,12 +30,10 @@ export interface FullConnectionData extends ConnectionBase {
     encrypted_password?: string | null;
     encrypted_private_key?: string | null;
     encrypted_passphrase?: string | null;
-    // Include tag_ids for creation/update convenience if needed, handled separately
     tag_ids?: number[];
 }
 
-// Type for the result of the JOIN query in findFullConnectionById
-// Define a more specific type for the complex row structure
+
 interface FullConnectionDbRow extends FullConnectionData {
     proxy_db_id: number | null;
     proxy_name: string | null;
@@ -70,7 +63,6 @@ export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]
     try {
         const db = await getDbInstance();
         const rows = await allDb<ConnectionWithTagsRow>(db, sql);
-        // Safely map rows, handling potential null tag_ids_str
         return rows.map(row => ({
             ...row,
             tag_ids: row.tag_ids_str ? row.tag_ids_str.split(',').map(Number).filter(id => !isNaN(id)) : []
@@ -97,7 +89,7 @@ export const findConnectionByIdWithTags = async (id: number): Promise<Connection
     try {
         const db = await getDbInstance();
         const row = await getDbRow<ConnectionWithTagsRow>(db, sql, [id]);
-        if (row && typeof row.id !== 'undefined') { // Check if a valid row was found
+        if (row && typeof row.id !== 'undefined') {
             return {
                 ...row,
                 tag_ids: row.tag_ids_str ? row.tag_ids_str.split(',').map(Number).filter(id => !isNaN(id)) : []
@@ -155,7 +147,6 @@ export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'cr
     try {
         const db = await getDbInstance();
         const result = await runDb(db, sql, params);
-        // Ensure lastID is valid before returning
         if (typeof result.lastID !== 'number' || result.lastID <= 0) {
              throw new Error('创建连接后未能获取有效的 lastID');
         }
@@ -176,7 +167,7 @@ export const updateConnection = async (id: number, data: Partial<Omit<FullConnec
     delete fieldsToUpdate.id;
     delete fieldsToUpdate.created_at;
     delete fieldsToUpdate.last_connected_at;
-    delete fieldsToUpdate.tag_ids; // Tags handled separately
+    delete fieldsToUpdate.tag_ids;
 
     fieldsToUpdate.updated_at = Math.floor(Date.now() / 1000);
 
@@ -209,7 +200,6 @@ export const deleteConnection = async (id: number): Promise<boolean> => {
     const sql = `DELETE FROM connections WHERE id = ?`;
     try {
         const db = await getDbInstance();
-        // ON DELETE CASCADE in connection_tags and ON DELETE SET NULL for proxy_id handle related data
         const result = await runDb(db, sql, [id]);
         return result.changes > 0;
     } catch (err: any) {
@@ -245,21 +235,18 @@ export const updateLastConnected = async (id: number, timestamp: number): Promis
  */
 export const updateConnectionTags = async (connectionId: number, tagIds: number[]): Promise<void> => {
     const db = await getDbInstance();
-    // Use a transaction to ensure atomicity
     try {
         await runDb(db, 'BEGIN TRANSACTION');
 
-        // 1. Delete old associations
+
         await runDb(db, `DELETE FROM connection_tags WHERE connection_id = ?`, [connectionId]);
 
-        // 2. Insert new associations (if any)
         if (tagIds.length > 0) {
             const insertSql = `INSERT INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`;
-            // Use Promise.all for potentially better performance, though sequential inserts are safer for constraints
+           
             const insertPromises = tagIds
-                .filter(tagId => typeof tagId === 'number' && tagId > 0) // Basic validation
+                .filter(tagId => typeof tagId === 'number' && tagId > 0)
                 .map(tagId => runDb(db, insertSql, [connectionId, tagId]).catch(err => {
-                    // Log warning but don't fail the whole transaction for a single tag insert error (e.g., invalid tag ID)
                     console.warn(`Repository: 更新连接 ${connectionId} 标签时，插入 tag_id ${tagId} 失败: ${err.message}`);
                 }));
             await Promise.all(insertPromises);
@@ -269,21 +256,20 @@ export const updateConnectionTags = async (connectionId: number, tagIds: number[
     } catch (err: any) {
         console.error(`Repository: 更新连接 ${connectionId} 的标签关联时出错:`, err.message);
         try {
-            await runDb(db, 'ROLLBACK'); // Attempt to rollback on error
+            await runDb(db, 'ROLLBACK'); 
         } catch (rollbackErr: any) {
             console.error(`Repository: 回滚连接 ${connectionId} 的标签更新事务失败:`, rollbackErr.message);
         }
-        throw new Error('处理标签关联失败'); // Re-throw original error
+        throw new Error('处理标签关联失败');
     }
 };
 
 /**
  * 批量插入连接（用于导入）
  * 注意：此函数应在事务中调用 (由调用者负责事务)
- * Returns an array mapping new connection IDs to their original import data (for tag association)
  */
 export const bulkInsertConnections = async (
-    db: Database, // Pass the transaction-aware db instance
+    db: Database,
     connections: Array<Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { tag_ids?: number[] }>
 ): Promise<{ connectionId: number, originalData: any }[]> => {
 
@@ -291,8 +277,6 @@ export const bulkInsertConnections = async (
     const results: { connectionId: number, originalData: any }[] = [];
     const now = Math.floor(Date.now() / 1000);
 
-    // Prepare statement outside the loop for efficiency (though sqlite3 might cache implicitly)
-    // Using direct runDb might be simpler here unless performance is critical
 
     for (const connData of connections) {
         const params = [
@@ -304,19 +288,15 @@ export const bulkInsertConnections = async (
             now, now
         ];
         try {
-            // Use the passed db instance (which should be in a transaction)
             const connResult = await runDb(db, insertConnSql, params);
             if (typeof connResult.lastID !== 'number' || connResult.lastID <= 0) {
                  throw new Error(`插入连接 "${connData.name}" 后未能获取有效的 lastID`);
             }
             results.push({ connectionId: connResult.lastID, originalData: connData });
         } catch (err: any) {
-             // Log error but continue with other connections? Or re-throw to fail the whole batch?
              console.error(`Repository: 批量插入连接 "${connData.name}" 时出错: ${err.message}`);
-             // Decide on error handling strategy for batch operations
-             throw new Error(`批量插入连接 "${connData.name}" 失败`); // Fail fast for now
+             throw new Error(`批量插入连接 "${connData.name}" 失败`);
         }
     }
     return results;
-    // Tag insertion should be handled separately after connections are inserted, using the returned IDs
 };

@@ -3,7 +3,7 @@ import { SocksClient, SocksClientOptions } from 'socks';
 import http from 'http';
 import net from 'net';
 import * as ConnectionRepository from '../repositories/connection.repository';
-import * as ProxyRepository from '../repositories/proxy.repository'; // 引入 ProxyRepository
+import * as ProxyRepository from '../repositories/proxy.repository';
 import { decrypt } from '../utils/crypto';
 
 const CONNECT_TIMEOUT = 20000; // 连接超时时间 (毫秒)
@@ -123,7 +123,6 @@ export const establishSshConnection = (
             console.log(`SshService: SSH 连接到 ${connDetails.host}:${connDetails.port} (ID: ${connDetails.id}) 成功。`);
             sshClient.removeListener('error', errorHandler); // 成功后移除错误监听器
 
-            // --- 新增：更新 last_connected_at ---
             try {
                 const currentTimeSeconds = Math.floor(Date.now() / 1000);
                 await ConnectionRepository.updateLastConnected(connDetails.id, currentTimeSeconds);
@@ -132,7 +131,6 @@ export const establishSshConnection = (
                 // 更新失败不应阻止连接成功，但需要记录错误
                 console.error(`SshService: 更新连接 ${connDetails.id} 的 last_connected_at 失败:`, updateError);
             }
-            // --- 结束新增 ---
 
             resolve(sshClient); // 返回 Client 实例
         };
@@ -354,11 +352,3 @@ export const testUnsavedConnection = async (connectionConfig: {
     }
 };
 
-
-// --- 移除旧的函数 ---
-// - connectAndOpenShell
-// - sendInput
-// - resizeTerminal
-// - cleanupConnection
-// - activeSessions Map
-// - AuthenticatedWebSocket interface (如果仅在此文件使用)

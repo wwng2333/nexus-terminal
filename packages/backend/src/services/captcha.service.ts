@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { settingsService } from './settings.service';
-import { CaptchaSettings, CaptchaProvider } from '../types/settings.types';
 
 // CAPTCHA 验证 API 端点
 const HCAPTCHA_VERIFY_URL = 'https://api.hcaptcha.com/siteverify';
@@ -95,7 +94,6 @@ export class CaptchaService {
             const params = new URLSearchParams();
             params.append('secret', secretKey);
             params.append('response', token);
-            // params.append('remoteip', userIpAddress); // 如果需要传递用户 IP
 
             const response = await axios.post(RECAPTCHA_VERIFY_URL, params, {
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }

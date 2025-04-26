@@ -48,6 +48,3 @@ export class AuditLogService {
         return this.repository.getLogs(limit, offset, actionType, startDate, endDate, searchTerm);
     }
 }
-
-// Optional: Export a singleton instance if needed throughout the backend
-// export const auditLogService = new AuditLogService();

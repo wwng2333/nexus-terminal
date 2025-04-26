@@ -120,8 +120,6 @@ export const incrementUsage = async (req: Request, res: Response): Promise<void>
             // 即使没找到也可能返回成功，避免不必要的错误提示
             console.warn(`尝试增加不存在的快捷指令 (ID: ${id}) 的使用次数`);
             res.status(200).json({ message: '使用次数已记录 (或指令不存在)' });
-            // 或者严格一点返回 404:
-            // res.status(404).json({ message: '未找到要增加使用次数的快捷指令' });
         }
     } catch (error: any) {
         console.error('增加快捷指令使用次数控制器出错:', error);

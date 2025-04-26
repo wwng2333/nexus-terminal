@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { isAuthenticated } from '../auth/auth.middleware'; // 引入认证中间件
+import { isAuthenticated } from '../auth/auth.middleware'; 
 import {
     createTag,
     getTags,

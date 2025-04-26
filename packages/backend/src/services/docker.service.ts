@@ -1,7 +1,5 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-// import { Service } from 'typedi'; // Removed typedi import
-// import { logger } from '../utils/logger'; // Removed logger import
 
 const execAsync = promisify(exec);
 
@@ -60,11 +58,10 @@ export class DockerService {
     try {
       // 尝试执行一个简单的 docker 命令，如 docker version
       await execAsync('docker version', { timeout: 2000 }); // 5秒超时
-      console.log('[DockerService] Docker is available.'); // Use console.log
       this.isDockerAvailableCache = true;
       return true;
     } catch (error: any) {
-      console.warn('[DockerService] Docker check failed. Docker might not be installed or running.', { error: error.message }); // Use console.warn
+
       this.isDockerAvailableCache = false;
       return false;
     }

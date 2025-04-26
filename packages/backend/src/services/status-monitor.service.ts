@@ -1,9 +1,9 @@
 import { Client } from 'ssh2';
 import { WebSocket } from 'ws';
-import { ClientState } from '../websocket'; // 导入统一的 ClientState
-import { settingsService } from './settings.service'; // +++ 导入 settingsService +++
+import { ClientState } from '../websocket'; 
+import { settingsService } from './settings.service'; 
 
-// 定义服务器状态的数据结构 (与前端 StatusMonitor.vue 匹配)
+
 interface ServerStatus {
     cpuPercent?: number;
     memPercent?: number;
@@ -24,7 +24,7 @@ interface ServerStatus {
     timestamp: number; // 状态获取时间戳
 }
 
-// Interface for parsed network stats
+
 interface NetworkStats {
     [interfaceName: string]: {
         rx_bytes: number;
@@ -32,7 +32,7 @@ interface NetworkStats {
     }
 }
 
-// const DEFAULT_POLLING_INTERVAL = 3000; // --- 移除常量，将从 settingsService 获取 ---
+
 // 用于存储上一次的网络统计信息以计算速率
 const previousNetStats = new Map<string, { rx: number, tx: number, timestamp: number }>();
 
@@ -46,16 +46,14 @@ export class StatusMonitorService {
     /**
      * 启动指定会话的状态轮询
      * @param sessionId 会话 ID
-     * @param interval 轮询间隔 (毫秒)，可选，默认为 DEFAULT_POLLING_INTERVAL // --- 参数移除 ---
+     * @param interval 轮询间隔 (毫秒)，可选，默认为 DEFAULT_POLLING_INTERVAL
      */
-    async startStatusPolling(sessionId: string): Promise<void> { // --- 改为 async, 移除 interval 参数 ---
+    async startStatusPolling(sessionId: string): Promise<void> {
         const state = this.clientStates.get(sessionId);
         if (!state || !state.sshClient) {
-            //console.warn(`[StatusMonitor] 无法为会话 ${sessionId} 启动状态轮询：状态无效或 SSH 客户端不存在。`);
             return;
         }
         if (state.statusIntervalId) {
-            //console.warn(`[StatusMonitor] 会话 ${sessionId} 的状态轮询已在运行中。`);
              return;
          }
 
@@ -70,7 +68,6 @@ export class StatusMonitorService {
              intervalMs = 3000; // 出错时回退到 3 秒
          }
 
-         //console.warn(`[StatusMonitor] 为会话 ${sessionId} 启动状态轮询，间隔 ${intervalMs}ms`);
          // 移除立即执行，让 setInterval 负责第一次调用，给连接更多准备时间
          state.statusIntervalId = setInterval(() => {
              this.fetchAndSendServerStatus(sessionId);
@@ -130,35 +127,31 @@ export class StatusMonitorService {
                  const osReleaseOutput = await this.executeSshCommand(sshClient, 'cat /etc/os-release');
                  const nameMatch = osReleaseOutput.match(/^PRETTY_NAME="?([^"]+)"?/m);
                  status.osName = nameMatch ? nameMatch[1] : (osReleaseOutput.match(/^NAME="?([^"]+)"?/m)?.[1] ?? 'Unknown');
-             } catch (err) { /* 静默处理 */ } // --- 移除 console.warn ---
+             } catch (err) { } 
 
-             // --- CPU Model (Try /proc/cpuinfo first, fallback to lscpu) ---
              try {
                  let cpuModelOutput = '';
                  try {
-                     // Try /proc/cpuinfo first, common on many systems including Alpine
                      cpuModelOutput = await this.executeSshCommand(sshClient, "cat /proc/cpuinfo | grep 'model name' | head -n 1");
                      status.cpuModel = cpuModelOutput.match(/model name\s*:\s*(.*)/i)?.[1].trim();
                  } catch (procErr) {
-                     // console.warn(`[StatusMonitor ${sessionId}] Failed to get CPU model from /proc/cpuinfo, trying lscpu...`, procErr); // --- 移除 console.warn ---
-                     // Fallback to lscpu if /proc/cpuinfo fails
+
                      try {
                          cpuModelOutput = await this.executeSshCommand(sshClient, "lscpu | grep 'Model name:'");
                          status.cpuModel = cpuModelOutput.match(/Model name:\s+(.*)/)?.[1].trim();
                      } catch (lscpuErr) {
-                         // console.warn(`[StatusMonitor ${sessionId}] Failed to get CPU model from lscpu as well:`, lscpuErr); // --- 移除 console.warn ---
+    
                      }
                  }
-                 // If still no model found after both attempts
                  if (!status.cpuModel) {
                      status.cpuModel = 'Unknown';
                  }
-             } catch (err) { // Catch any unexpected error during the process
-                 // console.warn(`[StatusMonitor ${sessionId}] Error getting CPU model:`, err); // --- 移除 console.warn ---
+             } catch (err) { 
+                 
                  status.cpuModel = 'Unknown';
              }
 
-             // --- Memory and Swap ---
+
              try {
                  const freeOutput = await this.executeSshCommand(sshClient, 'free -m');
                  const lines = freeOutput.split('\n');
@@ -186,17 +179,15 @@ export class StatusMonitorService {
                          }
                      }
                  } else { status.swapTotal = 0; status.swapUsed = 0; status.swapPercent = 0; }
-             } catch (err) { /* 静默处理 */ } // --- 移除 console.warn ---
+             } catch (err) { /* 静默处理 */ } 
 
-             // --- Disk Usage (Root Partition, POSIX format for compatibility) ---
+             
              try {
                  // 使用 df -kP / 获取 POSIX 标准格式输出，更稳定
                  const dfOutput = await this.executeSshCommand(sshClient, "df -kP /");
                  const lines = dfOutput.split('\n');
                  if (lines.length >= 2) {
-                     const parts = lines[1].split(/\s+/); // 解析第二行 (数据行)
-                     // POSIX 格式: Filesystem 1024-blocks Used Available Capacity Mounted on
-                     // parts[1]=Total(KB), parts[2]=Used(KB), parts[4]=Capacity(%)
+                     const parts = lines[1].split(/\s+/);
                      if (parts.length >= 5) {
                          const total = parseInt(parts[1], 10);
                          const used = parseInt(parts[2], 10);
@@ -207,9 +198,8 @@ export class StatusMonitorService {
                          }
                      }
                  }
-             } catch (err) { /* 静默处理 */ } // --- 移除 console.warn ---
+             } catch (err) { /* 静默处理 */ }
 
-             // --- CPU Usage (Simplified from top) ---
              try {
                  const topOutput = await this.executeSshCommand(sshClient, "top -bn1 | grep '%Cpu(s)' | head -n 1");
                  const idleMatch = topOutput.match(/(\d+\.?\d*)\s+id/); // Adjusted regex for float
@@ -217,16 +207,15 @@ export class StatusMonitorService {
                      const idlePercent = parseFloat(idleMatch[1]);
                      status.cpuPercent = parseFloat((100 - idlePercent).toFixed(1));
                  }
-             } catch (err) { /* 静默处理 */ } // --- 移除 console.warn ---
+             } catch (err) { /* 静默处理 */ } //
 
-             // --- Load Average ---
              try {
                  const uptimeOutput = await this.executeSshCommand(sshClient, 'uptime');
                  const match = uptimeOutput.match(/load average(?:s)?:\s*([\d.]+)[, ]?\s*([\d.]+)[, ]?\s*([\d.]+)/);
                  if (match) status.loadAvg = [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])];
-             } catch (err) { /* 静默处理 */ } // --- 移除 console.warn ---
+             } catch (err) { /* 静默处理 */ } 
 
-             // --- Network Rates ---
+
              try {
                  const currentStats = await this.parseProcNetDev(sshClient);
                  if (currentStats) {
@@ -238,18 +227,18 @@ export class StatusMonitorService {
                          const currentTx = currentStats[defaultInterface].tx_bytes;
                          const prevStats = previousNetStats.get(sessionId);
 
-                         if (prevStats && prevStats.timestamp < timestamp) { // Ensure time has passed
+                         if (prevStats && prevStats.timestamp < timestamp) {
                              const timeDiffSeconds = (timestamp - prevStats.timestamp) / 1000;
-                             if (timeDiffSeconds > 0.1) { // Avoid division by zero or tiny intervals
+                             if (timeDiffSeconds > 0.1) {
                                  status.netRxRate = Math.max(0, Math.round((currentRx - prevStats.rx) / timeDiffSeconds));
                                  status.netTxRate = Math.max(0, Math.round((currentTx - prevStats.tx) / timeDiffSeconds));
-                             } else { status.netRxRate = 0; status.netTxRate = 0; } // Rate is 0 if interval too small
-                         } else { status.netRxRate = 0; status.netTxRate = 0; } // First run or no time diff
+                             } else { status.netRxRate = 0; status.netTxRate = 0; }
+                         } else { status.netRxRate = 0; status.netTxRate = 0; }
 
                          previousNetStats.set(sessionId, { rx: currentRx, tx: currentTx, timestamp });
-                     } else { /* 静默处理 */ } // --- 移除 console.warn ---
+                     } else { /* 静默处理 */ }
                  }
-             } catch (err) { /* 静默处理 */ } // --- 移除 console.warn ---
+             } catch (err) { /* 静默处理 */ } 
 
          } catch (error) {
              console.error(`[StatusMonitor ${sessionId}] General error fetching server status:`, error);
@@ -270,7 +259,7 @@ export class StatusMonitorService {
             output = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
         } catch (error) {
             // 如果命令失败，记录警告并返回 null
-            // console.warn("[StatusMonitor] Failed to execute 'cat /proc/net/dev':", error); // --- 移除 console.warn ---
+           
             return null;
         }
         // 如果命令成功，继续解析
@@ -279,18 +268,16 @@ export class StatusMonitorService {
             const stats: NetworkStats = {};
             for (const line of lines) {
                 const parts = line.trim().split(/:\s+|\s+/);
-                if (parts.length < 17) continue; // Need at least interface name + 16 stats
+                if (parts.length < 17) continue; 
                 const interfaceName = parts[0];
                 const rx_bytes = parseInt(parts[1], 10);
-                const tx_bytes = parseInt(parts[9], 10); // TX bytes is the 10th field (index 9)
+                const tx_bytes = parseInt(parts[9], 10);
                 if (!isNaN(rx_bytes) && !isNaN(tx_bytes)) {
                     stats[interfaceName] = { rx_bytes, tx_bytes };
                 }
             }
             return Object.keys(stats).length > 0 ? stats : null;
         } catch (parseError) {
-            // 如果解析失败，记录错误并返回 null
-            // console.error("[StatusMonitor] Error parsing /proc/net/dev output:", parseError); // --- 移除 console.error ---
             return null;
         }
     }
@@ -307,11 +294,10 @@ export class StatusMonitorService {
             const interfaceName = output.trim();
             if (interfaceName) return interfaceName;
             // 如果 ip route 没返回有效接口名，也尝试 fallback
-            // console.warn("[StatusMonitor] 'ip route' did not return a valid interface name. Falling back..."); // --- 移除 console.warn ---
+           
 
         } catch (error) {
-            // console.warn("[StatusMonitor] Failed to get default interface using 'ip route', falling back:", error); // --- 移除 console.warn ---
-        // Fallback: 尝试查找第一个非 lo 接口
+
         try {
              const netDevOutput = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
              const lines = netDevOutput.split('\n').slice(2);
@@ -322,13 +308,12 @@ export class StatusMonitorService {
                      }
                  }
             } catch (fallbackError) {
-                 // console.error("[StatusMonitor] Failed to fallback to /proc/net/dev for interface:", fallbackError); // --- 移除 console.error ---
+                
             }
-            // Ensure null is returned if both primary and fallback fail within the outer catch
+
             return null;
         }
-        // This part should ideally not be reached if the first try succeeded or the catch block returned.
-        // Adding a final return null for safety and to satisfy TS if logic paths are complex.
+       
         return null;
     }
 
@@ -347,16 +332,10 @@ export class StatusMonitorService {
                     return reject(new Error(`执行命令 '${command}' 失败: ${err.message}`));
                 }
                 stream.on('close', (code: number, signal?: string) => {
-                    // Don't reject on non-zero exit code, as some commands might return non-zero normally
-                    // if (code !== 0) {
-                    //     //console.warn(`[StatusMonitor] Command '${command}' exited with code ${code}`);
-                    // }
                     resolve(output.trim());
                 }).on('data', (data: Buffer) => {
                     output += data.toString('utf8');
                 }).stderr.on('data', (data: Buffer) => {
-                    // --- 移除 console.warn ---
-                    // console.warn(`[StatusMonitor] Command '${command}' stderr: ${data.toString('utf8').trim()}`);
                 });
             });
         });

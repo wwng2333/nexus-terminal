@@ -1,6 +1,6 @@
 import express from 'express';
 import * as themeController from './terminal-theme.controller';
-import { isAuthenticated } from '../auth/auth.middleware'; // 修正导入名称
+import { isAuthenticated } from '../auth/auth.middleware'; 
 
 const router = express.Router();
 

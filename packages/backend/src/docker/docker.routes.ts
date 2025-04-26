@@ -4,7 +4,7 @@ import { DockerController } from './docker.controller';
 import { isAuthenticated } from '../auth/auth.middleware';
 
 const router = Router();
-const dockerController = new DockerController(); // 同样，手动实例化
+const dockerController = new DockerController();
 
 // 应用认证中间件，确保只有登录用户才能访问 Docker 相关接口
 router.use(isAuthenticated);

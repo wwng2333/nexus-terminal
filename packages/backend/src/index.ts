@@ -1,15 +1,13 @@
 import express = require('express');
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import http from 'http';
-import fs from 'fs'; // 导入 fs 模块
-import path from 'path'; // 导入 path 模块
-import crypto from 'crypto'; // 导入 crypto 模块
-import dotenv from 'dotenv'; // 导入 dotenv
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto'; 
+import dotenv from 'dotenv';
 import session from 'express-session';
 import sessionFileStore from 'session-file-store';
-import bcrypt from 'bcrypt';
 import { getDbInstance } from './database/connection';
-// import { runMigrations } from './database/migrations'; // Migrations are handled within getDbInstance
 import authRouter from './auth/auth.routes';
 import connectionsRouter from './connections/connections.routes';
 import sftpRouter from './sftp/sftp.routes';
@@ -161,10 +159,7 @@ const startServer = () => {
         proxy: true, // 信任反向代理设置的 X-Forwarded-Proto 头
         cookie: {
             httpOnly: true,
-            // secure: 'auto' in newer versions, relies on proxy: true here
-            // secure: process.env.NODE_ENV === 'production', // Keep original logic, but proxy:true adjusts behavior
-            secure: false, // Temporarily force secure to false for debugging proxy issues
-            // maxAge: 默认会话期
+            secure: false, 
         }
     });
     app.use(sessionMiddleware);

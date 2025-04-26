@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import * as QuickCommandsController from './quick-commands.controller';
-import { isAuthenticated } from '../auth/auth.middleware'; // 引入认证中间件
+import { isAuthenticated } from '../auth/auth.middleware';
 
 const router = Router();
 
-// 应用认证中间件到所有快捷指令相关的路由
+
 router.use(isAuthenticated);
 
 // 定义路由

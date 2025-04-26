@@ -16,14 +16,14 @@ router.put('/', appearanceController.updateAppearanceSettingsController);
 // POST /api/v1/appearance/background/page - 上传页面背景图片
 router.post(
     '/background/page',
-    appearanceController.uploadPageBackgroundMiddleware, // 使用 multer 中间件
+    appearanceController.uploadPageBackgroundMiddleware,
     appearanceController.uploadPageBackgroundController
 );
 
 // POST /api/v1/appearance/background/terminal - 上传终端背景图片
 router.post(
     '/background/terminal',
-    appearanceController.uploadTerminalBackgroundMiddleware, // 使用 multer 中间件
+    appearanceController.uploadTerminalBackgroundMiddleware,
     appearanceController.uploadTerminalBackgroundController
 );
 

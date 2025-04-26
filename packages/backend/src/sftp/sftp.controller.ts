@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
-import path from 'path'; // 需要 path 用于处理文件名
-import { clientStates } from '../websocket'; // Import the exported clientStates map
+import path from 'path';
+import { clientStates } from '../websocket'; 
 
 /**
  * 处理文件下载请求 (GET /api/v1/sftp/download)
@@ -25,13 +25,11 @@ export const downloadFile = async (req: Request, res: Response): Promise<void> =
     // 查找与当前用户会话关联的活动 WebSocket 连接和 SFTP 会话
     let userSftpSession = null;
     // 注意：这种查找方式效率不高，实际应用中可能需要更优化的结构来按 userId 查找连接
-    // TODO: Refactor this to use SftpService instead of directly accessing clientStates
-    // This direct access is not ideal and couples the controller to websocket internals.
     for (const [sessionId, state] of clientStates.entries()) {
-        const ws = state.ws; // Get the WebSocket instance from the state
-        const connData = state; // Use the entire state object
+        const ws = state.ws;
+        const connData = state;
         // 假设 AuthenticatedWebSocket 上存储了 userId
-        if (ws.userId === userId && connData.sftp) { // Access userId directly from AuthenticatedWebSocket
+        if (ws.userId === userId && connData.sftp) {
             // 这里简单地取第一个找到的匹配连接，没有处理 connectionId 的匹配
             // TODO: 需要一种方式将 HTTP 请求与特定的 WebSocket/SSH/SFTP 会话关联起来
             // 临时方案：假设一个用户只有一个活动的 SSH/SFTP 会话
@@ -87,7 +85,7 @@ export const downloadFile = async (req: Request, res: Response): Promise<void> =
         // 监听响应对象的 close 事件，确保流被正确关闭 (虽然 pipe 通常会处理)
         res.on('close', () => {
             console.log(`SFTP 下载流关闭 (用户 ${userId}, 路径 ${remotePath})`);
-            // readStream.destroy(); // 可选：显式销毁流
+
         });
 
         console.log(`SFTP 开始下载 (用户 ${userId}, 路径 ${remotePath})`);
@@ -104,5 +102,4 @@ export const downloadFile = async (req: Request, res: Response): Promise<void> =
     }
 };
 
-// 其他 SFTP 控制器函数 (例如上传)
-// export const uploadFile = ...
+

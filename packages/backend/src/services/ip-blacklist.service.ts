@@ -1,12 +1,9 @@
-// packages/backend/src/services/ip-blacklist.service.ts
-// Import new async helpers and the instance getter
+
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 import { settingsService } from './settings.service';
-import { NotificationService } from './notification.service'; // 导入 NotificationService
-import * as sqlite3 from 'sqlite3'; // Keep for RunResult type if needed
+import { NotificationService } from './notification.service'; 
 
-// Remove top-level db instance
-// const db = getDb();
+
 const notificationService = new NotificationService(); // 实例化 NotificationService
 
 // 黑名单相关设置的 Key
@@ -28,7 +25,7 @@ interface IpBlacklistEntry {
     blocked_until: number | null;
 }
 
-// Define the expected row structure from the database if it matches IpBlacklistEntry
+
 type DbIpBlacklistRow = IpBlacklistEntry;
 
 export class IpBlacklistService {
@@ -95,18 +92,16 @@ export class IpBlacklistService {
             const entry = await this.getEntry(ip);
 
             if (entry) {
-                // Update existing record
                 const newAttempts = entry.attempts + 1;
                 let blockedUntil = entry.blocked_until;
                 let shouldNotify = false;
 
-                if (newAttempts >= maxAttempts && !entry.blocked_until) { // Only block and notify if not already blocked
+                if (newAttempts >= maxAttempts && !entry.blocked_until) { 
                     blockedUntil = now + banDuration;
                     shouldNotify = true;
                     console.warn(`[IP Blacklist] IP ${ip} 登录失败次数达到 ${newAttempts} 次 (阈值 ${maxAttempts})，将被封禁 ${banDuration} 秒。`);
                 } else if (newAttempts >= maxAttempts && entry.blocked_until) {
                     console.log(`[IP Blacklist] IP ${ip} 再次登录失败，当前已处于封禁状态。`);
-                    // Optionally extend ban duration here if needed
                 }
 
                 await runDb(db,
@@ -115,7 +110,6 @@ export class IpBlacklistService {
                 );
 
                 if (shouldNotify && blockedUntil) {
-                    // Trigger notification after successful DB update
                     notificationService.sendNotification('IP_BLOCKED', {
                         ip: ip,
                         attempts: newAttempts,
@@ -142,7 +136,6 @@ export class IpBlacklistService {
                 );
 
                  if (shouldNotify && blockedUntil) {
-                     // Trigger notification after successful DB insert
                      notificationService.sendNotification('IP_BLOCKED', {
                          ip: ip,
                          attempts: attempts,
@@ -153,7 +146,6 @@ export class IpBlacklistService {
             }
         } catch (error: any) {
             console.error(`[IP Blacklist] 记录 IP ${ip} 失败尝试时出错:`, error.message);
-            // Avoid throwing error here to prevent login process failure due to blacklist issues
         }
     }
 
@@ -168,7 +160,6 @@ export class IpBlacklistService {
             console.log(`[IP Blacklist] 已重置 IP ${ip} 的失败尝试记录。`);
         } catch (error: any) {
             console.error(`[IP Blacklist] 重置 IP ${ip} 尝试次数时出错:`, error.message);
-            // Avoid throwing error here
         }
     }
 
@@ -189,9 +180,7 @@ export class IpBlacklistService {
             return { entries, total };
         } catch (error: any) {
              console.error('[IP Blacklist] 获取黑名单列表时出错:', error.message);
-             // Return empty list on error? Or re-throw?
-             // throw new Error('获取黑名单列表失败');
-             return { entries: [], total: 0 }; // Return empty on error
+             return { entries: [], total: 0 };
         }
     }
 
@@ -213,7 +202,7 @@ export class IpBlacklistService {
             }
         } catch (error: any) {
             console.error(`[IP Blacklist] 从黑名单删除 IP ${ip} 时出错:`, error.message);
-            throw new Error(`从黑名单删除 IP ${ip} 时出错`); // Re-throw error
+            throw new Error(`从黑名单删除 IP ${ip} 时出错`);
         }
     }
 }

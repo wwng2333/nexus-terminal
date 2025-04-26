@@ -1,10 +1,10 @@
 import express from 'express';
 import { settingsController } from './settings.controller';
-import { isAuthenticated } from '../auth/auth.middleware'; // 导入认证中间件
+import { isAuthenticated } from '../auth/auth.middleware';
 
 const router = express.Router();
 
-// +++ 新增：CAPTCHA 配置路由 (公开获取) +++
+
 // GET /api/v1/settings/captcha - 获取公共 CAPTCHA 配置 (不含密钥)
 router.get('/captcha', settingsController.getCaptchaConfig);
 

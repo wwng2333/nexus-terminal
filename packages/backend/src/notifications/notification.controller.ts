@@ -1,9 +1,9 @@
 import { Request, Response } from 'express';
 import { NotificationService } from '../services/notification.service';
 import { NotificationSetting } from '../types/notification.types';
-import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
+import { AuditLogService } from '../services/audit.service';
 
-const auditLogService = new AuditLogService(); // 实例化 AuditLogService
+const auditLogService = new AuditLogService();
 
 export class NotificationController {
     private notificationService: NotificationService;
@@ -18,7 +18,6 @@ export class NotificationController {
             const settings = await this.notificationService.getAllSettings();
             res.status(200).json(settings);
         } catch (error: any) {
-            console.error("Error fetching notification settings:", error);
             res.status(500).json({ message: '获取通知设置失败', error: error.message });
         }
     };
@@ -27,7 +26,6 @@ export class NotificationController {
     create = async (req: Request, res: Response): Promise<void> => {
         const settingData: Omit<NotificationSetting, 'id' | 'created_at' | 'updated_at'> = req.body;
 
-        // Basic validation (more robust validation can be added)
         if (!settingData.channel_type || !settingData.name || !settingData.config) {
              res.status(400).json({ message: '缺少必要的通知设置字段 (channel_type, name, config)' });
              return;
@@ -35,14 +33,13 @@ export class NotificationController {
 
         try {
             const newSettingId = await this.notificationService.createSetting(settingData);
-            const newSetting = await this.notificationService.getSettingById(newSettingId); // Fetch the created setting to return it
+            const newSetting = await this.notificationService.getSettingById(newSettingId); 
             // 记录审计日志
             if (newSetting) {
                 auditLogService.logAction('NOTIFICATION_SETTING_CREATED', { settingId: newSetting.id, name: newSetting.name, type: newSetting.channel_type });
             }
             res.status(201).json(newSetting);
         } catch (error: any) {
-            console.error("Error creating notification setting:", error);
             res.status(500).json({ message: '创建通知设置失败', error: error.message });
         }
     };
@@ -72,7 +69,6 @@ export class NotificationController {
                 res.status(404).json({ message: `未找到 ID 为 ${id} 的通知设置` });
             }
         } catch (error: any) {
-            console.error(`Error updating notification setting ID ${id}:`, error);
             res.status(500).json({ message: '更新通知设置失败', error: error.message });
         }
     };
@@ -96,7 +92,6 @@ export class NotificationController {
                 res.status(404).json({ message: `未找到 ID 为 ${id} 的通知设置` });
             }
         } catch (error: any) {
-            console.error(`Error deleting notification setting ID ${id}:`, error);
             res.status(500).json({ message: '删除通知设置失败', error: error.message });
         }
     };
@@ -104,7 +99,7 @@ export class NotificationController {
     // POST /api/v1/notifications/:id/test
     testSetting = async (req: Request, res: Response): Promise<void> => {
         const id = parseInt(req.params.id, 10);
-        const { config } = req.body; // Expecting the config to test in the body
+        const { config } = req.body;
 
         if (isNaN(id)) {
             res.status(400).json({ message: '无效的通知设置 ID' });
@@ -116,28 +111,24 @@ export class NotificationController {
         }
 
         try {
-            // Fetch the original setting to determine the channel type
             const originalSetting = await this.notificationService.getSettingById(id);
             if (!originalSetting) {
                 res.status(404).json({ message: `未找到 ID 为 ${id} 的通知设置` });
-                return; // Return early if setting not found
+                return; 
             }
 
-            // Call the generic testSetting method from the service, passing the channel type
             const result = await this.notificationService.testSetting(originalSetting.channel_type, config);
 
             if (result.success) {
                 // 记录审计日志 (可选，根据需要决定是否记录测试操作)
-                // auditLogService.logAction('NOTIFICATION_SETTING_TESTED', { settingId: id, success: true });
+              
                 res.status(200).json({ message: result.message });
             } else {
                  // 记录审计日志 (可选)
-                // auditLogService.logAction('NOTIFICATION_SETTING_TESTED', { settingId: id, success: false, error: result.message });
-                // Return 500 for test failure to indicate an issue with the config/sending
+                
                 res.status(500).json({ message: result.message });
             }
         } catch (error: any) {
-            console.error(`Error testing notification setting ID ${id}:`, error);
             res.status(500).json({ message: '测试通知设置时发生内部错误', error: error.message });
         }
     };
@@ -158,17 +149,14 @@ export class NotificationController {
         }
 
         try {
-            // Call the generic testSetting method directly with provided type and config
             const result = await this.notificationService.testSetting(channel_type, config);
 
             if (result.success) {
                 res.status(200).json({ message: result.message });
             } else {
-                // Return 500 for test failure to indicate an issue with the config/sending
                 res.status(500).json({ message: result.message });
             }
         } catch (error: any) {
-            console.error(`Error testing unsaved notification setting:`, error);
             res.status(500).json({ message: '测试通知设置时发生内部错误', error: error.message });
         }
     };

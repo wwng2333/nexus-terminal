@@ -8,15 +8,11 @@ export type NotificationEvent =
   | 'CONNECTIONS_IMPORTED' | 'CONNECTIONS_EXPORTED'
   | 'PROXY_CREATED' | 'PROXY_UPDATED' | 'PROXY_DELETED'
   | 'TAG_CREATED' | 'TAG_UPDATED' | 'TAG_DELETED'
-  | 'SETTINGS_UPDATED' | 'IP_WHITELIST_UPDATED' | 'IP_BLOCKED' // Added IP_BLOCKED event
+  | 'SETTINGS_UPDATED' | 'IP_WHITELIST_UPDATED' | 'IP_BLOCKED' 
   | 'NOTIFICATION_SETTING_CREATED' | 'NOTIFICATION_SETTING_UPDATED' | 'NOTIFICATION_SETTING_DELETED'
   | 'SFTP_ACTION'
-  // SSH Actions
   | 'SSH_CONNECT_SUCCESS' | 'SSH_CONNECT_FAILURE' | 'SSH_SHELL_FAILURE'
-  // System/Error
   | 'SERVER_STARTED' | 'SERVER_ERROR' | 'DATABASE_MIGRATION' | 'ADMIN_SETUP_COMPLETE';
-  // Settings (Specific) - Keep aligned with AuditLogActionType
-  // Note: IP_BLACKLISTED was in NotificationEvent but not AuditLogActionType, removed for consistency based on user request
 
 export interface WebhookConfig {
   url: string;

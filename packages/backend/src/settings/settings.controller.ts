@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { settingsService } from '../services/settings.service';
-import { AuditLogService } from '../services/audit.service'; // 引入 AuditLogService
+import { AuditLogService } from '../services/audit.service';
 import { ipBlacklistService } from '../services/ip-blacklist.service';
 import { UpdateSidebarConfigDto, UpdateCaptchaSettingsDto, CaptchaSettings } from '../types/settings.types'; // <-- Import CAPTCHA types
 
@@ -41,7 +41,6 @@ export const settingsController = {
           'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
           'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
           'commandInputSyncTarget' // +++ 添加命令输入同步目标键 +++
-          // --- REMOVED old width keys ---
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {
@@ -74,12 +73,12 @@ export const settingsController = {
    */
   async getFocusSwitcherSequence(req: Request, res: Response): Promise<void> {
     try {
-      console.log('[Controller] Received request to get focus switcher sequence.');
+      console.log('[控制器] 收到获取焦点切换顺序的请求。');
       const sequence = await settingsService.getFocusSwitcherSequence();
-      console.log('[Controller] Sending focus switcher sequence to client:', JSON.stringify(sequence));
+      console.log('[控制器] 向客户端发送焦点切换顺序:', JSON.stringify(sequence));
       res.json(sequence);
     } catch (error: any) {
-      console.error('[Controller] 获取焦点切换顺序时出错:', error);
+      console.error('[控制器] 获取焦点切换顺序时出错:', error);
       res.status(500).json({ message: '获取焦点切换顺序失败', error: error.message });
     }
   },
@@ -88,11 +87,11 @@ export const settingsController = {
    * 设置焦点切换顺序
    */
   async setFocusSwitcherSequence(req: Request, res: Response): Promise<void> {
-    console.log('[Controller] Received request to set focus switcher sequence.');
+    console.log('[控制器] 收到设置焦点切换顺序的请求。');
     try {
       // +++ 修改：获取请求体并验证其是否符合 FocusSwitcherFullConfig 结构 +++
       const fullConfig = req.body;
-      console.log('[Controller] Request body fullConfig:', JSON.stringify(fullConfig));
+      console.log('[控制器] 请求体 fullConfig:', JSON.stringify(fullConfig));
 
       // +++ 验证 FocusSwitcherFullConfig 结构 +++
       if (
@@ -101,23 +100,22 @@ export const settingsController = {
           typeof fullConfig.shortcuts === 'object' && fullConfig.shortcuts !== null &&
           Object.values(fullConfig.shortcuts).every((sc: any) => typeof sc === 'object' && sc !== null && (sc.shortcut === undefined || typeof sc.shortcut === 'string')))
       ) {
-        console.warn('[Controller] Invalid full focus config format received:', fullConfig);
+        console.warn('[控制器] 收到无效的完整焦点配置格式:', fullConfig);
         res.status(400).json({ message: '无效的请求体，必须是包含 sequence (string[]) 和 shortcuts (Record<string, {shortcut?: string}>) 的对象' });
         return;
       }
 
-      console.log('[Controller] Calling settingsService.setFocusSwitcherSequence with validated full config...');
+      console.log('[控制器] 使用验证后的完整配置调用 settingsService.setFocusSwitcherSequence...');
       // +++ 传递验证后的 fullConfig 给服务层 +++
       await settingsService.setFocusSwitcherSequence(fullConfig);
-      console.log('[Controller] settingsService.setFocusSwitcherSequence completed successfully.');
+      console.log('[控制器] settingsService.setFocusSwitcherSequence 成功完成。');
 
-      console.log('[Controller] Logging audit action: FOCUS_SWITCHER_SEQUENCE_UPDATED'); // Keep console log for now if needed
-      // auditLogService.logAction('FOCUS_SWITCHER_SEQUENCE_UPDATED', { config: fullConfig }); // Removed specific log
-
-      console.log('[Controller] Sending success response.');
+      console.log('[控制器] 记录审计操作: FOCUS_SWITCHER_SEQUENCE_UPDATED');
+  
+      console.log('[控制器] 发送成功响应。');
       res.status(200).json({ message: '焦点切换顺序已成功更新' });
     } catch (error: any) {
-      console.error('[Controller] 设置焦点切换顺序时出错:', error);
+      console.error('[控制器] 设置焦点切换顺序时出错:', error);
       if (error.message === 'Invalid sequence format provided.') {
           res.status(400).json({ message: '设置焦点切换顺序失败: 无效的格式', error: error.message });
       } else {
@@ -131,12 +129,12 @@ export const settingsController = {
   */
  async getNavBarVisibility(req: Request, res: Response): Promise<void> {
    try {
-     console.log('[Controller] Received request to get nav bar visibility.');
+     console.log('[控制器] 收到获取导航栏可见性的请求。');
      const isVisible = await settingsService.getNavBarVisibility();
-     console.log(`[Controller] Sending nav bar visibility to client: ${isVisible}`);
+     console.log(`[控制器] 向客户端发送导航栏可见性: ${isVisible}`);
      res.json({ visible: isVisible });
    } catch (error: any) {
-     console.error('[Controller] 获取导航栏可见性时出错:', error);
+     console.error('[控制器] 获取导航栏可见性时出错:', error);
      res.status(500).json({ message: '获取导航栏可见性失败', error: error.message });
    }
  },
@@ -145,27 +143,26 @@ export const settingsController = {
   * 设置导航栏可见性
   */
  async setNavBarVisibility(req: Request, res: Response): Promise<void> {
-   console.log('[Controller] Received request to set nav bar visibility.');
+   console.log('[控制器] 收到设置导航栏可见性的请求。');
    try {
      const { visible } = req.body;
-     console.log('[Controller] Request body visible:', visible);
+     console.log('[控制器] 请求体 visible:', visible);
 
      if (typeof visible !== 'boolean') {
-       console.warn('[Controller] Invalid visible format received:', visible);
+       console.warn('[控制器] 收到无效的 visible 格式:', visible);
        res.status(400).json({ message: '无效的请求体，"visible" 必须是一个布尔值' });
        return;
      }
 
-     console.log('[Controller] Calling settingsService.setNavBarVisibility...');
+     console.log('[控制器] 调用 settingsService.setNavBarVisibility...');
      await settingsService.setNavBarVisibility(visible);
-     console.log('[Controller] settingsService.setNavBarVisibility completed successfully.');
+     console.log('[控制器] settingsService.setNavBarVisibility 成功完成。');
 
-     // auditLogService.logAction('NAV_BAR_VISIBILITY_UPDATED', { visible });
 
-     console.log('[Controller] Sending success response.');
+     console.log('[控制器] 发送成功响应。');
      res.status(200).json({ message: '导航栏可见性已成功更新' });
    } catch (error: any) {
-     console.error('[Controller] 设置导航栏可见性时出错:', error);
+     console.error('[控制器] 设置导航栏可见性时出错:', error);
      res.status(500).json({ message: '设置导航栏可见性失败', error: error.message });
    }
  },
@@ -175,23 +172,23 @@ export const settingsController = {
    */
   async getLayoutTree(req: Request, res: Response): Promise<void> {
     try {
-      console.log('[Controller] Received request to get layout tree.');
+      console.log('[控制器] 收到获取布局树的请求。');
       const layoutJson = await settingsService.getLayoutTree();
       if (layoutJson) {
         try {
           const layout = JSON.parse(layoutJson);
-          console.log('[Controller] Sending layout tree to client.');
+          console.log('[控制器] 向客户端发送布局树。');
           res.json(layout);
         } catch (parseError) {
-          console.error('[Controller] Failed to parse layout tree JSON from DB:', parseError);
+          console.error('[控制器] 从数据库解析布局树 JSON 失败:', parseError);
           res.status(500).json({ message: '获取布局树失败：存储的数据格式无效' });
         }
       } else {
-        console.log('[Controller] No layout tree found in settings, sending null.');
+        console.log('[控制器] 在设置中未找到布局树，发送 null。');
         res.json(null);
       }
     } catch (error: any) {
-      console.error('[Controller] 获取布局树时出错:', error);
+      console.error('[控制器] 获取布局树时出错:', error);
       res.status(500).json({ message: '获取布局树失败', error: error.message });
     }
   },
@@ -200,28 +197,28 @@ export const settingsController = {
    * 设置布局树
    */
   async setLayoutTree(req: Request, res: Response): Promise<void> {
-    console.log('[Controller] Received request to set layout tree.');
+    console.log('[控制器] 收到设置布局树的请求。');
     try {
       const layoutTree = req.body;
 
       if (typeof layoutTree !== 'object' || layoutTree === null) {
-         console.warn('[Controller] Invalid layout tree format received (not an object):', layoutTree);
+         console.warn('[控制器] 收到无效的布局树格式 (非对象):', layoutTree);
          res.status(400).json({ message: '无效的请求体，应为 JSON 对象格式的布局树' });
          return;
       }
 
       const layoutJson = JSON.stringify(layoutTree);
 
-      console.log('[Controller] Calling settingsService.setLayoutTree...');
+      console.log('[控制器] 调用 settingsService.setLayoutTree...');
       await settingsService.setLayoutTree(layoutJson);
-      console.log('[Controller] settingsService.setLayoutTree completed successfully.');
+      console.log('[控制器] settingsService.setLayoutTree 成功完成。');
 
       // auditLogService.logAction('LAYOUT_TREE_UPDATED');
 
-      console.log('[Controller] Sending success response.');
+      console.log('[控制器] 发送成功响应。');
       res.status(200).json({ message: '布局树已成功更新' });
     } catch (error: any) {
-      console.error('[Controller] 设置布局树时出错:', error);
+      console.error('[控制器] 设置布局树时出错:', error);
        if (error.message === 'Invalid layout tree JSON format.') {
            res.status(400).json({ message: '设置布局树失败: 无效的 JSON 格式', error: error.message });
        } else {
@@ -256,7 +253,6 @@ export const settingsController = {
         return;
       }
       await ipBlacklistService.removeFromBlacklist(ipToDelete);
-      // auditLogService.logAction('IP_BLACKLIST_REMOVED', { ip: ipToDelete });
       res.status(200).json({ message: `IP 地址 ${ipToDelete} 已从黑名单中移除` });
     } catch (error: any) {
       console.error(`从 IP 黑名单删除 ${req.params.ip} 时出错:`, error);
@@ -269,12 +265,12 @@ export const settingsController = {
    */
   async getAutoCopyOnSelect(req: Request, res: Response): Promise<void> {
     try {
-      console.log('[Controller] Received request to get auto copy on select setting.');
+      console.log('[控制器] 收到获取“选中时自动复制”设置的请求。');
       const isEnabled = await settingsService.getAutoCopyOnSelect();
-      console.log(`[Controller] Sending auto copy on select setting to client: ${isEnabled}`);
+      console.log(`[控制器] 向客户端发送“选中时自动复制”设置: ${isEnabled}`);
       res.json({ enabled: isEnabled });
     } catch (error: any) {
-      console.error('[Controller] 获取终端选中自动复制设置时出错:', error);
+      console.error('[控制器] 获取终端选中自动复制设置时出错:', error);
       res.status(500).json({ message: '获取终端选中自动复制设置失败', error: error.message });
     }
   }, // *** 确保这里有逗号 ***
@@ -283,44 +279,42 @@ export const settingsController = {
    * 设置终端选中自动复制
    */
   async setAutoCopyOnSelect(req: Request, res: Response): Promise<void> {
-    console.log('[Controller] Received request to set auto copy on select setting.');
+    console.log('[控制器] 收到设置“选中时自动复制”设置的请求。');
     try {
       const { enabled } = req.body;
-      console.log('[Controller] Request body enabled:', enabled);
+      console.log('[控制器] 请求体 enabled:', enabled);
 
       if (typeof enabled !== 'boolean') {
-        console.warn('[Controller] Invalid enabled format received:', enabled);
+        console.warn('[控制器] 收到无效的 enabled 格式:', enabled);
         res.status(400).json({ message: '无效的请求体，"enabled" 必须是一个布尔值' });
         return;
       }
 
-      console.log('[Controller] Calling settingsService.setAutoCopyOnSelect...');
+      console.log('[控制器] 调用 settingsService.setAutoCopyOnSelect...');
       await settingsService.setAutoCopyOnSelect(enabled);
-      console.log('[Controller] settingsService.setAutoCopyOnSelect completed successfully.');
+      console.log('[控制器] settingsService.setAutoCopyOnSelect 成功完成。');
 
-      // auditLogService.logAction('AUTO_COPY_ON_SELECT_UPDATED', { enabled }); // 可选：添加审计日志
 
-      console.log('[Controller] Sending success response.');
+      console.log('[控制器] 发送成功响应。');
       res.status(200).json({ message: '终端选中自动复制设置已成功更新' });
     } catch (error: any) {
-      console.error('[Controller] 设置终端选中自动复制时出错:', error);
+      console.error('[控制器] 设置终端选中自动复制时出错:', error);
       res.status(500).json({ message: '设置终端选中自动复制失败', error: error.message });
     }
-  }, // *** 确保这里有逗号 ***
+  },
 
- // --- Sidebar Config Controller Methods ---
 
  /**
   * 获取侧栏配置
   */
  async getSidebarConfig(req: Request, res: Response): Promise<void> {
      try {
-         console.log('[Controller] Received request to get sidebar config.');
+         console.log('[控制器] 收到获取侧边栏配置的请求。');
          const config = await settingsService.getSidebarConfig();
-         console.log('[Controller] Sending sidebar config to client:', config);
+         console.log('[控制器] 向客户端发送侧边栏配置:', config);
          res.json(config);
      } catch (error: any) {
-         console.error('[Controller] 获取侧栏配置时出错:', error);
+         console.error('[控制器] 获取侧栏配置时出错:', error);
          res.status(500).json({ message: '获取侧栏配置失败', error: error.message });
      }
  },
@@ -329,29 +323,28 @@ export const settingsController = {
   * 设置侧栏配置
   */
  async setSidebarConfig(req: Request, res: Response): Promise<void> {
-     console.log('[Controller] Received request to set sidebar config.');
+     console.log('[控制器] 收到设置侧边栏配置的请求。');
      try {
          const configDto: UpdateSidebarConfigDto = req.body;
-         console.log('[Controller] Request body:', configDto);
+         console.log('[控制器] 请求体:', configDto);
 
          // --- DTO Validation (Basic) ---
          // More specific validation happens in the service layer
          if (!configDto || typeof configDto !== 'object' || !Array.isArray(configDto.left) || !Array.isArray(configDto.right)) {
-             console.warn('[Controller] Invalid sidebar config format received:', configDto);
+             console.warn('[控制器] 收到无效的侧边栏配置格式:', configDto);
              res.status(400).json({ message: '无效的请求体，应为包含 left 和 right 数组的 JSON 对象' });
              return;
          }
 
-         console.log('[Controller] Calling settingsService.setSidebarConfig...');
+         console.log('[控制器] 调用 settingsService.setSidebarConfig...');
          await settingsService.setSidebarConfig(configDto);
-         console.log('[Controller] settingsService.setSidebarConfig completed successfully.');
+         console.log('[控制器] settingsService.setSidebarConfig 成功完成。');
 
-         // auditLogService.logAction('SIDEBAR_CONFIG_UPDATED'); // Optional: Add audit log
 
-         console.log('[Controller] Sending success response.');
+         console.log('[控制器] 发送成功响应。');
          res.status(200).json({ message: '侧栏配置已成功更新' });
      } catch (error: any) {
-         console.error('[Controller] 设置侧栏配置时出错:', error);
+         console.error('[控制器] 设置侧栏配置时出错:', error);
          // Handle specific validation errors from the service
          if (error.message.includes('无效的面板名称') || error.message.includes('无效的侧栏配置格式')) {
               res.status(400).json({ message: `设置侧栏配置失败: ${error.message}` });
@@ -359,19 +352,16 @@ export const settingsController = {
               res.status(500).json({ message: '设置侧栏配置失败', error: error.message });
          }
      }
-}, // <-- Add comma here
-
-// --- CAPTCHA Settings Controller Methods ---
+}, 
 
 /**
  * 获取公共 CAPTCHA 配置 (不含密钥)
  */
 async getCaptchaConfig(req: Request, res: Response): Promise<void> {
     try {
-        console.log('[Controller] Received request to get CAPTCHA config.');
+        console.log('[控制器] 收到获取 CAPTCHA 配置的请求。');
         const fullConfig = await settingsService.getCaptchaConfig();
 
-        // *** IMPORTANT: Filter out secret keys before sending to frontend ***
         const publicConfig = {
             enabled: fullConfig.enabled,
             provider: fullConfig.provider,
@@ -379,10 +369,10 @@ async getCaptchaConfig(req: Request, res: Response): Promise<void> {
             recaptchaSiteKey: fullConfig.recaptchaSiteKey,
         };
 
-        console.log('[Controller] Sending public CAPTCHA config to client:', publicConfig);
+        console.log('[控制器] 向客户端发送公共 CAPTCHA 配置:', publicConfig);
         res.json(publicConfig);
     } catch (error: any) {
-        console.error('[Controller] 获取 CAPTCHA 配置时出错:', error);
+        console.error('[控制器] 获取 CAPTCHA 配置时出错:', error);
         res.status(500).json({ message: '获取 CAPTCHA 配置失败', error: error.message });
     }
 },
@@ -391,37 +381,35 @@ async getCaptchaConfig(req: Request, res: Response): Promise<void> {
  * 设置 CAPTCHA 配置
  */
 async setCaptchaConfig(req: Request, res: Response): Promise<void> {
-    console.log('[Controller] Received request to set CAPTCHA config.');
+    console.log('[控制器] 收到设置 CAPTCHA 配置的请求。');
     try {
         const configDto: UpdateCaptchaSettingsDto = req.body;
-        // Mask secrets immediately if logging the DTO
-        console.log('[Controller] Request body (DTO, secrets masked):', { ...configDto, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' });
+        console.log('[控制器] 请求体 (DTO, 密钥已屏蔽):', { ...configDto, hcaptchaSecretKey: '***', recaptchaSecretKey: '***' });
 
-        // --- DTO Validation (Basic) ---
         if (!configDto || typeof configDto !== 'object') {
-            console.warn('[Controller] Invalid CAPTCHA config format received (not an object):', configDto);
+            console.warn('[控制器] 收到无效的 CAPTCHA 配置格式 (非对象):', configDto);
             res.status(400).json({ message: '无效的请求体，应为 JSON 对象' });
             return;
         }
-        // More specific validation happens in the service layer
 
-        console.log('[Controller] Calling settingsService.setCaptchaConfig...');
+
+        console.log('[控制器] 调用 settingsService.setCaptchaConfig...');
         await settingsService.setCaptchaConfig(configDto);
-        console.log('[Controller] settingsService.setCaptchaConfig completed successfully.');
+        console.log('[控制器] settingsService.setCaptchaConfig 成功完成。');
 
-        auditLogService.logAction('CAPTCHA_SETTINGS_UPDATED'); // Add audit log
+        auditLogService.logAction('CAPTCHA_SETTINGS_UPDATED');
 
-        console.log('[Controller] Sending success response.');
+        console.log('[控制器] 发送成功响应。');
         res.status(200).json({ message: 'CAPTCHA 配置已成功更新' });
     } catch (error: any) {
-        console.error('[Controller] 设置 CAPTCHA 配置时出错:', error);
+        console.error('[控制器] 设置 CAPTCHA 配置时出错:', error);
         // Handle specific validation errors from the service
-        if (error.message.includes('无效的') || error.message.includes('必须是')) { // Basic check for validation errors
+        if (error.message.includes('无效的') || error.message.includes('必须是')) { 
              res.status(400).json({ message: `设置 CAPTCHA 配置失败: ${error.message}` });
         } else {
              res.status(500).json({ message: '设置 CAPTCHA 配置失败', error: error.message });
         }
     }
-} // <-- No comma after the last method
+} 
 
-}; // <-- End of settingsController object
+};
