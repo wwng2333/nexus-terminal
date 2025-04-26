@@ -22,7 +22,7 @@ services:
     networks:
       - nexus-terminal-network
 
-
 networks:
   nexus-terminal-network:
     driver: bridge
+    name: nexus-terminal-network
