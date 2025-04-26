@@ -3,7 +3,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto'; 
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import session from 'express-session';
 import sessionFileStore from 'session-file-store';
@@ -30,7 +30,7 @@ import './services/notification.dispatcher.service'; // 确保分发器被加载
 // --- 结束通知系统初始化 ---
 // --- 环境变量和密钥初始化 ---
 const initializeEnvironment = async () => {
-    const rootEnvPath = path.resolve(__dirname, '../../.env'); // 指向项目根目录的 .env
+    const rootEnvPath = path.resolve(__dirname, '../data/.env'); // 指向项目根目录的 .env
     let keysGenerated = false;
     let keysToAppend = '';
 
@@ -164,7 +164,6 @@ const startServer = () => {
         proxy: true, // 信任反向代理设置的 X-Forwarded-Proto 头
         cookie: {
             httpOnly: true,
-            secure: false, 
         }
     });
     app.use(sessionMiddleware);
