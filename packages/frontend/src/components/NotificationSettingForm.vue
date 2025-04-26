@@ -272,7 +272,6 @@ const allNotificationEvents: NotificationEvent[] = [
     'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'PASSWORD_CHANGED', // Added LOGOUT, PASSWORD_CHANGED
     '2FA_ENABLED', '2FA_DISABLED', 'PASSKEY_REGISTERED', 'PASSKEY_DELETED', // Added 2FA, changed PASSKEY_ADDED
     'CONNECTION_CREATED', 'CONNECTION_UPDATED', 'CONNECTION_DELETED', 'CONNECTION_TESTED', // Changed _ADDED, added _TESTED
-    'CONNECTIONS_IMPORTED', 'CONNECTIONS_EXPORTED', // Added IMPORT/EXPORT
     'PROXY_CREATED', 'PROXY_UPDATED', 'PROXY_DELETED', // Changed _ADDED
     'TAG_CREATED', 'TAG_UPDATED', 'TAG_DELETED', // Changed _ADDED
     'SETTINGS_UPDATED', 'IP_WHITELIST_UPDATED', // Added IP_WHITELIST_UPDATED
@@ -487,9 +486,10 @@ const handleTestNotification = async () => {
             // Test unsaved setting
             result = await store.testUnsavedSetting(formData.channel_type, testConfig);
         }
-        testResult.value = { success: true, message: result.message || t('settings.notifications.form.testSuccess') };
-    } catch (error: any) {
-        console.error("Test notification error:", error);
+       // Translate the message received from the backend using t()
+       testResult.value = { success: true, message: t(result.message || 'settings.notifications.form.testSuccess') };
+   } catch (error: any) {
+       console.error("Test notification error:", error);
         const message = error?.response?.data?.message || error.message || t('settings.notifications.form.testFailed');
         testResult.value = { success: false, message: message };
         // Optionally set testError if you want a separate display area for errors vs results

@@ -26,8 +26,6 @@
     "CONNECTION_UPDATED": "Connection Updated",
     "CONNECTION_DELETED": "Connection Deleted",
     "CONNECTION_TESTED": "Connection Tested",
-    "CONNECTIONS_IMPORTED": "Connections Imported",
-    "CONNECTIONS_EXPORTED": "Connections Exported",
     "PROXY_CREATED": "Proxy Created",
     "PROXY_UPDATED": "Proxy Updated",
     "PROXY_DELETED": "Proxy Deleted",

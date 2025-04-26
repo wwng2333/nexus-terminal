@@ -16,8 +16,6 @@ export enum AppEventType {
   ConnectionUpdated = 'CONNECTION_UPDATED',
   ConnectionDeleted = 'CONNECTION_DELETED',
   ConnectionTested = 'CONNECTION_TESTED',
-  ConnectionsImported = 'CONNECTIONS_IMPORTED',
-  ConnectionsExported = 'CONNECTIONS_EXPORTED',
   ProxyCreated = 'PROXY_CREATED',
   ProxyUpdated = 'PROXY_UPDATED',
   ProxyDeleted = 'PROXY_DELETED',

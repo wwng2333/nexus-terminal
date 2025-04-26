@@ -15,8 +15,6 @@ export type AuditLogActionType =
   | 'CONNECTION_UPDATED'
   | 'CONNECTION_DELETED'
   | 'CONNECTION_TESTED'
-  | 'CONNECTIONS_IMPORTED'
-  | 'CONNECTIONS_EXPORTED'
 
   // Proxies
   | 'PROXY_CREATED'
@@ -39,9 +37,6 @@ export type AuditLogActionType =
   | 'NOTIFICATION_SETTING_UPDATED'
   | 'NOTIFICATION_SETTING_DELETED'
 
-  // API Keys (Removed from audit log types)
-  // | 'API_KEY_CREATED'
-  // | 'API_KEY_DELETED'
 
   // SFTP (Consider logging specific actions if needed, e.g., UPLOAD, DOWNLOAD, DELETE_FILE)
   | 'SFTP_ACTION' // Generic SFTP action for now

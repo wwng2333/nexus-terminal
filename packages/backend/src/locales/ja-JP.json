@@ -26,8 +26,6 @@
       "CONNECTION_UPDATED": "接続を更新しました",
       "CONNECTION_DELETED": "接続を削除しました",
       "CONNECTION_TESTED": "接続をテストしました",
-      "CONNECTIONS_IMPORTED": "接続をインポートしました",
-      "CONNECTIONS_EXPORTED": "接続をエクスポートしました",
       "PROXY_CREATED": "プロキシを作成しました",
       "PROXY_UPDATED": "プロキシを更新しました",
       "PROXY_DELETED": "プロキシを削除しました",
