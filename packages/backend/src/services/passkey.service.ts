@@ -142,13 +142,13 @@ export class PasskeyService {
             }
 
 
-            // --- 确保使用 Uint8Array 进行转换 ---
-            const credentialIdUint8Array = new Uint8Array(credentialId);
-            const credentialPublicKeyUint8Array = new Uint8Array(credentialPublicKey);
-
-            const credentialIdBase64Url = Buffer.from(credentialIdUint8Array).toString('base64url');
+            // --- credentialId is already a Base64URL string, use directly ---
+            // --- publicKey needs conversion from ArrayBuffer/object ---
+            const credentialIdBase64Url = credentialId; // Use the string directly
+            const credentialPublicKeyUint8Array = new Uint8Array(credentialPublicKey); // Convert public key
             const publicKeyBase64Url = Buffer.from(credentialPublicKeyUint8Array).toString('base64url');
-            console.log(`[PasskeyService VerifyReg] Converted credentialId to Base64URL: ${credentialIdBase64Url}`); // Log the converted ID
+            console.log(`[PasskeyService VerifyReg] Using credentialId (already Base64URL): ${credentialIdBase64Url}`); // Log the ID being used
+            console.log(`[PasskeyService VerifyReg] Converted publicKey to Base64URL: ${publicKeyBase64Url}`); // Log the converted public key
 
             // 获取 transports 信息
             const transports = registrationResponse.response.transports ?? null;
