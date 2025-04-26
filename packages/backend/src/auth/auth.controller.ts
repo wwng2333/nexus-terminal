@@ -62,9 +62,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
                     const clientIp = req.ip || req.socket?.remoteAddress || 'unknown';
                     ipBlacklistService.recordFailedAttempt(clientIp);
                     auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp });
-                    // notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp }); // 保留原有调用，因为这里已经有了
+                    notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid CAPTCHA token', ip: clientIp }); // 取消注释
                     res.status(401).json({ message: 'CAPTCHA 验证失败。' });
-                    return; 
+                    return;
                 }
                 console.log(`[AuthController] CAPTCHA 验证成功 - ${username}`);
             } catch (captchaError: any) {
@@ -89,8 +89,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             ipBlacklistService.recordFailedAttempt(clientIp);
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
-            // 发送登录失败通知 (保留原有调用)
-            // notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp });
+            // 发送登录失败通知
+            notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'User not found', ip: clientIp }); // 取消注释
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
@@ -104,8 +104,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
             ipBlacklistService.recordFailedAttempt(clientIp);
             // 记录审计日志 (添加 IP)
             auditLogService.logAction('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
-            // 发送登录失败通知 (保留原有调用)
-            // notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp });
+            // 发送登录失败通知
+            notificationService.sendNotification('LOGIN_FAILURE', { username, reason: 'Invalid password', ip: clientIp }); // 取消注释
             res.status(401).json({ message: '无效的凭据。' });
             return;
         }
