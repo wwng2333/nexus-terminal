@@ -142,9 +142,13 @@ export class PasskeyService {
             }
 
 
-            // --- 使用 credential.id 和 credential.publicKey ---
-            const credentialIdBase64Url = Buffer.from(credentialId).toString('base64url');
-            const publicKeyBase64Url = Buffer.from(credentialPublicKey).toString('base64url');
+            // --- 确保使用 Uint8Array 进行转换 ---
+            const credentialIdUint8Array = new Uint8Array(credentialId);
+            const credentialPublicKeyUint8Array = new Uint8Array(credentialPublicKey);
+
+            const credentialIdBase64Url = Buffer.from(credentialIdUint8Array).toString('base64url');
+            const publicKeyBase64Url = Buffer.from(credentialPublicKeyUint8Array).toString('base64url');
+            console.log(`[PasskeyService VerifyReg] Converted credentialId to Base64URL: ${credentialIdBase64Url}`); // Log the converted ID
 
             // 获取 transports 信息
             const transports = registrationResponse.response.transports ?? null;
