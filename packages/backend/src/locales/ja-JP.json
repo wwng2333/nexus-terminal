@@ -2,14 +2,14 @@
     "testNotification": {
       "subject": "星枢ターミナル テスト通知 ({event})",
       "email": {
-        "body": "これは、星枢ターミナルからのイベント'{{event}}'に関するテストメールです。\n\nこのメールを受信した場合、SMTP 設定は正常に機能しています。\n\nタイムスタンプ: {{timestamp}}",
-        "bodyHtml": "<p>これは、<b>星枢ターミナル</b>からのイベント'{{event}}'に関するテストメールです。</p><p>このメールを受信した場合、SMTP 設定は正常に機能しています。</p><p>タイムスタンプ: {{timestamp}}</p>"
+        "body": "これは、星枢ターミナルからのイベント'{event}'に関するテストメールです。\n\nこのメールを受信した場合、SMTP 設定は正常に機能しています。\n\nタイムスタンプ: {timestamp}",
+        "bodyHtml": "<p>これは、<b>星枢ターミナル</b>からのイベント'{event}'に関するテストメールです。</p><p>このメールを受信した場合、SMTP 設定は正常に機能しています。</p><p>タイムスタンプ: {timestamp}</p>"
       },
       "webhook": {
-        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Webhook - i18n) です。 イベント：'{{event}}'。"
+        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Webhook - i18n) です。 イベント：'{event}'。"
       },
       "telegram": {
-        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Telegram - i18n) です。 イベント：'{{event}}'。",
+        "detailsMessage": "これは星枢ターミナルからのテスト通知 (Telegram - i18n) です。 イベント：'{event}'。",
         "bodyTemplate": "*星枢ターミナル テスト通知*\nイベント: `{event}`\nタイムスタンプ: {timestamp}\n詳細:\n```\n{details}\n```"
       }
     },
@@ -47,16 +47,5 @@
       "SERVER_ERROR": "サーバーエラー",
       "DATABASE_MIGRATION": "データベース移行",
       "ADMIN_SETUP_COMPLETE": "初期管理者設定完了"
-    },
-    "eventBody": {
-      "SETTINGS_UPDATED": "イベント: {{event}}\nタイムスタンプ: {{timestamp}}\n詳細:\n{{details}}"
-    },
-    "connection": {
-      "testSuccess": "接続 '{{name}}' のテストに成功しました！",
-      "testFailed": "接続 '{{name}}' のテストに失敗しました: {{error}}"
-    },
-    "settings": {
-      "ipWhitelistUpdated": "IP ホワイトリストを更新しました。",
-      "updated": "設定を更新しました。"
     }
   }

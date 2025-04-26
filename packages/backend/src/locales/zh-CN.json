@@ -1,18 +1,4 @@
 {
-  "testNotification": {
-    "subject": "星枢终端测试通知 ({event})",
-    "email": {
-      "body": "这是一封来自星枢终端关于事件 '{{event}}' 的测试邮件。\n\n如果您收到此邮件，表示您的 SMTP 配置工作正常。\n\n时间戳: {{timestamp}}",
-      "bodyHtml": "<p>这是一封来自 <b>星枢终端</b> 关于事件 '{{event}}' 的测试邮件。</p><p>如果您收到此邮件，表示您的 SMTP 配置工作正常。</p><p>时间戳: {{timestamp}}</p>"
-    },
-    "webhook": {
-      "detailsMessage": "这是一条来自星枢终端的测试通知 (Webhook - i18n)，事件：'{{event}}'。"
-    },
-    "telegram": {
-      "detailsMessage": "这是一条来自星枢终端的测试通知 (Telegram - i18n)，事件：'{{event}}'。",
-      "bodyTemplate": "*星枢终端测试通知*\n事件: `{event}`\n时间戳: {timestamp}\n详情:\n```\n{details}\n```"
-    }
-  },
   "event": {
     "LOGIN_SUCCESS": "登录成功",
     "LOGIN_FAILURE": "登录失败",
@@ -46,19 +32,7 @@
     "SERVER_STARTED": "服务器已启动",
     "SERVER_ERROR": "服务器错误",
     "DATABASE_MIGRATION": "数据库迁移",
-    "ADMIN_SETUP_COMPLETE": "初始管理员设置完成"
-    
-  },
-  "eventBody": {
-    
-    "SETTINGS_UPDATED": "事件: {{event}}\n时间戳: {{timestamp}}\n详情:\n{{details}}"
-  },
-  "connection": {
-    "testSuccess": "连接 '{{name}}' 测试成功！",
-    "testFailed": "连接 '{{name}}' 测试失败: {{error}}"
-  },
-  "settings": {
-    "ipWhitelistUpdated": "IP 白名单更新成功。",
-    "updated": "设置更新成功。"
+    "ADMIN_SETUP_COMPLETE": "初始管理员设置完成",
+    "testNotification": "测试通知"
   }
 }

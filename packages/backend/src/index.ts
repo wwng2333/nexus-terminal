@@ -23,6 +23,11 @@ import appearanceRoutes from './appearance/appearance.routes';
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware';
 
+// --- 初始化通知系统 (导入即初始化单例) ---
+import './services/event.service'; // 确保事件服务被加载
+import './services/notification.processor.service'; // 确保处理器被加载并监听事件
+import './services/notification.dispatcher.service'; // 确保分发器被加载并监听处理器事件
+// --- 结束通知系统初始化 ---
 // --- 环境变量和密钥初始化 ---
 const initializeEnvironment = async () => {
     const rootEnvPath = path.resolve(__dirname, '../../.env'); // 指向项目根目录的 .env

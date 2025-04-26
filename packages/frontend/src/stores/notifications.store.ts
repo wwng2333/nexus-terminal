@@ -82,8 +82,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
         // The component handles its own 'testingNotification' state.
         error.value = null; // Clear previous general errors
         try {
-            // Send the config to test in the request body
-            const response = await apiClient.post<{ message: string }>(`/notifications/${id}/test`, { config }); // 使用 apiClient
+            // Send the request without a body, as the backend uses the saved config for the given ID
+            const response = await apiClient.post<{ message: string }>(`/notifications/${id}/test`); // 使用 apiClient, removed config from body
             return { success: true, message: response.data.message || '测试成功' };
         } catch (err: any) {
             console.error(`Error testing notification setting ${id}:`, err);
