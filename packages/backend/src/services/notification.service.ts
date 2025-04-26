@@ -376,7 +376,21 @@ export class NotificationService {
                         ? translatedPayload.details
                         : JSON.stringify(translatedPayload.details || {}, null, 2))
         };
-        const requestBody = this._renderTemplate(config.bodyTemplate || defaultBodyTemplate, templateDataWebhook, defaultBody); // Use new signature (3 args)
+        let templateToRender = config.bodyTemplate || defaultBodyTemplate;
+        let isCustomTemplate = !!config.bodyTemplate;
+
+        if (isCustomTemplate) {
+             console.log(`[_sendWebhook] Original custom body template for event ${payload.event}:`, templateToRender);
+             // --- PRE-PROCESS TEMPLATE: Replace {event} with {eventDisplay} ---
+             templateToRender = templateToRender.replace(/\{event\}/g, '{eventDisplay}');
+             console.log(`[_sendWebhook] Pre-processed body template (replaced {event} with {eventDisplay}):`, templateToRender);
+             // -----------------------------------------------------------------
+        } else {
+             console.log(`[_sendWebhook] No custom body template found. Using default template for event ${payload.event}`);
+        }
+
+        // Render the potentially modified template or the default one
+        const requestBody = this._renderTemplate(templateToRender, templateDataWebhook, defaultBody);
 
         const requestConfig: AxiosRequestConfig = {
             method: config.method || 'POST',
@@ -455,20 +469,17 @@ export class NotificationService {
         console.log(`[_sendEmail] Prepared templateDataEmailBody for event ${payload.event}:`, templateDataEmailBody);
 
         let body = '';
-        // Correctly construct the default body text using translated/formatted variables
         const defaultBodyText = `Event: ${eventDisplayName}\nTimestamp: ${formattedTimestampForEmail}\nDetails:\n${detailsString}`;
 
-        // Check if the user provided a bodyTemplate in the config
         if (config.bodyTemplate) {
-            // Use custom body template if provided
+
             let templateToRender = config.bodyTemplate;
             console.log(`[_sendEmail] Original custom body template for event ${payload.event}:`, templateToRender);
 
-            // --- PRE-PROCESS TEMPLATE: Replace {event} with {eventDisplay} ---
-            // This ensures the translated event name is used even if the user's template uses {event}
+
             templateToRender = templateToRender.replace(/\{event\}/g, '{eventDisplay}');
             console.log(`[_sendEmail] Pre-processed body template (replaced {event} with {eventDisplay}):`, templateToRender);
-            // -----------------------------------------------------------------
+
 
             // Render the potentially modified template.
             body = this._renderTemplate(templateToRender, templateDataEmailBody, defaultBodyText);
@@ -476,20 +487,14 @@ export class NotificationService {
             // No custom template, use the directly constructed default text
             console.log(`[_sendEmail] No custom body template found. Using default constructed body text for event ${payload.event}`);
             body = defaultBodyText;
-            // Removed lines related to unused bodyKey:
-            // const bodyKey = `eventBody.${payload.event}`;
-            // console.log(`[_sendEmail] No custom body template found. Using i18n body key '${bodyKey}' for event ${payload.event}`);
-            // body = i18next.t(bodyKey, { ... });
         }
         console.log(`[_sendEmail] Final email body for event ${payload.event}:\n${body}`);
 
         const mailOptions: Mail.Options = {
             from: config.from,
             to: config.to,
-            subject: subject, // Use the fixed subject
-            text: body,       // Use the rendered/translated body
-            // Consider adding an html property if your templates/i18n generate HTML
-            // html: bodyHtml,
+            subject: subject, 
+            text: body,    
         };
 
         try {
@@ -518,47 +523,33 @@ export class NotificationService {
             } else if (typeof payload.details === 'string') {
                 detailsText = payload.details;
             } else {
-                // Generic fallback for unhandled object details
                 detailsText = JSON.stringify(payload.details);
             }
         }
         console.log(`[_sendTelegram] Formatted detailsText:`, detailsText);
 
-        // 3. Prepare data for template placeholders AND i18n interpolation (NO escaping here)
-        // Get the translated event name using the correct key 'event.<EVENT_NAME>'
         const translatedEventName = i18next.t(`event.${payload.event}`, { lng: userLang, defaultValue: payload.event });
 
         const templateData: Record<string, string> = {
-            // Assign the *translated* event name to the 'event' key (NO escaping)
             event: translatedEventName,
-            // NEW: Format timestamp using user's timezone for Telegram (adjust format as needed)
             timestamp: formatInTimeZone(new Date(payload.timestamp), userTimezone, "yyyy-MM-dd HH:mm:ss zzz"),
-            // Formatted details string (NO escaping)
             details: detailsText
-            // Note: We no longer create eventDisplay key
         };
         console.log(`[_sendTelegram] Prepared templateData (NO escaping):`, JSON.stringify(templateData, null, 2));
 
         // 4. Handle template
         let messageText = '';
         if (config.messageTemplate) {
-            // User has a custom template, render it using prepared data
             console.log(`[_sendTelegram] Using custom template:`, config.messageTemplate);
-            // Provide a fallback text in case rendering fails
             const fallbackForCustom = `Event: ${templateData.event}, Details: ${templateData.details}`; // Use 'event' key now
             messageText = this._renderTemplate(config.messageTemplate, templateData, fallbackForCustom);
         } else {
-            // No custom template, use i18n to generate the full body
             const i18nKey = `eventBody.${payload.event}`;
             console.log(`[_sendTelegram] Using i18n template key:`, i18nKey);
-            // Define a fallback structure using the prepared data (NO escaping)
-            const fallbackBody = `*Fallback Notification*\nEvent: ${templateData.event}\nTime: \`${templateData.timestamp}\`\nDetails: ${templateData.details}`; // Use 'event' key now
-            // Pass the prepared data for interpolation within the i18n translation
+            const fallbackBody = `*Fallback Notification*\nEvent: ${templateData.event}\nTime: \`${templateData.timestamp}\`\nDetails: ${templateData.details}`;
             messageText = i18next.t(i18nKey, {
                 lng: userLang,
-                ...templateData, // Pass all prepared data for interpolation (event, timestamp, details)
-                // If specific i18n keys need raw data (like the keys array), add them here:
-                // updatedKeys: (payload.event === 'SETTINGS_UPDATED' && Array.isArray(payload.details?.updatedKeys)) ? payload.details.updatedKeys.join(', ') : '',
+                ...templateData, 
                 defaultValue: fallbackBody
             });
         }
