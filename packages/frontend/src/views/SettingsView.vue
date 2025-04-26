@@ -905,15 +905,30 @@ const handleRegisterPasskey = async () => {
     return;
   }
   try {
+    console.log('[Passkey Register] 开始获取注册选项...');
     const optionsResponse = await apiClient.post('/auth/passkey/register-options'); // 使用 apiClient
     const options = optionsResponse.data;
+    console.log('[Passkey Register] 获取到的注册选项:', JSON.stringify(options, null, 2)); // 记录选项
+
+    console.log('[Passkey Register] 调用 startRegistration...');
     let registrationResponse = await startRegistration(options);
-    await apiClient.post('/auth/passkey/verify-registration', { registrationResponse, name: passkeyName.value }); // 使用 apiClient
+    console.log('[Passkey Register] startRegistration 返回结果:', JSON.stringify(registrationResponse, null, 2)); // 记录响应
+
+    const verificationPayload = { ...registrationResponse, name: passkeyName.value };
+    console.log('[Passkey Register] 调用验证接口，发送数据:', JSON.stringify(verificationPayload, null, 2)); // 记录发送的数据
+
+    // 将 startRegistration 返回的对象字段展开，与 name 一起作为请求体发送
+    await apiClient.post('/auth/passkey/verify-registration', verificationPayload); // 使用 apiClient
+    console.log('[Passkey Register] 验证接口调用成功。');
+
     passkeyMessage.value = t('settings.passkey.success.registered');
     passkeyName.value = '';
     await authStore.fetchPasskeys(); // 注册成功后刷新列表
   } catch (error: any) {
-    console.error('Passkey 注册流程出错:', error);
+    // 在 catch 块中记录更详细的错误信息
+    console.error('[Passkey Register] 注册流程出错:', error);
+    console.error('[Passkey Register] 错误详情:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2)); // 尝试记录错误对象的更多属性
+
     if (error.name === 'NotAllowedError') {
         passkeyError.value = t('settings.passkey.error.cancelled');
     } else if (isAxiosError(error) && error.response) { // 使用导入的 isAxiosError

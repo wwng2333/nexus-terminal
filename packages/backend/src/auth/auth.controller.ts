@@ -448,7 +448,8 @@ export const generatePasskeyRegistrationOptions = async (req: Request, res: Resp
 export const verifyPasskeyRegistration = async (req: Request, res: Response): Promise<void> => {
     const userId = req.session.userId;
     const expectedChallenge = req.session.currentChallenge;
-    const { registrationResponse, name } = req.body; // name 是用户给 Passkey 起的名字 (可选)
+    // 将 name 提取出来，其余部分作为 registrationData 对象
+    const { name, ...registrationData } = req.body;
 
     if (!userId || req.session.requiresTwoFactor) {
         res.status(401).json({ message: '用户未认证或认证未完成。' });
@@ -460,7 +461,8 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
         return;
     }
 
-    if (!registrationResponse) {
+    // 检查 registrationData 是否存在且不为空对象
+    if (!registrationData || Object.keys(registrationData).length === 0) {
         res.status(400).json({ message: '缺少注册响应数据。' });
         return;
     }
@@ -486,7 +488,7 @@ export const verifyPasskeyRegistration = async (req: Request, res: Response): Pr
 
         const verification = await passkeyService.verifyRegistration(
             userId, // <-- 传递 userId 作为第一个参数
-            registrationResponse,
+            registrationData as any, // 将收集到的字段作为 registrationResponse 传递，可能需要类型断言
             expectedChallenge,
             hostname,
             origin,
