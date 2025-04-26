@@ -125,7 +125,9 @@ export class PasskeyService {
             const counter = registrationInfo.counter; // 直接获取 counter
 
             // --- 直接使用 registrationInfo 的属性 ---
+            console.log('[PasskeyService] BEFORE Buffer.from(credentialID): Type=', typeof registrationInfo.credentialID, 'Value=', registrationInfo.credentialID); // <-- 添加精确日志
             const credentialIdBase64Url = Buffer.from(registrationInfo.credentialID).toString('base64url');
+            console.log('[PasskeyService] BEFORE Buffer.from(credentialPublicKey): Type=', typeof registrationInfo.credentialPublicKey, 'Value=', registrationInfo.credentialPublicKey); // <-- 添加精确日志
             const publicKeyBase64Url = Buffer.from(registrationInfo.credentialPublicKey).toString('base64url');
 
             // 获取 transports 信息
