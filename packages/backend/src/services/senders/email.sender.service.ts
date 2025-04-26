@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import Mail from 'nodemailer/lib/mailer'; // Import Mail type for transporter
+import SMTPTransport from 'nodemailer/lib/smtp-transport'; // Import SMTPTransport for options type
 import { INotificationSender } from '../notification.dispatcher.service';
 import { ProcessedNotification } from '../notification.processor.service';
 import { EmailConfig } from '../../types/notification.types';
@@ -47,19 +48,21 @@ class EmailSenderService implements INotificationSender {
             }
 
            // Remove explicit type annotation to let TypeScript infer the type
-           const transporterOptions = {
+           const transporterOptions: SMTPTransport.Options = { // Use specific SMTPTransport options type
                host: finalSmtpHost,
                port: finalSmtpPort,
-                secure: finalSmtpSecure, // true for 465, false for other ports
-                auth: (finalSmtpUser && finalSmtpPass) ? {
-                    user: finalSmtpUser,
-                    pass: finalSmtpPass,
-                } : undefined, // Only include auth if user/pass are provided
-                tls: {
-                    // Do not fail on invalid certs if secure is false or not explicitly required
-                    rejectUnauthorized: finalSmtpSecure // Stricter check based on finalSecure value
-                }
-            };
+               secure: finalSmtpSecure, // true for 465, false for other ports
+               auth: (finalSmtpUser && finalSmtpPass) ? {
+                   user: finalSmtpUser,
+                   pass: finalSmtpPass,
+               } : undefined, // Only include auth if user/pass are provided
+               tls: {
+                   // rejectUnauthorized should be within the tls object according to types
+                   rejectUnauthorized: finalSmtpSecure,
+                   // minVersion is also a valid TLS option
+                   minVersion: 'TLSv1.2' // Explicitly require TLSv1.2 or higher for Gmail compatibility
+               }
+           };
 
             const transporter = nodemailer.createTransport(transporterOptions);
 

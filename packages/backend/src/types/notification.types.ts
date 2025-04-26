@@ -22,7 +22,7 @@ export interface WebhookConfig {
 
 export interface EmailConfig {
   to: string; // Comma-separated list of recipient emails
-  subjectTemplate?: string; // Optional subject template
+  bodyTemplate?: string; // Optional body template (plain text)
   // SMTP settings per channel
   smtpHost?: string;
   smtpPort?: number;

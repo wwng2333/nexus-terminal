@@ -215,13 +215,30 @@ class NotificationProcessorService extends EventEmitter {
         // Use user-defined template first, then the GENERIC fallback
         switch (setting.channel_type) {
             case 'email':
+console.log(`[NotificationProcessor NEW DEBUG] Raw setting.config:`, JSON.stringify(setting.config));
+
+
+console.log(`[NotificationProcessor NEW DEBUG] Parsed emailConfig:`, JSON.stringify(emailConfig));
+if (emailConfig && typeof emailConfig === 'object') {
+                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig.subjectTemplate:`, emailConfig.subjectTemplate);
+                } else {
+                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig is not a valid object.`);
+                }
+
                 const emailConfig = setting.config as EmailConfig;
-                // Use user template OR generic fallback
-                const subjectTemplate = emailConfig.subjectTemplate || genericSubject;
-                subject = this.interpolate(subjectTemplate, baseInterpolationData);
-                // For email body, assume user template is HTML if provided, otherwise use generic HTML fallback
-                // Note: EmailConfig type currently doesn't have bodyTemplate. Using generic fallback.
-                body = this.interpolate(genericEmailBody, baseInterpolationData);
+                // Subject is now fixed to the translated event name
+if (emailConfig && typeof emailConfig === 'object') {
+                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig.subjectTemplate:`, emailConfig.subjectTemplate);
+                } else {
+                    console.log(`[NotificationProcessor NEW DEBUG] emailConfig is not a valid object.`);
+                }
+                subject = translatedEvent;
+
+                // Use user-defined template (from subjectTemplate field) for the BODY, or generic fallback
+
+                
+                const bodyTemplate = emailConfig.subjectTemplate || genericEmailBody;
+                body = this.interpolate(bodyTemplate, baseInterpolationData);
                 break;
 
             case 'webhook':

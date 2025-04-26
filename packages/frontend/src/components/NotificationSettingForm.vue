@@ -77,10 +77,10 @@
           <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.emailToHelp') }}</small>
         </div>
         <div>
-          <label for="email-subject" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.emailSubjectTemplate') }}</label>
-          <input type="text" id="email-subject" v-model="emailConfig.subjectTemplate" :placeholder="`${$t('settings.notifications.form.emailSubjectPlaceholder')} {event}`"
-                 class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
-          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }}</small>
+          <label for="email-body" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.notifications.form.emailBodyTemplate') }}</label> <!-- Changed key -->
+          <textarea id="email-body" v-model="emailConfig.bodyTemplate" rows="3" :placeholder="`${$t('settings.notifications.form.emailBodyPlaceholder')} {event}, {timestamp}, {details}`"
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea> <!-- Changed to textarea and v-model -->
+          <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.notifications.form.templateHelp') }} {event}, {timestamp}, {details}</small> <!-- Added available placeholders -->
         </div>
         <!-- SMTP Settings -->
         <div>
@@ -219,7 +219,8 @@ import {
 import { useI18n } from 'vue-i18n';
 
 // Extend EmailConfig for SMTP fields
-interface SmtpEmailConfig extends EmailConfig {
+interface SmtpEmailConfig extends Omit<EmailConfig, 'subjectTemplate'> { // Omit subjectTemplate from base
+    bodyTemplate?: string; // Add bodyTemplate
     smtpHost?: string;
     smtpPort?: number;
     smtpSecure?: boolean;
@@ -297,7 +298,7 @@ const formData = reactive(getDefaultFormData());
 const webhookConfig = ref<WebhookConfig>({ url: '', method: 'POST', headers: {}, bodyTemplate: '' });
 const emailConfig = ref<SmtpEmailConfig>({ // Use extended type
     to: '',
-    subjectTemplate: '',
+    bodyTemplate: '', // Changed from subjectTemplate
     smtpHost: '',
     smtpPort: 587, // Default port
     smtpSecure: true, // Default to true (TLS)
@@ -322,7 +323,7 @@ watch(() => props.initialData, (newData) => {
         const savedConfig = newData.config as SmtpEmailConfig;
         emailConfig.value = {
             to: savedConfig.to || '',
-            subjectTemplate: savedConfig.subjectTemplate || '',
+            bodyTemplate: savedConfig.bodyTemplate || '', // Changed from subjectTemplate
             smtpHost: savedConfig.smtpHost || '',
             smtpPort: savedConfig.smtpPort || 587,
             smtpSecure: savedConfig.smtpSecure === undefined ? true : savedConfig.smtpSecure, // Default true if undefined
@@ -339,7 +340,7 @@ watch(() => props.initialData, (newData) => {
     webhookConfig.value = { url: '', method: 'POST', headers: {}, bodyTemplate: '' };
     // Reset email config with defaults
     emailConfig.value = {
-        to: '', subjectTemplate: '', smtpHost: '', smtpPort: 587, smtpSecure: true, smtpUser: '', smtpPass: '', from: ''
+        to: '', bodyTemplate: '', smtpHost: '', smtpPort: 587, smtpSecure: true, smtpUser: '', smtpPass: '', from: '' // Changed from subjectTemplate
     };
     telegramConfig.value = { botToken: '', chatId: '', messageTemplate: '' };
     webhookHeadersString.value = '{}';
@@ -357,7 +358,7 @@ watch(() => formData.channel_type, (newType, oldType) => {
     if (newType !== oldType && !isEditing.value) { // Only reset if not editing or type changes during add mode
         webhookConfig.value = { url: '', method: 'POST', headers: {}, bodyTemplate: '' };
         emailConfig.value = {
-             to: '', subjectTemplate: '', smtpHost: '', smtpPort: 587, smtpSecure: true, smtpUser: '', smtpPass: '', from: ''
+             to: '', bodyTemplate: '', smtpHost: '', smtpPort: 587, smtpSecure: true, smtpUser: '', smtpPass: '', from: '' // Changed from subjectTemplate
         };
         telegramConfig.value = { botToken: '', chatId: '', messageTemplate: '' };
         webhookHeadersString.value = '{}';

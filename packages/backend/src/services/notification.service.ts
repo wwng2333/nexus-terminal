@@ -427,46 +427,73 @@ export class NotificationService {
 
         const eventDisplayName = i18next.t(`event.${payload.event}`, { lng: userLang, defaultValue: payload.event });
 
-        const defaultSubjectKey = `event.${payload.event}`;
-        const defaultSubjectFallback = `Nexus Terminal Notification: {event}`;
-        const subjectText = i18next.t(defaultSubjectKey, { ...i18nOptions, defaultValue: defaultSubjectFallback, eventDisplay: eventDisplayName });
+        // --- Subject ---
+        // Subject is now always the translated event display name
+        const subject = eventDisplayName;
+        console.log(`[_sendEmail] Using fixed subject for event ${payload.event}: ${subject}`);
 
-        const defaultSubjectTemplateKey = 'testNotification.subject';
-        const defaultSubjectTemplate = i18next.t(defaultSubjectTemplateKey, { lng: userLang, defaultValue: defaultSubjectFallback, eventDisplay: eventDisplayName });
-        // Prepare data object for _renderTemplate (for subject)
-        const templateDataEmailSubject: Record<string, string> = {
-             event: payload.event,
-             eventDisplay: eventDisplayName, // Assuming subject doesn't need markdown
-             // NEW: Format timestamp using user's timezone
-             timestamp: formatInTimeZone(new Date(payload.timestamp), userTimezone, "yyyy-MM-dd HH:mm:ss zzz"), // Example format for email
-             details: typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2),
-             // Add other relevant fields from i18nOptions if needed by subject template
-             ...Object.entries(i18nOptions).reduce((acc, [key, value]) => {
-                 if (key !== 'lng') { // Exclude 'lng' itself
-                     acc[key] = String(value);
-                 }
-                 return acc;
-             }, {} as Record<string, string>)
-        };
-        const subject = this._renderTemplate(config.subjectTemplate || defaultSubjectTemplate, templateDataEmailSubject, subjectText); // Use new signature (3 args)
-
-
-        const bodyKey = `eventBody.${payload.event}`;
-        const detailsString = typeof payload.details === 'string' ? payload.details : JSON.stringify(payload.details || {}, null, 2);
-        // NEW: Use formatted timestamp in default body text
+        // --- Body ---
         const formattedTimestampForEmail = formatInTimeZone(new Date(payload.timestamp), userTimezone, "yyyy-MM-dd HH:mm:ss zzz");
+        const detailsString = typeof payload.details === 'string'
+                                ? payload.details
+                                : JSON.stringify(payload.details || {}, null, 2);
+
+        // Prepare data for template rendering or i18n interpolation
+        const templateDataEmailBody: Record<string, string> = {
+            event: payload.event, // Raw event name
+            eventDisplay: eventDisplayName, // Translated event name
+            timestamp: formattedTimestampForEmail, // Formatted timestamp
+            details: detailsString, // Stringified details
+            // Add other relevant fields from i18nOptions if needed by body template/i18n
+            ...Object.entries(i18nOptions).reduce((acc, [key, value]) => {
+                if (key !== 'lng' && typeof value !== 'object') { // Exclude 'lng' and objects
+                    acc[key] = String(value);
+                }
+                return acc;
+            }, {} as Record<string, string>)
+        };
+        console.log(`[_sendEmail] Prepared templateDataEmailBody for event ${payload.event}:`, templateDataEmailBody);
+
+        let body = '';
+        // Correctly construct the default body text using translated/formatted variables
         const defaultBodyText = `Event: ${eventDisplayName}\nTimestamp: ${formattedTimestampForEmail}\nDetails:\n${detailsString}`;
-        // Pass formatted timestamp to i18n interpolation as well
-        const body = i18next.t(bodyKey, { ...i18nOptions, timestamp: formattedTimestampForEmail, defaultValue: defaultBodyText, eventDisplay: eventDisplayName });
+
+        // Check if the user provided a bodyTemplate in the config
+        if (config.bodyTemplate) {
+            // Use custom body template if provided
+            let templateToRender = config.bodyTemplate;
+            console.log(`[_sendEmail] Original custom body template for event ${payload.event}:`, templateToRender);
+
+            // --- PRE-PROCESS TEMPLATE: Replace {event} with {eventDisplay} ---
+            // This ensures the translated event name is used even if the user's template uses {event}
+            templateToRender = templateToRender.replace(/\{event\}/g, '{eventDisplay}');
+            console.log(`[_sendEmail] Pre-processed body template (replaced {event} with {eventDisplay}):`, templateToRender);
+            // -----------------------------------------------------------------
+
+            // Render the potentially modified template.
+            body = this._renderTemplate(templateToRender, templateDataEmailBody, defaultBodyText);
+        } else {
+            // No custom template, use the directly constructed default text
+            console.log(`[_sendEmail] No custom body template found. Using default constructed body text for event ${payload.event}`);
+            body = defaultBodyText;
+            // Removed lines related to unused bodyKey:
+            // const bodyKey = `eventBody.${payload.event}`;
+            // console.log(`[_sendEmail] No custom body template found. Using i18n body key '${bodyKey}' for event ${payload.event}`);
+            // body = i18next.t(bodyKey, { ... });
+        }
+        console.log(`[_sendEmail] Final email body for event ${payload.event}:\n${body}`);
+
         const mailOptions: Mail.Options = {
             from: config.from,
             to: config.to,
-            subject: subject,
-            text: body,
+            subject: subject, // Use the fixed subject
+            text: body,       // Use the rendered/translated body
+            // Consider adding an html property if your templates/i18n generate HTML
+            // html: bodyHtml,
         };
 
         try {
-            console.log(`[通知] 通过 ${config.smtpHost}:${config.smtpPort} 发送邮件至 ${config.to} (事件: ${payload.event})`);
+            console.log(`[通知] 通过 ${config.smtpHost}:${config.smtpPort} 发送邮件至 ${config.to} (事件: ${payload.event}, 主题: ${subject})`);
             const info = await transporter.sendMail(mailOptions);
             console.log(`[通知] 邮件成功发送至 ${config.to} (设置 ID: ${setting.id})。消息 ID: ${info.messageId}`);
         } catch (error: any) {
