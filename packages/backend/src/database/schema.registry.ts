@@ -58,7 +58,7 @@ export const tableDefinitions: TableDefinition[] = [
     },
     { name: 'audit_logs', sql: schemaSql.createAuditLogsTableSQL },
     // { name: 'api_keys', sql: schemaSql.createApiKeysTableSQL }, // Removed API Keys table from registry
-    { name: 'passkeys', sql: schemaSql.createPasskeysTableSQL },
+    // { name: 'passkeys', sql: schemaSql.createPasskeysTableSQL }, // Removed Passkeys table from registry
     { name: 'notification_settings', sql: schemaSql.createNotificationSettingsTableSQL },
     { name: 'users', sql: schemaSql.createUsersTableSQL },
 
