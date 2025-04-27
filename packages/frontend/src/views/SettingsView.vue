@@ -268,45 +268,6 @@
 
         <!-- Column 2: Appearance, Workspace, System -->
         <div class="space-y-6"> <!-- Removed col-span -->
-          <!-- Appearance Section: Only show if settings data is loaded -->
-          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
-            <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.appearance') }}</h2>
-            <div class="p-6 space-y-6">
-              <!-- Language -->
-              <div class="settings-section-content">
-                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.language.title') }}</h3>
-                 <form @submit.prevent="handleUpdateLanguage" class="space-y-4">
-                   <div>
-                     <label for="languageSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.language.selectLabel') }}</label>
-                     <select id="languageSelect" v-model="selectedLanguage"
-                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
-                             style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
-                       <option v-for="locale in availableLocales" :key="locale" :value="locale">
-                         {{ languageNames[locale] || locale }} <!-- Display mapped name or locale code -->
-                       </option>
-                     </select>
-                   </div>
-                   <div class="flex items-center justify-between">
-                      <button type="submit"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
-                        {{ $t('settings.language.saveButton') }}
-                      </button>
-                      <p v-if="languageMessage" :class="['text-sm', languageSuccess ? 'text-success' : 'text-error']">{{ languageMessage }}</p>
-                   </div>
-                 </form>
-              </div>
-              <hr class="border-border/50">
-              <!-- Style Customizer -->
-              <div class="settings-section-content">
-                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.appearance.title') }}</h3>
-                 <p class="text-sm text-text-secondary mb-4">{{ $t('settings.appearance.description') }}</p>
-                 <button @click="openStyleCustomizer"
-                         class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                   {{ t('settings.appearance.customizeButton') }}
-                 </button>
-              </div>
-            </div>
-          </div>
 
           <!-- Workspace Section: Only show if settings data is loaded -->
           <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
@@ -421,6 +382,75 @@
           <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.system') }}</h2>
             <div class="p-6 space-y-6">
+              <!-- Language -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.language.title') }}</h3>
+                 <form @submit.prevent="handleUpdateLanguage" class="space-y-4">
+                   <div>
+                     <label for="languageSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.language.selectLabel') }}</label>
+                     <select id="languageSelect" v-model="selectedLanguage"
+                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                             style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+                       <option v-for="locale in availableLocales" :key="locale" :value="locale">
+                         {{ languageNames[locale] || locale }} <!-- Display mapped name or locale code -->
+                       </option>
+                     </select>
+                   </div>
+                   <div class="flex items-center justify-between">
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ $t('settings.language.saveButton') }}
+                      </button>
+                      <p v-if="languageMessage" :class="['text-sm', languageSuccess ? 'text-success' : 'text-error']">{{ languageMessage }}</p>
+                   </div>
+                 </form>
+              </div>
+              <hr class="border-border/50"> <!-- Separator -->
+              <!-- Timezone Setting -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.timezone.title', '时区设置') }}</h3>
+                 <form @submit.prevent="handleUpdateTimezone" class="space-y-4">
+                   <div>
+                     <label for="timezoneSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.timezone.selectLabel', '选择时区') }}</label>
+                     <select id="timezoneSelect" v-model="selectedTimezone"
+                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                             style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+                       <option v-for="tz in commonTimezones" :key="tz" :value="tz">
+                         {{ tz }}
+                       </option>
+                     </select>
+                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.timezone.description', '通知中的时间戳将根据此时区进行格式化。') }}</small>
+                   </div>
+                   <div class="flex items-center justify-between">
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ t('common.save') }}
+                      </button>
+                      <p v-if="timezoneMessage" :class="['text-sm', timezoneSuccess ? 'text-success' : 'text-error']">{{ timezoneMessage }}</p>
+                   </div>
+                 </form>
+              </div>
+              <hr class="border-border/50"> <!-- Separator -->
+              <!-- Status Monitor -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.statusMonitor.title') }}</h3>
+                 <form @submit.prevent="handleUpdateStatusMonitorInterval" class="space-y-4">
+                   <div>
+                     <label for="statusMonitorInterval" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.statusMonitor.refreshIntervalLabel') }}</label>
+                     <input type="number" id="statusMonitorInterval" v-model.number="statusMonitorIntervalLocal" min="1" step="1" required
+                            class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                     <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.statusMonitor.refreshIntervalHint') }}</small>
+                   </div>
+                   <div class="flex items-center justify-between">
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ t('settings.statusMonitor.saveButton') }}
+                      </button>
+                      <p v-if="statusMonitorMessage" :class="['text-sm', statusMonitorSuccess ? 'text-success' : 'text-error']">{{ statusMonitorMessage }}</p>
+                   </div>
+                 </form>
+              </div>
+              <hr class="border-border/50"> <!-- Separator -->
               <!-- Docker -->
               <div class="settings-section-content">
                  <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.docker.title') }}</h3>
@@ -445,50 +475,20 @@
                    </div>
                  </form>
               </div>
-              <hr class="border-border/50">
-              <!-- Status Monitor -->
+            </div>
+          </div>
+<!-- Appearance Section: Only show if settings data is loaded -->
+          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+            <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.appearance') }}</h2>
+            <div class="p-6 space-y-6">
+              <!-- Style Customizer -->
               <div class="settings-section-content">
-                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.statusMonitor.title') }}</h3>
-                 <form @submit.prevent="handleUpdateStatusMonitorInterval" class="space-y-4">
-                   <div>
-                     <label for="statusMonitorInterval" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.statusMonitor.refreshIntervalLabel') }}</label>
-                     <input type="number" id="statusMonitorInterval" v-model.number="statusMonitorIntervalLocal" min="1" step="1" required
-                            class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
-                     <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.statusMonitor.refreshIntervalHint') }}</small>
-                   </div>
-                   <div class="flex items-center justify-between">
-                      <button type="submit"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
-                        {{ t('settings.statusMonitor.saveButton') }}
-                      </button>
-                      <p v-if="statusMonitorMessage" :class="['text-sm', statusMonitorSuccess ? 'text-success' : 'text-error']">{{ statusMonitorMessage }}</p>
-                   </div>
-                 </form>
-              </div>
-              <hr class="border-border/50"> <!-- NEW: Separator -->
-              <!-- Timezone Setting -->
-              <div class="settings-section-content">
-                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.timezone.title', '时区设置') }}</h3>
-                 <form @submit.prevent="handleUpdateTimezone" class="space-y-4">
-                   <div>
-                     <label for="timezoneSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.timezone.selectLabel', '选择时区') }}</label>
-                     <select id="timezoneSelect" v-model="selectedTimezone"
-                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
-                             style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
-                       <option v-for="tz in commonTimezones" :key="tz" :value="tz">
-                         {{ tz }}
-                       </option>
-                     </select>
-                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.timezone.description', '通知中的时间戳将根据此时区进行格式化。') }}</small>
-                   </div>
-                   <div class="flex items-center justify-between">
-                      <button type="submit"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
-                        {{ t('common.save') }}
-                      </button>
-                      <p v-if="timezoneMessage" :class="['text-sm', timezoneSuccess ? 'text-success' : 'text-error']">{{ timezoneMessage }}</p>
-                   </div>
-                 </form>
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.appearance.title') }}</h3>
+                 <p class="text-sm text-text-secondary mb-4">{{ $t('settings.appearance.description') }}</p>
+                 <button @click="openStyleCustomizer"
+                         class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                   {{ t('settings.appearance.customizeButton') }}
+                 </button>
               </div>
             </div>
           </div>
