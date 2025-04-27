@@ -33,10 +33,10 @@ class NotificationDispatcherService {
      */
     registerSender(channelType: NotificationChannelType, sender: INotificationSender) {
         if (this.senders.has(channelType)) {
-            console.warn(`[NotificationDispatcher] Sender for channel type '${channelType}' is already registered. Overwriting.`);
+            console.warn(`[NotificationDispatcher] 通道类型 '${channelType}' 的发送器已注册。将进行覆盖。`);
         }
         this.senders.set(channelType, sender);
-        console.log(`[NotificationDispatcher] Registered sender for channel type '${channelType}'.`);
+        console.log(`[NotificationDispatcher] 已为通道类型 '${channelType}' 注册发送器。`);
     }
 
     private listenForNotifications() {
@@ -44,27 +44,27 @@ class NotificationDispatcherService {
             // 使用 setImmediate 避免阻塞
             setImmediate(() => {
                 this.dispatchNotification(processedNotification).catch(error => {
-                    console.error(`[NotificationDispatcher] Error dispatching notification for channel ${processedNotification.channelType}:`, error);
+                    console.error(`[NotificationDispatcher] 分发通道 ${processedNotification.channelType} 的通知时出错:`, error);
                 });
             });
         });
-        console.log('[NotificationDispatcher] Listening for processed notifications.');
+        console.log('[NotificationDispatcher] 正在监听处理后的通知。');
     }
 
     private async dispatchNotification(notification: ProcessedNotification) {
         const sender = this.senders.get(notification.channelType);
 
         if (!sender) {
-            console.warn(`[NotificationDispatcher] No sender registered for channel type: ${notification.channelType}. Skipping notification.`);
+            console.warn(`[NotificationDispatcher] 没有为通道类型注册发送器: ${notification.channelType}。跳过通知。`);
             return;
         }
 
-        console.log(`[NotificationDispatcher] Dispatching notification via ${notification.channelType}`);
+        console.log(`[NotificationDispatcher] 正在通过 ${notification.channelType} 分发通知`);
         try {
             await sender.send(notification);
-            console.log(`[NotificationDispatcher] Successfully sent notification via ${notification.channelType}`);
+            console.log(`[NotificationDispatcher] 已成功通过 ${notification.channelType} 发送通知`);
         } catch (error) {
-            console.error(`[NotificationDispatcher] Failed to send notification via ${notification.channelType}:`, error);
+            console.error(`[NotificationDispatcher] 通过 ${notification.channelType} 发送通知失败:`, error);
             // 这里可以添加失败重试或记录失败状态的逻辑
         }
     }

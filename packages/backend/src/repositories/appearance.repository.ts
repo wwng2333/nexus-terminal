@@ -155,7 +155,7 @@ const findAndSetDefaultThemeIdIfNull = async (db: sqlite3.Database): Promise<voi
                 const sqlReplace = `INSERT OR REPLACE INTO ${TABLE_NAME} (key, value, updated_at) VALUES (?, ?, ?)`;
                 await runDb(db, sqlReplace, ['activeTerminalThemeId', String(defaultThemeIdNum), Math.floor(Date.now() / 1000)]);
             } else {
-                console.warn("[AppearanceRepo] 未找到名为 'default' 的预设终端主题，无法设置默认 activeTerminalThemeId。");
+                // console.warn("[AppearanceRepo] 未找到名为 'default' 的预设终端主题，无法设置默认 activeTerminalThemeId。");
             }
         }
         // 如果 activeTerminalThemeId 已设置或键不存在，则不执行任何操作

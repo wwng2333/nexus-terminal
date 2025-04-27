@@ -272,12 +272,10 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
     const nowSeconds = Math.floor(Date.now() / 1000);
     const sqlInsertOrIgnore = `INSERT OR IGNORE INTO settings (key, value, created_at, updated_at) VALUES (?, ?, ?, ?)`;
 
-    console.log('[设置仓库] 确保默认设置存在...');
     try {
         for (const [key, value] of Object.entries(defaultSettings)) {
             await runDb(db, sqlInsertOrIgnore, [key, value, nowSeconds, nowSeconds]);
         }
-        console.log('[设置仓库] 默认设置检查完成。');
     } catch (err: any) {
         console.error(`[设置仓库] 确保默认设置时出错:`, err.message);
         throw new Error(`确保默认设置失败: ${err.message}`);

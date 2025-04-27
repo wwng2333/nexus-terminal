@@ -233,7 +233,7 @@ export const initializePresetThemes = async (db: Database, presets: Array<Omit<T
 
     for (const preset of presets) {
         // 在循环开始时添加日志，显示正在处理哪个主题
-        console.log(`[DB Init] 正在处理预设主题: "${preset.name}"`);
+        // console.log(`[DB Init] 正在处理预设主题: "${preset.name}"`);
         try {
             const existing = await getDb<{ id: number }>(db, `SELECT id FROM terminal_themes WHERE name = ? AND theme_type = 'preset'`, [preset.name]);
 
@@ -260,9 +260,9 @@ export const initializePresetThemes = async (db: Database, presets: Array<Omit<T
                     VALUES (${placeholders})
                 `;
                 await runDb(db, insertSql, values);
-                console.log(`[DB Init] 预设主题 "${preset.name}" 已初始化到数据库。`);
+                // console.log(`[DB Init] 预设主题 "${preset.name}" 已初始化到数据库。`);
             } else {
-                 console.log(`[DB Init] 预设主题 "${preset.name}" 已存在，跳过初始化。`);
+                //  console.log(`[DB Init] 预设主题 "${preset.name}" 已存在，跳过初始化。`);
             }
         } catch (err: any) {
              console.error(`[DB Init] 处理预设主题 "${preset.name}" 时出错:`, err.message);

@@ -12,16 +12,16 @@ try {
   dynamicSupportedLngs = entries
     .filter(dirent => dirent.isFile() && dirent.name.endsWith('.json'))
     .map(dirent => dirent.name.replace('.json', '')); // Extract lang code from filename
-  console.log('[i18next] Dynamically detected languages:', dynamicSupportedLngs);
+  console.log('[i18next] 动态检测到的语言:', dynamicSupportedLngs);
 } catch (err) {
-  console.error('[i18next] Error reading locales directory:', err);
+  console.error('[i18next] 读取 locales 目录时出错:', err);
   dynamicSupportedLngs = ['en-US']; // Fallback
 }
 
 export const defaultLng = 'en-US';
 if (!dynamicSupportedLngs.includes(defaultLng)) {
     dynamicSupportedLngs.push(defaultLng);
-    console.warn(`[i18next] Default language '${defaultLng}' not found in detected files, adding it to supported list.`);
+    console.warn(`[i18next] 在检测到的文件中未找到默认语言 '${defaultLng}'，将其添加到支持列表中。`);
 }
 export const supportedLngs = dynamicSupportedLngs;
 // --- 结束动态确定 ---
@@ -33,7 +33,7 @@ const i18nInitializationPromise = new Promise<void>((resolve, reject) => {
     i18next
       .use(Backend)
       .init({
-        debug: process.env.NODE_ENV === 'development',
+        debug: false, // 强制禁用 i18next 调试日志
         supportedLngs: supportedLngs,
         fallbackLng: defaultLng,
         preload: supportedLngs,
@@ -46,11 +46,11 @@ const i18nInitializationPromise = new Promise<void>((resolve, reject) => {
         },
       }, (err, t) => { // Init callback
         if (err) {
-            console.error('[i18next] Error during initialization:', err);
+            console.error('[i18next] 初始化过程中出错:', err);
             i18nInitialized = false; // Mark as not initialized on error
             return reject(err); // Reject the promise on error
         }
-        console.log('[i18next] Initialization complete. Loaded languages:', Object.keys(i18next.store.data || {})); // Safe access to store.data
+        console.log('[i18next] 初始化完成。已加载语言:', Object.keys(i18next.store.data || {})); // Safe access to store.data
         i18nInitialized = true; // Mark as initialized
         resolve(); // Resolve the promise on success
       });

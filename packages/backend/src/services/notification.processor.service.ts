@@ -27,21 +27,21 @@ class NotificationProcessorService extends EventEmitter {
 
     private async initialize(): Promise<void> {
         try {
-            console.log('[NotificationProcessor] Waiting for i18n initialization...');
+            console.log('[NotificationProcessor] 等待 i18n 初始化...');
             await i18nInitializationPromise;
-            console.log('[NotificationProcessor] i18n initialized. Registering event listeners...');
+            console.log('[NotificationProcessor] i18n 初始化完成。正在注册事件监听器...');
             this.registerEventListeners();
             this.isInitialized = true;
-            console.log('[NotificationProcessor] Initialization complete.');
+            console.log('[NotificationProcessor] 初始化完成。');
         } catch (error) {
-            console.error('[NotificationProcessor] Failed to initialize due to i18n error:', error);
+            console.error('[NotificationProcessor] 因 i18n 错误导致初始化失败:', error);
         }
     }
 
 
     private registerEventListeners() {
         if (this.isInitialized) {
-             console.warn('[NotificationProcessor] Attempted to register listeners multiple times.');
+             console.warn('[NotificationProcessor] 尝试多次注册监听器。');
              return;
         }
         // 监听所有 AppEventType 事件
@@ -51,7 +51,7 @@ class NotificationProcessorService extends EventEmitter {
                     // 使用 setImmediate 或 process.nextTick 避免阻塞事件循环
                     setImmediate(() => {
                         this.processStandardEvent(eventType, payload).catch(error => {
-                            console.error(`[NotificationProcessor] Error processing event ${eventType}:`, error);
+                            console.error(`[NotificationProcessor] 处理事件 ${eventType} 时出错:`, error);
                         });
                     });
                 });
@@ -60,24 +60,24 @@ class NotificationProcessorService extends EventEmitter {
          eventService.onEvent(AppEventType.TestNotification, (payload) => {
              setImmediate(() => {
                  this.processTestEvent(payload).catch(error => {
-                     console.error(`[NotificationProcessor] Error processing test event:`, error);
+                     console.error(`[NotificationProcessor] 处理测试事件时出错:`, error);
                  });
              });
         });
-        console.log('[NotificationProcessor] Registered listeners.');
+        console.log('[NotificationProcessor] 已注册监听器。');
     }
 
      private async processStandardEvent(eventType: AppEventType, payload: AppEventPayload) {
          if (!this.isInitialized) {
-             console.warn(`[NotificationProcessor] Received event ${eventType} before initialization. Skipping.`);
+             console.warn(`[NotificationProcessor] 在初始化完成前收到事件 ${eventType}。跳过处理。`);
              return;
          }
-        console.log(`[NotificationProcessor] Received standard event: ${eventType}`, payload);
+        console.log(`[NotificationProcessor] 收到标准事件: ${eventType}`, payload);
         const eventKey = eventType as NotificationEvent; // 类型转换，假设 AppEventType 和 NotificationEvent 对应
 
         try {
             const applicableSettings = await this.repository.getEnabledByEvent(eventKey);
-            console.log(`[NotificationProcessor] Found ${applicableSettings.length} applicable settings for event ${eventKey}`);
+            console.log(`[NotificationProcessor] 找到 ${applicableSettings.length} 个适用于事件 ${eventKey} 的设置`);
 
             if (applicableSettings.length === 0) {
                 return; // 没有配置需要处理
@@ -94,20 +94,20 @@ class NotificationProcessorService extends EventEmitter {
                  this.processSingleSetting(setting, eventType, payload, translatedEvent, userLang);
             }
         } catch (error) {
-            console.error(`[NotificationProcessor] Failed to fetch settings for event ${eventKey}:`, error);
+            console.error(`[NotificationProcessor] 获取事件 ${eventKey} 的设置失败:`, error);
         }
     }
 
     private async processTestEvent(payload: AppEventPayload) {
          if (!this.isInitialized) {
-             console.warn(`[NotificationProcessor] Received test event before initialization. Skipping.`);
+             console.warn(`[NotificationProcessor] 在初始化完成前收到测试事件。跳过处理。`);
              return;
          }
-        console.log(`[NotificationProcessor] Received test event`, payload);
+        console.log(`[NotificationProcessor] 收到测试事件`, payload);
         const { testTargetConfig, testTargetChannelType } = payload.details || {};
 
         if (!testTargetConfig || !testTargetChannelType) {
-            console.error('[NotificationProcessor] Test event payload missing testTargetConfig or testTargetChannelType.');
+            console.error('[NotificationProcessor] 测试事件负载缺少 testTargetConfig 或 testTargetChannelType。');
             return;
         }
 
@@ -146,10 +146,10 @@ class NotificationProcessorService extends EventEmitter {
 
             if (processedNotification) {
                 this.emit('sendNotification', processedNotification);
-                console.log(`[NotificationProcessor] Emitting sendNotification for ${setting.channel_type} (Setting ID: ${setting.id}, Event: ${eventType})`);
+                console.log(`[NotificationProcessor] 正在为 ${setting.channel_type} 发送 sendNotification (设置 ID: ${setting.id}, 事件: ${eventType})`);
             }
         } catch (error) {
-            console.error(`[NotificationProcessor] Error preparing notification for setting ID ${setting.id} and event ${eventType}:`, error);
+            console.error(`[NotificationProcessor] 为设置 ID ${setting.id} 和事件 ${eventType} 准备通知时出错:`, error);
         }
     }
 
@@ -206,7 +206,7 @@ class NotificationProcessorService extends EventEmitter {
                 break;
 
             default:
-                console.warn(`[NotificationProcessor] Unsupported channel type: ${setting.channel_type}`);
+                console.warn(`[NotificationProcessor] 不支持的通道类型: ${setting.channel_type}`);
                 return null;
         }
 

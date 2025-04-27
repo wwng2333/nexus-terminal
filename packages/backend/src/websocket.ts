@@ -196,7 +196,7 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
     
     try {
         const versionCommand = "docker version --format '{{.Server.Version}}'";
-        console.log(`[fetchRemoteDockerStatus] Executing: ${versionCommand} on session ${state.ws.sessionId}`);
+        // console.log(`[fetchRemoteDockerStatus] Executing: ${versionCommand} on session ${state.ws.sessionId}`);
         const { stdout: versionStdout, stderr: versionStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
             let stdout = '';
             let stderr = '';
@@ -225,7 +225,7 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
 
         
         if (versionStdout.trim()) {
-            console.log(`[fetchRemoteDockerStatus] Docker version check successful on session ${state.ws.sessionId}. Version: ${versionStdout.trim()}`);
+            // console.log(`[fetchRemoteDockerStatus] Docker version check successful on session ${state.ws.sessionId}. Version: ${versionStdout.trim()}`);
             isDockerCmdAvailable = true;
         } else {
             
@@ -244,7 +244,7 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
     
     try {
         const psCommand = "docker ps -a --no-trunc --format '{{json .}}'";
-        console.log(`[fetchRemoteDockerStatus] Executing: ${psCommand} on session ${state.ws.sessionId}`);
+        // console.log(`[fetchRemoteDockerStatus] Executing: ${psCommand} on session ${state.ws.sessionId}`);
         const { stdout: psStdout, stderr: psStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
             let stdout = '';
             let stderr = '';
@@ -316,7 +316,7 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
         try {
             
             const statsCommand = `docker stats ${runningContainerIds.join(' ')} --no-stream --format '{{json .}}'`;
-            console.log(`[fetchRemoteDockerStatus] Executing: ${statsCommand} on session ${state.ws.sessionId}`);
+            // console.log(`[fetchRemoteDockerStatus] Executing: ${statsCommand} on session ${state.ws.sessionId}`);
             const { stdout: statsStdout, stderr: statsStderr } = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
                 let stdout = '';
             let stderr = '';
@@ -354,7 +354,7 @@ const fetchRemoteDockerStatus = async (state: ClientState): Promise<{ available:
             console.warn(`[fetchRemoteDockerStatus] Error executing docker stats for session ${state.ws.sessionId}:`, error);
         }
     } else {
-         console.log(`[fetchRemoteDockerStatus] No running containers found on session ${state.ws.sessionId}, skipping docker stats.`);
+        //  console.log(`[fetchRemoteDockerStatus] No running containers found on session ${state.ws.sessionId}, skipping docker stats.`);
     }
 
     
@@ -838,8 +838,6 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                             ws.send(JSON.stringify({ type: 'sftp_error', payload: { message: `SFTP 操作 ${type} 缺少 requestId` } }));
                             return;
                         }
-                        // TODO: 在这里或 SftpService 内部添加 SFTP 操作的审计日志记录 (可选)
-                        // 例如: auditLogService.logAction('SFTP_ACTION', { type, path: payload?.path, userId: ws.userId, ip: state.ipAddress });
                         try {
                             switch (type) {
                                 case 'sftp:readdir':
