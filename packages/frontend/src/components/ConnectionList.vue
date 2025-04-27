@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, computed, ref, reactive } from 'vue'; // 统一导入
+import { onMounted, computed, ref, reactive, watch } from 'vue'; // 统一导入, 添加 watch
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -29,6 +29,11 @@ const testingState = reactive<Record<number, boolean>>({});
 onMounted(() => {
   tagsStore.fetchTags(); // 获取标签列表
 });
+
+// Log received props for debugging
+watch(() => props.connections, (newVal: ConnectionInfo[]) => { // Add type annotation for newVal
+  console.log('[ConnectionList] Received connections prop:', JSON.stringify(newVal, null, 2));
+}, { immediate: true, deep: true });
 
 // 创建标签 ID 到名称的映射
 const tagMap = computed(() => {
@@ -176,7 +181,10 @@ const handleDelete = async (conn: ConnectionInfo) => {
                 </thead>
                 <tbody class="divide-y divide-border">
                     <tr v-for="conn in groupConnections" :key="conn.id" class="hover:bg-hover transition-colors duration-150">
-                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.name }}</td>
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">
+                          <!-- Icon logic removed for now -->
+                          {{ conn.name }}
+                        </td>
                         <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.host }}</td>
                         <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.port }}</td>
                         <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.username }}</td>

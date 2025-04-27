@@ -5,6 +5,7 @@ import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 export interface ConnectionInfo {
     id: number;
     name: string;
+    type: 'SSH' | 'RDP'; // Use uppercase to match backend data
     host: string;
     port: number;
     username: string;
@@ -59,6 +60,7 @@ export const useConnectionsStore = defineStore('connections', {
                 console.log('[ConnectionsStore] Fetching latest connections from server...');
                 const response = await apiClient.get<ConnectionInfo[]>('/connections');
                 const freshData = response.data;
+                console.log('[ConnectionsStore] Data received from API:', JSON.stringify(freshData, null, 2)); // Log received data
                 const freshDataString = JSON.stringify(freshData);
 
                 // 3. 对比并更新
@@ -66,6 +68,7 @@ export const useConnectionsStore = defineStore('connections', {
                 if (currentDataString !== freshDataString) {
                     console.log('[ConnectionsStore] Connections data changed, updating state and cache.');
                     this.connections = freshData;
+                    console.log('[ConnectionsStore] State updated with fresh data:', JSON.stringify(this.connections, null, 2)); // Log state after update
                     localStorage.setItem(cacheKey, freshDataString); // 更新缓存
                 } else {
                     console.log('[ConnectionsStore] Connections data is up-to-date.');
@@ -88,6 +91,7 @@ export const useConnectionsStore = defineStore('connections', {
         // 更新参数类型以接受新的认证字段
         async addConnection(newConnectionData: {
             name: string;
+            type: 'SSH' | 'RDP'; // Use uppercase
             host: string;
             port: number;
             username: string;
@@ -122,7 +126,8 @@ export const useConnectionsStore = defineStore('connections', {
 
         // 更新连接 Action
         // 更新参数类型以包含 proxy_id 和 tag_ids
-        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { password?: string; private_key?: string; passphrase?: string; proxy_id?: number | null; tag_ids?: number[] }>) {
+        // Update parameter type to include 'type'
+        async updateConnection(connectionId: number, updatedData: Partial<Omit<ConnectionInfo, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { type?: 'SSH' | 'RDP'; password?: string; private_key?: string; passphrase?: string; proxy_id?: number | null; tag_ids?: number[] }>) {
             this.isLoading = true;
             this.error = null;
             try {

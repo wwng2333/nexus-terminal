@@ -7,6 +7,7 @@ import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/conn
 
 interface ImportedConnectionData {
     name: string;
+    type: 'SSH' | 'RDP'; // Add type field
     host: string;
     port: number;
     username: string;
@@ -42,10 +43,11 @@ export const exportConnections = async (): Promise<ExportedConnectionData[]> => 
     try {
         const db = await getDbInstance();
 
+        // Ensure ExportRow reflects the updated FullConnectionData (which now includes 'type')
         type ExportRow = ConnectionRepository.FullConnectionData & {
              proxy_db_id: number | null;
              proxy_name: string | null;
-             proxy_type: 'SOCKS5' | 'HTTP' | null;
+             proxy_type: 'SOCKS5' | 'HTTP' | null; // Proxy type remains the same
              proxy_host: string | null;
              proxy_port: number | null;
              proxy_username: string | null;
@@ -85,7 +87,8 @@ export const exportConnections = async (): Promise<ExportedConnectionData[]> => 
 
         const formattedData: ExportedConnectionData[] = connectionsWithProxies.map(row => {
             const connection: ExportedConnectionData = {
-                name: row.name ?? 'Unnamed', 
+                name: row.name ?? 'Unnamed',
+                type: row.type, // Add type field
                 host: row.host,
                 port: row.port,
                 username: row.username,
@@ -154,9 +157,18 @@ export const importConnections = async (fileBuffer: Buffer): Promise<ImportResul
         for (const connData of importedData) {
              try {
 
-                if (!connData.name || !connData.host || !connData.port || !connData.username || !connData.auth_method) {
-                    throw new Error('缺少必要的连接字段 (name, host, port, username, auth_method)。');
+                // Validate imported data, including type
+                if (!connData.type || !['SSH', 'RDP'].includes(connData.type)) {
+                    throw new Error('缺少或无效的连接类型 (type)。');
                 }
+                if (!connData.name || !connData.host || !connData.port || !connData.username) {
+                    throw new Error('缺少必要的连接字段 (name, host, port, username)。');
+                }
+                // Validate SSH specific fields only if type is SSH
+                if (connData.type === 'SSH' && (!connData.auth_method || !['password', 'key'].includes(connData.auth_method))) {
+                     throw new Error('SSH 连接缺少有效的认证方式 (auth_method)。');
+                }
+                // RDP specific validation (e.g., password required) could be added here if needed
 
 
                 let proxyIdToUse: number | null = null;
@@ -192,12 +204,15 @@ export const importConnections = async (fileBuffer: Buffer): Promise<ImportResul
                     }
                 }
 
+                // Prepare data for repository, ensuring correct auth_method for RDP
+                const authMethodForDb = connData.type === 'RDP' ? 'password' : connData.auth_method!;
                 connectionsToInsert.push({
                     name: connData.name,
+                    type: connData.type, // Add type
                     host: connData.host,
                     port: connData.port,
                     username: connData.username,
-                    auth_method: connData.auth_method,
+                    auth_method: authMethodForDb, // Use determined auth method
                     encrypted_password: connData.encrypted_password || null,
                     encrypted_private_key: connData.encrypted_private_key || null,
                     encrypted_passphrase: connData.encrypted_passphrase || null,

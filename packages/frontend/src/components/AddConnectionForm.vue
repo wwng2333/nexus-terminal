@@ -26,16 +26,18 @@ const { tags, isLoading: isTagLoading, error: tagStoreError } = storeToRefs(tags
 
 // 表单数据模型
 const initialFormData = {
+  type: 'SSH' as 'SSH' | 'RDP', // Use uppercase to match ConnectionInfo
   name: '',
   host: '',
   port: 22,
   username: '',
-  auth_method: 'password' as 'password' | 'key',
+  auth_method: 'password' as 'password' | 'key', // SSH specific
   password: '',
-  private_key: '',
-  passphrase: '',
+  private_key: '', // SSH specific
+  passphrase: '', // SSH specific
   proxy_id: null as number | null,
   tag_ids: [] as number[], // 新增 tag_ids 字段
+  // Add RDP specific fields later if needed, e.g., domain
 };
 const formData = reactive({ ...initialFormData });
 
@@ -71,6 +73,7 @@ watch(() => props.connectionToEdit, (newVal) => {
     formError.value = null; // 清除错误
     if (newVal) {
         // 编辑模式：填充表单，但不填充敏感信息
+        formData.type = newVal.type; // Correctly set the type for editing
         formData.name = newVal.name;
         formData.host = newVal.host;
         formData.port = newVal.port;
@@ -94,6 +97,21 @@ onMounted(() => {
     tagsStore.fetchTags(); // 获取标签列表
 });
 
+// 监听连接类型变化，动态调整默认端口
+watch(() => formData.type, (newType) => {
+    // Use uppercase for comparison
+    if (newType === 'RDP' && formData.port === 22) {
+        formData.port = 3389; // RDP 默认端口
+    } else if (newType === 'SSH' && formData.port === 3389) {
+        formData.port = 22; // SSH 默认端口
+    }
+    // 重置或调整认证方式等逻辑可以在这里添加
+    if (newType === 'RDP') {
+        // RDP 通常只用密码，可以强制或隐藏 auth_method
+        // formData.auth_method = 'password'; // Example: Force password for RDP
+    }
+});
+
 // 处理表单提交
 const handleSubmit = async () => {
   formError.value = null;
@@ -110,70 +128,107 @@ const handleSubmit = async () => {
       return;
   }
 
-  // --- 更新后的验证逻辑 ---
-  // 1. 添加模式下，密码/密钥是必填的
-  if (!isEditMode.value) {
-      if (formData.auth_method === 'password' && !formData.password) {
-          formError.value = t('connections.form.errorPasswordRequired');
+  // --- 更新后的验证逻辑 (区分 SSH 和 RDP) ---
+  // Use uppercase for comparison
+  if (formData.type === 'SSH') {
+      // SSH Validation
+      // 1. 添加模式下，密码/密钥是必填的
+      if (!isEditMode.value) {
+          if (formData.auth_method === 'password' && !formData.password) {
+              formError.value = t('connections.form.errorPasswordRequired');
+              return;
+          }
+          if (formData.auth_method === 'key' && !formData.private_key) {
+              formError.value = t('connections.form.errorPrivateKeyRequired');
+              return;
+          }
+      }
+      // 2. 编辑模式下，如果切换到密码认证，则密码必填
+      else if (isEditMode.value && formData.auth_method === 'password' && !formData.password) {
+          // 检查原始连接的认证方式，如果原始不是密码，则切换时必须提供密码
+          // 注意: props.connectionToEdit 可能没有 type 字段，需要后端配合或前端自行判断
+          if (props.connectionToEdit?.auth_method !== 'password') {
+              formError.value = t('connections.form.errorPasswordRequiredOnSwitch');
+              return;
+          }
+          // 如果原始就是密码，编辑时密码可以不填（表示不修改）
+      }
+      // 3. 编辑模式下，如果切换到密钥认证，则私钥必填
+      else if (isEditMode.value && formData.auth_method === 'key' && !formData.private_key) {
+           // 检查原始连接的认证方式，如果原始不是密钥，则切换时必须提供私钥
+           if (props.connectionToEdit?.auth_method !== 'key') {
+               formError.value = t('connections.form.errorPrivateKeyRequiredOnSwitch');
+               return;
+           }
+           // 如果原始就是密钥，编辑时私钥可以不填（表示不修改）
+      }
+  // Use uppercase for comparison
+  } else if (formData.type === 'RDP') {
+      // RDP Validation
+      // 1. 添加模式下，密码是必填的
+      if (!isEditMode.value && !formData.password) {
+          formError.value = t('connections.form.errorPasswordRequired'); // 可以复用密码必填的翻译
           return;
       }
-      if (formData.auth_method === 'key' && !formData.private_key) {
-          formError.value = t('connections.form.errorPrivateKeyRequired');
-          return;
-      }
-  }
-  // 2. 编辑模式下，如果切换到密码认证，则密码必填
-  else if (isEditMode.value && formData.auth_method === 'password' && !formData.password) {
-      // 检查原始连接的认证方式，如果原始不是密码，则切换时必须提供密码
-      if (props.connectionToEdit?.auth_method !== 'password') {
-          formError.value = t('connections.form.errorPasswordRequiredOnSwitch'); // 新增翻译键
-          return;
-      }
-      // 如果原始就是密码，编辑时密码可以不填（表示不修改）
-  }
-  // 3. 编辑模式下，如果切换到密钥认证，则私钥必填
-  else if (isEditMode.value && formData.auth_method === 'key' && !formData.private_key) {
-       // 检查原始连接的认证方式，如果原始不是密钥，则切换时必须提供私钥
-       if (props.connectionToEdit?.auth_method !== 'key') {
-           formError.value = t('connections.form.errorPrivateKeyRequiredOnSwitch'); // 新增翻译键
-           return;
-       }
-       // 如果原始就是密钥，编辑时私钥可以不填（表示不修改）
+      // 2. 编辑模式下，密码可以不填（表示不修改），除非是从非 RDP 类型切换过来（这个逻辑比较复杂，暂时简化为密码非必填）
+      //    如果需要更严格的验证（例如从 SSH 编辑为 RDP 时强制要求输入密码），可以在这里添加
   }
   // --- 验证逻辑结束 ---
 
 
   // 构建要发送的数据 (区分添加和编辑)
   const dataToSend: any = {
+      type: formData.type, // 发送连接类型
       name: formData.name,
       host: formData.host,
       port: formData.port,
       username: formData.username,
-      auth_method: formData.auth_method,
       proxy_id: formData.proxy_id || null,
       tag_ids: formData.tag_ids || [], // 发送 tag_ids
+      // domain: formData.domain, // 如果添加了 domain 字段
   };
 
-  // 处理敏感字段
-  if (formData.auth_method === 'password') {
-      // 仅当用户输入新密码或在编辑模式下明确清空时才发送
+  // 处理认证相关字段 (根据类型)
+  // Use uppercase for comparison
+  if (formData.type === 'SSH') {
+      dataToSend.auth_method = formData.auth_method;
+      if (formData.auth_method === 'password') {
+          // SSH 密码处理
+          if (formData.password) {
+              dataToSend.password = formData.password;
+          } else if (isEditMode.value && formData.password === '') {
+              // 编辑模式下，空密码字符串可能表示清空或不修改，取决于后端实现
+              // 假设发送 null 表示清空 (如果后端支持)
+              // dataToSend.password = null;
+              // 或者不发送 password 字段表示不修改
+          }
+      } else if (formData.auth_method === 'key') {
+          // SSH 密钥处理
+          if (formData.private_key) {
+              dataToSend.private_key = formData.private_key;
+          }
+          // SSH 密码短语处理
+          if (formData.passphrase) {
+              dataToSend.passphrase = formData.passphrase;
+          } else if (isEditMode.value && formData.passphrase === '') {
+              // dataToSend.passphrase = null; // 发送 null 表示清空
+          }
+      }
+  // Use uppercase for comparison
+  } else if (formData.type === 'RDP') {
+      // RDP 密码处理 (通常 RDP 没有 auth_method 选择)
       if (formData.password) {
           dataToSend.password = formData.password;
       } else if (isEditMode.value && formData.password === '') {
-          dataToSend.password = null; // 发送 null 表示清空密码 (后端需要能处理 null)
+          // 编辑 RDP 时，空密码字符串处理逻辑同上
+          // dataToSend.password = null;
       }
-  } else if (formData.auth_method === 'key') {
-      // 仅当用户输入新私钥时才发送
-      if (formData.private_key) {
-          dataToSend.private_key = formData.private_key;
-      }
-      // 仅当用户输入新密码短语或在编辑模式下明确清空时才发送
-      if (formData.passphrase) {
-          dataToSend.passphrase = formData.passphrase;
-      } else if (isEditMode.value && formData.passphrase === '') {
-          dataToSend.passphrase = null; // 发送 null 表示清空密码短语
-      }
+      // RDP 不发送 SSH 特有的字段
+      delete dataToSend.auth_method;
+      delete dataToSend.private_key;
+      delete dataToSend.passphrase;
   }
+
 
   let success = false;
   if (isEditMode.value && props.connectionToEdit) {
@@ -300,6 +355,16 @@ const testButtonText = computed(() => {
             <input type="text" id="conn-name" v-model="formData.name"
                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
           </div>
+          <!-- Connection Type -->
+          <div>
+            <label for="conn-type" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.connectionType', '连接类型') }}</label>
+            <select id="conn-type" v-model="formData.type"
+                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                    style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+              <option value="SSH">{{ t('connections.form.typeSsh', 'SSH') }}</option>
+              <option value="RDP">{{ t('connections.form.typeRdp', 'RDP') }}</option>
+            </select>
+          </div>
           <!-- Host and Port Row -->
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="md:col-span-2">
@@ -317,44 +382,65 @@ const testButtonText = computed(() => {
 
         <!-- Authentication Section -->
         <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
-           <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50">{{ t('connections.form.sectionAuth', '认证方式') }}</h4>
+           <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50">{{ t('connections.form.sectionAuth', '认证信息') }}</h4>
            <div>
              <label for="conn-username" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.username') }}</label>
              <input type="text" id="conn-username" v-model="formData.username" required
                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
-           </div>
-           <div>
-             <label for="conn-auth-method" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.authMethod') }}</label>
-             <select id="conn-auth-method" v-model="formData.auth_method"
-                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
-                     style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
-               <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
-               <option value="key">{{ t('connections.form.authMethodKey') }}</option>
-             </select>
-           </div>
+          </div>
 
-           <div v-if="formData.auth_method === 'password'">
-             <label for="conn-password" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.password') }}</label>
-             <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" autocomplete="new-password"
-                    class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
-           </div>
+          <!-- SSH Specific Auth -->
+          <!-- Use uppercase for comparison -->
+          <template v-if="formData.type === 'SSH'">
+            <div>
+              <label for="conn-auth-method" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.authMethod') }}</label>
+              <select id="conn-auth-method" v-model="formData.auth_method"
+                      class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
+                      style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
+                <option value="password">{{ t('connections.form.authMethodPassword') }}</option>
+                <option value="key">{{ t('connections.form.authMethodKey') }}</option>
+              </select>
+            </div>
 
-           <div v-if="formData.auth_method === 'key'" class="space-y-4">
+            <div v-if="formData.auth_method === 'password'">
+              <label for="conn-password" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.password') }}</label>
+              <input type="password" id="conn-password" v-model="formData.password" :required="formData.auth_method === 'password' && !isEditMode" autocomplete="new-password"
+                     class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+            </div>
+
+            <div v-if="formData.auth_method === 'key'" class="space-y-4">
+              <div>
+                <label for="conn-private-key" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.privateKey') }}</label>
+                <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"
+                          class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+              </div>
+              <div>
+                <label for="conn-passphrase" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
+                <input type="password" id="conn-passphrase" v-model="formData.passphrase" autocomplete="new-password"
+                       class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+              </div>
+              <div v-if="isEditMode && formData.auth_method === 'key'">
+                <small class="block text-xs text-text-secondary">{{ t('connections.form.keyUpdateNote') }}</small>
+              </div>
+            </div>
+          </template>
+
+          <!-- RDP Specific Auth (Password only for now) -->
+          <!-- Use uppercase for comparison -->
+          <template v-if="formData.type === 'RDP'">
              <div>
-               <label for="conn-private-key" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.privateKey') }}</label>
-               <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"
-                         class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
-             </div>
-             <div>
-               <label for="conn-passphrase" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
-               <input type="password" id="conn-passphrase" v-model="formData.passphrase" autocomplete="new-password"
+               <label for="conn-password-rdp" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.password') }}</label>
+               <input type="password" id="conn-password-rdp" v-model="formData.password" :required="!isEditMode" autocomplete="new-password"
                       class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+               <!-- Add domain field if needed -->
+               <!--
+               <label for="conn-domain" class="block text-sm font-medium text-text-secondary mb-1 mt-4">{{ t('connections.form.domain', '域') }} ({{ t('connections.form.optional') }})</label>
+               <input type="text" id="conn-domain" v-model="formData.domain"
+                      class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
+               -->
              </div>
-             <div v-if="isEditMode && formData.auth_method === 'key'">
-               <small class="block text-xs text-text-secondary">{{ t('connections.form.keyUpdateNote') }}</small>
-             </div>
-           </div>
-        </div>
+          </template>
+       </div>
 
         <!-- Advanced Options Section -->
         <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
@@ -388,7 +474,9 @@ const testButtonText = computed(() => {
 
       <!-- Form Actions -->
       <div class="flex justify-between items-center pt-5 mt-6 flex-shrink-0">
-         <div class="flex flex-col items-start gap-1"> <!-- Test Area -->
+         <!-- Test Area (Only show for SSH) -->
+         <!-- Use uppercase for comparison -->
+         <div v-if="formData.type === 'SSH'" class="flex flex-col items-start gap-1">
              <div class="flex items-center gap-2"> <!-- Button and Icon -->
                  <button type="button" @click="handleTestConnection" :disabled="isLoading || testStatus === 'testing'"
                          class="px-3 py-1.5 border border-border rounded-md text-sm font-medium text-text-secondary bg-background hover:bg-border focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center transition-colors duration-150">
@@ -418,12 +506,14 @@ const testButtonText = computed(() => {
                  </div>
              </div>
          </div>
+         <!-- Placeholder for alignment when test button is hidden -->
+         <div v-else class="flex-1"></div>
          <div class="flex space-x-3"> <!-- Main Actions -->
-             <button type="submit" @click="handleSubmit" :disabled="isLoading || testStatus === 'testing'"
+             <button type="submit" @click="handleSubmit" :disabled="isLoading || (formData.type === 'SSH' && testStatus === 'testing')"
                      class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out">
                {{ submitButtonText }}
              </button>
-             <button type="button" @click="emit('close')" :disabled="isLoading || testStatus === 'testing'"
+             <button type="button" @click="emit('close')" :disabled="isLoading || (formData.type === 'SSH' && testStatus === 'testing')"
                      class="px-4 py-2 bg-transparent text-text-secondary border border-border rounded-md shadow-sm hover:bg-border hover:text-foreground focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out">
                {{ t('connections.form.cancel') }}
              </button>

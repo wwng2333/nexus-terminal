@@ -7,6 +7,7 @@ import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/conn
 interface ConnectionBase {
     id: number;
     name: string | null;
+    type: 'SSH' | 'RDP'; // Add type field
     host: string;
     port: number;
     username: string;
@@ -17,15 +18,18 @@ interface ConnectionBase {
     last_connected_at: number | null;
 }
 
+// ConnectionWithTagsRow implicitly includes 'type' via ConnectionBase
 interface ConnectionWithTagsRow extends ConnectionBase {
-    tag_ids_str: string | null; 
+    tag_ids_str: string | null;
 }
 
+// ConnectionWithTags implicitly includes 'type' via ConnectionBase
 export interface ConnectionWithTags extends ConnectionBase {
     tag_ids: number[];
 }
 
 // 包含加密字段的完整类型，用于插入/更新
+// FullConnectionData implicitly includes 'type' via ConnectionBase
 export interface FullConnectionData extends ConnectionBase {
     encrypted_password?: string | null;
     encrypted_private_key?: string | null;
@@ -34,6 +38,7 @@ export interface FullConnectionData extends ConnectionBase {
 }
 
 
+// FullConnectionDbRow implicitly includes 'type' via FullConnectionData
 interface FullConnectionDbRow extends FullConnectionData {
     proxy_db_id: number | null;
     proxy_name: string | null;
@@ -53,7 +58,7 @@ interface FullConnectionDbRow extends FullConnectionData {
 export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]> => {
     const sql = `
         SELECT
-            c.id, c.name, c.host, c.port, c.username, c.auth_method, c.proxy_id,
+            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id,
             c.created_at, c.updated_at, c.last_connected_at,
             GROUP_CONCAT(ct.tag_id) as tag_ids_str
          FROM connections c
@@ -79,7 +84,7 @@ export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]
 export const findConnectionByIdWithTags = async (id: number): Promise<ConnectionWithTags | null> => {
     const sql = `
         SELECT
-            c.id, c.name, c.host, c.port, c.username, c.auth_method, c.proxy_id,
+            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id,
             c.created_at, c.updated_at, c.last_connected_at,
             GROUP_CONCAT(ct.tag_id) as tag_ids_str
          FROM connections c
@@ -132,13 +137,15 @@ export const findFullConnectionById = async (id: number): Promise<FullConnection
 /**
  * 创建新连接 (不处理标签)
  */
+// Update input type to reflect FullConnectionData now has 'type'
 export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'>): Promise<number> => {
     const now = Math.floor(Date.now() / 1000);
     const sql = `
-        INSERT INTO connections (name, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+        INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // Add type column and placeholder
     const params = [
         data.name ?? null,
+        data.type, // Add type parameter
         data.host, data.port, data.username, data.auth_method,
         data.encrypted_password ?? null, data.encrypted_private_key ?? null, data.encrypted_passphrase ?? null,
         data.proxy_id ?? null,
@@ -160,6 +167,7 @@ export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'cr
 /**
  * 更新连接信息 (不处理标签)
  */
+// Update input type to reflect FullConnectionData now has 'type'
 export const updateConnection = async (id: number, data: Partial<Omit<FullConnectionData, 'id' | 'created_at' | 'last_connected_at' | 'tag_ids'>>): Promise<boolean> => {
     const fieldsToUpdate: { [key: string]: any } = { ...data };
     const params: any[] = [];
@@ -270,17 +278,18 @@ export const updateConnectionTags = async (connectionId: number, tagIds: number[
  */
 export const bulkInsertConnections = async (
     db: Database,
+    // Update input type to reflect FullConnectionData now has 'type'
     connections: Array<Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { tag_ids?: number[] }>
 ): Promise<{ connectionId: number, originalData: any }[]> => {
 
-    const insertConnSql = `INSERT INTO connections (name, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const insertConnSql = `INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // Add type column and placeholder
     const results: { connectionId: number, originalData: any }[] = [];
     const now = Math.floor(Date.now() / 1000);
 
 
     for (const connData of connections) {
         const params = [
-            connData.name ?? null, connData.host, connData.port, connData.username, connData.auth_method,
+            connData.name ?? null, connData.type, connData.host, connData.port, connData.username, connData.auth_method, // Add type parameter
             connData.encrypted_password || null,
             connData.encrypted_private_key || null,
             connData.encrypted_passphrase || null,
