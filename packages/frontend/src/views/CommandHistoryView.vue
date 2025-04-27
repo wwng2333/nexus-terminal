@@ -37,19 +37,19 @@
             v-for="(entry, index) in filteredHistory"
             :key="entry.id"
             class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
-            :class="{ 'bg-primary/20 text-white font-medium': index === storeSelectedIndex }"
+            :class="{ 'bg-primary/20 font-medium': index === storeSelectedIndex }"
             @click="executeCommand(entry.command)"
           >
             <!-- Command Text -->
-            <span class="truncate mr-2 flex-grow font-mono text-sm" :class="{'text-white': index === storeSelectedIndex, 'text-foreground': index !== storeSelectedIndex}">{{ entry.command }}</span>
+            <span class="truncate mr-2 flex-grow font-mono text-sm text-foreground">{{ entry.command }}</span>
             <!-- Actions (Show on Hover) -->
             <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
               <!-- Copy Button -->
-              <button @click.stop="copyCommand(entry.command)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150" :class="{'text-white hover:bg-white/20': index === storeSelectedIndex, 'text-text-secondary hover:text-primary': index !== storeSelectedIndex}" :title="$t('commandHistory.copy', '复制')">
+              <button @click.stop="copyCommand(entry.command)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('commandHistory.copy', '复制')">
                 <i class="fas fa-copy text-sm"></i>
               </button>
               <!-- Delete Button -->
-              <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1.5 rounded hover:bg-black/10 transition-colors duration-150" :class="{'text-white hover:bg-white/20': index === storeSelectedIndex, 'text-text-secondary hover:text-error': index !== storeSelectedIndex}" :title="$t('commandHistory.delete', '删除')">
+              <button @click.stop="deleteSingleCommand(entry.id)" class="ml-1 p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-error" :title="$t('commandHistory.delete', '删除')">
                 <i class="fas fa-times text-sm"></i>
               </button>
             </div>

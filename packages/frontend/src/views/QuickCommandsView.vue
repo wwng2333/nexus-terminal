@@ -45,24 +45,24 @@
             v-for="(cmd, index) in filteredAndSortedCommands"
             :key="cmd.id"
             class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
-            :class="{ 'bg-primary/20 text-white font-medium': index === storeSelectedIndex }"
+            :class="{ 'bg-primary/20 font-medium': index === storeSelectedIndex }"
             @click="executeCommand(cmd)"
           >
             <!-- Command Info -->
             <div class="flex flex-col overflow-hidden mr-2 flex-grow">
-              <span v-if="cmd.name" class="font-medium text-sm truncate mb-0.5" :class="{'text-white': index === storeSelectedIndex, 'text-foreground': index !== storeSelectedIndex}">{{ cmd.name }}</span>
-              <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-white/80': index === storeSelectedIndex, 'text-text-secondary': index !== storeSelectedIndex }">{{ cmd.command }}</span>
+              <span v-if="cmd.name" class="font-medium text-sm truncate mb-0.5 text-foreground">{{ cmd.name }}</span>
+              <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-text-secondary': true }">{{ cmd.command }}</span>
             </div>
             <!-- Actions (Show on Hover) -->
             <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
                <!-- Usage Count -->
-               <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2" :class="{'text-white/80 bg-white/20': index === storeSelectedIndex, 'text-text-secondary': index !== storeSelectedIndex}" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
+               <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2 text-text-secondary" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
                <!-- Edit Button -->
-              <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150" :class="{'text-white hover:bg-white/20': index === storeSelectedIndex, 'text-text-secondary hover:text-primary': index !== storeSelectedIndex}" :title="$t('common.edit', '编辑')">
+              <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('common.edit', '编辑')">
                 <i class="fas fa-edit text-sm"></i>
               </button>
               <!-- Delete Button -->
-              <button @click.stop="confirmDelete(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150" :class="{'text-white hover:bg-white/20': index === storeSelectedIndex, 'text-text-secondary hover:text-error': index !== storeSelectedIndex}" :title="$t('common.delete', '删除')">
+              <button @click.stop="confirmDelete(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-error" :title="$t('common.delete', '删除')">
                 <i class="fas fa-times text-sm"></i>
               </button>
             </div>
