@@ -12,11 +12,11 @@
       </div>
 
       <!-- Settings Sections Grid (Render grid structure always if no error) -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6"> <!-- Changed to 2 columns on large screens -->
         <!-- Removed global loading state, content will show/hide based on individual loading states -->
 
           <!-- Column 1: Security -->
-          <div class="lg:col-span-2 space-y-6"> <!-- Security takes 2 columns on large screens -->
+          <div class="space-y-6"> <!-- Removed col-span -->
           <!-- Security Sections: Only show if settings data is loaded -->
           <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.security') }}</h2>
@@ -267,7 +267,7 @@
         </div>
 
         <!-- Column 2: Appearance, Workspace, System -->
-        <div class="lg:col-span-1 space-y-6">
+        <div class="space-y-6"> <!-- Removed col-span -->
           <!-- Appearance Section: Only show if settings data is loaded -->
           <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.appearance') }}</h2>
