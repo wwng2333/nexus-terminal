@@ -114,9 +114,9 @@
                      <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.ipWhitelist.hint') }}</small>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="ipWhitelistLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ ipWhitelistLoading ? $t('common.saving') : $t('settings.ipWhitelist.saveButton') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ $t('settings.ipWhitelist.saveButton') }}
                       </button>
                       <p v-if="ipWhitelistMessage" :class="['text-sm', ipWhitelistSuccess ? 'text-success' : 'text-error']">{{ ipWhitelistMessage }}</p>
                    </div>
@@ -184,9 +184,9 @@
 
                     <!-- Save Button & Message -->
                     <div class="flex items-center justify-between pt-2">
-                       <button type="submit" :disabled="captchaLoading"
-                               class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                         {{ captchaLoading ? $t('common.saving') : $t('settings.captcha.saveButton') }}
+                       <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                         {{ $t('settings.captcha.saveButton') }}
                        </button>
                        <p v-if="captchaMessage" :class="['text-sm', captchaSuccess ? 'text-success' : 'text-error']">{{ captchaMessage }}</p>
                     </div>
@@ -213,9 +213,9 @@
                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
                    </div>
                    <div class="flex-shrink-0">
-                      <button type="submit" :disabled="blacklistSettingsLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ blacklistSettingsLoading ? $t('common.saving') : $t('settings.ipBlacklist.saveConfigButton') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ $t('settings.ipBlacklist.saveConfigButton') }}
                       </button>
                    </div>
                    <p v-if="blacklistSettingsMessage" :class="['w-full mt-2 text-sm', blacklistSettingsSuccess ? 'text-success' : 'text-error']">{{ blacklistSettingsMessage }}</p>
@@ -287,9 +287,9 @@
                      </select>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="languageLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ languageLoading ? $t('common.saving') : $t('settings.language.saveButton') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ $t('settings.language.saveButton') }}
                       </button>
                       <p v-if="languageMessage" :class="['text-sm', languageSuccess ? 'text-success' : 'text-error']">{{ languageMessage }}</p>
                    </div>
@@ -322,9 +322,9 @@
                          <label for="showPopupEditor" class="text-sm text-foreground cursor-pointer select-none">{{ $t('settings.popupEditor.enableLabel') }}</label>
                      </div>
                      <div class="flex items-center justify-between">
-                        <button type="submit" :disabled="popupEditorLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                          {{ popupEditorLoading ? $t('common.saving') : $t('settings.popupEditor.saveButton') }}
+                        <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                          {{ $t('settings.popupEditor.saveButton') }}
                         </button>
                         <p v-if="popupEditorMessage" :class="['text-sm', popupEditorSuccess ? 'text-success' : 'text-error']">{{ popupEditorMessage }}</p>
                      </div>
@@ -342,9 +342,9 @@
                      </div>
                      <p class="text-xs text-text-secondary mt-1">{{ $t('settings.shareEditorTabs.description') }}</p>
                      <div class="flex items-center justify-between">
-                        <button type="submit" :disabled="shareTabsLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                          {{ shareTabsLoading ? $t('common.saving') : $t('settings.shareEditorTabs.saveButton') }}
+                        <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                          {{ $t('settings.shareEditorTabs.saveButton') }}
                         </button>
                         <p v-if="shareTabsMessage" :class="['text-sm', shareTabsSuccess ? 'text-success' : 'text-error']">{{ shareTabsMessage }}</p>
                      </div>
@@ -361,9 +361,9 @@
                          <label for="autoCopyOnSelect" class="text-sm text-foreground cursor-pointer select-none">{{ $t('settings.autoCopyOnSelect.enableLabel') }}</label>
                      </div>
                      <div class="flex items-center justify-between">
-                        <button type="submit" :disabled="autoCopyLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                          {{ autoCopyLoading ? $t('common.saving') : $t('settings.autoCopyOnSelect.saveButton') }}
+                        <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                          {{ $t('settings.autoCopyOnSelect.saveButton') }}
                         </button>
                         <p v-if="autoCopyMessage" :class="['text-sm', autoCopySuccess ? 'text-success' : 'text-error']">{{ autoCopyMessage }}</p>
                      </div>
@@ -381,9 +381,9 @@
                      </div>
                      <p class="text-xs text-text-secondary mt-1">{{ $t('settings.workspace.sidebarPersistentDescription') }}</p>
                      <div class="flex items-center justify-between">
-                        <button type="submit" :disabled="workspaceSidebarPersistentLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                          {{ workspaceSidebarPersistentLoading ? $t('common.saving') : $t('common.save') }}
+                        <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                          {{ $t('common.save') }}
                         </button>
                         <p v-if="workspaceSidebarPersistentMessage" :class="['text-sm', workspaceSidebarPersistentSuccess ? 'text-success' : 'text-error']">{{ workspaceSidebarPersistentMessage }}</p>
                      </div>
@@ -406,9 +406,9 @@
                      <p class="text-xs text-text-secondary mt-1">{{ $t('settings.commandInputSync.description', '将命令输入框的内容实时同步到所选面板的搜索框。') }}</p>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="commandInputSyncLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ commandInputSyncLoading ? $t('common.saving') : $t('common.save') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ $t('common.save') }}
                       </button>
                       <p v-if="commandInputSyncMessage" :class="['text-sm', commandInputSyncSuccess ? 'text-success' : 'text-error']">{{ commandInputSyncMessage }}</p>
                    </div>
@@ -437,9 +437,9 @@
                      <label for="dockerExpandDefault" class="text-sm text-foreground cursor-pointer select-none">{{ t('settings.docker.defaultExpandLabel') }}</label>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="dockerSettingsLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ dockerSettingsLoading ? $t('common.saving') : t('settings.docker.saveButton') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ t('settings.docker.saveButton') }}
                       </button>
                       <p v-if="dockerSettingsMessage" :class="['text-sm', dockerSettingsSuccess ? 'text-success' : 'text-error']">{{ dockerSettingsMessage }}</p>
                    </div>
@@ -457,9 +457,9 @@
                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.statusMonitor.refreshIntervalHint') }}</small>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="statusMonitorLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ statusMonitorLoading ? $t('common.saving') : t('settings.statusMonitor.saveButton') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ t('settings.statusMonitor.saveButton') }}
                       </button>
                       <p v-if="statusMonitorMessage" :class="['text-sm', statusMonitorSuccess ? 'text-success' : 'text-error']">{{ statusMonitorMessage }}</p>
                    </div>
@@ -482,9 +482,9 @@
                       <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.timezone.description', '通知中的时间戳将根据此时区进行格式化。') }}</small>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="timezoneLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ timezoneLoading ? $t('common.saving') : t('common.save') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ t('common.save') }}
                       </button>
                       <p v-if="timezoneMessage" :class="['text-sm', timezoneSuccess ? 'text-success' : 'text-error']">{{ timezoneMessage }}</p>
                    </div>
