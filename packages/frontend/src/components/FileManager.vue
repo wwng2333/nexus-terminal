@@ -858,6 +858,54 @@ const cancelSearch = () => {
     isSearchActive.value = false;
 };
 
+// --- 新增：发送 CD 命令到终端的方法 ---
+const sendCdCommandToTerminal = () => {
+  if (!currentSftpManager.value || !props.wsDeps.isConnected.value) {
+    console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Cannot send CD command: SFTP manager not ready or not connected.`);
+    return;
+  }
+  const currentPath = currentSftpManager.value.currentPath.value;
+  if (!currentPath) {
+    console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Cannot send CD command: Current path is empty.`);
+    return;
+  }
+
+  // 路径可能包含空格，需要用引号括起来以确保在各种 shell 中正确处理
+  const escapedPath = `"${currentPath}"`;
+  // 添加换行符以模拟按下 Enter 键执行命令
+  const command = `cd ${escapedPath}\n`;
+
+  console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Sending command to terminal: ${command.trim()}`);
+  try {
+    // 获取当前活动会话
+    const activeSession = sessionStore.activeSession;
+    if (!activeSession) {
+      console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Failed to send command: No active session found.`);
+      // 可选：添加 UI 通知
+      // uiNotificationsStore.addNotification({ message: t('fileManager.errors.noActiveSession', 'No active session found.'), type: 'error' });
+      return;
+    }
+    // 检查 terminalManager 是否存在
+    if (!activeSession.terminalManager) {
+        console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Failed to send command: Terminal manager not found for active session.`);
+        // 可选：添加 UI 通知
+        // uiNotificationsStore.addNotification({ message: t('fileManager.errors.terminalManagerNotFound', 'Terminal manager not found.'), type: 'error' });
+        return;
+    }
+    // 使用 terminalManager 的 sendData 方法发送命令
+    activeSession.terminalManager.sendData(command);
+    // 可选：添加 UI 通知
+    // import { useUiNotificationsStore } from '../stores/uiNotifications.store'; // 需要导入
+    // const uiNotificationsStore = useUiNotificationsStore(); // 需要实例化
+    // uiNotificationsStore.addNotification({ message: t('fileManager.notifications.cdCommandSent', 'CD command sent to terminal.'), type: 'success', duration: 3000 });
+  } catch (error) {
+    console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Failed to send command to terminal:`, error);
+    // 可选：添加 UI 通知
+    // uiNotificationsStore.addNotification({ message: t('fileManager.errors.sendCommandFailed', 'Failed to send command.'), type: 'error' });
+  }
+};
+
+
 // --- 行大小调整逻辑 ---
 const handleWheel = (event: WheelEvent) => {
     if (event.ctrlKey) {
@@ -942,6 +990,16 @@ defineExpose({ focusSearchInput, startPathEdit });
         </div>
         <!-- Path Actions -->
         <div class="flex items-center flex-shrink-0 mr-auto">
+          <!-- 新增：CD 到终端按钮 -->
+          <button
+            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+            @click.stop="sendCdCommandToTerminal"
+            :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath"
+            :title="t('fileManager.actions.cdToTerminal', 'Change terminal directory to current path')"
+          >
+            <i class="fas fa-terminal text-base"></i>
+          </button>
+          <!-- 刷新按钮 -->
           <button
             class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
             @click.stop="currentSftpManager?.loadDirectory(currentSftpManager?.currentPath?.value ?? '/', true)"

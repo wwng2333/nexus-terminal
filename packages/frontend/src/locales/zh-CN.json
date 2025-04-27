@@ -250,7 +250,8 @@
       "cancel": "取消",
       "save": "保存",
       "closeTab": "关闭标签页",
-      "closeEditor": "关闭编辑器"
+      "closeEditor": "关闭编辑器",
+      "cdToTerminal": "将终端目录切换到当前路径"
     },
     "headers": {
       "type": "类型",

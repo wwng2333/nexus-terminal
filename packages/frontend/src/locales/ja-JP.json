@@ -250,7 +250,8 @@
         "cancel": "キャンセル",
         "save": "保存",
         "closeTab": "タブを閉じる",
-        "closeEditor": "エディターを閉じる"
+        "closeEditor": "エディターを閉じる",
+        "cdToTerminal": "ターミナルのディレクトリを現在のパスに変更"
       },
       "headers": {
         "type": "タイプ",

@@ -250,7 +250,8 @@
       "cancel": "Cancel",
       "save": "Save",
       "closeTab": "Close Tab",
-      "closeEditor": "Close Editor"
+      "closeEditor": "Close Editor",
+      "cdToTerminal": "Change terminal directory to current path"
     },
     "headers": {
       "type": "Type",
