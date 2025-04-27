@@ -11,6 +11,7 @@
           data-focus-id="quickCommandsSearch"
           @input="updateSearchTerm($event)"
           @keydown="handleSearchInputKeydown"
+          @blur="handleSearchInputBlur"
           ref="searchInputRef"
           class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition duration-150 ease-in-out"
         />
@@ -191,6 +192,18 @@ const handleSearchInputKeydown = (event: KeyboardEvent) => {
       }
       break;
   }
+};
+
+// 处理搜索框失焦事件
+const handleSearchInputBlur = () => {
+  // 延迟执行，以允许点击列表项事件先触发
+  setTimeout(() => {
+    // 检查焦点是否还在组件内部的其他可聚焦元素上（例如按钮）
+    // 如果焦点移出整个组件区域，则重置选择
+    if (document.activeElement !== searchInputRef.value && !commandListRef.value?.contains(document.activeElement)) {
+       quickCommandsStore.resetSelection();
+    }
+  }, 100); // 短暂延迟
 };
 
 // 切换排序方式
