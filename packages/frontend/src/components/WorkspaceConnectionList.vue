@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, defineExpose, watch, nextTick } from 'vue'; // 确保 ref, defineExpose, onBeforeUnmount, watch, nextTick 已导入
+import { ref, computed, onMounted, onBeforeUnmount, defineExpose, watch, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
 // import { useRouter } from 'vue-router'; // 不再需要 router
 import { useI18n } from 'vue-i18n';
+import RemoteDesktopModal from './RemoteDesktopModal.vue'; // +++ 导入 RDP 模态框 +++
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useTagsStore, TagInfo } from '../stores/tags.store';
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
@@ -37,6 +38,10 @@ const contextTargetConnection = ref<ConnectionInfo | null>(null);
 
 // 分组展开状态
 const expandedGroups = ref<Record<string, boolean>>({}); // 使用 Record<string, boolean>
+
+// +++ RDP 模态框状态 +++
+const showRdpModal = ref(false);
+const selectedRdpConnection = ref<ConnectionInfo | null>(null);
 
 // 键盘导航状态
 const highlightedIndex = ref(-1); // -1 表示没有高亮项
@@ -150,18 +155,35 @@ const toggleGroup = (groupName: string) => {
 };
 
 // 处理单击连接 (左键/Enter) - 使用 session store 处理连接请求
-const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent) => { // 接受 MouseEvent 或 KeyboardEvent
-  // 增加检查：只处理左键点击 (button 0) 或非鼠标事件 (如 Enter 键)
+const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent) => {
   if (event instanceof MouseEvent && event.button !== 0) {
     console.log(`[WkspConnList] DEBUG: handleConnect called with non-left click (button: ${event.button}). Ignoring.`);
-    return; // 如果不是左键点击，则忽略
+    return;
   }
-  // console.log('[WkspConnList] DEBUG: handleConnect triggered! Event:', event); // 移除调试日志
-  console.log(`[WkspConnList] handleConnect (左键/Enter) called for ID: ${connectionId}. Emitting event.`);
-  // 移除对 sessionStore 的直接调用，由父组件处理
-  // sessionStore.handleConnectRequest(connectionId);
-  emit('connect-request', connectionId); // 发出事件通知父组件
-  closeContextMenu(); // 点击连接后关闭菜单 (如果菜单是打开的)
+
+  const connection = connections.value.find(c => c.id === connectionId);
+  if (!connection) {
+    console.error(`[WkspConnList] Connection with ID ${connectionId} not found.`);
+    return;
+  }
+
+  closeContextMenu(); // 关闭右键菜单
+
+  if (connection.type === 'RDP') {
+    console.log(`[WkspConnList] RDP connection clicked (ID: ${connectionId}). Opening modal.`);
+    selectedRdpConnection.value = connection;
+    showRdpModal.value = true;
+  } else {
+    console.log(`[WkspConnList] Non-RDP connection clicked (ID: ${connectionId}, Type: ${connection.type}). Emitting connect-request.`);
+    // 对于非 RDP 连接，保持原有逻辑，发出事件给父组件处理
+    emit('connect-request', connectionId);
+  }
+};
+
+// +++ 关闭 RDP 模态框 +++
+const closeRdpModal = () => {
+  showRdpModal.value = false;
+  selectedRdpConnection.value = null;
 };
 
 // 显示右键菜单
@@ -407,6 +429,13 @@ const scrollToHighlighted = async () => {
         </li>
       </ul>
     </div>
+
+    <!-- +++ RDP Modal +++ -->
+    <RemoteDesktopModal
+      v-if="showRdpModal"
+      :connection="selectedRdpConnection"
+      @close="closeRdpModal"
+    />
   </div>
 </template>
 
