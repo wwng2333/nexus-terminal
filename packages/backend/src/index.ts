@@ -125,7 +125,7 @@ const port = process.env.PORT || 3001;
 const initializeDatabase = async () => {
   try {
     const db = await getDbInstance();
-    console.log('[Index] Checking user count...');
+    console.log('[Index] 正在检查用户数量...');
     const userCount = await new Promise<number>((resolve, reject) => {
       db.get('SELECT COUNT(*) as count FROM users', (err: Error | null, row: { count: number }) => {
         if (err) {
@@ -135,7 +135,7 @@ const initializeDatabase = async () => {
         resolve(row.count);
       });
     });
-    console.log(`[Index] User count check completed. Found ${userCount} users.`);
+    console.log(`[Index] 用户数量检查完成。找到 ${userCount} 个用户。`);
   } catch (error) {
     console.error('数据库初始化或检查失败:', error);
     process.exit(1);
