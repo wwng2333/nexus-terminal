@@ -50,39 +50,25 @@ const connectRdp = async () => {
   statusMessage.value = t('remoteDesktopModal.status.fetchingToken');
 
   try {
-    // 1. 从独立的 RDP 后端获取 Token
-    // WARNING: Sending credentials directly like this is insecure if the API is not properly secured (e.g., HTTPS, network isolation).
-    // WARNING: props.connection likely does NOT contain the password. Using a placeholder.
-    // You MUST implement a secure way to get the password here.
-    const connectionParams = new URLSearchParams({
-        hostname: props.connection.host,
-        port: props.connection.port.toString(),
-        username: props.connection.username,
-        // !!! SECURITY RISK: Password should not be handled like this !!!
-        // Replace this with a secure method (e.g., prompt user, fetch securely)
-        password: (props.connection as any).password || 'PASSWORD_PLACEHOLDER', // Assuming password might exist, otherwise use placeholder
-        security: (props.connection as any).rdp_security || 'any', // Use RDP specific fields if available
-        ignoreCert: String((props.connection as any).rdp_ignore_cert ?? true),
-        // Add other necessary params supported by the rdp backend API
-    });
-    const apiUrl = `${RDP_BACKEND_API_BASE}/api/get-token?${connectionParams.toString()}`;
-    console.log(`[RDP Modal] Fetching token from RDP backend: ${RDP_BACKEND_API_BASE}/api/get-token?...`);
+    // 1. 从主后端获取 RDP 会话的 Guacamole Token
+    // Construct the path relative to the apiClient's baseURL ('/api/v1')
+    const apiUrl = `connections/${props.connection.id}/rdp-session`;
+    console.log(`[RDP Modal] Fetching token from main backend: POST /api/v1/${apiUrl}`); // Log the expected full path
 
-    // Use fetch directly as apiClient might be configured for the main backend
-    const response = await fetch(apiUrl);
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-        throw new Error(`RDP API Error (${response.status}): ${errorData.error || response.statusText}`);
-    }
-    const data = await response.json();
-    const token = data.token;
+    // Use apiClient configured for the main backend
+    const response = await apiClient.post<{ token: string }>(apiUrl);
+
+    // apiClient should handle non-2xx responses by throwing an error
+    // We just need to check if the token exists in the successful response data
+    const token = response.data?.token;
     if (!token) {
-        throw new Error('Token not found in RDP API response');
+         console.error('[RDP Modal] Token not found in main backend response:', response.data);
+         throw new Error('Token not found in API response');
     }
-    console.log('[RDP Modal] Received token.');
+    console.log('[RDP Modal] Received token from main backend.');
     statusMessage.value = t('remoteDesktopModal.status.connectingWs');
 
-    // 2. 连接 WebSocket (to RDP backend's WebSocket server)
+    // 2. 连接 WebSocket (仍然连接到独立的 RDP 后端的 WebSocket 服务器)
     const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}`;
     console.log(`[RDP Modal] Connecting WebSocket to: ${RDP_BACKEND_WEBSOCKET_URL}/?token=...`);
     // @ts-ignore

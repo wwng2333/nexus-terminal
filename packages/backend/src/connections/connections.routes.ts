@@ -7,11 +7,11 @@ import {
     getConnectionById,
     updateConnection, 
     deleteConnection,
-    testConnection, 
-    testUnsavedConnection, 
+    testConnection,
+    testUnsavedConnection,
     exportConnections,
-    importConnections, // <-- Add comma here
-    getRdpSessionToken // +++ Import getRdpSessionToken +++
+    importConnections,
+    getRdpSessionToken // Import the new controller function
 } from './connections.controller';
 
 const router = Router();
@@ -77,6 +77,7 @@ router.post('/:id/test', testConnection);
 // POST /api/v1/connections/test-unsaved - 测试未保存的连接信息
 router.post('/test-unsaved', testUnsavedConnection);
 
-// Removed GET /:id/rdp-token route
+// POST /api/v1/connections/:id/rdp-session - Get RDP session token via backend
+router.post('/:id/rdp-session', getRdpSessionToken);
 
 export default router;
