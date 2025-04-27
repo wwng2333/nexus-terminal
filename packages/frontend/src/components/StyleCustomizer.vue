@@ -1124,18 +1124,18 @@ const handleFocusAndSelect = (event: FocusEvent) => {
            <section v-if="currentTab === 'background'">
                 <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.backgroundSettings') }}</h3>
 
-                <!-- 页面背景 -->
-                <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.pageBackground') }}</h4>
-                <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: pageBackgroundImage ? `url(${pageBackgroundImage})` : 'none' }">
-                    <span v-if="!pageBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span>
-                </div>
-                <div class="flex gap-2 mb-4 flex-wrap items-center">
-                    <button @click="handleTriggerPageBgUpload" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.uploadPageBg') }}</button>
-                    <button @click="handleRemovePageBg" :disabled="!pageBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removePageBg') }}</button> <!-- Applied danger button styles -->
-                    <input type="file" ref="pageBgFileInput" @change="handlePageBgUpload" accept="image/*" class="hidden" /> <!-- Use hidden class -->
-                </div>
+                <!-- 页面背景 (暂时隐藏) -->
+                <!-- <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.pageBackground') }}</h4> -->
+                <!-- <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: pageBackgroundImage ? `url(${pageBackgroundImage})` : 'none' }"> -->
+                    <!-- <span v-if="!pageBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span> -->
+                <!-- </div> -->
+                <!-- <div class="flex gap-2 mb-4 flex-wrap items-center"> -->
+                    <!-- <button @click="handleTriggerPageBgUpload" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.uploadPageBg') }}</button> -->
+                    <!-- <button @click="handleRemovePageBg" :disabled="!pageBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removePageBg') }}</button> --> <!-- Applied danger button styles -->
+                    <!-- <input type="file" ref="pageBgFileInput" @change="handlePageBgUpload" accept="image/*" class="hidden" /> --> <!-- Use hidden class -->
+                <!-- </div> -->
                  <!-- Removed Opacity Slider -->
-                 <p v-if="uploadError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mt-2">{{ uploadError }}</p> <!-- Adjusted error styles -->
+                 <!-- <p v-if="uploadError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mt-2">{{ uploadError }}</p> --> <!-- Adjusted error styles -->
 
                 <hr class="my-8 border-border"> <!-- Replaced inline style with Tailwind -->
 
