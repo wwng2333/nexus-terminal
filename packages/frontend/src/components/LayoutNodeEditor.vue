@@ -144,7 +144,7 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
           <button v-if="node.type === 'container'" @click="addVerticalContainer" :title="t('layoutNodeEditor.addVerticalContainer')" class="action-button">
            <i class="fas fa-bars"></i> V
          </button>
-         <button @click="removeSelf" :title="t('layoutNodeEditor.removeNode')" class="action-button remove-button">
+         <button @click="removeSelf" :title="t('layoutNodeEditor.removeNode')" class="action-button remove-button" :disabled="!parentNode">
            <i class="fas fa-trash-alt"></i>
          </button>
       </div>
