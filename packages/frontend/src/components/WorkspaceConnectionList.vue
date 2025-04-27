@@ -374,7 +374,7 @@ const scrollToHighlighted = async () => {
                 @click.right.prevent
                 @contextmenu.prevent="showContextMenu($event, conn)"
               >
-                <i class="fas fa-server mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary" :class="{ 'text-white': conn.id === highlightedConnectionId }"></i>
+                <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary', { 'text-white': conn.id === highlightedConnectionId }]"></i>
                 <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
                   {{ conn.name || conn.host }}
                 </span>

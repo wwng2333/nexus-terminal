@@ -181,9 +181,9 @@ const handleDelete = async (conn: ConnectionInfo) => {
                 </thead>
                 <tbody class="divide-y divide-border">
                     <tr v-for="conn in groupConnections" :key="conn.id" class="hover:bg-hover transition-colors duration-150">
-                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">
-                          <!-- Icon logic removed for now -->
-                          {{ conn.name }}
+                        <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap flex items-center">
+                          <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-terminal', 'mr-2 w-4 text-center text-text-secondary']"></i>
+                          <span>{{ conn.name }}</span>
                         </td>
                         <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.host }}</td>
                         <td class="px-4 py-3 text-sm text-foreground whitespace-nowrap">{{ conn.port }}</td>
