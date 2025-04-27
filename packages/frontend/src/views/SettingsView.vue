@@ -495,6 +495,10 @@
         </div>
       </div> <!-- End Settings Sections Grid -->
     </div> <!-- End Inner container -->
+<!-- Version Display -->
+      <div class="text-center text-xs text-text-secondary mt-8 pb-4">
+        Version: 0.1.0
+      </div>
   </div> <!-- End Outer container -->
 </template>
 
