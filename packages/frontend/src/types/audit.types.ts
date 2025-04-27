@@ -13,7 +13,6 @@ export type AuditLogActionType =
   | 'CONNECTION_CREATED'
   | 'CONNECTION_UPDATED'
   | 'CONNECTION_DELETED'
-  | 'CONNECTION_TESTED'
   // Proxies
   | 'PROXY_CREATED'
   | 'PROXY_UPDATED'

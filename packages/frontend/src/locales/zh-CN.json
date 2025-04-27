@@ -722,7 +722,6 @@
         "CONNECTION_CREATED": "连接已创建",
         "CONNECTION_UPDATED": "连接已更新",
         "CONNECTION_DELETED": "连接已删除",
-        "CONNECTION_TESTED": "连接已测试",
         "PROXY_CREATED": "代理已创建",
         "PROXY_UPDATED": "代理已更新",
         "PROXY_DELETED": "代理已删除",
