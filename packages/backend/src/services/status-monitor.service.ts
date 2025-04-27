@@ -1,7 +1,7 @@
 import { Client } from 'ssh2';
 import { WebSocket } from 'ws';
-import { ClientState } from '../websocket'; 
-import { settingsService } from './settings.service'; 
+import { ClientState } from '../websocket';
+import { settingsService } from './settings.service';
 
 
 interface ServerStatus {
@@ -38,6 +38,8 @@ const previousNetStats = new Map<string, { rx: number, tx: number, timestamp: nu
 
 export class StatusMonitorService {
     private clientStates: Map<string, ClientState>; // 使用导入的 ClientState
+    // 用于存储上一次的 CPU 统计信息以计算使用率
+    private previousCpuStats = new Map<string, { total: number, idle: number, timestamp: number }>();
 
     constructor(clientStates: Map<string, ClientState>) {
         this.clientStates = clientStates;
@@ -46,7 +48,6 @@ export class StatusMonitorService {
     /**
      * 启动指定会话的状态轮询
      * @param sessionId 会话 ID
-     * @param interval 轮询间隔 (毫秒)，可选，默认为 DEFAULT_POLLING_INTERVAL
      */
     async startStatusPolling(sessionId: string): Promise<void> {
         const state = this.clientStates.get(sessionId);
@@ -85,6 +86,7 @@ export class StatusMonitorService {
             clearInterval(state.statusIntervalId);
             state.statusIntervalId = undefined;
             previousNetStats.delete(sessionId); // 清理网络统计缓存
+            this.previousCpuStats.delete(sessionId); // 清理 CPU 统计缓存
         }
     }
 
@@ -127,7 +129,7 @@ export class StatusMonitorService {
                  const osReleaseOutput = await this.executeSshCommand(sshClient, 'cat /etc/os-release');
                  const nameMatch = osReleaseOutput.match(/^PRETTY_NAME="?([^"]+)"?/m);
                  status.osName = nameMatch ? nameMatch[1] : (osReleaseOutput.match(/^NAME="?([^"]+)"?/m)?.[1] ?? 'Unknown');
-             } catch (err) { } 
+             } catch (err) { }
 
              try {
                  let cpuModelOutput = '';
@@ -140,14 +142,14 @@ export class StatusMonitorService {
                          cpuModelOutput = await this.executeSshCommand(sshClient, "lscpu | grep 'Model name:'");
                          status.cpuModel = cpuModelOutput.match(/Model name:\s+(.*)/)?.[1].trim();
                      } catch (lscpuErr) {
-    
+
                      }
                  }
                  if (!status.cpuModel) {
                      status.cpuModel = 'Unknown';
                  }
-             } catch (err) { 
-                 
+             } catch (err) {
+
                  status.cpuModel = 'Unknown';
              }
 
@@ -179,9 +181,9 @@ export class StatusMonitorService {
                          }
                      }
                  } else { status.swapTotal = 0; status.swapUsed = 0; status.swapPercent = 0; }
-             } catch (err) { /* 静默处理 */ } 
+             } catch (err) { /* 静默处理 */ }
 
-             
+
              try {
                  // 使用 df -kP / 获取 POSIX 标准格式输出，更稳定
                  const dfOutput = await this.executeSshCommand(sshClient, "df -kP /");
@@ -200,20 +202,51 @@ export class StatusMonitorService {
                  }
              } catch (err) { /* 静默处理 */ }
 
-             try {
-                 const topOutput = await this.executeSshCommand(sshClient, "top -bn1 | grep '%Cpu(s)' | head -n 1");
-                 const idleMatch = topOutput.match(/(\d+\.?\d*)\s+id/); // Adjusted regex for float
-                 if (idleMatch) {
-                     const idlePercent = parseFloat(idleMatch[1]);
-                     status.cpuPercent = parseFloat((100 - idlePercent).toFixed(1));
-                 }
-             } catch (err) { /* 静默处理 */ } //
+            try {
+                const procStatOutput = await this.executeSshCommand(sshClient, 'cat /proc/stat');
+                const currentCpuTimes = this.parseProcStat(procStatOutput);
+                const now = Date.now(); // Use a consistent timestamp
 
-             try {
-                 const uptimeOutput = await this.executeSshCommand(sshClient, 'uptime');
+                if (currentCpuTimes) {
+                    const prevCpuStats = this.previousCpuStats.get(sessionId);
+
+                    if (prevCpuStats && prevCpuStats.timestamp < now) {
+                        const totalDiff = currentCpuTimes.total - prevCpuStats.total;
+                        const idleDiff = currentCpuTimes.idle - prevCpuStats.idle;
+                        const timeDiffMs = now - prevCpuStats.timestamp; // Time difference in ms
+
+                        // Ensure positive difference and minimal time gap (e.g., > 100ms) to avoid division by zero or erratic results
+                        if (totalDiff > 0 && timeDiffMs > 100) {
+                            const usageRatio = 1.0 - (idleDiff / totalDiff);
+                            // Clamp value between 0 and 100, format to 1 decimal place
+                            status.cpuPercent = parseFloat((Math.max(0, Math.min(100, usageRatio * 100))).toFixed(1));
+                        } else {
+                            // If totalDiff is not positive or time gap too small, report 0 or keep previous value?
+                            // Reporting 0 might be misleading if the system is actually busy but no change was detected in the short interval.
+                            // Let's keep the previous value if available, otherwise 0.
+                            status.cpuPercent = prevCpuStats?.total > 0 ? status.cpuPercent : 0; // Keep existing status.cpuPercent if valid prev exists, else 0
+                        }
+                    } else {
+                        // First run or timestamp issue, report 0 as we can't calculate a rate
+                        status.cpuPercent = 0;
+                    }
+                    // Store current stats for the next iteration
+                    this.previousCpuStats.set(sessionId, { ...currentCpuTimes, timestamp: now });
+                } else {
+                    // Failed to parse /proc/stat, set to undefined or keep previous? Let's use undefined.
+                    status.cpuPercent = undefined;
+                }
+            } catch (err) {
+                // Failed to execute cat /proc/stat
+                status.cpuPercent = undefined;
+                // console.warn(`[StatusMonitor ${sessionId}] Failed to get CPU stats via /proc/stat:`, err);
+            }
+
+            try {
+                const uptimeOutput = await this.executeSshCommand(sshClient, 'uptime');
                  const match = uptimeOutput.match(/load average(?:s)?:\s*([\d.]+)[, ]?\s*([\d.]+)[, ]?\s*([\d.]+)/);
                  if (match) status.loadAvg = [parseFloat(match[1]), parseFloat(match[2]), parseFloat(match[3])];
-             } catch (err) { /* 静默处理 */ } 
+             } catch (err) { /* 静默处理 */ }
 
 
              try {
@@ -238,7 +271,7 @@ export class StatusMonitorService {
                          previousNetStats.set(sessionId, { rx: currentRx, tx: currentTx, timestamp });
                      } else { /* 静默处理 */ }
                  }
-             } catch (err) { /* 静默处理 */ } 
+             } catch (err) { /* 静默处理 */ }
 
          } catch (error) {
              console.error(`[StatusMonitor ${sessionId}] General error fetching server status:`, error);
@@ -259,7 +292,7 @@ export class StatusMonitorService {
             output = await this.executeSshCommand(sshClient, 'cat /proc/net/dev');
         } catch (error) {
             // 如果命令失败，记录警告并返回 null
-           
+
             return null;
         }
         // 如果命令成功，继续解析
@@ -268,7 +301,7 @@ export class StatusMonitorService {
             const stats: NetworkStats = {};
             for (const line of lines) {
                 const parts = line.trim().split(/:\s+|\s+/);
-                if (parts.length < 17) continue; 
+                if (parts.length < 17) continue;
                 const interfaceName = parts[0];
                 const rx_bytes = parseInt(parts[1], 10);
                 const tx_bytes = parseInt(parts[9], 10);
@@ -294,7 +327,7 @@ export class StatusMonitorService {
             const interfaceName = output.trim();
             if (interfaceName) return interfaceName;
             // 如果 ip route 没返回有效接口名，也尝试 fallback
-           
+
 
         } catch (error) {
 
@@ -308,12 +341,12 @@ export class StatusMonitorService {
                      }
                  }
             } catch (fallbackError) {
-                
+
             }
 
             return null;
         }
-       
+
         return null;
     }
 
@@ -354,4 +387,48 @@ export class StatusMonitorService {
          }
          return undefined;
      }
+
+    /**
+     * Parses the output of /proc/stat to get total and idle CPU times.
+     * @param output The string output from `cat /proc/stat`.
+     * @returns An object with total and idle times, or null if parsing fails.
+     */
+    private parseProcStat(output: string): { total: number, idle: number } | null {
+        try {
+            const lines = output.split('\n');
+            // Find the line starting with "cpu " (aggregate of all cores)
+            const cpuLine = lines.find(line => line.startsWith('cpu '));
+            if (!cpuLine) {
+                // console.warn("Could not find 'cpu ' line in /proc/stat");
+                return null;
+            }
+
+            // Fields documented in `man proc`: cpu user nice system idle iowait irq softirq steal guest guest_nice
+            // We need to handle potential missing fields at the end (guest times are not always present)
+            const fieldsStr = cpuLine.trim().split(/\s+/).slice(1); // Remove 'cpu' prefix
+            const fields = fieldsStr.map(Number); // Convert remaining fields to numbers
+
+            // We need at least the first 4 fields (user, nice, system, idle)
+            if (fields.length < 4 || fields.slice(0, 4).some(isNaN)) {
+                // console.warn("Invalid format or missing required fields in 'cpu ' line:", cpuLine);
+                return null;
+            }
+
+            const idle = fields[3]; // The 4th field (index 3) is idle time
+
+            // Total time is the sum of all fields. Filter out NaN values just in case.
+            const total = fields.reduce((sum, value) => sum + (isNaN(value) ? 0 : value), 0);
+
+            // Final check for NaN just to be safe
+            if (isNaN(total) || isNaN(idle)) {
+                // console.warn("NaN detected after parsing /proc/stat fields:", fields);
+                return null;
+            }
+
+            return { total, idle };
+        } catch (e) {
+            // console.error("Error parsing /proc/stat:", e);
+            return null;
+        }
+    }
 }
