@@ -56,7 +56,24 @@ const initializeEnvironment = async () => {
         keysGenerated = true;
     }
 
-    // 4. 如果生成了新密钥，则追加到 .env 文件
+    // 4. 检查 GUACD_HOST 和 GUACD_PORT
+    if (!process.env.GUACD_HOST) {
+        console.warn('[ENV Init] GUACD_HOST 未设置，将使用默认值 "localhost"');
+        process.env.GUACD_HOST = 'localhost';
+        // Optionally add to keysToAppend if you want to save the default
+        // keysToAppend += `\nGUACD_HOST=localhost`;
+        // keysGenerated = true; // Mark if you want to save
+    }
+    if (!process.env.GUACD_PORT) {
+        console.warn('[ENV Init] GUACD_PORT 未设置，将使用默认值 "4822"');
+        process.env.GUACD_PORT = '4822';
+        // Optionally add to keysToAppend
+        // keysToAppend += `\nGUACD_PORT=4822`;
+        // keysGenerated = true; // Mark if you want to save
+    }
+
+
+    // 5. 如果生成了新密钥或添加了默认值，则追加到 .env 文件
     if (keysGenerated) {
         try {
             // 确保追加前有换行符 (如果文件非空)
@@ -88,6 +105,20 @@ const initializeEnvironment = async () => {
             process.exit(1);
         }
     }
+
+    // 6. 最终检查 (包括 Guacamole 相关)
+    if (process.env.NODE_ENV === 'production') {
+        if (!process.env.ENCRYPTION_KEY) {
+            console.error('错误：生产环境中 ENCRYPTION_KEY 最终未能设置！');
+            process.exit(1);
+        }
+        if (!process.env.SESSION_SECRET) {
+            console.error('错误：生产环境中 SESSION_SECRET 最终未能设置！');
+            process.exit(1);
+        }
+        // Guacd host/port are less critical to halt on, defaults might work
+    }
+
 };
 // --- 结束环境变量和密钥初始化 ---
 
@@ -193,7 +224,8 @@ const startServer = () => {
 
     server.listen(port, () => {
         console.log(`后端服务器正在监听 http://localhost:${port}`);
-        initializeWebSocket(server, sessionMiddleware as RequestHandler);
+        initializeWebSocket(server, sessionMiddleware as RequestHandler); // Initialize existing WebSocket
+
     });
 };
 

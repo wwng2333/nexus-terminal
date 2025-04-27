@@ -271,5 +271,76 @@ export const deleteConnection = async (id: number): Promise<boolean> => {
     return deleted;
 };
 
+/**
+ * 获取连接信息（包含标签）以及解密后的凭证（如果适用）
+ * @param id 连接 ID
+ * @returns 包含 ConnectionWithTags 和解密后密码/密钥的对象，或 null
+ */
+export const getConnectionWithDecryptedCredentials = async (
+    id: number
+): Promise<{ connection: ConnectionWithTags; decryptedPassword?: string; decryptedPrivateKey?: string; decryptedPassphrase?: string } | null> => {
+    // 1. 获取完整的连接数据（包含加密字段）
+    // Assuming findFullConnectionById exists and returns FullConnectionDbRow or null
+    const fullConnectionDbRow = await ConnectionRepository.findFullConnectionById(id);
+    if (!fullConnectionDbRow) {
+        console.log(`[Service:getConnWithDecrypt] Connection not found for ID: ${id}`);
+        return null;
+    }
+    // Convert DbRow to the stricter FullConnectionData type expected by the service/types file
+    // Handle potential undefined by defaulting to null
+    const fullConnection: FullConnectionData = {
+        ...fullConnectionDbRow,
+        encrypted_password: fullConnectionDbRow.encrypted_password ?? null,
+        encrypted_private_key: fullConnectionDbRow.encrypted_private_key ?? null,
+        encrypted_passphrase: fullConnectionDbRow.encrypted_passphrase ?? null,
+        // Ensure other fields match FullConnectionData if necessary
+        // (Assuming FullConnectionDbRow includes all fields of FullConnectionData)
+    };
+
+    // 2. 获取带标签的连接数据（用于返回给调用者）
+    const connectionWithTags: ConnectionWithTags | null = await ConnectionRepository.findConnectionByIdWithTags(id);
+    if (!connectionWithTags) {
+         // This shouldn't happen if findFullConnectionById succeeded, but good practice to check
+         console.error(`[Service:getConnWithDecrypt] Mismatch: Full connection found but tagged connection not found for ID: ${id}`);
+         // Consider throwing an error or returning a specific error state
+         return null;
+    }
+
+    // 3. 解密凭证
+    let decryptedPassword: string | undefined = undefined;
+    let decryptedPrivateKey: string | undefined = undefined;
+    let decryptedPassphrase: string | undefined = undefined;
+
+    try {
+        // Decrypt password if method is 'password' and encrypted password exists
+        if (fullConnection.auth_method === 'password' && fullConnection.encrypted_password) {
+            decryptedPassword = decrypt(fullConnection.encrypted_password);
+        }
+        // Decrypt key and passphrase if method is 'key'
+        else if (fullConnection.auth_method === 'key') {
+            if (fullConnection.encrypted_private_key) {
+                decryptedPrivateKey = decrypt(fullConnection.encrypted_private_key);
+            }
+            // Only decrypt passphrase if it exists
+            if (fullConnection.encrypted_passphrase) {
+                decryptedPassphrase = decrypt(fullConnection.encrypted_passphrase);
+            }
+        }
+    } catch (error) {
+        console.error(`[Service:getConnWithDecrypt] Failed to decrypt credentials for connection ID ${id}:`, error);
+        // Decide how to handle decryption errors. Throw? Return null password?
+        // For now, we'll log and continue, returning undefined credentials.
+        // Consider throwing an error if credentials are required but decryption fails.
+        // Or return a specific error structure: return { error: 'Decryption failed' };
+    }
+
+    console.log(`[Service:getConnWithDecrypt] Returning data for ID: ${id}, Auth Method: ${fullConnection.auth_method}`);
+    return {
+        connection: connectionWithTags,
+        decryptedPassword,
+        decryptedPrivateKey,
+        decryptedPassphrase,
+    };
+};
 // 注意：testConnection、importConnections、exportConnections 逻辑
 // 将分别移至 SshService 和 ImportExportService。

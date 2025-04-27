@@ -257,3 +257,102 @@ export const importConnections = async (req: Request, res: Response): Promise<vo
         }
     }
 };
+import axios from 'axios'; // +++ Import axios +++
+
+// TODO: Make RDP backend URL configurable
+const RDP_BACKEND_API_BASE = process.env.RDP_BACKEND_API_BASE || 'http://localhost:9090';
+
+/**
+ * 获取 RDP 会话的 Guacamole 令牌 (通过调用 RDP 后端)
+ * GET /api/v1/connections/:id/rdp-session
+ */
+export const getRdpSessionToken = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const connectionId = parseInt(req.params.id, 10);
+        if (isNaN(connectionId)) {
+            res.status(400).json({ message: '无效的连接 ID。' });
+            return;
+        }
+
+        // 1. 获取连接信息和解密后的凭证
+        const connectionData = await ConnectionService.getConnectionWithDecryptedCredentials(connectionId);
+
+        if (!connectionData) {
+            res.status(404).json({ message: '连接未找到。' });
+            return;
+        }
+
+        const { connection, decryptedPassword } = connectionData;
+
+        // 2. 验证连接类型是否为 RDP
+        if (connection.type !== 'RDP') {
+            res.status(400).json({ message: '此连接类型不是 RDP。' });
+            return;
+        }
+
+        // 3. 验证 RDP 连接是否使用密码认证
+        if (connection.auth_method !== 'password' || !decryptedPassword) {
+             console.warn(`[Controller:getRdpSessionToken] RDP connection ${connectionId} does not use password auth or password decryption failed.`);
+             res.status(400).json({ message: 'RDP 连接需要使用密码认证，或密码解密失败。' });
+             return;
+        }
+
+        // 4. 准备调用 RDP 后端的参数
+        const rdpApiParams = new URLSearchParams({
+            hostname: connection.host,
+            port: connection.port.toString(),
+            username: connection.username,
+            password: decryptedPassword, // 使用解密后的密码
+            // Add other RDP parameters from connection object if needed by rdp backend
+            security: (connection as any).rdp_security || 'any',
+            ignoreCert: String((connection as any).rdp_ignore_cert ?? true),
+        });
+        const rdpTokenUrl = `${RDP_BACKEND_API_BASE}/api/get-token?${rdpApiParams.toString()}`;
+
+        console.log(`[Controller:getRdpSessionToken] Calling RDP backend API: ${RDP_BACKEND_API_BASE}/api/get-token?...`);
+
+        // 5. 调用 RDP 后端 API 获取 Guacamole 令牌
+        const rdpResponse = await axios.get<{ token: string }>(rdpTokenUrl, {
+             timeout: 10000 // 设置 10 秒超时
+        });
+
+        if (rdpResponse.status !== 200 || !rdpResponse.data?.token) {
+             console.error(`[Controller:getRdpSessionToken] RDP backend API call failed or returned invalid data. Status: ${rdpResponse.status}`, rdpResponse.data);
+             throw new Error('从 RDP 后端获取令牌失败。');
+        }
+
+        const guacamoleToken = rdpResponse.data.token;
+        console.log(`[Controller:getRdpSessionToken] Received Guacamole token from RDP backend for connection ${connectionId}`);
+
+        // 6. 将 Guacamole 令牌返回给前端
+        res.status(200).json({ token: guacamoleToken });
+
+    } catch (error: any) {
+        console.error(`Controller: 获取 RDP 会话令牌时发生错误 (ID: ${req.params.id}):`, error);
+
+        let statusCode = 500;
+        let message = '获取 RDP 会话令牌时发生内部服务器错误。';
+
+        if (axios.isAxiosError(error)) {
+            message = '调用 RDP 后端服务时出错。';
+            if (error.response) {
+                // RDP 后端返回了错误响应
+                console.error('[Controller:getRdpSessionToken] RDP backend error response:', error.response.data);
+                message += ` (状态: ${error.response.status})`;
+                statusCode = error.response.status >= 500 ? 502 : 400; // Bad Gateway or Bad Request
+            } else if (error.request) {
+                // 请求已发出但没有收到响应 (网络问题、超时)
+                 console.error('[Controller:getRdpSessionToken] No response from RDP backend.');
+                 message += ' (无法连接或超时)';
+                 statusCode = 504; // Gateway Timeout
+            } else {
+                // 设置请求时发生错误
+                console.error('[Controller:getRdpSessionToken] Axios request setup error:', error.message);
+            }
+        } else if (error.message.includes('解密失败')) {
+             message = '获取 RDP 会话令牌时发生内部错误（凭证处理失败）。';
+        }
+
+        res.status(statusCode).json({ message });
+    }
+};

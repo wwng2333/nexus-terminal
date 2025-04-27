@@ -1,0 +1,1 @@
+// This file is intentionally left blank as Guacamole logic is handled by the separate rdp package.
