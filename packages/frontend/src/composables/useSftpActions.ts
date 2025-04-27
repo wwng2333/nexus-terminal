@@ -65,6 +65,7 @@ export function createSftpActionsManager(
     // const error = ref<string | null>(null); // 不再使用本地 error ref
     const instanceSessionId = sessionId; // 保存会话 ID 用于日志
     const uiNotificationsStore = useUiNotificationsStore(); // 初始化 UI 通知 store
+    const initialLoadDone = ref<boolean>(false); // +++ 新增：跟踪此实例是否已完成初始加载 +++
 
     // 用于存储注销函数的数组
     const unregisterCallbacks: (() => void)[] = [];
@@ -796,6 +797,7 @@ export function createSftpActionsManager(
         isLoading: readonly(isLoading),
         // error: readonly(error), // 移除 error
         fileTree: readonly(fileTree), // 可以选择性地暴露只读的文件树
+        initialLoadDone: readonly(initialLoadDone), // +++ 暴露只读的初始加载状态 +++
 
         // Methods
         loadDirectory,
@@ -811,6 +813,7 @@ export function createSftpActionsManager(
 
         // Cleanup function
         currentPath: readonly(currentPathRef), // 暴露只读的当前路径 ref
+        setInitialLoadDone: (value: boolean) => { initialLoadDone.value = value; }, // +++ 暴露设置初始加载状态的方法 +++
 
         // Cleanup function
         // Cleanup function

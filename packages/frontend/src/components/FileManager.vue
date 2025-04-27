@@ -118,8 +118,8 @@ const {
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const sortKey = ref<keyof FileListItem | 'type' | 'size' | 'mtime'>('filename');
 const sortDirection = ref<'asc' | 'desc'>('asc');
-const initialLoadDone = ref(false);
-const isFetchingInitialPath = ref(false);
+// const initialLoadDone = ref(false); // 状态移至 SFTP Manager
+// const isFetchingInitialPath = ref(false); // 通过 isLoading 和 !initialLoadDone 推断
 const isEditingPath = ref(false);
 const searchQuery = ref(''); // 新增：搜索查询 ref
 const isSearchActive = ref(false); // 新增：控制搜索框激活状态
@@ -591,17 +591,15 @@ watchEffect((onCleanup) => {
         unregisterSuccess?.();
         unregisterError?.();
         if (timeoutId) clearTimeout(timeoutId);
-        if (isFetchingInitialPath.value) {
-             isFetchingInitialPath.value = false;
-        }
+        // isFetchingInitialPath 状态移除
     };
 
     onCleanup(cleanupListeners);
 
-    // 修改：添加 ?. 访问 isLoading
-    if (currentSftpManager.value && props.wsDeps.isConnected.value && props.wsDeps.isSftpReady.value && !currentSftpManager.value?.isLoading?.value && !initialLoadDone.value && !isFetchingInitialPath.value) {
-        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Connection ready for manager, fetching initial path.`);
-        isFetchingInitialPath.value = true;
+    // 修改：添加 ?. 访问 isLoading, 检查 manager 的 initialLoadDone
+    if (currentSftpManager.value && props.wsDeps.isConnected.value && props.wsDeps.isSftpReady.value && !currentSftpManager.value.isLoading.value && !currentSftpManager.value.initialLoadDone.value) {
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Connection ready for manager, fetching initial path (isLoading: ${currentSftpManager.value.isLoading.value}, initialLoadDone: ${currentSftpManager.value.initialLoadDone.value}).`);
+        // isFetchingInitialPath 状态移除, 使用 isLoading 状态
 
         // 仍然使用 props.wsDeps 中的 sendMessage 和 onMessage
         const { sendMessage: wsSend, onMessage: wsOnMessage } = props.wsDeps;
@@ -614,9 +612,9 @@ watchEffect((onCleanup) => {
                 if (!currentSftpManager.value) return;
                 const absolutePath = payload.absolutePath;
                 console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 收到 '.' 的绝对路径: ${absolutePath}。开始加载目录。`);
-                // 修改：添加 ?. 访问 loadDirectory
+                // 修改：添加 ?. 访问 loadDirectory 和 setInitialLoadDone
                 currentSftpManager.value?.loadDirectory(absolutePath);
-                initialLoadDone.value = true;
+                currentSftpManager.value?.setInitialLoadDone(true); // 设置 manager 内部状态
                 cleanupListeners();
             }
         });
@@ -627,6 +625,8 @@ watchEffect((onCleanup) => {
                 console.error(`[FileManager ${props.sessionId}-${props.instanceId}] 获取 '${requestedPath}' 的 realpath 失败:`, payload);
                 // TODO: 可以考虑通过 manager instance 暴露错误状态
                 // 目前仅记录日志。
+                // 即使获取 realpath 失败，也标记初始加载尝试完成，避免重复尝试
+                currentSftpManager.value?.setInitialLoadDone(true);
                 cleanupListeners();
             }
         });
@@ -636,15 +636,16 @@ watchEffect((onCleanup) => {
 
         timeoutId = setTimeout(() => {
             console.error(`[FileManager ${props.sessionId}-${props.instanceId}] 获取 '.' 的 realpath 超时 (ID: ${requestId})。`);
+            // 超时也标记初始加载尝试完成
+            currentSftpManager.value?.setInitialLoadDone(true);
             cleanupListeners();
         }, 10000); // 10 秒超时
 
-    } else if (!props.wsDeps.isConnected.value && initialLoadDone.value) { // 仍然使用 props.wsDeps.isConnected
-        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 连接丢失 (之前已加载)，重置状态。`);
+    } else if (!props.wsDeps.isConnected.value && currentSftpManager.value?.initialLoadDone.value) { // 检查 manager 的 initialLoadDone
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] 连接丢失 (之前已加载)，重置 manager 的 initialLoadDone 状态。`);
         clearSelection(); // 清空选择
-        initialLoadDone.value = false; // 重置初始加载状态
-        // lastClickedIndex.value = -1; // 由 clearSelection 处理
-        isFetchingInitialPath.value = false; // 重置获取状态
+        currentSftpManager.value?.setInitialLoadDone(false); // 重置 manager 内部状态
+        // isFetchingInitialPath 状态移除
         cleanupListeners();
     }
 });
@@ -678,8 +679,8 @@ watch(() => props.sessionId, (newSessionId, oldSessionId) => {
         isEditingPath.value = false;
         sortKey.value = 'filename'; // 重置排序
         sortDirection.value = 'asc';
-        initialLoadDone.value = false; // 需要重新加载初始路径
-        isFetchingInitialPath.value = false; // 重置获取状态
+        // initialLoadDone.value = false; // 移除本地状态重置
+        // isFetchingInitialPath.value = false; // 移除本地状态重置
 
         // 3. 触发新会话的初始路径加载 (watchEffect 会处理)
         // watchEffect 会在 currentSftpManager.value 改变后重新运行
