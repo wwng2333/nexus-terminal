@@ -42,7 +42,7 @@ const searchTerm = ref('');
 const sendCommand = () => {
   const command = commandInput.value;
   console.log(`[CommandInputBar] Sending command: ${command || '<Enter>'} `);
-  emit('send-command', command + '\n');
+  emit('send-command', command);
   commandInput.value = '';
 };
 
