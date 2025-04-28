@@ -38,8 +38,9 @@ const emit = defineEmits([
   'close-session',
   'open-layout-configurator',
   'request-add-connection-from-popup', // 声明从弹窗发出的添加请求事件
-  'request-edit-connection-from-popup', // 新增：声明从弹窗发出的编辑请求事件
-  'request-rdp-modal-from-popup'       // +++ 新增：声明从弹窗发出的 RDP 请求事件 +++
+  'request-edit-connection-from-popup'  // 新增：声明从弹窗发出的编辑请求事件
+  // --- 移除 RDP 事件 ---
+  // 'request-rdp-modal-from-popup'
 ]);
 
 const activateSession = (sessionId: string) => {
@@ -64,12 +65,20 @@ const togglePopup = () => {
 // 处理从弹出列表中选择连接的事件
 const handlePopupConnect = (connectionId: number) => {
   console.log(`[TabBar] Popup connect request for ID: ${connectionId}`);
-  // +++ 修复：传递 ConnectionInfo 而不是 ID +++
   const connectionInfo = connectionsStore.connections.find(c => c.id === connectionId);
-  if (connectionInfo) {
-    sessionStore.handleConnectRequest(connectionInfo);
-  } else {
+  if (!connectionInfo) {
     console.error(`[TabBar] handlePopupConnect: 未找到 ID 为 ${connectionId} 的连接信息。`);
+    showConnectionListPopup.value = false; // 关闭弹出窗口
+    return;
+  }
+
+  // --- 修改：根据类型决定调用哪个 Action ---
+  if (connectionInfo.type === 'RDP') {
+    console.log(`[TabBar] Popup RDP connect request for ID: ${connectionId}. Calling sessionStore.openRdpModal.`);
+    sessionStore.openRdpModal(connectionInfo);
+  } else {
+    console.log(`[TabBar] Popup non-RDP connect request for ID: ${connectionId}. Calling sessionStore.handleConnectRequest.`);
+    sessionStore.handleConnectRequest(connectionInfo); // 非 RDP 保持原逻辑
   }
   showConnectionListPopup.value = false; // 关闭弹出窗口
 };
@@ -89,13 +98,8 @@ const handleRequestEditFromPopup = (connection: any) => { // 假设 WorkspaceCon
   emit('request-edit-connection-from-popup', connection);
 };
 
-// +++ 新增：处理从弹窗内部发出的 RDP 模态框请求 +++
-const handleRequestRdpFromPopup = (connection: ConnectionInfo) => {
-  console.log('[TabBar] Received request-rdp-modal from popup component for connection:', connection.name);
-  showConnectionListPopup.value = false; // 关闭弹窗
-  // 向上发出事件，并携带连接信息
-  emit('request-rdp-modal-from-popup', connection);
-};
+// --- 移除 handleRequestRdpFromPopup 方法 ---
+// const handleRequestRdpFromPopup = (connection: ConnectionInfo) => { ... };
 
 // 新增：处理打开布局配置器的事件
 const openLayoutConfigurator = () => {
@@ -214,7 +218,6 @@ const toggleButtonTitle = computed(() => {
               @open-new-session="handlePopupConnect"
               @request-add-connection="handleRequestAddFromPopup"
               @request-edit-connection="handleRequestEditFromPopup"
-              @request-rdp-modal="handleRequestRdpFromPopup"
               class="popup-connection-list"
             />
         </div>

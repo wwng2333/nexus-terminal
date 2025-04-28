@@ -1,27 +1,27 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia';
+import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 import { useLayoutStore } from '../stores/layout.store'; // *** 重新导入 layoutStore ***
-import { useConnectionsStore } from '../stores/connections.store'; // +++ 导入 connectionsStore +++
+import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store'; // +++ 导入 connectionsStore +++
 // 移除不再直接使用的组件导入
 import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
 import LayoutRenderer from '../components/LayoutRenderer.vue'; // *** 导入布局渲染器 ***
 import LayoutConfigurator from '../components/LayoutConfigurator.vue'; // *** 导入布局配置器 ***
 import RemoteDesktopModal from '../components/RemoteDesktopModal.vue'; // +++ 导入 RDP 模态框 +++
-import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store';
+import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 session store
 import { useSettingsStore } from '../stores/settings.store';
 import { useFileEditorStore } from '../stores/fileEditor.store';
 // import { useLayoutStore } from '../stores/layout.store'; // 重复导入，移除
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
-import type { ConnectionInfo } from '../stores/connections.store';
+// import type { ConnectionInfo } from '../stores/connections.store'; // 重复导入，移除
 import type { Terminal } from 'xterm'; // *** 导入 Terminal 类型 ***
 import type { ISearchOptions } from '@xterm/addon-search'; // *** 导入搜索选项类型 ***
 
 // --- Setup ---
 const { t } = useI18n();
-const sessionStore = useSessionStore();
+const sessionStore = useSessionStore(); // 获取 session store 实例
 const settingsStore = useSettingsStore();
 const fileEditorStore = useFileEditorStore();
 const layoutStore = useLayoutStore(); // *** 确保 layoutStore 实例存在 ***
@@ -30,7 +30,7 @@ const connectionsStore = useConnectionsStore(); // +++ 获取 connectionsStore �
 const { isHeaderVisible } = storeToRefs(layoutStore); // *** 获取 isHeaderVisible 状态 ***
 
 // --- 从 Store 获取响应式状态和 Getters ---
-const { sessionTabsWithStatus, activeSessionId, activeSession } = storeToRefs(sessionStore);
+const { sessionTabsWithStatus, activeSessionId, activeSession, isRdpModalOpen, rdpConnectionInfo } = storeToRefs(sessionStore); // 使用 storeToRefs 获取 RDP 状态
 const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore);
 const { orderedTabs: globalEditorTabs, activeTabId: globalActiveEditorTabId } = storeToRefs(fileEditorStore);
 const { layoutTree } = storeToRefs(layoutStore); // 只获取布局树
@@ -58,8 +58,7 @@ const activeEditorTabId = computed(() => {
 const showAddEditForm = ref(false);
 const connectionToEdit = ref<ConnectionInfo | null>(null);
 const showLayoutConfigurator = ref(false); // 控制布局配置器可见性
-const showRdpModal = ref(false); // +++ 控制 RDP 模态框可见性 +++
-const rdpConnectionToShow = ref<ConnectionInfo | null>(null); // +++ 存储要显示的 RDP 连接信息 +++
+// 本地 RDP 状态已被移除
 
 // --- 搜索状态 ---
 const currentSearchTerm = ref(''); // 当前搜索的关键词
@@ -372,18 +371,7 @@ const handleCloseEditorTab = (tabId: string) => {
     sessionStore.handleOpenNewSession(id);
  };
 
-// +++ 处理 RDP 模态框请求 +++
-const handleRequestRdpModal = (connection: ConnectionInfo) => {
-  console.log(`[WorkspaceView] Received 'request-rdp-modal' for connection: ${connection.name || connection.host}`);
-  rdpConnectionToShow.value = connection;
-  showRdpModal.value = true;
-};
-
-// +++ 关闭 RDP 模态框 +++
-const handleCloseRdpModal = () => {
-  showRdpModal.value = false;
-  rdpConnectionToShow.value = null;
-};
+// RDP 事件处理方法已被移除
 
 </script>
 
@@ -399,7 +387,6 @@ const handleCloseRdpModal = () => {
         @open-layout-configurator="handleOpenLayoutConfigurator"
         @request-add-connection-from-popup="handleRequestAddConnection"
         @request-edit-connection-from-popup="handleRequestEditConnection"
-        @request-rdp-modal-from-popup="handleRequestRdpModal"
     />
 
     <!-- 移除 :class 绑定 -->
@@ -428,7 +415,6 @@ const handleCloseRdpModal = () => {
         @find-next="handleFindNext"
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
-        @request-rdp-modal="handleRequestRdpModal"
       ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
       <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
         {{ t('layout.loading', '加载布局中...') }}
@@ -449,11 +435,11 @@ const handleCloseRdpModal = () => {
       @close="handleCloseLayoutConfigurator"
     />
 
-    <!-- +++ RDP Modal (Rendered at top level) +++ -->
+    <!-- RDP Modal (使用 Store 状态控制) -->
     <RemoteDesktopModal
-      v-if="showRdpModal"
-      :connection="rdpConnectionToShow"
-      @close="handleCloseRdpModal"
+      v-if="isRdpModalOpen"
+      :connection="rdpConnectionInfo"
+      @close="sessionStore.closeRdpModal()"
     />
   </div> <!-- End of root element -->
 </template>

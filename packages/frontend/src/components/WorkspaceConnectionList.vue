@@ -14,8 +14,9 @@ const emit = defineEmits([
   'connect-request',        // 左键单击 - 请求激活或替换当前标签
   // 'open-new-session',       // 中键单击 - 请求在新标签中打开 (已移除)
   'request-add-connection', // 右键菜单 - 添加
-  'request-edit-connection', // 右键菜单 - 编辑
-  'request-rdp-modal'       // +++ 新增：请求打开 RDP 模态框 +++
+  'request-edit-connection' // 右键菜单 - 编辑
+  // --- 移除 RDP 事件 ---
+  // 'request-rdp-modal'
 ]);
 
 const { t } = useI18n();
@@ -171,9 +172,9 @@ const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent)
   closeContextMenu(); // 关闭右键菜单
 
   if (connection.type === 'RDP') {
-    console.log(`[WkspConnList] RDP connection clicked (ID: ${connectionId}). Emitting request-rdp-modal.`);
-    // --- 修改：不再本地处理，而是向上触发事件 ---
-    emit('request-rdp-modal', connection); // 传递整个连接对象
+    console.log(`[WkspConnList] RDP connection clicked (ID: ${connectionId}). Calling sessionStore.openRdpModal.`);
+    // --- 修改：调用 Store Action ---
+    sessionStore.openRdpModal(connection);
   } else {
     console.log(`[WkspConnList] Non-RDP connection clicked (ID: ${connectionId}, Type: ${connection.type}). Emitting connect-request.`);
     // 对于非 RDP 连接，保持原有逻辑，发出事件给父组件处理
