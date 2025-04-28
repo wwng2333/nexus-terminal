@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 // @ts-ignore - guacamole-common-js lacks official types
 import Guacamole from 'guacamole-common-js';
@@ -23,8 +23,10 @@ const keyboard = ref<any | null>(null);
 const mouse = ref<any | null>(null);
 const inputWidth = ref(1024);
 const inputHeight = ref(768);
-const modalStyle = ref({});
-const rdpContainerStyle = ref({});
+// const modalStyle = ref({}); // Replaced by computedModalStyle
+const rdpContainerStyle = ref<{ height?: string }>({}); // Only height is needed now
+const modalWidth = ref(1064); // Initial default based on 1024 + padding
+const modalHeight = ref(858); // Initial default based on 768 + padding
 
 const RDP_BACKEND_API_BASE = 'http://localhost:9090';
 const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081';
@@ -79,13 +81,12 @@ const connectRdp = async (useInputValues = false) => {
     const headerHeight = 45;
     const footerHeight = 35;
 
-    modalStyle.value = {
-        width: `${widthToSend + extraWidth}px`,
-        height: `${heightToSend + headerHeight + footerHeight + 10}px`,
-    };
+    // Update modal size refs based on RDP size + padding
+    modalWidth.value = widthToSend + extraWidth;
+    modalHeight.value = heightToSend + headerHeight + footerHeight + 10;
 
     rdpContainerStyle.value = {
-        width: `${widthToSend}px`,
+        // width: `${widthToSend}px`, // Remove width setting
         height: `${heightToSend}px`,
     };
 
@@ -247,13 +248,12 @@ const reconnectWithNewSize = () => {
       const extraWidth = 40;
 
       rdpContainerStyle.value = {
-          width: `${width}px`,
+          // width: `${width}px`, // Remove width setting
           height: `${height}px`,
       };
-      modalStyle.value = {
-          width: `${width + extraWidth}px`,
-          height: `${height + headerHeight + footerHeight + 10}px`,
-      };
+      // Update modal size refs based on new RDP size + padding
+      modalWidth.value = width + extraWidth;
+      modalHeight.value = height + headerHeight + footerHeight + 10;
   });
 };
 
@@ -289,12 +289,17 @@ watch(() => props.connection, (newConnection, oldConnection) => {
   }
 });
 
+const computedModalStyle = computed(() => ({
+  width: `${modalWidth.value}px`,
+  height: `${modalHeight.value}px`,
+}));
+
 </script>
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-sm">
      <div
-        :style="modalStyle"
-        class="bg-background text-foreground rounded-lg shadow-xl max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-border"
+        :style="computedModalStyle"
+        class="bg-background text-foreground rounded-lg shadow-xl flex flex-col overflow-hidden border border-border"
      >
       <div class="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
         <h3 class="text-base font-semibold truncate">
@@ -321,7 +326,7 @@ watch(() => props.connection, (newConnection, oldConnection) => {
         </div>
       </div>
 
-      <div class="relative bg-black overflow-hidden" :style="rdpContainerStyle">
+      <div class="relative bg-black overflow-hidden flex-1" :style="rdpContainerStyle">
         <div ref="rdpDisplayRef" class="rdp-display-container w-full h-full">
         </div>
          <div v-if="connectionStatus === 'connecting' || connectionStatus === 'error'"
@@ -341,8 +346,29 @@ watch(() => props.connection, (newConnection, oldConnection) => {
 
        <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
          <span>{{ statusMessage }}</span>
-         <div class="flex items-center space-x-2">
-            <label for="rdp-width" class="text-xs">W:</label>
+         <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+            <label for="modal-width" class="text-xs ml-2">Modal W:</label>
+            <input
+              id="modal-width"
+              type="number"
+              v-model="modalWidth"
+              min="200"
+              step="10"
+              class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <label for="modal-height" class="text-xs">Modal H:</label>
+            <input
+              id="modal-height"
+              type="number"
+              v-model="modalHeight"
+              min="200"
+              step="10"
+              class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+
+            <span class="border-l border-border h-4 mx-2"></span>
+
+            <label for="rdp-width" class="text-xs">RDP W:</label>
             <input
               id="rdp-width"
               type="number"
