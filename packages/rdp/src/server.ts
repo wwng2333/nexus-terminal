@@ -152,7 +152,7 @@ app.get('/api/get-token', (req: any, res: any) => {
                 port: port as string,
                 username: username as string,
                 password: password as string,
-                security: 'tls', // 尝试 TLS 安全模式
+                security: 'rdp', // 尝试 RDP 标准安全模式
                 'ignore-cert': ignoreCert as string,
                 // Include the dynamic (or default) size parameters from query
                 width: String(req.query.width || '1024'),
