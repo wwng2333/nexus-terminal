@@ -8,7 +8,7 @@ services:
       - "18111:80"
     depends_on:
       - backend
-      - rdp # Added rdp dependency
+      - rdp
     networks:
       - nexus-terminal-network
 
@@ -17,14 +17,14 @@ services:
       context: .
       dockerfile: packages/backend/Dockerfile
     env_file:
-      - .env # Load environment variables from .env file in the root
+      - .env 
     container_name: nexus-terminal-backend
     ports:
       - "3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
-      RDP_BACKEND_API_BASE: http://rdp:9090 # Add URL for backend to reach RDP service
+      RDP_BACKEND_API_BASE: http://rdp:9090
     volumes:
       - ./data:/app/data
     networks:
