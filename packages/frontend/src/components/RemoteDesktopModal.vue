@@ -102,9 +102,14 @@ const connectRdp = async () => {
       tunnelUrl = tunnelUrl.slice(0, -1);
       console.warn(`[RDP 模态框] 移除了末尾多余的 '?'`);
     }
-   console.log(`[RDP 模态框] 连接到隧道: ${tunnelUrl}`); // 记录最终 URL
+   console.log(`[RDP 模态框] 准备连接到隧道: ${tunnelUrl}`); // 记录准备使用的 URL
+   // 再次强制清理，确保最终传递给库的 URL 没有末尾 '?'
+   const finalTunnelUrl = tunnelUrl.endsWith('?') ? tunnelUrl.slice(0, -1) : tunnelUrl;
+   if (finalTunnelUrl !== tunnelUrl) {
+       console.warn(`[RDP 模态框] 清理后的隧道 URL: ${finalTunnelUrl}`);
+   }
     // @ts-ignore
-    const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
+    const tunnel = new Guacamole.WebSocketTunnel(finalTunnelUrl); // 使用清理后的 URL
 
     tunnel.onerror = (status: any) => {
       const errorMessage = status.message || 'Unknown tunnel error';
