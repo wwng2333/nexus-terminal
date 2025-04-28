@@ -193,7 +193,7 @@ const setupInputListeners = () => {
         };
 
         // @ts-ignore
-        keyboard.value = new Guacamole.Keyboard(displayEl);
+        keyboard.value = new Guacamole.Keyboard(document); // Attach listener to document for better capture
 
         keyboard.value.onkeydown = (keysym: number) => {
             if (guacClient.value) {
