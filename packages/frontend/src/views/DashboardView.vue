@@ -176,7 +176,10 @@ const isFailedAction = (actionType: string): boolean => {
           <ul v-else-if="recentConnections.length > 0" class="space-y-3">
             <li v-for="conn in recentConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-header/50 border border-border/50 rounded transition duration-150 ease-in-out"> <!-- Applied audit log item style -->
               <div class="flex-grow mr-4 overflow-hidden">
-                <span class="font-medium block truncate" :title="conn.name || ''">{{ conn.name || 'Unnamed' }}</span>
+                <span class="font-medium block truncate flex items-center" :title="conn.name || ''">
+                  <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2 w-4 text-center text-text-secondary']"></i>
+                  <span>{{ conn.name || 'Unnamed' }}</span>
+                </span>
                 <span class="text-sm text-text-secondary block truncate" :title="`${conn.username}@${conn.host}:${conn.port}`">
                   {{ conn.username }}@{{ conn.host }}:{{ conn.port }}
                 </span>
