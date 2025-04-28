@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onBeforeUnmount, defineExpose, watch, nextTic
 import { storeToRefs } from 'pinia';
 // import { useRouter } from 'vue-router'; // 不再需要 router
 import { useI18n } from 'vue-i18n';
-import RemoteDesktopModal from './RemoteDesktopModal.vue'; // +++ 导入 RDP 模态框 +++
+// import RemoteDesktopModal from './RemoteDesktopModal.vue'; // --- 移除 RDP 模态框导入 ---
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useTagsStore, TagInfo } from '../stores/tags.store';
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
@@ -14,7 +14,8 @@ const emit = defineEmits([
   'connect-request',        // 左键单击 - 请求激活或替换当前标签
   // 'open-new-session',       // 中键单击 - 请求在新标签中打开 (已移除)
   'request-add-connection', // 右键菜单 - 添加
-  'request-edit-connection' // 右键菜单 - 编辑
+  'request-edit-connection', // 右键菜单 - 编辑
+  'request-rdp-modal'       // +++ 新增：请求打开 RDP 模态框 +++
 ]);
 
 const { t } = useI18n();
@@ -39,9 +40,9 @@ const contextTargetConnection = ref<ConnectionInfo | null>(null);
 // 分组展开状态
 const expandedGroups = ref<Record<string, boolean>>({}); // 使用 Record<string, boolean>
 
-// +++ RDP 模态框状态 +++
-const showRdpModal = ref(false);
-const selectedRdpConnection = ref<ConnectionInfo | null>(null);
+// --- 移除 RDP 模态框状态 ---
+// const showRdpModal = ref(false);
+// const selectedRdpConnection = ref<ConnectionInfo | null>(null);
 
 // 键盘导航状态
 const highlightedIndex = ref(-1); // -1 表示没有高亮项
@@ -170,9 +171,9 @@ const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent)
   closeContextMenu(); // 关闭右键菜单
 
   if (connection.type === 'RDP') {
-    console.log(`[WkspConnList] RDP connection clicked (ID: ${connectionId}). Opening modal.`);
-    selectedRdpConnection.value = connection;
-    showRdpModal.value = true;
+    console.log(`[WkspConnList] RDP connection clicked (ID: ${connectionId}). Emitting request-rdp-modal.`);
+    // --- 修改：不再本地处理，而是向上触发事件 ---
+    emit('request-rdp-modal', connection); // 传递整个连接对象
   } else {
     console.log(`[WkspConnList] Non-RDP connection clicked (ID: ${connectionId}, Type: ${connection.type}). Emitting connect-request.`);
     // 对于非 RDP 连接，保持原有逻辑，发出事件给父组件处理
@@ -180,11 +181,11 @@ const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent)
   }
 };
 
-// +++ 关闭 RDP 模态框 +++
-const closeRdpModal = () => {
-  showRdpModal.value = false;
-  selectedRdpConnection.value = null;
-};
+// --- 移除 closeRdpModal 方法 ---
+// const closeRdpModal = () => {
+//   showRdpModal.value = false;
+//   selectedRdpConnection.value = null;
+// };
 
 // 显示右键菜单
 const showContextMenu = (event: MouseEvent, connection: ConnectionInfo) => {
@@ -430,12 +431,12 @@ const scrollToHighlighted = async () => {
       </ul>
     </div>
 
-    <!-- +++ RDP Modal +++ -->
-    <RemoteDesktopModal
+    <!-- --- 移除 RDP Modal 渲染 --- -->
+    <!-- <RemoteDesktopModal
       v-if="showRdpModal"
       :connection="selectedRdpConnection"
       @close="closeRdpModal"
-    />
+    /> -->
   </div>
 </template>
 

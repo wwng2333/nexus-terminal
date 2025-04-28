@@ -9,6 +9,7 @@ import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
 import LayoutRenderer from '../components/LayoutRenderer.vue'; // *** 导入布局渲染器 ***
 import LayoutConfigurator from '../components/LayoutConfigurator.vue'; // *** 导入布局配置器 ***
+import RemoteDesktopModal from '../components/RemoteDesktopModal.vue'; // +++ 导入 RDP 模态框 +++
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useFileEditorStore } from '../stores/fileEditor.store';
@@ -57,6 +58,8 @@ const activeEditorTabId = computed(() => {
 const showAddEditForm = ref(false);
 const connectionToEdit = ref<ConnectionInfo | null>(null);
 const showLayoutConfigurator = ref(false); // 控制布局配置器可见性
+const showRdpModal = ref(false); // +++ 控制 RDP 模态框可见性 +++
+const rdpConnectionToShow = ref<ConnectionInfo | null>(null); // +++ 存储要显示的 RDP 连接信息 +++
 
 // --- 搜索状态 ---
 const currentSearchTerm = ref(''); // 当前搜索的关键词
@@ -369,6 +372,19 @@ const handleCloseEditorTab = (tabId: string) => {
     sessionStore.handleOpenNewSession(id);
  };
 
+// +++ 处理 RDP 模态框请求 +++
+const handleRequestRdpModal = (connection: ConnectionInfo) => {
+  console.log(`[WorkspaceView] Received 'request-rdp-modal' for connection: ${connection.name || connection.host}`);
+  rdpConnectionToShow.value = connection;
+  showRdpModal.value = true;
+};
+
+// +++ 关闭 RDP 模态框 +++
+const handleCloseRdpModal = () => {
+  showRdpModal.value = false;
+  rdpConnectionToShow.value = null;
+};
+
 </script>
 
 <template>
@@ -382,7 +398,8 @@ const handleCloseEditorTab = (tabId: string) => {
         @close-session="sessionStore.closeSession"
         @open-layout-configurator="handleOpenLayoutConfigurator"
         @request-add-connection-from-popup="handleRequestAddConnection"
-        @request-edit-connection-from-popup="handleRequestEditConnection" 
+        @request-edit-connection-from-popup="handleRequestEditConnection"
+        @request-rdp-modal-from-popup="handleRequestRdpModal"
     />
 
     <!-- 移除 :class 绑定 -->
@@ -411,6 +428,7 @@ const handleCloseEditorTab = (tabId: string) => {
         @find-next="handleFindNext"
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
+        @request-rdp-modal="handleRequestRdpModal"
       ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
       <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
         {{ t('layout.loading', '加载布局中...') }}
@@ -429,6 +447,13 @@ const handleCloseEditorTab = (tabId: string) => {
     <LayoutConfigurator
       :is-visible="showLayoutConfigurator"
       @close="handleCloseLayoutConfigurator"
+    />
+
+    <!-- +++ RDP Modal (Rendered at top level) +++ -->
+    <RemoteDesktopModal
+      v-if="showRdpModal"
+      :connection="rdpConnectionToShow"
+      @close="handleCloseRdpModal"
     />
   </div> <!-- End of root element -->
 </template>

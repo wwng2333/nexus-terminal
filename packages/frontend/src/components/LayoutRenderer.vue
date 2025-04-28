@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ConnectionInfo } from '../stores/connections.store'; // +++ 导入 ConnectionInfo 类型 +++
 import { computed, defineAsyncComponent, type PropType, type Component, ref, watch, onMounted } from 'vue'; // +++ Add onMounted +++
 import { useI18n } from 'vue-i18n'; // <-- Import useI18n
 // 添加依赖 font-awesome
@@ -63,6 +64,7 @@ const emit = defineEmits({
   'find-next': null, // ()
   'find-previous': null, // ()
   'close-search': null, // ()
+  'request-rdp-modal': null, // +++ 新增：转发 RDP 模态框请求事件 +++
 });
 
 // --- Setup ---
@@ -222,8 +224,10 @@ const componentProps = computed(() => {
          onOpenNewSession: (id: number) => emit('open-new-session', id),
          // onRequestAddConnection: () => { ... }, // 移除，将在模板中处理
          onRequestEditConnection: (conn: any) => emit('request-edit-connection', conn),
+         // --- 移除重复的 RDP 事件处理 prop，依赖模板监听 ---
+         // onRequestRdpModal: (conn: ConnectionInfo) => emit('request-rdp-modal', conn),
        };
-    case 'commandHistory':
+     case 'commandHistory':
     case 'quickCommands':
        // 这两个视图需要转发 execute-command 事件
        return {
@@ -283,6 +287,11 @@ const sidebarProps = computed(() => (paneName: PaneName | null, side: 'left' | '
        onRequestAddConnection: () => {
            console.log(`[LayoutRenderer Sidebar] Forwarding 'request-add-connection'`);
            emit('request-add-connection');
+       },
+       // +++ 新增：转发侧边栏的 RDP 模态框请求 +++
+       onRequestRdpModal: (conn: ConnectionInfo) => {
+           console.log(`[LayoutRenderer Sidebar] Forwarding 'request-rdp-modal' for ID: ${conn.id}`);
+           emit('request-rdp-modal', conn);
        }
      };
    case 'fileManager':
@@ -492,6 +501,7 @@ onMounted(() => {
                         @find-next="emit('find-next')"
                         @find-previous="emit('find-previous')"
                         @close-search="emit('close-search')"
+                        @request-rdp-modal="emit('request-rdp-modal', $event)"
                         class="flex-grow overflow-auto"
                     />
                   </pane>
@@ -561,6 +571,7 @@ onMounted(() => {
                       :is="currentMainComponent"
                       v-bind="componentProps"
                       @request-add-connection="() => emit('request-add-connection')"
+                      @request-rdp-modal="emit('request-rdp-modal', $event)"
                       class="flex-grow overflow-auto"
                     />
                     <component

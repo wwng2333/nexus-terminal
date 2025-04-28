@@ -38,7 +38,8 @@ const emit = defineEmits([
   'close-session',
   'open-layout-configurator',
   'request-add-connection-from-popup', // 声明从弹窗发出的添加请求事件
-  'request-edit-connection-from-popup'  // 新增：声明从弹窗发出的编辑请求事件
+  'request-edit-connection-from-popup', // 新增：声明从弹窗发出的编辑请求事件
+  'request-rdp-modal-from-popup'       // +++ 新增：声明从弹窗发出的 RDP 请求事件 +++
 ]);
 
 const activateSession = (sessionId: string) => {
@@ -86,6 +87,14 @@ const handleRequestEditFromPopup = (connection: any) => { // 假设 WorkspaceCon
   showConnectionListPopup.value = false; // 关闭弹窗
   // 向上发出事件，并携带连接信息
   emit('request-edit-connection-from-popup', connection);
+};
+
+// +++ 新增：处理从弹窗内部发出的 RDP 模态框请求 +++
+const handleRequestRdpFromPopup = (connection: ConnectionInfo) => {
+  console.log('[TabBar] Received request-rdp-modal from popup component for connection:', connection.name);
+  showConnectionListPopup.value = false; // 关闭弹窗
+  // 向上发出事件，并携带连接信息
+  emit('request-rdp-modal-from-popup', connection);
 };
 
 // 新增：处理打开布局配置器的事件
@@ -202,9 +211,10 @@ const toggleButtonTitle = computed(() => {
         <div class="flex-grow overflow-y-auto border border-border rounded">
             <WorkspaceConnectionListComponent
               @connect-request="handlePopupConnect"
-              @open-new-session="handlePopupConnect" 
+              @open-new-session="handlePopupConnect"
               @request-add-connection="handleRequestAddFromPopup"
-              @request-edit-connection="handleRequestEditFromPopup" 
+              @request-edit-connection="handleRequestEditFromPopup"
+              @request-rdp-modal="handleRequestRdpFromPopup"
               class="popup-connection-list"
             />
         </div>
