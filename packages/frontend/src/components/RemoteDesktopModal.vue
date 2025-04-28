@@ -156,7 +156,7 @@ const connectRdp = async (useInputValues = false) => {
       disconnectRdp();
     };
 
-    guacClient.value.connect();
+    guacClient.value.connect(''); // Keep the '' change
 
   } catch (error: any) {
     statusMessage.value = `${t('remoteDesktopModal.errors.connectionFailed')}: ${error.response?.data?.message || error.message || String(error)}`;
@@ -290,104 +290,102 @@ watch(() => props.connection, (newConnection, oldConnection) => {
 });
 
 </script>
-
 <template>
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-sm">
-   <div
-      :style="modalStyle"
-      class="bg-background text-foreground rounded-lg shadow-xl max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-border"
-   >
-    <div class="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
-      <h3 class="text-base font-semibold truncate">
-        <i class="fas fa-desktop mr-2 text-text-secondary"></i>
-        {{ t('remoteDesktopModal.title') }} - {{ props.connection?.name || props.connection?.host || t('remoteDesktopModal.titlePlaceholder') }}
-      </h3>
-      <div class="flex items-center space-x-2">
-          <span class="text-xs px-2 py-0.5 rounded"
-                :class="{
-                  'bg-yellow-200 text-yellow-800': connectionStatus === 'connecting',
-                  'bg-green-200 text-green-800': connectionStatus === 'connected',
-                  'bg-red-200 text-red-800': connectionStatus === 'error',
-                  'bg-gray-200 text-gray-800': connectionStatus === 'disconnected'
-                }">
-            {{ connectionStatus }}
-          </span>
-           <button
-              @click="closeModal"
-              class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 rounded hover:bg-hover"
-              :title="t('common.close')"
-           >
-              <i class="fas fa-times fa-lg"></i>
-           </button>
-      </div>
-    </div>
-
-    <div class="relative bg-black overflow-hidden" :style="rdpContainerStyle">
-      <div ref="rdpDisplayRef" class="rdp-display-container w-full h-full">
-      </div>
-       <div v-if="connectionStatus === 'connecting' || connectionStatus === 'error'"
-            class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white p-4 z-10">
-          <div class="text-center">
-            <i v-if="connectionStatus === 'connecting'" class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-            <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-red-400"></i>
-            <p class="text-sm">{{ statusMessage }}</p>
-             <button v-if="connectionStatus === 'error'"
-                     @click="() => connectRdp(false)"
-                     class="mt-4 px-3 py-1 bg-primary text-white rounded text-xs hover:bg-primary-dark">
-               {{ t('common.retry') }}
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-sm">
+     <div
+        :style="modalStyle"
+        class="bg-background text-foreground rounded-lg shadow-xl max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-border"
+     >
+      <div class="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
+        <h3 class="text-base font-semibold truncate">
+          <i class="fas fa-desktop mr-2 text-text-secondary"></i>
+          {{ t('remoteDesktopModal.title') }} - {{ props.connection?.name || props.connection?.host || t('remoteDesktopModal.titlePlaceholder') }}
+        </h3>
+        <div class="flex items-center space-x-2">
+            <span class="text-xs px-2 py-0.5 rounded"
+                  :class="{
+                    'bg-yellow-200 text-yellow-800': connectionStatus === 'connecting',
+                    'bg-green-200 text-green-800': connectionStatus === 'connected',
+                    'bg-red-200 text-red-800': connectionStatus === 'error',
+                    'bg-gray-200 text-gray-800': connectionStatus === 'disconnected'
+                  }">
+              {{ connectionStatus }}
+            </span>
+             <button
+                @click="closeModal"
+                class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 rounded hover:bg-hover"
+                :title="t('common.close')"
+             >
+                <i class="fas fa-times fa-lg"></i>
              </button>
-          </div>
+        </div>
+      </div>
+
+      <div class="relative bg-black overflow-hidden" :style="rdpContainerStyle">
+        <div ref="rdpDisplayRef" class="rdp-display-container w-full h-full">
+        </div>
+         <div v-if="connectionStatus === 'connecting' || connectionStatus === 'error'"
+              class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white p-4 z-10">
+            <div class="text-center">
+              <i v-if="connectionStatus === 'connecting'" class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+              <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-red-400"></i>
+              <p class="text-sm">{{ statusMessage }}</p>
+               <button v-if="connectionStatus === 'error'"
+                       @click="() => connectRdp(false)"
+                       class="mt-4 px-3 py-1 bg-primary text-white rounded text-xs hover:bg-primary-dark">
+                 {{ t('common.retry') }}
+               </button>
+            </div>
+         </div>
+      </div>
+
+       <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
+         <span>{{ statusMessage }}</span>
+         <div class="flex items-center space-x-2">
+            <label for="rdp-width" class="text-xs">W:</label>
+            <input
+              id="rdp-width"
+              type="number"
+              v-model="inputWidth"
+              min="100"
+              step="10"
+              class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              @keyup.enter="reconnectWithNewSize"
+            />
+            <label for="rdp-height" class="text-xs">H:</label>
+             <input
+               id="rdp-height"
+               type="number"
+               v-model="inputHeight"
+               min="100"
+               step="10"
+               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+               @keyup.enter="reconnectWithNewSize"
+             />
+             <button
+                @click="reconnectWithNewSize"
+                :disabled="connectionStatus === 'connecting'"
+                class="px-2 py-0.5 text-xs bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                :title="t('remoteDesktopModal.reconnectTooltip')"
+             >
+                <i class="fas fa-sync-alt mr-1"></i>
+                {{ t('remoteDesktopModal.reconnect') }}
+             </button>
+         </div>
        </div>
     </div>
-
-     <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
-       <span>{{ statusMessage }}</span>
-       <div class="flex items-center space-x-2">
-          <label for="rdp-width" class="text-xs">W:</label>
-          <input
-            id="rdp-width"
-            type="number"
-            v-model="inputWidth"
-            min="100"
-            step="10"
-            class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            @keyup.enter="reconnectWithNewSize"
-          />
-          <label for="rdp-height" class="text-xs">H:</label>
-           <input
-             id="rdp-height"
-             type="number"
-             v-model="inputHeight"
-             min="100"
-             step="10"
-             class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-             @keyup.enter="reconnectWithNewSize"
-           />
-           <button
-              @click="reconnectWithNewSize"
-              :disabled="connectionStatus === 'connecting'"
-              class="px-2 py-0.5 text-xs bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-              :title="t('remoteDesktopModal.reconnectTooltip')"
-           >
-              <i class="fas fa-sync-alt mr-1"></i>
-              {{ t('remoteDesktopModal.reconnect') }}
-           </button>
-       </div>
-     </div>
   </div>
-</div>
 </template>
-
 <style scoped>
 .rdp-display-container {
-overflow: hidden;
-position: relative;
+  overflow: hidden;
+  position: relative;
 }
 
 .rdp-display-container :deep(div) {
 }
 
 .rdp-display-container :deep(canvas) {
-z-index: 999;
+  z-index: 999;
 }
 </style>
