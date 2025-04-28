@@ -45,7 +45,7 @@ if (window.location.hostname === 'localhost') {
   // 备选方案: 根据当前 window.location 为生产环境或其他环境构建 URL
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsHostAndPort = window.location.host;
-  backendBaseUrl = `${wsProtocol}//${wsHostAndPort}/ws/`;
+  backendBaseUrl = `${wsProtocol}//${wsHostAndPort}/ws`;
   console.log(`[RDP 模态框] 使用生产环境 WebSocket 基础 URL (来自 window.location): ${backendBaseUrl}`);
 }
 
