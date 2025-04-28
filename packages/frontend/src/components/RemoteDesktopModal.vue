@@ -103,10 +103,17 @@ const connectRdp = async () => {
       console.warn(`[RDP 模态框] 移除了末尾多余的 '?'`);
     }
    console.log(`[RDP 模态框] 准备连接到隧道: ${tunnelUrl}`); // 记录准备使用的 URL
-   // 再次强制清理，确保最终传递给库的 URL 没有末尾 '?'
-   const finalTunnelUrl = tunnelUrl.endsWith('?') ? tunnelUrl.slice(0, -1) : tunnelUrl;
+   // 再次强制清理，确保最终传递给库的 URL 没有末尾 '?' 或 '%3F'
+   let finalTunnelUrl = tunnelUrl;
+   if (finalTunnelUrl.endsWith('?')) {
+       finalTunnelUrl = finalTunnelUrl.slice(0, -1);
+       console.warn(`[RDP 模态框] 移除了末尾多余的 '?'`);
+   } else if (finalTunnelUrl.endsWith('%3F') || finalTunnelUrl.endsWith('%3f')) {
+       finalTunnelUrl = finalTunnelUrl.slice(0, -3); // 移除 '%3F' (3个字符)
+       console.warn(`[RDP 模态框] 移除了末尾多余的 '%3F'`);
+   }
    if (finalTunnelUrl !== tunnelUrl) {
-       console.warn(`[RDP 模态框] 清理后的隧道 URL: ${finalTunnelUrl}`);
+        console.log(`[RDP 模态框] 清理后的最终隧道 URL: ${finalTunnelUrl}`);
    }
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(finalTunnelUrl); // 使用清理后的 URL
