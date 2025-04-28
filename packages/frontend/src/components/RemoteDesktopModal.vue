@@ -15,23 +15,26 @@ const props = defineProps<{
 const emit = defineEmits(['close']);
 
 const rdpDisplayRef = ref<HTMLDivElement | null>(null);
+const rdpContainerRef = ref<HTMLDivElement | null>(null); // Added ref for the container
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const guacClient = ref<any | null>(null);
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 const statusMessage = ref('');
 const keyboard = ref<any | null>(null);
 const mouse = ref<any | null>(null);
-const inputWidth = ref(1024);
-const inputHeight = ref(768);
+// const inputWidth = ref(1024); // Removed, size determined by container
+// const inputHeight = ref(768); // Removed, size determined by container
 // const modalStyle = ref({}); // Replaced by computedModalStyle
-const rdpContainerStyle = ref<{ height?: string }>({}); // Only height is needed now
-const modalWidth = ref(1064); // Initial default based on 1024 + padding
-const modalHeight = ref(858); // Initial default based on 768 + padding
+// const rdpContainerStyle = ref<{ height?: string }>({}); // Removed, size determined by flex-1
+const desiredModalWidth = ref(1064); // User sets the desired TOTAL modal width (1024 + 40 padding)
+const desiredModalHeight = ref(858); // User sets the desired TOTAL modal height (768 + chrome)
 
 const RDP_BACKEND_API_BASE = 'http://localhost:9090';
 const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081';
+const LOCAL_STORAGE_MODAL_WIDTH_KEY = 'rdpModalWidth'; // Reverted key name
+const LOCAL_STORAGE_MODAL_HEIGHT_KEY = 'rdpModalHeight'; // Reverted key name
 
-const connectRdp = async (useInputValues = false) => {
+const connectRdp = async () => { // Removed useInputValues parameter
   if (!props.connection || !rdpDisplayRef.value) {
     statusMessage.value = t('remoteDesktopModal.errors.missingInfo');
     connectionStatus.value = 'error';
@@ -57,38 +60,25 @@ const connectRdp = async (useInputValues = false) => {
     }
     statusMessage.value = t('remoteDesktopModal.status.connectingWs');
 
-    let widthToSend = 1024;
-    let heightToSend = 768;
+    // Get RDP container dimensions after DOM update
+    await nextTick();
+
+    let widthToSend = 800; // Default/fallback width
+    let heightToSend = 600; // Default/fallback height
     const dpiToSend = 96;
 
-    if (useInputValues) {
-        widthToSend = parseInt(String(inputWidth.value), 10) || widthToSend;
-        heightToSend = parseInt(String(inputHeight.value), 10) || heightToSend;
+    if (rdpContainerRef.value) {
+        // Use clientWidth/clientHeight as they represent the inner dimensions available for content
+        widthToSend = rdpContainerRef.value.clientWidth;
+        heightToSend = rdpContainerRef.value.clientHeight + 1; // Subtract 1 based on feedback
+        // Ensure minimum dimensions, adjust if necessary based on backend requirements
+        widthToSend = Math.max(100, widthToSend);
+        heightToSend = Math.max(100, heightToSend);
+        console.log(`Calculated RDP dimensions: ${widthToSend}x${heightToSend}`);
     } else {
-        if (rdpDisplayRef.value && rdpDisplayRef.value.clientWidth > 0 && rdpDisplayRef.value.clientHeight > 0) {
-            widthToSend = rdpDisplayRef.value.clientWidth;
-            heightToSend = rdpDisplayRef.value.clientHeight;
-        } else {
-            widthToSend = parseInt(String(inputWidth.value), 10) || widthToSend;
-            heightToSend = parseInt(String(inputHeight.value), 10) || heightToSend;
-        }
+         console.warn("RDP container ref not available to get dimensions. Using defaults.");
+         // Consider setting an error state or notifying the user
     }
-
-    inputWidth.value = widthToSend;
-    inputHeight.value = heightToSend;
-
-    const extraWidth = 40;
-    const headerHeight = 45;
-    const footerHeight = 35;
-
-    // Update modal size refs based on RDP size + padding
-    modalWidth.value = widthToSend + extraWidth;
-    modalHeight.value = heightToSend + headerHeight + footerHeight + 10;
-
-    rdpContainerStyle.value = {
-        // width: `${widthToSend}px`, // Remove width setting
-        height: `${heightToSend}px`,
-    };
 
     const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
     // @ts-ignore
@@ -214,7 +204,10 @@ const removeInputListeners = () => {
 };
 
 
+// Removed stopResizeObserver as ResizeObserver is no longer used
+
 const disconnectRdp = () => {
+  // stopResizeObserver(); // Removed
   removeInputListeners();
   if (guacClient.value) {
     guacClient.value.disconnect();
@@ -232,40 +225,44 @@ const disconnectRdp = () => {
 };
 
 
-const reconnectWithNewSize = () => {
-  const width = parseInt(String(inputWidth.value), 10);
-  const height = parseInt(String(inputHeight.value), 10);
-  if (!width || width <= 0 || !height || height <= 0) {
-      statusMessage.value = t('remoteDesktopModal.errors.invalidSize');
-      return;
-  }
-  disconnectRdp();
-  nextTick(() => {
-      connectRdp(true);
-
-      const headerHeight = 45;
-      const footerHeight = 35;
-      const extraWidth = 40;
-
-      rdpContainerStyle.value = {
-          // width: `${width}px`, // Remove width setting
-          height: `${height}px`,
-      };
-      // Update modal size refs based on new RDP size + padding
-      modalWidth.value = width + extraWidth;
-      modalHeight.value = height + headerHeight + footerHeight + 10;
-  });
-};
+// Removed reconnectWithNewSize function
 
 const closeModal = () => {
   disconnectRdp();
   emit('close');
 };
 
+// Removed setupResizeObserver as ResizeObserver is no longer used
+
+
+// Load desired MODAL size from localStorage on mount
+const loadDesiredModalSize = () => {
+  const savedWidth = localStorage.getItem(LOCAL_STORAGE_MODAL_WIDTH_KEY);
+  const savedHeight = localStorage.getItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY);
+  if (savedWidth) {
+    desiredModalWidth.value = parseInt(savedWidth, 10) || desiredModalWidth.value;
+  }
+  if (savedHeight) {
+    desiredModalHeight.value = parseInt(savedHeight, 10) || desiredModalHeight.value;
+  }
+};
+
+// Save desired MODAL size to localStorage when changed
+watch(desiredModalWidth, (newWidth) => {
+  localStorage.setItem(LOCAL_STORAGE_MODAL_WIDTH_KEY, String(newWidth));
+});
+watch(desiredModalHeight, (newHeight) => {
+  localStorage.setItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY, String(newHeight));
+});
+
+
 onMounted(() => {
+  loadDesiredModalSize(); // Load saved size first
+
   if (props.connection) {
-    nextTick(() => {
-        connectRdp(false);
+    nextTick(async () => {
+        await connectRdp(); // Connect using initial size
+        // No need to setup observer anymore
     });
   } else {
       statusMessage.value = t('remoteDesktopModal.errors.noConnection');
@@ -274,13 +271,14 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  disconnectRdp();
+  disconnectRdp(); // This already calls stopResizeObserver
 });
 
 watch(() => props.connection, (newConnection, oldConnection) => {
   if (newConnection && newConnection.id !== oldConnection?.id) {
-     nextTick(() => {
-        connectRdp(false);
+     nextTick(async () => {
+        await connectRdp(); // Connect using initial size
+        // No need to setup observer anymore
      });
   } else if (!newConnection) {
       disconnectRdp();
@@ -289,10 +287,18 @@ watch(() => props.connection, (newConnection, oldConnection) => {
   }
 });
 
-const computedModalStyle = computed(() => ({
-  width: `${modalWidth.value}px`,
-  height: `${modalHeight.value}px`,
-}));
+// Use the desired modal size directly for the style
+const computedModalStyle = computed(() => {
+  // const extraWidth = 40; // Removed from here as well
+  // const headerHeight = 45; // Defined in connectRdp
+  // const footerHeight = 35; // Defined in connectRdp
+  // const extraHeight = headerHeight + footerHeight + 10; // Defined in connectRdp
+
+  return {
+    width: `${desiredModalWidth.value}px`, // Width is direct
+    height: `${desiredModalHeight.value}px`, // Height is direct
+  };
+});
 
 </script>
 <template>
@@ -326,7 +332,7 @@ const computedModalStyle = computed(() => ({
         </div>
       </div>
 
-      <div class="relative bg-black overflow-hidden flex-1" :style="rdpContainerStyle">
+      <div ref="rdpContainerRef" class="relative bg-black overflow-hidden flex-1">
         <div ref="rdpDisplayRef" class="rdp-display-container w-full h-full">
         </div>
          <div v-if="connectionStatus === 'connecting' || connectionStatus === 'error'"
@@ -336,7 +342,7 @@ const computedModalStyle = computed(() => ({
               <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-red-400"></i>
               <p class="text-sm">{{ statusMessage }}</p>
                <button v-if="connectionStatus === 'error'"
-                       @click="() => connectRdp(false)"
+                       @click="() => connectRdp()"
                        class="mt-4 px-3 py-1 bg-primary text-white rounded text-xs hover:bg-primary-dark">
                  {{ t('common.retry') }}
                </button>
@@ -347,56 +353,26 @@ const computedModalStyle = computed(() => ({
        <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
          <span>{{ statusMessage }}</span>
          <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-            <label for="modal-width" class="text-xs ml-2">Modal W:</label>
+            <label for="modal-width" class="text-xs ml-2">Modal W:</label> <!-- Changed label back -->
             <input
               id="modal-width"
               type="number"
-              v-model="modalWidth"
+              v-model="desiredModalWidth"
               min="200"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-            <label for="modal-height" class="text-xs">Modal H:</label>
+            <label for="modal-height" class="text-xs">Modal H:</label> <!-- Changed label back -->
             <input
               id="modal-height"
               type="number"
-              v-model="modalHeight"
+              v-model="desiredModalHeight"
               min="200"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
-            <span class="border-l border-border h-4 mx-2"></span>
-
-            <label for="rdp-width" class="text-xs">RDP W:</label>
-            <input
-              id="rdp-width"
-              type="number"
-              v-model="inputWidth"
-              min="100"
-              step="10"
-              class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              @keyup.enter="reconnectWithNewSize"
-            />
-            <label for="rdp-height" class="text-xs">H:</label>
-             <input
-               id="rdp-height"
-               type="number"
-               v-model="inputHeight"
-               min="100"
-               step="10"
-               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-               @keyup.enter="reconnectWithNewSize"
-             />
-             <button
-                @click="reconnectWithNewSize"
-                :disabled="connectionStatus === 'connecting'"
-                class="px-2 py-0.5 text-xs bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
-                :title="t('remoteDesktopModal.reconnectTooltip')"
-             >
-                <i class="fas fa-sync-alt mr-1"></i>
-                {{ t('remoteDesktopModal.reconnect') }}
-             </button>
+            <!-- RDP Width/Height inputs and Reconnect button removed -->
          </div>
        </div>
     </div>
