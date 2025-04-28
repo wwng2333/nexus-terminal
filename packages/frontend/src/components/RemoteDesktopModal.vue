@@ -40,19 +40,19 @@ const MIN_MODAL_HEIGHT = 768;
 
 // Dynamically construct WebSocket URL based on environment
 let backendBaseUrl: string;
+const LOCAL_BACKEND_URL = 'ws://localhost:18112'
 
-if (import.meta.env.DEV && import.meta.env.VITE_BACKEND_WS_URL) {
-  // Development mode: Use the URL specified in .env
-  backendBaseUrl = import.meta.env.VITE_BACKEND_WS_URL;
-  console.log(`[RDP Modal] Using development WebSocket Base URL from env: ${backendBaseUrl}`);
+// Determine WebSocket URL based on hostname
+if (window.location.hostname === 'localhost') {
+  backendBaseUrl = LOCAL_BACKEND_URL;
+  console.log(`[RDP Modal] Using localhost WebSocket Base URL: ${backendBaseUrl}`);
 } else {
-  // Production mode: Construct URL based on current window location
+  // Fallback: Construct URL based on current window location for production/other environments
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsHostAndPort = window.location.host;
   backendBaseUrl = `${wsProtocol}//${wsHostAndPort}`;
   console.log(`[RDP Modal] Using production WebSocket Base URL from window.location: ${backendBaseUrl}`);
 }
-// Removed localStorage keys
 
 const connectRdp = async () => { // Removed useInputValues parameter
   if (!props.connection || !rdpDisplayRef.value) {

@@ -30,6 +30,22 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY packages/rdp/package.json ./package.json
 
+# --- Add patch application steps ---
+# Copy the patches directory from the build context (relative to project root)
+COPY patches ./patches
+
+# Install patch-package temporarily to apply patches
+# Note: We install it here again in case prune removed it, and ensure it's available in the final stage.
+# Using --no-save as we don't need it in the final package.json dependencies.
+RUN npm install patch-package --no-save
+
+# Apply patches
+RUN npx patch-package --error-on-fail
+
+# Uninstall patch-package after applying to keep the image clean
+RUN npm uninstall patch-package
+# --- End patch application steps ---
+
 # Expose the API and WebSocket ports
 EXPOSE 9090
 EXPOSE 8081
