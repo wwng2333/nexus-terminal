@@ -2,11 +2,11 @@
 import { ref, reactive, watch, computed, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
-import apiClient from '../utils/apiClient'; // 修正导入路径和名称
+import apiClient from '../utils/apiClient'; 
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
-import { useProxiesStore } from '../stores/proxies.store'; // 引入代理 Store
-import { useTagsStore } from '../stores/tags.store'; // 引入标签 Store
-import TagInput from './TagInput.vue'; // 导入新的 TagInput 组件
+import { useProxiesStore } from '../stores/proxies.store'; 
+import { useTagsStore } from '../stores/tags.store';
+import TagInput from './TagInput.vue';
 
 // 定义组件发出的事件
 const emit = defineEmits(['close', 'connection-added', 'connection-updated']);

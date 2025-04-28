@@ -167,13 +167,23 @@ const formatKbToGb = (kb?: number): string => {
     return `${gb.toFixed(1)} ${t('statusMonitor.gigaBytes')}`;
 };
 
+// Helper function to format MB to GB if needed
+const formatMemorySize = (mb?: number): string => {
+    if (mb === undefined || mb === null || isNaN(mb)) return t('statusMonitor.notAvailable');
+    if (mb < 1024) {
+        const value = Number.isInteger(mb) ? mb : mb.toFixed(1);
+        return `${value} ${t('statusMonitor.megaBytes')}`;
+    } else {
+        const gb = mb / 1024;
+        return `${gb.toFixed(1)} ${t('statusMonitor.gigaBytes')}`;
+    }
+};
+
 const memDisplay = computed(() => {
     const data = props.serverStatus;
     if (!data || data.memUsed === undefined || data.memTotal === undefined) return t('statusMonitor.notAvailable');
     const percent = data.memPercent !== undefined ? `(${(data.memPercent).toFixed(1)}%)` : ''; // Keep 1 decimal for percent
-    const usedMb = Number.isInteger(data.memUsed) ? data.memUsed : data.memUsed.toFixed(1);
-    const totalMb = Number.isInteger(data.memTotal) ? data.memTotal : data.memTotal.toFixed(1);
-    return `${usedMb} / ${totalMb} ${t('statusMonitor.megaBytes')} ${percent}`; // Removed extra space before MB
+    return `${formatMemorySize(data.memUsed)} / ${formatMemorySize(data.memTotal)} ${percent}`;
 });
 
 const diskDisplay = computed(() => {
@@ -195,9 +205,7 @@ const swapDisplay = computed(() => {
     }
 
     const percent = `(${(percentVal).toFixed(1)}%)`; // Keep 1 decimal for percent
-    const usedMb = Number.isInteger(used) ? used : used.toFixed(1);
-    const totalMb = Number.isInteger(total) ? total : total.toFixed(1);
-    return `${usedMb} / ${totalMb} ${t('statusMonitor.megaBytes')} ${percent}`; // Removed extra space before MB
+    return `${formatMemorySize(used)} / ${formatMemorySize(total)} ${percent}`;
 });
 
 </script>
