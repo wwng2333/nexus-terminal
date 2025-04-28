@@ -24,7 +24,7 @@ const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'erro
 const statusMessage = ref('');
 const keyboard = ref<any | null>(null); // Guacamole Keyboard instance
 const mouse = ref<any | null>(null); // Guacamole Mouse instance
-const resizeObserver = ref<ResizeObserver | null>(null); // Resize observer for display container
+// const resizeObserver = ref<ResizeObserver | null>(null); // Resize observer remains removed
 
 // --- Configuration ---
 // Configuration for the separate RDP backend service
@@ -113,25 +113,29 @@ const connectRdp = async () => {
           setupInputListeners(); // 连接成功后设置输入监听
 
           // 使用 nextTick 确保 DOM 更新和尺寸计算准确
-          nextTick(() => {
-            if (rdpDisplayRef.value && guacClient.value) {
-              // 强制修改 Guacamole canvas 的 z-index
-              const canvases = rdpDisplayRef.value.querySelectorAll('canvas');
+          // 稍微延迟处理，确保远程桌面准备就绪
+          setTimeout(() => {
+            nextTick(() => { // 仍然使用 nextTick 确保 DOM 尺寸计算准确
+              if (rdpDisplayRef.value && guacClient.value) {
+                // 强制修改 Guacamole canvas 的 z-index
+                const canvases = rdpDisplayRef.value.querySelectorAll('canvas');
               canvases.forEach((canvas) => {
                 canvas.style.zIndex = '999'; // 覆盖内联样式
               });
               console.log('[RDP Modal] Set canvas z-index to 999.');
 
-              // 发送初始尺寸
-              const width = rdpDisplayRef.value.clientWidth;
-              const height = rdpDisplayRef.value.clientHeight;
-              console.log(`[RDP Modal] Sending initial size: ${width}x${height}`);
-              guacClient.value.sendSize(width, height);
+              // 发送固定尺寸 1200x1200
+              const width = 1200;
+              const height = 1200;
+              const dpi = Math.round(window.devicePixelRatio * 96); // 计算 DPI
+              console.log(`[RDP Modal] Sending fixed size: ${width}x${height} @ ${dpi} DPI`);
+              guacClient.value.sendSize(width, height, dpi);
 
-              // 设置 ResizeObserver 监听容器尺寸变化
-              setupResizeObserver();
-            }
-          });
+              // 不再需要 ResizeObserver
+              // setupResizeObserver(); // Ensure this remains commented out or removed
+              }
+            });
+          }, 100); // 延迟 100 毫秒
           break;
         case 4: // DISCONNECTING
           statusMessage.value = t('remoteDesktopModal.status.disconnecting');
@@ -165,6 +169,8 @@ const connectRdp = async () => {
 
     // 8. 开始连接
     console.log("[RDP Modal] Initiating Guacamole client connection...");
+    // 连接参数（包括初始尺寸）似乎由后端在生成 token 时确定，
+    // 前端 connect() 调用不应传递参数来覆盖它。
     guacClient.value.connect();
 
   } catch (error: any) {
@@ -245,12 +251,8 @@ const removeInputListeners = () => {
 
 // --- Disconnect Logic ---
 const disconnectRdp = () => {
-  // 停止并清理 ResizeObserver
-  if (resizeObserver.value) {
-    resizeObserver.value.disconnect();
-    resizeObserver.value = null;
-    console.log("[RDP Modal] ResizeObserver disconnected.");
-  }
+  // ResizeObserver cleanup remains removed/commented
+  // if (resizeObserver.value) { ... }
   removeInputListeners(); // Remove listeners first
   if (guacClient.value) {
     console.log("[RDP Modal] Disconnecting Guacamole client.");
@@ -269,35 +271,8 @@ const disconnectRdp = () => {
   }
 };
 
-// --- Resize Observer Logic ---
-const setupResizeObserver = () => {
-  if (!rdpDisplayRef.value || !guacClient.value) return;
-
-  // 清理旧的 observer (如果存在)
-  if (resizeObserver.value) {
-    resizeObserver.value.disconnect();
-  }
-
-  resizeObserver.value = new ResizeObserver(entries => {
-    // 通常只有一个 entry
-    for (const entry of entries) {
-      // 使用 contentRect 获取准确尺寸 (不包括 padding/border)
-      const width = Math.floor(entry.contentRect.width);
-      const height = Math.floor(entry.contentRect.height);
-
-      // 只有在尺寸有效且客户端连接时才发送
-      if (width > 0 && height > 0 && guacClient.value && connectionStatus.value === 'connected') {
-         console.log(`[RDP Modal] Resized. Sending new size: ${width}x${height}`);
-         guacClient.value.sendSize(width, height);
-      }
-    }
-  });
-
-  resizeObserver.value.observe(rdpDisplayRef.value);
-  console.log("[RDP Modal] ResizeObserver attached.");
-};
-
-
+// --- Resize Observer Logic (Remains Removed) ---
+// const setupResizeObserver = () => { ... };
 // --- Modal Close Handler ---
 const closeModal = () => {
   disconnectRdp(); // Ensure disconnection when modal is closed
