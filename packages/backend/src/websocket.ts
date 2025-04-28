@@ -418,6 +418,7 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
             console.log(`WebSocket 认证成功 (Path: ${pathname})：用户 ${request.session.username} (ID: ${request.session.userId})`);
 
             // --- 根据路径处理升级 ---
+            // 本地调试用/rdp-proxy，nginx反代用/ws/rdp-proxy
             if (pathname === '/rdp-proxy' || pathname === '/ws/rdp-proxy') {
                 // RDP 代理路径 - 直接处理升级，连接逻辑在 'connection' 事件中处理
                 console.log(`WebSocket: Handling RDP proxy upgrade for user ${request.session.username}`);
