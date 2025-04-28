@@ -30,13 +30,36 @@ import './services/notification.dispatcher.service'; // 确保分发器被加载
 // --- 结束通知系统初始化 ---
 // --- 环境变量和密钥初始化 ---
 const initializeEnvironment = async () => {
-    const rootEnvPath = path.resolve(__dirname, '../data/.env'); // 指向项目根目录的 .env
+    // 1. 加载根目录的 .env 文件 (定义部署模式等)
+    // 注意: __dirname 在 dist/src 中，所以需要回退三级到项目根目录
+    const projectRootEnvPath = path.resolve(__dirname, '../../../.env');
+    const rootConfigResult = dotenv.config({ path: projectRootEnvPath });
+    // Use type assertion for error code checking
+    if (rootConfigResult.error && (rootConfigResult.error as NodeJS.ErrnoException).code !== 'ENOENT') {
+         // 只在文件存在但无法加载时发出警告
+        console.warn(`[ENV Init] Warning: Could not load root .env file from ${projectRootEnvPath}. Error: ${rootConfigResult.error.message}`);
+    } else if (!rootConfigResult.error) {
+        console.log(`[ENV Init] Loaded environment variables from root .env file: ${projectRootEnvPath}`);
+    } else {
+        console.log(`[ENV Init] Root .env file not found at ${projectRootEnvPath}, proceeding without it (expected in non-local deployments where env vars are injected).`);
+    }
+
+    // 2. 加载 data/.env 文件 (定义密钥等)
+    // 注意: 这个路径是相对于编译后的 dist/src/index.js
+    const dataEnvPath = path.resolve(__dirname, '../data/.env');
     let keysGenerated = false;
     let keysToAppend = '';
 
-    // 1. 尝试加载根目录的 .env 文件 (如果存在)
-    // dotenv.config 不会覆盖已存在的 process.env 变量
-    dotenv.config({ path: rootEnvPath });
+    // dotenv.config 默认不会覆盖已存在的 process.env 变量
+    // 这意味着如果根 .env 和 data/.env 定义了相同的变量，先加载的（根 .env）的值会优先
+    const dataConfigResult = dotenv.config({ path: dataEnvPath });
+     // Use type assertion for error code checking
+     if (dataConfigResult.error && (dataConfigResult.error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        // 只在文件存在但无法加载时发出警告，文件不存在是正常情况
+        console.warn(`[ENV Init] Warning: Could not load data .env file from ${dataEnvPath}. Error: ${dataConfigResult.error.message}`);
+    } else if (!dataConfigResult.error) {
+         console.log(`[ENV Init] Loaded environment variables from data .env file: ${dataEnvPath}`);
+    }
 
     // 2. 检查 ENCRYPTION_KEY
     if (!process.env.ENCRYPTION_KEY) {
@@ -76,20 +99,20 @@ const initializeEnvironment = async () => {
     // 5. 如果生成了新密钥或添加了默认值，则追加到 .env 文件
     if (keysGenerated) {
         try {
-            // 确保追加前有换行符 (如果文件非空)
+            // 确保追加前有换行符 (如果文件非空) - Use dataEnvPath here
             let prefix = '';
-            if (fs.existsSync(rootEnvPath)) {
-                const content = fs.readFileSync(rootEnvPath, 'utf-8');
+            if (fs.existsSync(dataEnvPath)) { // Use dataEnvPath
+                const content = fs.readFileSync(dataEnvPath, 'utf-8'); // Use dataEnvPath
                 if (content.trim().length > 0 && !content.endsWith('\n')) {
                     prefix = '\n';
                 }
             }
-            fs.appendFileSync(rootEnvPath, prefix + keysToAppend.trim()); // trim() 移除开头的换行符
-            console.warn(`[ENV Init] 已自动生成密钥并保存到 ${rootEnvPath}`);
-            console.warn('[ENV Init] !!! 重要：请务必备份此 .env 文件，并在生产环境中妥善保管 !!!');
+            fs.appendFileSync(dataEnvPath, prefix + keysToAppend.trim()); // Use dataEnvPath, trim() 移除开头的换行符
+            console.warn(`[ENV Init] 已自动生成密钥并保存到 ${dataEnvPath}`); // Use dataEnvPath
+            console.warn('[ENV Init] !!! 重要：请务必备份此 data/.env 文件，并在生产环境中妥善保管 !!!');
         } catch (error) {
-            console.error(`[ENV Init] 无法写入密钥到 ${rootEnvPath}:`, error);
-            console.error('[ENV Init] 请检查文件权限或手动创建 .env 文件并添加生成的密钥。');
+            console.error(`[ENV Init] 无法写入密钥到 ${dataEnvPath}:`, error); // Use dataEnvPath
+            console.error('[ENV Init] 请检查文件权限或手动创建 data/.env 文件并添加生成的密钥。');
             // 即使写入失败，密钥已在 process.env 中，程序可以继续运行本次
         }
     }

@@ -38,13 +38,11 @@ const desiredModalHeight = ref(858); // User sets the desired TOTAL modal height
 const MIN_MODAL_WIDTH = 1024;
 const MIN_MODAL_HEIGHT = 768;
 
-const RDP_BACKEND_API_BASE = 'http://localhost:9090'; // This might need adjustment too if API is accessed directly from browser, but currently it's proxied via backend
-
 // Dynamically construct WebSocket URL
 const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const wsHost = window.location.hostname;
-const wsPort = import.meta.env.VITE_RDP_WEBSOCKET_PORT || '18114'; // Read from env var or use default
-const RDP_BACKEND_WEBSOCKET_URL = `${wsProtocol}//${wsHost}:${wsPort}`;
+const backendPort = '3001'; // Backend WebSocket port
+const BACKEND_WEBSOCKET_URL = `${wsProtocol}//${wsHost}:${backendPort}`; // URL for backend proxy
 // Removed localStorage keys
 
 const connectRdp = async () => { // Removed useInputValues parameter
@@ -93,7 +91,9 @@ const connectRdp = async () => { // Removed useInputValues parameter
          // Consider setting an error state or notifying the user
     }
 
-    const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
+    // Construct URL for the backend proxy endpoint
+    const tunnelUrl = `${BACKEND_WEBSOCKET_URL}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
+    console.log(`[RDP Modal] Connecting to tunnel: ${tunnelUrl}`); // Log the final URL
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
 
