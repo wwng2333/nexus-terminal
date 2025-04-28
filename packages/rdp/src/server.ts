@@ -45,6 +45,15 @@ const clientOptions = {
         key: ENCRYPTION_KEY_BUFFER,
         cypher: 'aes-256-cbc' // Ensure cipher matches between encryption and decryption
     },
+    // Default connection settings
+    connectionDefaultSettings: {
+        rdp: {
+            'security': 'nla', // Default security mode to NLA
+            'ignore-cert': 'true', // Default ignore certificate errors
+            // Add other desired RDP defaults here
+        }
+        // Add defaults for other protocols (vnc, ssh) if needed
+    },
 };
 
 let guacServer: any; // Define guacServer here to make it accessible in gracefulShutdown
@@ -116,24 +125,6 @@ const encryptToken = (data: string, keyBuffer: Buffer): string => {
     }
 };
 
-// Example Decryption (if needed elsewhere, ensure consistency)
-// const decryptToken = (token: string, keyBuffer: Buffer): string => {
-//     try {
-//         const combined = Buffer.from(token, 'base64');
-//         const iv = combined.slice(0, 12);
-//         const tag = combined.slice(12, 12 + 16);
-//         const encrypted = combined.slice(12 + 16);
-//
-//         const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv);
-//         decipher.setAuthTag(tag);
-//
-//         const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
-//         return decrypted.toString('utf8');
-//     } catch (e) {
-//         console.error("Token decryption failed:", e);
-//         throw new Error("Token decryption failed.");
-//     }
-// };
 
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -152,8 +143,6 @@ app.get('/api/get-token', (req: any, res: any) => {
                 port: port as string,
                 username: username as string,
                 password: password as string,
-                security: 'rdp', // 尝试 RDP 标准安全模式
-                'ignore-cert': ignoreCert as string,
                 // Include the dynamic (or default) size parameters from query
                 width: String(req.query.width || '1024'),
                 height: String(req.query.height || '768'),
