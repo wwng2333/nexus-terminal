@@ -45,7 +45,7 @@ if (window.location.hostname === 'localhost') {
   // 备选方案: 根据当前 window.location 为生产环境或其他环境构建 URL
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsHostAndPort = window.location.host;
-  backendBaseUrl = `${wsProtocol}//${wsHostAndPort}`;
+  backendBaseUrl = `${wsProtocol}//${wsHostAndPort}/ws/`;
   console.log(`[RDP 模态框] 使用生产环境 WebSocket 基础 URL (来自 window.location): ${backendBaseUrl}`);
 }
 
@@ -95,28 +95,11 @@ const connectRdp = async () => {
          // 考虑设置错误状态或通知用户
     }
 
-    // --- 测试：写死 width, height, dpi 参数 ---
-    const hardcodedWidth = 1024;
-    const hardcodedHeight = 768;
-    const hardcodedDpi = 96;
-    console.warn(`[RDP 模态框 - 测试] 使用写死尺寸: ${hardcodedWidth}x${hardcodedHeight} DPI: ${hardcodedDpi}`);
-    let tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${hardcodedWidth}&height=${hardcodedHeight}&dpi=${hardcodedDpi}`;
-    // --- 结束测试 ---
-
-   console.log(`[RDP 模态框] 准备连接到隧道: ${tunnelUrl}`); // 记录准备使用的 URL
-   // 再次强制清理，确保最终传递给库的 URL 没有末尾 '?' 或 '%3F'
-   let finalTunnelUrl = tunnelUrl;
-   if (finalTunnelUrl.endsWith('?')) {
-       finalTunnelUrl = finalTunnelUrl.slice(0, -1);
-       console.warn(`[RDP 模态框] 移除了末尾多余的 '?'`);
-   } else if (finalTunnelUrl.endsWith('%3F') || finalTunnelUrl.endsWith('%3f')) { // 检查大小写 %3F
-       finalTunnelUrl = finalTunnelUrl.slice(0, -3); // 移除 '%3F' (3个字符)
-       console.warn(`[RDP 模态框] 移除了末尾多余的 '%3F'`);
-   }
-   // 增加日志，显示最终传递给库的 URL
-   console.log(`[RDP 模态框] 最终传递给 WebSocketTunnel 的 URL: ${finalTunnelUrl}`);
+    // 使用确定的基础 URL 构建后端代理端点的 URL
+    const tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
+   console.log(`[RDP 模态框] 连接到隧道: ${tunnelUrl}`); // 记录最终 URL
     // @ts-ignore
-    const tunnel = new Guacamole.WebSocketTunnel(finalTunnelUrl); // 使用清理后的 URL
+    const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
 
     tunnel.onerror = (status: any) => {
       const errorMessage = status.message || 'Unknown tunnel error';
