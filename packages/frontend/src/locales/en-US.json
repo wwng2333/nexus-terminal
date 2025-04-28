@@ -676,7 +676,9 @@
     "collapse": "Collapse",
     "search": "Search",
     "all": "All",
-    "filter": "Filter"
+    "filter": "Filter",
+    "width": "Width",
+    "height": "Height"
   },
   "layoutConfigurator": {
     "title": "Layout Configurator",
@@ -747,6 +749,32 @@
     "untagged": "Untagged",
     "searchPlaceholder": "Search name or host...",
     "noResults": "No connections found matching \"{searchTerm}\"."
+  },
+"remoteDesktopModal": {
+    "title": "Remote Desktop",
+    "titlePlaceholder": "Remote Desktop Connection",
+    "status": {
+      "fetchingToken": "Fetching connection token...",
+      "connectingWs": "Connecting WebSocket...",
+      "idle": "Idle",
+      "connectingRdp": "Connecting Remote Desktop...",
+      "waiting": "Waiting for server response...",
+      "connected": "Connected",
+      "disconnecting": "Disconnecting...",
+      "disconnected": "Disconnected",
+      "unknownState": "Unknown State",
+      "connecting": "Connecting...",
+      "error": "Error"
+    },
+    "errors": {
+      "missingInfo": "Connection info or display element missing.",
+      "tunnelError": "Tunnel Error",
+      "clientError": "Client Error",
+      "connectionFailed": "Connection Failed",
+      "inputError": "Error setting up input listeners.",
+      "noConnection": "No connection information provided.",
+      "tokenError": "Failed to retrieve token"
+    }
   },
   "commandInputBar": {
     "placeholder": "Enter command and press Enter to send...",

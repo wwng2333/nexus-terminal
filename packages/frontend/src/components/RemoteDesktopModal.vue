@@ -356,7 +356,7 @@ const computedModalStyle = computed(() => {
                     'bg-red-200 text-red-800': connectionStatus === 'error',
                     'bg-gray-200 text-gray-800': connectionStatus === 'disconnected'
                   }">
-              {{ connectionStatus }}
+              {{ t('remoteDesktopModal.status.' + connectionStatus) }}
             </span>
              <button
                 @click="closeModal"
@@ -389,7 +389,7 @@ const computedModalStyle = computed(() => {
        <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
          <span>{{ statusMessage }}</span>
          <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-            <label for="modal-width" class="text-xs ml-2">Modal W:</label> <!-- Changed label back -->
+            <label for="modal-width" class="text-xs ml-2">{{ t('common.width') }}:</label>
             <input
               id="modal-width"
               type="number"
@@ -397,7 +397,7 @@ const computedModalStyle = computed(() => {
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-            <label for="modal-height" class="text-xs">Modal H:</label> <!-- Changed label back -->
+            <label for="modal-height" class="text-xs">{{ t('common.height') }}:</label>
             <input
               id="modal-height"
               type="number"

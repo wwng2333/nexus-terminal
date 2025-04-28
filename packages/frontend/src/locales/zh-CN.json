@@ -677,7 +677,9 @@
     "collapse": "折叠",
     "search": "搜索",
     "all": "全部",
-    "filter": "筛选"
+    "filter": "筛选",
+    "width": "宽度",
+    "height": "高度"
   },
   "layoutConfigurator": {
     "title": "布局管理器",
@@ -760,6 +762,8 @@
       "idle": "空闲",
       "connectingRdp": "正在连接远程桌面...",
       "waiting": "等待服务器响应...",
+"connecting": "连接中...",
+      "error": "错误",
       "connected": "已连接",
       "disconnecting": "正在断开连接...",
       "disconnected": "已断开连接",
