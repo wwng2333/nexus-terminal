@@ -116,6 +116,8 @@ const connectRdp = async () => { // Removed useInputValues parameter
 
     // @ts-ignore
     guacClient.value = new Guacamole.Client(tunnel);
+// Add this line to enable keep-alive (send NOP every 3 seconds)
+    guacClient.value.keepAliveFrequency = 3000; // milliseconds
 
     rdpDisplayRef.value.appendChild(guacClient.value.getDisplay().getElement());
 

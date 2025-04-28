@@ -445,7 +445,7 @@ const testButtonText = computed(() => {
         <!-- Advanced Options Section -->
         <div class="space-y-4 p-4 border border-border rounded-md bg-header/30">
            <h4 class="text-base font-semibold mb-3 pb-2 border-b border-border/50">{{ t('connections.form.sectionAdvanced', '高级选项') }}</h4>
-           <div>
+           <div v-if="formData.type !== 'RDP'"> <!-- Proxy Select - Hide for RDP -->
              <label for="conn-proxy" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.proxy') }} ({{ t('connections.form.optional') }})</label>
              <select id="conn-proxy" v-model="formData.proxy_id"
                      class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
