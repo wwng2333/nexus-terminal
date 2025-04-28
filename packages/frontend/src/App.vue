@@ -7,6 +7,7 @@ import { useSettingsStore } from './stores/settings.store';
 import { useAppearanceStore } from './stores/appearance.store';
 import { useLayoutStore } from './stores/layout.store';
 import { useFocusSwitcherStore } from './stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
+import { useSessionStore } from './stores/session.store'; // +++ 导入 Session Store +++
 import { storeToRefs } from 'pinia';
 // 导入通知显示组件
 import UINotificationDisplay from './components/UINotificationDisplay.vue';
@@ -16,6 +17,8 @@ import FileEditorOverlay from './components/FileEditorOverlay.vue';
 import StyleCustomizer from './components/StyleCustomizer.vue';
 // +++ 导入焦点切换配置器组件 +++
 import FocusSwitcherConfigurator from './components/FocusSwitcherConfigurator.vue';
+// +++ 导入 RDP 模态框组件 +++
+import RemoteDesktopModal from './components/RemoteDesktopModal.vue';
 
 const { t } = useI18n();
 const authStore = useAuthStore();
@@ -23,11 +26,13 @@ const settingsStore = useSettingsStore();
 const appearanceStore = useAppearanceStore();
 const layoutStore = useLayoutStore();
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
+const sessionStore = useSessionStore(); // +++ 实例化 Session Store +++
 const { isAuthenticated } = storeToRefs(authStore);
 const { showPopupFileEditorBoolean } = storeToRefs(settingsStore);
 const { isStyleCustomizerVisible } = storeToRefs(appearanceStore);
 const { isLayoutVisible, isHeaderVisible } = storeToRefs(layoutStore); // 添加 isHeaderVisible
 const { isConfiguratorVisible: isFocusSwitcherVisible } = storeToRefs(focusSwitcherStore);
+const { isRdpModalOpen, rdpConnectionInfo } = storeToRefs(sessionStore); // +++ 获取 RDP 状态 +++
 
 const route = useRoute();
 const navRef = ref<HTMLElement | null>(null);
@@ -291,6 +296,13 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
       v-show="isFocusSwitcherVisible"
       :isVisible="isFocusSwitcherVisible"
       @close="focusSwitcherStore.toggleConfigurator(false)"
+    />
+
+    <!-- +++ 条件渲染 RDP 模态框 +++ -->
+    <RemoteDesktopModal
+      v-if="isRdpModalOpen"
+      :connection="rdpConnectionInfo"
+      @close="sessionStore.closeRdpModal()"
     />
 
   </div>

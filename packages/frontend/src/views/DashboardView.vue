@@ -84,11 +84,9 @@ onMounted(async () => {
 // --- 方法 ---
 // 修改函数签名，接受 ConnectionInfo 类型
 const connectTo = (connection: ConnectionInfo) => {
-  console.log(`[Dashboard] connectTo called for ID: ${connection.id}`);
-  // 调用 session store 处理连接请求
-  sessionStore.handleConnectRequest(connection.id);
-  // 跳转到工作区
-  router.push({ name: 'Workspace' });
+  console.log(`[Dashboard] connectTo called for connection: ${connection.name} (ID: ${connection.id}, Type: ${connection.type})`);
+  // 将连接处理逻辑委托给 sessionStore
+  sessionStore.handleConnectRequest(connection);
 };
 
 

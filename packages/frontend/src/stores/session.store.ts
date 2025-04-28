@@ -1,6 +1,7 @@
 import { ref, computed, shallowRef, type Ref } from 'vue'; // 导入 shallowRef
 import { defineStore } from 'pinia';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router'; // +++ 导入 useRouter +++
 import { useConnectionsStore, type ConnectionInfo } from './connections.store';
 // 导入文件编辑器相关的类型
 import type { FileTab, FileInfo } from './fileEditor.store'; // 导入 FileTab 和 FileInfo
@@ -86,11 +87,16 @@ export const useSessionStore = defineStore('session', () => {
   // --- 依赖 ---
   const { t } = useI18n();
   const connectionsStore = useConnectionsStore();
+  const router = useRouter(); // +++ 获取 router 实例 +++
 
   // --- State ---
   // 使用 shallowRef 避免深度响应性问题，保留管理器实例内部的响应性
   const sessions = shallowRef<Map<string, SessionState>>(new Map());
   const activeSessionId = ref<string | null>(null);
+
+  // --- RDP Modal State ---
+  const isRdpModalOpen = ref(false);
+  const rdpConnectionInfo = ref<ConnectionInfo | null>(null);
 
   // --- Getters ---
   const sessionTabs = computed(() => {
@@ -364,46 +370,58 @@ export const useSessionStore = defineStore('session', () => {
 
   /**
    * 处理连接列表的左键点击
-   * 优先级 1: 如果点击的是当前活动标签且断开，则重连该标签。
-   * 优先级 2: 其他所有情况（非活动标签、活动且已连接标签、新连接），总是打开新标签。
+   * 处理来自 UI 的连接请求（例如点击连接列表或仪表盘）。
+   * - 如果是 RDP 连接，直接打开 RDP 模态框。
+   * - 如果是非 RDP 连接：
+   *   - 如果点击的是当前活动且断开的会话，则尝试重连。
+   *   - 否则，打开一个新的会话标签页并导航到 Workspace。
    */
-  const handleConnectRequest = (connectionId: number | string) => {
-    const connIdStr = String(connectionId);
-    console.log(`[SessionStore] handleConnectRequest called for ID: ${connIdStr}`);
+  const handleConnectRequest = (connection: ConnectionInfo) => {
+    console.log(`[SessionStore] handleConnectRequest called for connection: ${connection.name} (ID: ${connection.id}, Type: ${connection.type})`);
 
-    let activeAndDisconnected = false; // 标记是否满足最高优先级条件
+    if (connection.type === 'RDP') {
+      // RDP: 直接打开模态框
+      openRdpModal(connection);
+    } else {
+      // 非 RDP (e.g., SSH): 处理会话和导航
+      const connIdStr = String(connection.id);
+      let activeAndDisconnected = false;
 
-    // 检查是否点击了当前活动且断开的会话
-    if (activeSessionId.value) {
-      const currentActiveSession = sessions.value.get(activeSessionId.value);
-      if (currentActiveSession && currentActiveSession.connectionId === connIdStr) {
-        const currentStatus = currentActiveSession.wsManager.connectionStatus.value;
-        console.log(`[SessionStore] 点击的是当前活动会话 ${activeSessionId.value}，状态: ${currentStatus}`);
-        if (currentStatus === 'disconnected' || currentStatus === 'error') {
-          activeAndDisconnected = true;
-          // 满足最高优先级：重连当前活动会话
-          console.log(`[SessionStore] 活动会话 ${activeSessionId.value} 已断开或出错，尝试重连...`);
-          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-          // --- 修改：根据环境确定 WebSocket 主机 ---
-          let wsHost = window.location.hostname;
-          if (window.location.hostname === 'localhost') {
-              wsHost = 'localhost:3001'; // 本地调试时硬编码
-              console.log('[SessionStore handleConnectRequest] Using hardcoded localhost:3001 for WebSocket reconnect.');
-          } else {
-              console.log(`[SessionStore handleConnectRequest] Using hostname: ${wsHost}`);
+      // 检查是否点击了当前活动且断开的会话
+      if (activeSessionId.value) {
+        const currentActiveSession = sessions.value.get(activeSessionId.value);
+        if (currentActiveSession && currentActiveSession.connectionId === connIdStr) {
+          const currentStatus = currentActiveSession.wsManager.connectionStatus.value;
+          console.log(`[SessionStore] 点击的是当前活动会话 ${activeSessionId.value}，状态: ${currentStatus}`);
+          if (currentStatus === 'disconnected' || currentStatus === 'error') {
+            activeAndDisconnected = true;
+            // 满足最高优先级：重连当前活动会话
+            console.log(`[SessionStore] 活动会话 ${activeSessionId.value} 已断开或出错，尝试重连...`);
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            let wsHost = window.location.hostname;
+            if (window.location.hostname === 'localhost') {
+                wsHost = 'localhost:3001';
+                console.log('[SessionStore handleConnectRequest] Using hardcoded localhost:3001 for WebSocket reconnect.');
+            } else {
+                console.log(`[SessionStore handleConnectRequest] Using hostname: ${wsHost}`);
+            }
+            const wsUrl = `${protocol}//${wsHost}/ws/`;
+            console.log(`[SessionStore handleConnectRequest] Generated WebSocket URL for reconnect: ${wsUrl}`);
+            currentActiveSession.wsManager.connect(wsUrl);
+            // 重连后，确保激活该会话（如果它不是活动会话）并导航
+            activateSession(activeSessionId.value); // 确保激活
+            router.push({ name: 'Workspace' }); // +++ 添加跳转 +++
           }
-          // --- 结束修改 ---
-          const wsUrl = `${protocol}//${wsHost}/ws/`; // 使用 wsHost 并添加 /ws/ 路径
-          console.log(`[SessionStore handleConnectRequest] Generated WebSocket URL for reconnect: ${wsUrl}`); // 添加日志
-          currentActiveSession.wsManager.connect(wsUrl);
         }
       }
-    }
 
-    // 如果不满足最高优先级条件，则总是打开新会话
-    if (!activeAndDisconnected) {
-      console.log(`[SessionStore] 不满足重连条件或点击了其他连接，将打开新会话 for ID: ${connIdStr}`);
-      openNewSession(connIdStr);
+      // 如果不满足重连条件，则总是打开新会话并导航
+      if (!activeAndDisconnected) {
+        console.log(`[SessionStore] 不满足重连条件或点击了其他连接，将打开新会话 for ID: ${connIdStr}`);
+        openNewSession(connIdStr); // openNewSession 会自动激活新会话
+        // 导航到 Workspace，让 WorkspaceView 处理新激活的会话
+        router.push({ name: 'Workspace' }); // +++ 添加跳转 +++
+      }
     }
   };
 
@@ -634,10 +652,26 @@ export const useSessionStore = defineStore('session', () => {
       }
   };
 
+  // --- RDP Modal Actions ---
+  const openRdpModal = (connection: ConnectionInfo) => {
+    console.log(`[SessionStore] Opening RDP modal for connection: ${connection.name} (ID: ${connection.id})`);
+    rdpConnectionInfo.value = connection;
+    isRdpModalOpen.value = true;
+  };
+
+  const closeRdpModal = () => {
+    console.log('[SessionStore] Closing RDP modal.');
+    isRdpModalOpen.value = false;
+    rdpConnectionInfo.value = null; // 清除连接信息
+  };
+
+
   return {
     // State
     sessions,
     activeSessionId,
+    isRdpModalOpen,         // 导出 RDP 模态框状态
+    rdpConnectionInfo,      // 导出 RDP 连接信息
     // Getters
     sessionTabs,
     sessionTabsWithStatus, // 导出新的 getter
@@ -657,5 +691,8 @@ export const useSessionStore = defineStore('session', () => {
     setActiveEditorTabInSession,
     updateFileContentInSession, // 导出更新内容 Action
     saveFileInSession,          // 导出保存文件 Action
+    // --- RDP Modal Actions ---
+    openRdpModal,           // 导出打开 RDP 模态框 Action
+    closeRdpModal,          // 导出关闭 RDP 模态框 Action
   };
 });

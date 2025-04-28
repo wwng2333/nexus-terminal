@@ -163,9 +163,11 @@ const componentProps = computed(() => {
       if (!currentActiveSession) return {};
       // 传递 instanceId (使用布局节点的 ID), sessionId, dbConnectionId
       // 移除 sftpManager 和 wsDeps
+      // +++ 提供 instanceId 的备用值 +++
+      const instanceId = props.layoutNode.id || `fm-main-${props.activeSessionId ?? 'unknown'}`;
       return {
          sessionId: props.activeSessionId ?? '', // 确保 sessionId 不为 null
-         instanceId: props.layoutNode.id, // 使用布局节点 ID 作为实例 ID
+         instanceId: instanceId, // 使用计算出的 instanceId (包含备用值)
          dbConnectionId: currentActiveSession.connectionId,
          // sftpManager: currentActiveSession.sftpManager, // 移除 sftpManager，因为它现在由 FileManager 内部管理
          wsDeps: { // 恢复 wsDeps

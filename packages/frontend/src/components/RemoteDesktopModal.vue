@@ -40,7 +40,8 @@ const MIN_MODAL_HEIGHT = 768;
 
 // Dynamically construct WebSocket URL based on environment
 let backendBaseUrl: string;
-const LOCAL_BACKEND_URL = 'ws://localhost:18112'
+// const LOCAL_BACKEND_URL = 'ws://localhost:18112'
+const LOCAL_BACKEND_URL = 'ws://localhost:8081'
 
 // Determine WebSocket URL based on hostname
 if (window.location.hostname === 'localhost') {

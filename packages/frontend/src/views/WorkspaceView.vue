@@ -3,6 +3,7 @@ import { onMounted, onBeforeUnmount, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useLayoutStore } from '../stores/layout.store'; // *** 重新导入 layoutStore ***
+import { useConnectionsStore } from '../stores/connections.store'; // +++ 导入 connectionsStore +++
 // 移除不再直接使用的组件导入
 import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
@@ -24,6 +25,7 @@ const settingsStore = useSettingsStore();
 const fileEditorStore = useFileEditorStore();
 const layoutStore = useLayoutStore(); // *** 确保 layoutStore 实例存在 ***
 const commandHistoryStore = useCommandHistoryStore();
+const connectionsStore = useConnectionsStore(); // +++ 获取 connectionsStore 实例 +++
 const { isHeaderVisible } = storeToRefs(layoutStore); // *** 获取 isHeaderVisible 状态 ***
 
 // --- 从 Store 获取响应式状态和 Getters ---
@@ -162,7 +164,13 @@ onBeforeUnmount(() => {
      if (terminalManager.terminalInstance?.value) {
          terminalManager.terminalInstance.value.writeln(`\r\n\x1b[33m${t('workspace.terminal.reconnectingMsg')}\x1b[0m`);
      }
-     sessionStore.handleConnectRequest(currentSession.connectionId);
+     // +++ 修复：传递 ConnectionInfo 而不是 ID +++
+     const connectionInfo = connectionsStore.connections.find(c => c.id === Number(currentSession.connectionId));
+     if (connectionInfo) {
+       sessionStore.handleConnectRequest(connectionInfo);
+     } else {
+       console.error(`[WorkspaceView] handleSendCommand: 未找到 ID 为 ${currentSession.connectionId} 的连接信息。`);
+     }
      return;
    }
 
@@ -195,7 +203,13 @@ onBeforeUnmount(() => {
      } else {
          console.warn(`[WorkspaceView] 无法写入重连提示，terminalInstance 不可用。`);
      }
-     sessionStore.handleConnectRequest(session.connectionId);
+     // +++ 修复：传递 ConnectionInfo 而不是 ID +++
+     const connectionInfo = connectionsStore.connections.find(c => c.id === Number(session.connectionId));
+     if (connectionInfo) {
+       sessionStore.handleConnectRequest(connectionInfo);
+     } else {
+       console.error(`[WorkspaceView] handleTerminalInput: 未找到 ID 为 ${session.connectionId} 的连接信息。`);
+     }
    } else {
      manager.handleTerminalData(data);
    }
@@ -342,7 +356,13 @@ const handleCloseEditorTab = (tabId: string) => {
  // --- 连接列表操作处理 (用于 WorkspaceConnectionList) ---
  const handleConnectRequest = (id: number) => {
     console.log(`[WorkspaceView] Received 'connect-request' event for ID: ${id}`);
-    sessionStore.handleConnectRequest(id);
+    // +++ 修复：传递 ConnectionInfo 而不是 ID +++
+    const connectionInfo = connectionsStore.connections.find(c => c.id === id);
+    if (connectionInfo) {
+      sessionStore.handleConnectRequest(connectionInfo);
+    } else {
+      console.error(`[WorkspaceView] handleConnectRequest: 未找到 ID 为 ${id} 的连接信息。`);
+    }
  };
  const handleOpenNewSession = (id: number) => {
     console.log(`[WorkspaceView] Received 'open-new-session' event for ID: ${id}`);

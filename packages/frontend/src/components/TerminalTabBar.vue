@@ -5,6 +5,7 @@ import { useRoute } from 'vue-router'; // 导入 useRoute
 import { storeToRefs } from 'pinia'; // 导入 storeToRefs
 import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue'; // 导入连接列表组件
 import { useSessionStore } from '../stores/session.store'; // 导入 session store
+import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store'; // +++ 导入 connections store 和类型 +++
 import { useLayoutStore, type PaneName } from '../stores/layout.store'; // 导入布局 store 和类型
 // 导入会话状态类型
 import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导入更新后的类型
@@ -14,6 +15,7 @@ import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导�
 // --- Setup ---
 const { t } = useI18n(); // 初始化 i18n
 const layoutStore = useLayoutStore(); // 初始化布局 store
+const connectionsStore = useConnectionsStore(); // +++ 获取 connections store 实例 +++
 const { isHeaderVisible } = storeToRefs(layoutStore); // 从 layout store 获取主导航栏可见状态
 const route = useRoute(); // 获取路由实例
 
@@ -61,8 +63,13 @@ const togglePopup = () => {
 // 处理从弹出列表中选择连接的事件
 const handlePopupConnect = (connectionId: number) => {
   console.log(`[TabBar] Popup connect request for ID: ${connectionId}`);
-  // 使用 sessionStore 的方法来处理连接请求（它现在总是新建标签）
-  sessionStore.handleConnectRequest(connectionId);
+  // +++ 修复：传递 ConnectionInfo 而不是 ID +++
+  const connectionInfo = connectionsStore.connections.find(c => c.id === connectionId);
+  if (connectionInfo) {
+    sessionStore.handleConnectRequest(connectionInfo);
+  } else {
+    console.error(`[TabBar] handlePopupConnect: 未找到 ID 为 ${connectionId} 的连接信息。`);
+  }
   showConnectionListPopup.value = false; // 关闭弹出窗口
 };
 
