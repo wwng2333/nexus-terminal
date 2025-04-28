@@ -38,8 +38,13 @@ const desiredModalHeight = ref(858); // User sets the desired TOTAL modal height
 const MIN_MODAL_WIDTH = 1024;
 const MIN_MODAL_HEIGHT = 768;
 
-const RDP_BACKEND_API_BASE = 'http://localhost:9090';
-const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081';
+const RDP_BACKEND_API_BASE = 'http://localhost:9090'; // This might need adjustment too if API is accessed directly from browser, but currently it's proxied via backend
+
+// Dynamically construct WebSocket URL
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHost = window.location.hostname;
+const wsPort = import.meta.env.VITE_RDP_WEBSOCKET_PORT || '18114'; // Read from env var or use default
+const RDP_BACKEND_WEBSOCKET_URL = `${wsProtocol}//${wsHost}:${wsPort}`;
 // Removed localStorage keys
 
 const connectRdp = async () => { // Removed useInputValues parameter

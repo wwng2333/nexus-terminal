@@ -1,8 +1,6 @@
 services:
   frontend:
-    build:
-      context: .
-      dockerfile: packages/frontend/Dockerfile
+    image: heavrnl/nexus-terminal-frontend
     container_name: nexus-terminal-frontend
     ports:
       - "18111:80"
@@ -13,9 +11,7 @@ services:
       - nexus-terminal-network
 
   backend:
-    build:
-      context: .
-      dockerfile: packages/backend/Dockerfile
+    image: heavrnl/nexus-terminal-backend
     container_name: nexus-terminal-backend
     ports:
       - "18112:3001"
@@ -29,9 +25,7 @@ services:
       - nexus-terminal-network
 
   rdp:
-    build:
-      context: .
-      dockerfile: packages/rdp/Dockerfile
+    image: heavrnl/nexus-terminal-rdp # <-- Replace with your actual image name
     container_name: nexus-terminal-rdp
     environment:
       GUACD_HOST: guacd
@@ -57,3 +51,4 @@ services:
 networks:
   nexus-terminal-network:
     driver: bridge
+    name: nexus-terminal-network
