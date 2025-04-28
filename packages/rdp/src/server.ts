@@ -41,7 +41,9 @@ const websocketOptions = {
 
 const clientOptions = {
     crypt: {
-        key: ENCRYPTION_KEY_STRING // GuacamoleLite expects the string key
+        // Pass the actual key Buffer to guacamole-lite for its internal crypto operations
+        key: ENCRYPTION_KEY_BUFFER,
+        cypher: 'aes-256-cbc' // Ensure cipher matches between encryption and decryption
     },
 };
 
@@ -78,20 +80,26 @@ try {
    process.exit(1);
 }
 
-// Updated encryptToken to use the validated Buffer key and AES-GCM
+// Updated encryptToken to match guacamole-lite's expected format (aes-256-cbc and specific JSON structure)
+// Now accepts the key Buffer directly for correct crypto operation
 const encryptToken = (data: string, keyBuffer: Buffer): string => {
     try {
-        const iv = crypto.randomBytes(12); // GCM recommended IV size is 12 bytes
-        const cipher = crypto.createCipheriv('aes-256-gcm', keyBuffer, iv);
+        const iv = crypto.randomBytes(16); // AES-CBC typically uses a 16-byte IV
+        // Use the key Buffer for Node.js crypto operations
+        const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
 
-        const encryptedBuffer = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
-        const tag = cipher.getAuthTag(); // Get the authentication tag
+        let encrypted = cipher.update(data, 'utf8', 'base64');
+        encrypted += cipher.final('base64');
 
-        // Combine IV, encrypted data, and tag for storage/transmission
-        // Using a format like IV:TAG:ENCRYPTED_DATA (Base64 encoded) is common
-        const combined = Buffer.concat([iv, tag, encryptedBuffer]);
+        // Construct the JSON object expected by guacamole-lite's decrypt function
+        const output = {
+            iv: iv.toString('base64'),
+            value: encrypted
+        };
 
-        return combined.toString('base64');
+        // Stringify the JSON and then Base64 encode the entire string
+        const jsonString = JSON.stringify(output);
+        return Buffer.from(jsonString).toString('base64');
 
     } catch (e) {
         console.error("Token encryption failed:", e); // Log the actual error
@@ -148,7 +156,7 @@ app.get('/api/get-token', (req: any, res: any) => {
     try {
         const tokenData = JSON.stringify(connectionParams);
         // Use the validated key buffer for encryption
-        // Use the validated key buffer for encryption
+        // Use the key Buffer for encryption
         const encryptedToken = encryptToken(tokenData, ENCRYPTION_KEY_BUFFER);
         res.json({ token: encryptedToken });
     } catch (error) {

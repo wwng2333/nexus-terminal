@@ -70,7 +70,7 @@ const connectRdp = async () => { // Removed useInputValues parameter
     if (rdpContainerRef.value) {
         // Use clientWidth/clientHeight as they represent the inner dimensions available for content
         widthToSend = rdpContainerRef.value.clientWidth;
-        heightToSend = rdpContainerRef.value.clientHeight + 1; // Subtract 1 based on feedback
+        heightToSend = rdpContainerRef.value.clientHeight - 1; // Subtract 1 based on feedback
         // Ensure minimum dimensions, adjust if necessary based on backend requirements
         widthToSend = Math.max(100, widthToSend);
         heightToSend = Math.max(100, heightToSend);
@@ -358,7 +358,7 @@ const computedModalStyle = computed(() => {
               id="modal-width"
               type="number"
               v-model="desiredModalWidth"
-              min="200"
+              min="1024"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
@@ -367,12 +367,20 @@ const computedModalStyle = computed(() => {
               id="modal-height"
               type="number"
               v-model="desiredModalHeight"
-              min="200"
+              min="768"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-
-            <!-- RDP Width/Height inputs and Reconnect button removed -->
+             <!-- Add Reconnect Button -->
+             <button
+                @click="connectRdp"
+                :disabled="connectionStatus === 'connecting'"
+                class="px-2 py-0.5 bg-secondary text-white rounded text-xs hover:bg-secondary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                :title="t('remoteDesktopModal.reconnectTooltip')"
+             >
+                <i class="fas fa-sync-alt mr-1"></i>
+                {{ t('common.reconnect') }}
+             </button>
          </div>
        </div>
     </div>
