@@ -428,7 +428,11 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                     // 传递必要信息给 connection 事件
                     (request as any).clientIpAddress = ipAddress;
                     (request as any).isRdpProxy = true; // 标记为 RDP 代理连接
-                    (request as any).rdpToken = parsedUrl.query.token; // 传递 RDP token
+                    // 传递 RDP token 和其他参数
+                    (request as any).rdpToken = parsedUrl.query.token;
+                    (request as any).rdpWidth = parsedUrl.query.width;
+                    (request as any).rdpHeight = parsedUrl.query.height;
+                    (request as any).rdpDpi = parsedUrl.query.dpi;
                     wss.emit('connection', extWs, request);
                 });
             } else {
@@ -458,11 +462,16 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
 
         // --- RDP 代理连接处理 ---
         if (isRdpProxy) {
+            // Retrieve all necessary parameters passed from the upgrade handler
             const rdpToken = (request as any).rdpToken;
-            if (!rdpToken) {
-                console.error(`WebSocket: RDP Proxy connection for ${ws.username} missing token.`);
-                ws.send(JSON.stringify({ type: 'rdp:error', payload: 'Missing RDP connection token.' }));
-                ws.close(1008, 'Missing RDP token');
+            const rdpWidth = (request as any).rdpWidth;
+            const rdpHeight = (request as any).rdpHeight;
+            const rdpDpi = (request as any).rdpDpi;
+
+            if (!rdpToken || !rdpWidth || !rdpHeight || !rdpDpi) {
+                console.error(`WebSocket: RDP Proxy connection for ${ws.username} missing required parameters (token, width, height, dpi).`);
+                ws.send(JSON.stringify({ type: 'rdp:error', payload: 'Missing RDP connection parameters.' }));
+                ws.close(1008, 'Missing RDP parameters');
                 return;
             }
 
@@ -479,7 +488,8 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
 
             // Ensure base URL doesn't end with a slash before appending query params
             const cleanRdpBaseUrl = rdpBaseUrl.endsWith('/') ? rdpBaseUrl.slice(0, -1) : rdpBaseUrl;
-            const rdpTargetUrl = `${cleanRdpBaseUrl}/?token=${rdpToken}`; // Append token query param
+            // Append ALL parameters to the target URL
+            const rdpTargetUrl = `${cleanRdpBaseUrl}/?token=${encodeURIComponent(rdpToken)}&width=${encodeURIComponent(rdpWidth)}&height=${encodeURIComponent(rdpHeight)}&dpi=${encodeURIComponent(rdpDpi)}`;
 
             console.log(`WebSocket: RDP Proxy for ${ws.username} attempting to connect to ${rdpTargetUrl}`);
 

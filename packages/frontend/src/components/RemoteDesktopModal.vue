@@ -38,11 +38,20 @@ const desiredModalHeight = ref(858); // User sets the desired TOTAL modal height
 const MIN_MODAL_WIDTH = 1024;
 const MIN_MODAL_HEIGHT = 768;
 
-// Dynamically construct WebSocket URL
-const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const wsHost = window.location.hostname;
-const backendPort = '3001'; // Backend WebSocket port
-const BACKEND_WEBSOCKET_URL = `${wsProtocol}//${wsHost}:${backendPort}`; // URL for backend proxy
+// Dynamically construct WebSocket URL based on environment
+let backendBaseUrl: string;
+
+if (import.meta.env.DEV && import.meta.env.VITE_BACKEND_WS_URL) {
+  // Development mode: Use the URL specified in .env
+  backendBaseUrl = import.meta.env.VITE_BACKEND_WS_URL;
+  console.log(`[RDP Modal] Using development WebSocket Base URL from env: ${backendBaseUrl}`);
+} else {
+  // Production mode: Construct URL based on current window location
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsHostAndPort = window.location.host;
+  backendBaseUrl = `${wsProtocol}//${wsHostAndPort}`;
+  console.log(`[RDP Modal] Using production WebSocket Base URL from window.location: ${backendBaseUrl}`);
+}
 // Removed localStorage keys
 
 const connectRdp = async () => { // Removed useInputValues parameter
@@ -91,8 +100,8 @@ const connectRdp = async () => { // Removed useInputValues parameter
          // Consider setting an error state or notifying the user
     }
 
-    // Construct URL for the backend proxy endpoint
-    const tunnelUrl = `${BACKEND_WEBSOCKET_URL}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
+    // Construct URL for the backend proxy endpoint using the determined base URL
+    const tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
     console.log(`[RDP Modal] Connecting to tunnel: ${tunnelUrl}`); // Log the final URL
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
