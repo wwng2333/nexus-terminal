@@ -423,10 +423,9 @@ const computedModalStyle = computed(() => {
              <button
                 @click="connectRdp"
                 :disabled="connectionStatus === 'connecting'"
-                class="px-2 py-0.5 bg-secondary text-white rounded text-xs hover:bg-secondary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
                 :title="t('remoteDesktopModal.reconnectTooltip')"
              >
-                <i class="fas fa-sync-alt mr-1"></i>
                 {{ t('common.reconnect') }}
              </button>
          </div>
