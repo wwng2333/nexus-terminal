@@ -69,9 +69,23 @@ const connectRdp = async () => {
     console.log('[RDP Modal] Received token from main backend.');
     statusMessage.value = t('remoteDesktopModal.status.connectingWs');
 
-    // 2. 连接 WebSocket (仍然连接到独立的 RDP 后端的 WebSocket 服务器)
-    const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}`;
-    console.log(`[RDP Modal] Connecting WebSocket to: ${RDP_BACKEND_WEBSOCKET_URL}/?token=...`);
+    // 2. 计算初始尺寸并连接 WebSocket (根据文档，通过查询参数传递)
+    let initialWidth = 1024; // Default width if ref is not ready
+    let initialHeight = 768; // Default height if ref is not ready
+    let initialDpi = 96;    // Default DPI
+    if (rdpDisplayRef.value) {
+        initialWidth = rdpDisplayRef.value.clientWidth || initialWidth;
+        initialHeight = rdpDisplayRef.value.clientHeight || initialHeight;
+        // initialDpi = Math.round(window.devicePixelRatio * 96) || initialDpi; // Temporarily disable dynamic DPI calculation
+        initialDpi = 96; // Use fixed DPI for testing
+        console.log(`[RDP Modal] Calculated initial dimensions from ref: ${initialWidth}x${initialHeight} @ ${initialDpi} DPI (Fixed DPI)`);
+    } else {
+        console.warn('[RDP Modal] rdpDisplayRef not available for initial size calculation, using defaults.');
+        initialDpi = 96; // Ensure fixed DPI even if ref fails
+    }
+
+    const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}&width=${initialWidth}&height=${initialHeight}&dpi=${initialDpi}`; // DPI will be 96
+    console.log(`[RDP Modal] Connecting WebSocket to: ${RDP_BACKEND_WEBSOCKET_URL}/?token=...&width=${initialWidth}&height=${initialHeight}&dpi=${initialDpi} (Fixed DPI)`);
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
 
@@ -124,15 +138,11 @@ const connectRdp = async () => {
               });
               console.log('[RDP Modal] Set canvas z-index to 999.');
 
-              // 发送固定尺寸 1200x1200
-              const width = 1200;
-              const height = 1200;
-              const dpi = Math.round(window.devicePixelRatio * 96); // 计算 DPI
-              console.log(`[RDP Modal] Sending fixed size: ${width}x${height} @ ${dpi} DPI`);
-              guacClient.value.sendSize(width, height, dpi);
+              // 初始尺寸已通过 WebSocket URL 查询参数传递，此处不再需要发送
+              console.log('[RDP Modal] Initial size sent via query parameters during connection.');
 
-              // 不再需要 ResizeObserver
-              // setupResizeObserver(); // Ensure this remains commented out or removed
+              // ResizeObserver 逻辑保持移除/注释状态
+              // setupResizeObserver();
               }
             });
           }, 100); // 延迟 100 毫秒
