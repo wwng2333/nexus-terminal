@@ -401,7 +401,7 @@ const computedModalStyle = computed(() => {
          </div>
       </div>
 
-       <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
+       <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-end">
          <div class="flex items-center space-x-2 flex-wrap gap-y-1">
             <label for="modal-width" class="text-xs ml-2">{{ t('common.width') }}:</label>
             <input
