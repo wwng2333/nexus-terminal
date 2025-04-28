@@ -260,7 +260,13 @@ const closeModal = () => {
 // Removed loadDesiredModalSize function
 
 // Watch local refs and save validated size to settings store
-watch(desiredModalWidth, (newWidth) => {
+watch(desiredModalWidth, (newWidth, oldWidth) => {
+  // 只有当值真正改变时才处理
+  if (newWidth === oldWidth) {
+      console.log(`[RDP Modal] Width watch triggered but value (${newWidth}) hasn't changed. Skipping save.`);
+      return;
+  }
+  console.log(`[RDP Modal] Watch triggered for desiredModalWidth: ${oldWidth} -> ${newWidth}`); // 添加日志
   // Validate new width before saving
   const validatedWidth = Math.max(MIN_MODAL_WIDTH, Number(newWidth) || MIN_MODAL_WIDTH);
   // Debounce saving the *validated* width
@@ -268,11 +274,22 @@ watch(desiredModalWidth, (newWidth) => {
   saveWidthTimeout = setTimeout(() => {
     // Only save the validated width, don't change the input value here
     console.log(`[RDP Modal] Debounced Save - Saving width: ${validatedWidth} (Input value: ${newWidth})`);
-    settingsStore.updateSetting('rdpModalWidth', String(validatedWidth));
+    // 再次检查，确保在延迟期间值没有变回原来的 store 值
+    if (String(validatedWidth) !== settingsStore.settings.rdpModalWidth) {
+         settingsStore.updateSetting('rdpModalWidth', String(validatedWidth));
+    } else {
+         console.log(`[RDP Modal] Debounced Save - Width ${validatedWidth} matches store value. Skipping redundant save.`);
+    }
   }, DEBOUNCE_DELAY);
 });
 
-watch(desiredModalHeight, (newHeight) => {
+watch(desiredModalHeight, (newHeight, oldHeight) => {
+   // 只有当值真正改变时才处理
+   if (newHeight === oldHeight) {
+       console.log(`[RDP Modal] Height watch triggered but value (${newHeight}) hasn't changed. Skipping save.`);
+       return;
+   }
+   console.log(`[RDP Modal] Watch triggered for desiredModalHeight: ${oldHeight} -> ${newHeight}`); // 添加日志
   // Validate new height before saving
   const validatedHeight = Math.max(MIN_MODAL_HEIGHT, Number(newHeight) || MIN_MODAL_HEIGHT);
   // Debounce saving the *validated* height
@@ -280,7 +297,12 @@ watch(desiredModalHeight, (newHeight) => {
   saveHeightTimeout = setTimeout(() => {
     // Only save the validated height, don't change the input value here
     console.log(`[RDP Modal] Debounced Save - Saving height: ${validatedHeight} (Input value: ${newHeight})`);
-    settingsStore.updateSetting('rdpModalHeight', String(validatedHeight));
+    // 再次检查
+    if (String(validatedHeight) !== settingsStore.settings.rdpModalHeight) {
+        settingsStore.updateSetting('rdpModalHeight', String(validatedHeight));
+    } else {
+        console.log(`[RDP Modal] Debounced Save - Height ${validatedHeight} matches store value. Skipping redundant save.`);
+    }
   }, DEBOUNCE_DELAY);
 });
 
