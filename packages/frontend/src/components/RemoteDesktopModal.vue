@@ -3,202 +3,173 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 // @ts-ignore - guacamole-common-js lacks official types
 import Guacamole from 'guacamole-common-js';
-import apiClient from '../utils/apiClient'; // 假设 API 客户端路径
-import { ConnectionInfo } from '../stores/connections.store'; // 假设 ConnectionInfo 类型路径
+import apiClient from '../utils/apiClient';
+import { ConnectionInfo } from '../stores/connections.store';
 
 const { t } = useI18n();
 
-// --- Props ---
 const props = defineProps<{
-  connection: ConnectionInfo | null; // 接收连接信息
+  connection: ConnectionInfo | null;
 }>();
 
-// --- Emits ---
 const emit = defineEmits(['close']);
 
-// --- State Refs ---
-const rdpDisplayRef = ref<HTMLDivElement | null>(null); // Guacamole 显示容器
+const rdpDisplayRef = ref<HTMLDivElement | null>(null);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const guacClient = ref<any | null>(null); // Guacamole 客户端实例 (使用 any 因为类型缺失)
+const guacClient = ref<any | null>(null);
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 const statusMessage = ref('');
-const keyboard = ref<any | null>(null); // Guacamole Keyboard instance
-const mouse = ref<any | null>(null); // Guacamole Mouse instance
-// const resizeObserver = ref<ResizeObserver | null>(null); // Resize observer remains removed
+const keyboard = ref<any | null>(null);
+const mouse = ref<any | null>(null);
+const inputWidth = ref(1024);
+const inputHeight = ref(768);
+const modalStyle = ref({});
+const rdpContainerStyle = ref({});
 
-// --- Configuration ---
-// Configuration for the separate RDP backend service
-// TODO: Make these configurable
-const RDP_BACKEND_API_BASE = 'http://localhost:9090'; // Default port for test-rdp/packages/rdp API
-const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081'; // Default port for test-rdp/packages/rdp WebSocket
+const RDP_BACKEND_API_BASE = 'http://localhost:9090';
+const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081';
 
-// --- Connection Logic ---
-const connectRdp = async () => {
+const connectRdp = async (useInputValues = false) => {
   if (!props.connection || !rdpDisplayRef.value) {
     statusMessage.value = t('remoteDesktopModal.errors.missingInfo');
     connectionStatus.value = 'error';
-    console.error('[RDP Modal] Connection info or display element missing.');
     return;
   }
 
-  // 清理之前的显示内容
   while (rdpDisplayRef.value.firstChild) {
     rdpDisplayRef.value.removeChild(rdpDisplayRef.value.firstChild);
   }
-  disconnectRdp(); // Ensure any previous connection is cleaned up
+  disconnectRdp();
 
   connectionStatus.value = 'connecting';
   statusMessage.value = t('remoteDesktopModal.status.fetchingToken');
 
   try {
-    // 1. 从主后端获取 RDP 会话的 Guacamole Token
-    // Construct the path relative to the apiClient's baseURL ('/api/v1')
     const apiUrl = `connections/${props.connection.id}/rdp-session`;
-    console.log(`[RDP Modal] Fetching token from main backend: POST /api/v1/${apiUrl}`); // Log the expected full path
 
-    // Use apiClient configured for the main backend
     const response = await apiClient.post<{ token: string }>(apiUrl);
 
-    // apiClient should handle non-2xx responses by throwing an error
-    // We just need to check if the token exists in the successful response data
     const token = response.data?.token;
     if (!token) {
-         console.error('[RDP Modal] Token not found in main backend response:', response.data);
          throw new Error('Token not found in API response');
     }
-    console.log('[RDP Modal] Received token from main backend.');
     statusMessage.value = t('remoteDesktopModal.status.connectingWs');
 
-    // 2. 计算初始尺寸并连接 WebSocket (根据文档，通过查询参数传递)
-    let initialWidth = 1024; // Default width if ref is not ready
-    let initialHeight = 768; // Default height if ref is not ready
-    let initialDpi = 96;    // Default DPI
-    if (rdpDisplayRef.value) {
-        initialWidth = rdpDisplayRef.value.clientWidth || initialWidth;
-        initialHeight = rdpDisplayRef.value.clientHeight || initialHeight;
-        // initialDpi = Math.round(window.devicePixelRatio * 96) || initialDpi; // Temporarily disable dynamic DPI calculation
-        initialDpi = 96; // Use fixed DPI for testing
-        console.log(`[RDP Modal] Calculated initial dimensions from ref: ${initialWidth}x${initialHeight} @ ${initialDpi} DPI (Fixed DPI)`);
+    let widthToSend = 1024;
+    let heightToSend = 768;
+    const dpiToSend = 96;
+
+    if (useInputValues) {
+        widthToSend = parseInt(String(inputWidth.value), 10) || widthToSend;
+        heightToSend = parseInt(String(inputHeight.value), 10) || heightToSend;
     } else {
-        console.warn('[RDP Modal] rdpDisplayRef not available for initial size calculation, using defaults.');
-        initialDpi = 96; // Ensure fixed DPI even if ref fails
+        if (rdpDisplayRef.value && rdpDisplayRef.value.clientWidth > 0 && rdpDisplayRef.value.clientHeight > 0) {
+            widthToSend = rdpDisplayRef.value.clientWidth;
+            heightToSend = rdpDisplayRef.value.clientHeight;
+        } else {
+            widthToSend = parseInt(String(inputWidth.value), 10) || widthToSend;
+            heightToSend = parseInt(String(inputHeight.value), 10) || heightToSend;
+        }
     }
 
-    const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}&width=${initialWidth}&height=${initialHeight}&dpi=${initialDpi}`; // DPI will be 96
-    console.log(`[RDP Modal] Connecting WebSocket to: ${RDP_BACKEND_WEBSOCKET_URL}/?token=...&width=${initialWidth}&height=${initialHeight}&dpi=${initialDpi} (Fixed DPI)`);
+    inputWidth.value = widthToSend;
+    inputHeight.value = heightToSend;
+
+    const extraWidth = 40;
+    const headerHeight = 45;
+    const footerHeight = 35;
+
+    modalStyle.value = {
+        width: `${widthToSend + extraWidth}px`,
+        height: `${heightToSend + headerHeight + footerHeight + 10}px`,
+    };
+
+    rdpContainerStyle.value = {
+        width: `${widthToSend}px`,
+        height: `${heightToSend}px`,
+    };
+
+    const tunnelUrl = `${RDP_BACKEND_WEBSOCKET_URL}/?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
 
     tunnel.onerror = (status: any) => {
-      console.error("[RDP Modal Tunnel] Tunnel Error Status:", status);
       const errorMessage = status.message || 'Unknown tunnel error';
       const errorCode = status.code || 'N/A';
       statusMessage.value = `${t('remoteDesktopModal.errors.tunnelError')} (${errorCode}): ${errorMessage}`;
       connectionStatus.value = 'error';
-      disconnectRdp(); // Clean up on tunnel error
+      disconnectRdp();
     };
 
-    // 3. 创建 Guacamole 客户端
     // @ts-ignore
     guacClient.value = new Guacamole.Client(tunnel);
 
-    // 4. 添加显示元素到 DOM
     rdpDisplayRef.value.appendChild(guacClient.value.getDisplay().getElement());
 
-    // 5. 处理客户端状态变化
     guacClient.value.onstatechange = (state: number) => {
-      console.log("[RDP Modal] Guacamole client state changed:", state);
       switch (state) {
-        case 0: // IDLE
+        case 0:
           statusMessage.value = t('remoteDesktopModal.status.idle');
           connectionStatus.value = 'disconnected';
           break;
-        case 1: // CONNECTING
+        case 1:
           statusMessage.value = t('remoteDesktopModal.status.connectingRdp');
           connectionStatus.value = 'connecting';
           break;
-        case 2: // WAITING
+        case 2:
           statusMessage.value = t('remoteDesktopModal.status.waiting');
           connectionStatus.value = 'connecting';
           break;
-        case 3: // CONNECTED
+        case 3:
           statusMessage.value = t('remoteDesktopModal.status.connected');
           connectionStatus.value = 'connected';
-          setupInputListeners(); // 连接成功后设置输入监听
+          setupInputListeners();
 
-          // 使用 nextTick 确保 DOM 更新和尺寸计算准确
-          // 稍微延迟处理，确保远程桌面准备就绪
           setTimeout(() => {
-            nextTick(() => { // 仍然使用 nextTick 确保 DOM 尺寸计算准确
+            nextTick(() => {
               if (rdpDisplayRef.value && guacClient.value) {
-                // 强制修改 Guacamole canvas 的 z-index
                 const canvases = rdpDisplayRef.value.querySelectorAll('canvas');
               canvases.forEach((canvas) => {
-                canvas.style.zIndex = '999'; // 覆盖内联样式
+                canvas.style.zIndex = '999';
               });
-              console.log('[RDP Modal] Set canvas z-index to 999.');
-
-              // 初始尺寸已通过 WebSocket URL 查询参数传递，此处不再需要发送
-              console.log('[RDP Modal] Initial size sent via query parameters during connection.');
-
-              // ResizeObserver 逻辑保持移除/注释状态
-              // setupResizeObserver();
               }
             });
-          }, 100); // 延迟 100 毫秒
+          }, 100);
           break;
-        case 4: // DISCONNECTING
+        case 4:
           statusMessage.value = t('remoteDesktopModal.status.disconnecting');
           connectionStatus.value = 'disconnected';
           break;
-        case 5: // DISCONNECTED
+        case 5:
           statusMessage.value = t('remoteDesktopModal.status.disconnected');
           connectionStatus.value = 'disconnected';
-          // disconnectRdp(); // State change might already trigger cleanup, avoid double disconnect
           break;
         default:
           statusMessage.value = `${t('remoteDesktopModal.status.unknownState')}: ${state}`;
       }
     };
 
-    // 6. 处理客户端错误
     guacClient.value.onerror = (status: any) => {
-      console.error("[RDP Modal Client] Client Error Status:", status);
       const errorMessage = status.message || 'Unknown client error';
       statusMessage.value = `${t('remoteDesktopModal.errors.clientError')}: ${errorMessage}`;
       connectionStatus.value = 'error';
-      disconnectRdp(); // Clean up on client error
+      disconnectRdp();
     };
 
-    // 7. (可选) 处理指令日志
-    // guacClient.value.oninstruction = (opcode: string, args: any[]) => {
-    //   if (['sync', 'size', 'name', 'error', 'disconnect'].includes(opcode)) {
-    //        console.log(`[RDP Modal Client] Received instruction: ${opcode}`, args);
-    //   }
-    // };
-
-    // 8. 开始连接
-    console.log("[RDP Modal] Initiating Guacamole client connection...");
-    // 连接参数（包括初始尺寸）似乎由后端在生成 token 时确定，
-    // 前端 connect() 调用不应传递参数来覆盖它。
     guacClient.value.connect();
 
   } catch (error: any) {
-    console.error("[RDP Modal] Connection failed:", error);
     statusMessage.value = `${t('remoteDesktopModal.errors.connectionFailed')}: ${error.response?.data?.message || error.message || String(error)}`;
     connectionStatus.value = 'error';
-    disconnectRdp(); // Clean up on failure
+    disconnectRdp();
   }
 };
 
-// --- Input Handling ---
 const setupInputListeners = () => {
     if (!guacClient.value || !rdpDisplayRef.value) return;
-    console.log("[RDP Modal Input] Setting up input listeners...");
     try {
         const displayEl = guacClient.value.getDisplay().getElement() as HTMLElement;
 
-        // --- Mouse ---
         // @ts-ignore
         mouse.value = new Guacamole.Mouse(displayEl);
         // @ts-ignore
@@ -207,95 +178,94 @@ const setupInputListeners = () => {
                 guacClient.value.sendMouseState(mouseState);
             }
         };
-        console.log("[RDP Modal Input] Mouse listeners attached.");
 
-        // --- Keyboard ---
         // @ts-ignore
-        keyboard.value = new Guacamole.Keyboard(document); // Listen on document for global key events
-
-        // Prevent default browser actions for keys handled by Guacamole
-        // keyboard.value.listenTo(document); // This might interfere with other inputs, attach carefully
+        keyboard.value = new Guacamole.Keyboard(displayEl);
 
         keyboard.value.onkeydown = (keysym: number) => {
             if (guacClient.value) {
-                // console.log("[RDP Input] KeyDown:", keysym);
                 guacClient.value.sendKeyEvent(1, keysym);
             }
         };
         keyboard.value.onkeyup = (keysym: number) => {
              if (guacClient.value) {
-                // console.log("[RDP Input] KeyUp:", keysym);
                 guacClient.value.sendKeyEvent(0, keysym);
              }
         };
-        console.log("[RDP Modal Input] Keyboard listeners attached.");
 
     } catch (inputError) {
-        console.error("[RDP Modal Input] Error setting up input listeners:", inputError);
         statusMessage.value = t('remoteDesktopModal.errors.inputError');
     }
 };
 
 const removeInputListeners = () => {
-    console.log("[RDP Modal Input] Removing input listeners...");
     if (keyboard.value) {
-        // If listenTo(document) was used, need a way to remove it,
-        // otherwise just nullifying the handlers might be enough.
-        // Guacamole.Keyboard doesn't have an obvious 'stopListening'
         keyboard.value.onkeydown = null;
         keyboard.value.onkeyup = null;
-        keyboard.value = null; // Release reference
-        console.log("[RDP Modal Input] Keyboard listeners removed.");
+        keyboard.value = null;
     }
      if (mouse.value) {
-        // Mouse listeners are attached to the display element,
-        // removing the element itself or nullifying handlers should work.
         mouse.value.onmousedown = null;
         mouse.value.onmouseup = null;
         mouse.value.onmousemove = null;
-        mouse.value = null; // Release reference
-        console.log("[RDP Modal Input] Mouse listeners removed.");
+        mouse.value = null;
     }
 };
 
 
-// --- Disconnect Logic ---
 const disconnectRdp = () => {
-  // ResizeObserver cleanup remains removed/commented
-  // if (resizeObserver.value) { ... }
-  removeInputListeners(); // Remove listeners first
+  removeInputListeners();
   if (guacClient.value) {
-    console.log("[RDP Modal] Disconnecting Guacamole client.");
     guacClient.value.disconnect();
     guacClient.value = null;
   }
-  // Clean up display manually if needed
   if (rdpDisplayRef.value) {
       while (rdpDisplayRef.value.firstChild) {
           rdpDisplayRef.value.removeChild(rdpDisplayRef.value.firstChild);
       }
   }
-  if (connectionStatus.value !== 'error') { // Don't overwrite error messages
+  if (connectionStatus.value !== 'error') {
       connectionStatus.value = 'disconnected';
       statusMessage.value = t('remoteDesktopModal.status.disconnected');
   }
 };
 
-// --- Resize Observer Logic (Remains Removed) ---
-// const setupResizeObserver = () => { ... };
-// --- Modal Close Handler ---
+
+const reconnectWithNewSize = () => {
+  const width = parseInt(String(inputWidth.value), 10);
+  const height = parseInt(String(inputHeight.value), 10);
+  if (!width || width <= 0 || !height || height <= 0) {
+      statusMessage.value = t('remoteDesktopModal.errors.invalidSize');
+      return;
+  }
+  disconnectRdp();
+  nextTick(() => {
+      connectRdp(true);
+
+      const headerHeight = 45;
+      const footerHeight = 35;
+      const extraWidth = 40;
+
+      rdpContainerStyle.value = {
+          width: `${width}px`,
+          height: `${height}px`,
+      };
+      modalStyle.value = {
+          width: `${width + extraWidth}px`,
+          height: `${height + headerHeight + footerHeight + 10}px`,
+      };
+  });
+};
+
 const closeModal = () => {
-  disconnectRdp(); // Ensure disconnection when modal is closed
+  disconnectRdp();
   emit('close');
 };
 
-// --- Lifecycle Hooks ---
 onMounted(() => {
-  // Automatically connect when component mounts if connection is provided
   if (props.connection) {
-    // Use nextTick to ensure the display ref is available
     nextTick(() => {
-        connectRdp();
+        connectRdp(false);
     });
   } else {
       statusMessage.value = t('remoteDesktopModal.errors.noConnection');
@@ -304,20 +274,16 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  // Ensure disconnection on component unmount
   disconnectRdp();
 });
 
-// Watch for connection prop changes (e.g., if the modal is reused)
 watch(() => props.connection, (newConnection, oldConnection) => {
   if (newConnection && newConnection.id !== oldConnection?.id) {
-    console.log('[RDP Modal] Connection prop changed, reconnecting...');
-    // Use nextTick to ensure the display ref is available after potential v-if changes
      nextTick(() => {
-        connectRdp(); // Connect with the new connection info
+        connectRdp(false);
      });
   } else if (!newConnection) {
-      disconnectRdp(); // Disconnect if connection becomes null
+      disconnectRdp();
       statusMessage.value = t('remoteDesktopModal.errors.noConnection');
       connectionStatus.value = 'error';
   }
@@ -326,81 +292,102 @@ watch(() => props.connection, (newConnection, oldConnection) => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-sm">
-    <div class="bg-background text-foreground rounded-lg shadow-xl w-11/12 max-w-6xl h-[90%] flex flex-col overflow-hidden border border-border"> <!-- Increased max-width and height -->
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between p-3 border-b border-border flex-shrink-0"> <!-- Reduced padding -->
-        <h3 class="text-base font-semibold truncate"> <!-- Reduced text size, added truncate -->
-          <i class="fas fa-desktop mr-2 text-text-secondary"></i>
-          {{ t('remoteDesktopModal.title') }} - {{ props.connection?.name || props.connection?.host || t('remoteDesktopModal.titlePlaceholder') }}
-        </h3>
-        <div class="flex items-center space-x-2">
-            <!-- Status Indicator -->
-            <span class="text-xs px-2 py-0.5 rounded"
-                  :class="{
-                    'bg-yellow-200 text-yellow-800': connectionStatus === 'connecting',
-                    'bg-green-200 text-green-800': connectionStatus === 'connected',
-                    'bg-red-200 text-red-800': connectionStatus === 'error',
-                    'bg-gray-200 text-gray-800': connectionStatus === 'disconnected'
-                  }">
-              {{ connectionStatus }}
-            </span>
-             <button
-                @click="closeModal"
-                class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 rounded hover:bg-hover"
-                :title="t('common.close')"
-             >
-                <i class="fas fa-times fa-lg"></i>
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-sm">
+   <div
+      :style="modalStyle"
+      class="bg-background text-foreground rounded-lg shadow-xl max-w-6xl max-h-[90vh] flex flex-col overflow-hidden border border-border"
+   >
+    <div class="flex items-center justify-between p-3 border-b border-border flex-shrink-0">
+      <h3 class="text-base font-semibold truncate">
+        <i class="fas fa-desktop mr-2 text-text-secondary"></i>
+        {{ t('remoteDesktopModal.title') }} - {{ props.connection?.name || props.connection?.host || t('remoteDesktopModal.titlePlaceholder') }}
+      </h3>
+      <div class="flex items-center space-x-2">
+          <span class="text-xs px-2 py-0.5 rounded"
+                :class="{
+                  'bg-yellow-200 text-yellow-800': connectionStatus === 'connecting',
+                  'bg-green-200 text-green-800': connectionStatus === 'connected',
+                  'bg-red-200 text-red-800': connectionStatus === 'error',
+                  'bg-gray-200 text-gray-800': connectionStatus === 'disconnected'
+                }">
+            {{ connectionStatus }}
+          </span>
+           <button
+              @click="closeModal"
+              class="text-text-secondary hover:text-foreground transition-colors duration-150 p-1 rounded hover:bg-hover"
+              :title="t('common.close')"
+           >
+              <i class="fas fa-times fa-lg"></i>
+           </button>
+      </div>
+    </div>
+
+    <div class="relative bg-black overflow-hidden" :style="rdpContainerStyle">
+      <div ref="rdpDisplayRef" class="rdp-display-container w-full h-full">
+      </div>
+       <div v-if="connectionStatus === 'connecting' || connectionStatus === 'error'"
+            class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white p-4 z-10">
+          <div class="text-center">
+            <i v-if="connectionStatus === 'connecting'" class="fas fa-spinner fa-spin fa-2x mb-3"></i>
+            <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-red-400"></i>
+            <p class="text-sm">{{ statusMessage }}</p>
+             <button v-if="connectionStatus === 'error'"
+                     @click="() => connectRdp(false)"
+                     class="mt-4 px-3 py-1 bg-primary text-white rounded text-xs hover:bg-primary-dark">
+               {{ t('common.retry') }}
              </button>
-        </div>
-      </div>
-
-      <!-- Modal Body (Guacamole Display Area) -->
-      <div class="flex-grow relative bg-black"> <!-- Added relative and bg-black -->
-        <div ref="rdpDisplayRef" class="rdp-display-container w-full h-full">
-          <!-- Guacamole display will be rendered here -->
-        </div>
-         <!-- Loading/Error Overlay -->
-         <div v-if="connectionStatus === 'connecting' || connectionStatus === 'error'"
-              class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white p-4 z-10">
-            <div class="text-center">
-              <i v-if="connectionStatus === 'connecting'" class="fas fa-spinner fa-spin fa-2x mb-3"></i>
-              <i v-else class="fas fa-exclamation-triangle fa-2x mb-3 text-red-400"></i>
-              <p class="text-sm">{{ statusMessage }}</p>
-               <button v-if="connectionStatus === 'error'"
-                       @click="connectRdp"
-                       class="mt-4 px-3 py-1 bg-primary text-white rounded text-xs hover:bg-primary-dark">
-                 {{ t('common.retry') }}
-               </button>
-            </div>
-         </div>
-      </div>
-
-      <!-- Modal Footer (Status Bar) -->
-       <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header"> <!-- Reduced padding -->
-         {{ statusMessage }}
+          </div>
        </div>
     </div>
+
+     <div class="p-2 border-t border-border flex-shrink-0 text-xs text-text-secondary bg-header flex items-center justify-between">
+       <span>{{ statusMessage }}</span>
+       <div class="flex items-center space-x-2">
+          <label for="rdp-width" class="text-xs">W:</label>
+          <input
+            id="rdp-width"
+            type="number"
+            v-model="inputWidth"
+            min="100"
+            step="10"
+            class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            @keyup.enter="reconnectWithNewSize"
+          />
+          <label for="rdp-height" class="text-xs">H:</label>
+           <input
+             id="rdp-height"
+             type="number"
+             v-model="inputHeight"
+             min="100"
+             step="10"
+             class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+             @keyup.enter="reconnectWithNewSize"
+           />
+           <button
+              @click="reconnectWithNewSize"
+              :disabled="connectionStatus === 'connecting'"
+              class="px-2 py-0.5 text-xs bg-primary text-white rounded hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
+              :title="t('remoteDesktopModal.reconnectTooltip')"
+           >
+              <i class="fas fa-sync-alt mr-1"></i>
+              {{ t('remoteDesktopModal.reconnect') }}
+           </button>
+       </div>
+     </div>
   </div>
+</div>
 </template>
 
 <style scoped>
 .rdp-display-container {
-  /* Ensure the container itself doesn't introduce scrollbars unnecessarily */
-  overflow: hidden;
-  position: relative; /* Needed for Guacamole's absolute positioning */
+overflow: hidden;
+position: relative;
 }
 
-/* Guacamole injects its own elements, target them carefully if needed */
 .rdp-display-container :deep(div) {
-  /* Guacamole layers might need relative positioning */
-   /* position: relative !important; */ /* Avoid !important if possible */
 }
 
 .rdp-display-container :deep(canvas) {
-  /* Ensure canvas scales correctly if needed, Guacamole usually handles this */
-  /* width: 100%; */
-  /* height: 100%; */
-  z-index: 999; /* 提升 canvas 层级，避免被遮挡 */
+z-index: 999;
 }
 </style>
