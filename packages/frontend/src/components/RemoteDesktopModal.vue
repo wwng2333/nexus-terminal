@@ -29,6 +29,9 @@ const mouse = ref<any | null>(null);
 const desiredModalWidth = ref(1064); // User sets the desired TOTAL modal width (1024 + 40 padding)
 const desiredModalHeight = ref(858); // User sets the desired TOTAL modal height (768 + chrome)
 
+const MIN_MODAL_WIDTH = 1024;
+const MIN_MODAL_HEIGHT = 768;
+
 const RDP_BACKEND_API_BASE = 'http://localhost:9090';
 const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081';
 const LOCAL_STORAGE_MODAL_WIDTH_KEY = 'rdpModalWidth'; // Reverted key name
@@ -240,19 +243,39 @@ const loadDesiredModalSize = () => {
   const savedWidth = localStorage.getItem(LOCAL_STORAGE_MODAL_WIDTH_KEY);
   const savedHeight = localStorage.getItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY);
   if (savedWidth) {
-    desiredModalWidth.value = parseInt(savedWidth, 10) || desiredModalWidth.value;
+    // Validate loaded width against minimum
+    desiredModalWidth.value = Math.max(MIN_MODAL_WIDTH, parseInt(savedWidth, 10) || MIN_MODAL_WIDTH);
+  } else {
+     // Ensure default is also valid if nothing is saved
+     desiredModalWidth.value = Math.max(MIN_MODAL_WIDTH, desiredModalWidth.value);
   }
   if (savedHeight) {
-    desiredModalHeight.value = parseInt(savedHeight, 10) || desiredModalHeight.value;
+    // Validate loaded height against minimum
+    desiredModalHeight.value = Math.max(MIN_MODAL_HEIGHT, parseInt(savedHeight, 10) || MIN_MODAL_HEIGHT);
+  } else {
+    // Ensure default is also valid if nothing is saved
+    desiredModalHeight.value = Math.max(MIN_MODAL_HEIGHT, desiredModalHeight.value);
   }
 };
 
 // Save desired MODAL size to localStorage when changed
 watch(desiredModalWidth, (newWidth) => {
-  localStorage.setItem(LOCAL_STORAGE_MODAL_WIDTH_KEY, String(newWidth));
+  // Validate new width before saving and potentially update the ref
+  const validatedWidth = Math.max(MIN_MODAL_WIDTH, Number(newWidth) || MIN_MODAL_WIDTH);
+  if (validatedWidth !== newWidth) {
+    // If validation changed the value, update the v-model binding
+    desiredModalWidth.value = validatedWidth;
+  }
+  localStorage.setItem(LOCAL_STORAGE_MODAL_WIDTH_KEY, String(validatedWidth));
 });
 watch(desiredModalHeight, (newHeight) => {
-  localStorage.setItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY, String(newHeight));
+  // Validate new height before saving and potentially update the ref
+  const validatedHeight = Math.max(MIN_MODAL_HEIGHT, Number(newHeight) || MIN_MODAL_HEIGHT);
+   if (validatedHeight !== newHeight) {
+     // If validation changed the value, update the v-model binding
+    desiredModalHeight.value = validatedHeight;
+  }
+  localStorage.setItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY, String(validatedHeight));
 });
 
 
