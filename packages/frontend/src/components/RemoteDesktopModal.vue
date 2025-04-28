@@ -96,7 +96,15 @@ const connectRdp = async () => {
     }
 
     // 使用确定的基础 URL 构建后端代理端点的 URL
-    const tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
+    // 确保参数正确拼接，没有多余字符
+    const queryParams = new URLSearchParams({
+        token: token,
+        width: String(widthToSend),
+        height: String(heightToSend),
+        dpi: String(dpiToSend)
+    });
+    const tunnelUrl = `${backendBaseUrl}/rdp-proxy?${queryParams.toString()}`; // 使用 URLSearchParams 确保格式正确
+
    console.log(`[RDP 模态框] 连接到隧道: ${tunnelUrl}`); // 记录最终 URL
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);

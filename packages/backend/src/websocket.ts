@@ -503,10 +503,13 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
             // --- 消息转发: Client -> RDP ---
             ws.on('message', (message: RawData) => {
                 if (rdpWs.readyState === WebSocket.OPEN) {
-                    // console.log(`RDP Proxy (C->S): Forwarding message from ${ws.username}`);
+                    // --- 添加中文日志 ---
+                    const messageString = message.toString('utf-8'); // 尝试解码为 UTF-8
+                    console.log(`[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (前 100 字符): ${messageString.substring(0, 100)}`);
+                    // --- 结束日志 ---
                     rdpWs.send(message);
                 } else {
-                    console.warn(`RDP Proxy (C->S): RDP WS not open, dropping message from ${ws.username}`);
+                    console.warn(`[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, RDP WS 未打开，丢弃消息。`);
                 }
             });
 
@@ -515,27 +518,33 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                 if (ws.readyState === WebSocket.OPEN) {
                     // 将 RawData (可能是 Buffer) 转换为 UTF-8 字符串再发送
                     const messageString = message.toString('utf-8');
-                    // console.log(`RDP Proxy (S->C): Forwarding message to ${ws.username}: ${messageString.substring(0, 50)}...`);
+                    // --- 添加中文日志 ---
+                    console.log(`[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (前 100 字符): ${messageString.substring(0, 100)}`);
+                    // --- 结束日志 ---
                     ws.send(messageString);
                 } else {
-                     console.warn(`RDP Proxy (S->C): Client WS not open, dropping message for ${ws.username}`);
+                     console.warn(`[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 客户端 WS 未打开，丢弃消息。`);
                 }
             });
 
             // --- 错误处理 ---
             ws.on('error', (error) => {
-                console.error(`WebSocket: RDP Proxy Client WS Error for ${ws.username}:`, error);
+                // --- 添加中文日志 ---
+                console.error(`[RDP 代理 客户端 WS 错误] 用户: ${ws.username}, 会话: ${ws.sessionId}, 错误:`, error);
+                // --- 结束日志 ---
                 if (!rdpWsClosed && rdpWs.readyState !== WebSocket.CLOSED && rdpWs.readyState !== WebSocket.CLOSING) {
-                    console.log(`WebSocket: RDP Proxy closing RDP WS due to client WS error.`);
+                    console.log(`[RDP 代理] 因客户端 WS 错误关闭 RDP WS。会话: ${ws.sessionId}`);
                     rdpWs.close(1011, 'Client WS Error');
                     rdpWsClosed = true;
                 }
                 clientWsClosed = true;
             });
             rdpWs.on('error', (error) => {
-                console.error(`WebSocket: RDP Proxy RDP WS Error for ${ws.username}:`, error);
+                 // --- 添加中文日志 ---
+                 console.error(`[RDP 代理 RDP WS 错误] 用户: ${ws.username}, 会话: ${ws.sessionId}, 连接到 ${rdpTargetUrl} 时出错:`, error);
+                 // --- 结束日志 ---
                  if (!clientWsClosed && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-                    console.log(`WebSocket: RDP Proxy closing Client WS due to RDP WS error.`);
+                    console.log(`[RDP 代理] 因 RDP WS 错误关闭客户端 WS。会话: ${ws.sessionId}`);
                     ws.close(1011, `RDP WS Error: ${error.message}`);
                     clientWsClosed = true;
                 }
@@ -545,25 +554,31 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
             // --- 关闭处理 ---
             ws.on('close', (code, reason) => {
                 clientWsClosed = true;
-                console.log(`WebSocket: RDP Proxy Client WS Closed for ${ws.username}. Code: ${code}, Reason: ${reason.toString()}`);
+                // --- 添加中文日志 ---
+                console.log(`[RDP 代理 客户端 WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 代码: ${code}, 原因: ${reason.toString()}`);
+                // --- 结束日志 ---
                 if (!rdpWsClosed && rdpWs.readyState !== WebSocket.CLOSED && rdpWs.readyState !== WebSocket.CLOSING) {
-                    console.log(`WebSocket: RDP Proxy closing RDP WS due to client WS close.`);
+                    console.log(`[RDP 代理] 因客户端 WS 关闭而关闭 RDP WS。会话: ${ws.sessionId}`);
                     rdpWs.close(1000, 'Client WS Closed');
                     rdpWsClosed = true;
                 }
             });
             rdpWs.on('close', (code, reason) => {
                 rdpWsClosed = true;
-                console.log(`WebSocket: RDP Proxy RDP WS Closed for ${ws.username}. Code: ${code}, Reason: ${reason.toString()}`);
+                 // --- 添加中文日志 ---
+                 console.log(`[RDP 代理 RDP WS 关闭] 用户: ${ws.username}, 会话: ${ws.sessionId}, 到 ${rdpTargetUrl} 的连接已关闭。代码: ${code}, 原因: ${reason.toString()}`);
+                 // --- 结束日志 ---
                 if (!clientWsClosed && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-                    console.log(`WebSocket: RDP Proxy closing Client WS due to RDP WS close.`);
+                    console.log(`[RDP 代理] 因 RDP WS 关闭而关闭客户端 WS。会话: ${ws.sessionId}`);
                     ws.close(1000, 'RDP WS Closed');
                     clientWsClosed = true;
                 }
             });
 
             rdpWs.on('open', () => {
-                 console.log(`WebSocket: RDP Proxy connection to ${rdpTargetUrl} established for ${ws.username}. Forwarding messages.`);
+                 // --- 添加中文日志 ---
+                 console.log(`[RDP 代理 RDP WS 打开] 用户: ${ws.username}, 会话: ${ws.sessionId}, 到 ${rdpTargetUrl} 的连接已建立。开始转发消息。`);
+                 // --- 结束日志 ---
                  // Do not send custom message, let Guacamole protocol flow directly
             });
 

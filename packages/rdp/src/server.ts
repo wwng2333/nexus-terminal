@@ -50,21 +50,29 @@ const clientOptions = {
 let guacServer: any; // Define guacServer here to make it accessible in gracefulShutdown
 
 try {
+    console.log(`[RDP 服务] 正在使用选项初始化 GuacamoleLite: WS 端口=${websocketOptions.port}, Guacd=${guacdOptions.host}:${guacdOptions.port}`);
     guacServer = new GuacamoleLite(websocketOptions, guacdOptions, clientOptions);
+    console.log(`[RDP 服务] GuacamoleLite 初始化成功。`);
 
     if (guacServer.on) {
         guacServer.on('error', (error: Error) => {
-            // Minimal error handling for reverted state
+            console.error(`[RDP 服务] GuacamoleLite 服务器错误:`, error);
         });
         guacServer.on('connection', (client: any) => {
-            const clientId = client.id || 'unknown';
+            // 注意：这里的 'client' 通常代表到 guacd 的连接，而不是直接的 WebSocket 连接。
+            // guacamole-lite 库可能抽象了直接的 WebSocket 处理。
+            // 我们主要记录与 guacd 交互的事件。
+            const clientId = client.id || '未知客户端ID';
+            console.log(`[RDP 服务] Guacd 连接事件触发。客户端 ID: ${clientId}`);
+            // 尝试记录更多信息，如果库提供的话 (可能需要查看 guacamole-lite 文档或源码)
+            // console.log(`[RDP 服务] 客户端连接参数 (如果可用):`, client.connection?.settings);
 
             if (client && typeof client.on === 'function') {
                 client.on('disconnect', (reason: string) => {
-                    // Minimal disconnect handling
+                    console.log(`[RDP 服务] Guacd 连接断开。客户端 ID: ${clientId}, 原因: ${reason || '未知'}`);
                 });
                 client.on('error', (err: Error) => {
-                     // Minimal client error handling
+                     console.error(`[RDP 服务] Guacd 客户端错误。客户端 ID: ${clientId}, 错误:`, err);
                 });
 
                 client.on('message', (message: Buffer | string) => {
@@ -77,6 +85,7 @@ try {
         });
    }
 } catch (error) {
+   console.error(`[RDP 服务] 初始化 GuacamoleLite 失败:`, error);
    process.exit(1);
 }
 
@@ -166,8 +175,8 @@ app.get('/api/get-token', (req: any, res: any) => {
 });
 
 apiServer.listen(API_PORT, () => {
-    console.log(`RDP API server listening on port ${API_PORT}`); // Added startup log
-    console.log(`Guacamole WebSocket server expected to be running on port ${GUAC_WS_PORT}`);
+    console.log(`[RDP 服务] API 服务器正在监听端口 ${API_PORT}`);
+    console.log(`[RDP 服务] Guacamole WebSocket 服务器应在端口 ${GUAC_WS_PORT} 上运行 (由 GuacamoleLite 管理)`);
 });
 
 const gracefulShutdown = (signal: string) => {
