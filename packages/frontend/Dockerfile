@@ -15,6 +15,7 @@ COPY packages/frontend/src ./packages/frontend/src
 COPY packages/frontend/index.html ./packages/frontend/
 COPY packages/frontend/tsconfig.json ./packages/frontend/
 COPY packages/frontend/vite.config.ts ./packages/frontend/
+COPY packages/frontend/.env ./packages/frontend/
 
 
 RUN npm run build --workspace=@nexus-terminal/frontend
