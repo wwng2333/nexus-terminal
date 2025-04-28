@@ -4,16 +4,21 @@ import express, { Request, Response } from 'express';
 import http from 'http';
 import crypto from 'crypto';
 import cors from 'cors';
+// --- Removed fs, path, dotenv imports ---
 
+// --- Configuration ---
 const GUAC_WS_PORT = process.env.GUAC_WS_PORT || 8081;
 const API_PORT = process.env.API_PORT || 9090;
 const GUACD_HOST = process.env.GUACD_HOST || 'localhost';
 const GUACD_PORT = parseInt(process.env.GUACD_PORT || '4822', 10);
-const ENCRYPTION_KEY_STRING = process.env.ENCRYPTION_KEY || 'ThisIsASecretKeyForGuacLite123!!';
-if (Buffer.byteLength(ENCRYPTION_KEY_STRING, 'utf8') !== 32) {
-    process.exit(1);
-}
 
+// --- Generate In-Memory Encryption Key on Startup ---
+console.log("Generating new in-memory encryption key for this session...");
+const ENCRYPTION_KEY_STRING = crypto.randomBytes(32).toString('hex');
+const ENCRYPTION_KEY_BUFFER = Buffer.from(ENCRYPTION_KEY_STRING, 'hex');
+console.log("In-memory encryption key generated.");
+
+// --- Express App Setup ---
 const app = express();
 const apiServer = http.createServer(app);
 
@@ -36,7 +41,7 @@ const websocketOptions = {
 
 const clientOptions = {
     crypt: {
-        key: ENCRYPTION_KEY_STRING
+        key: ENCRYPTION_KEY_STRING // GuacamoleLite expects the string key
     },
 };
 
@@ -73,30 +78,46 @@ try {
    process.exit(1);
 }
 
-const encryptToken = (data: string, key: string): string => {
+// Updated encryptToken to use the validated Buffer key and AES-GCM
+const encryptToken = (data: string, keyBuffer: Buffer): string => {
     try {
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        const iv = crypto.randomBytes(12); // GCM recommended IV size is 12 bytes
+        const cipher = crypto.createCipheriv('aes-256-gcm', keyBuffer, iv);
 
         const encryptedBuffer = Buffer.concat([cipher.update(data, 'utf8'), cipher.final()]);
+        const tag = cipher.getAuthTag(); // Get the authentication tag
 
-        const ivBase64 = iv.toString('base64');
-        const encryptedBase64 = encryptedBuffer.toString('base64');
+        // Combine IV, encrypted data, and tag for storage/transmission
+        // Using a format like IV:TAG:ENCRYPTED_DATA (Base64 encoded) is common
+        const combined = Buffer.concat([iv, tag, encryptedBuffer]);
 
-        const encodedObject = {
-            iv: ivBase64,
-            value: encryptedBase64
-        };
+        return combined.toString('base64');
 
-        const jsonString = JSON.stringify(encodedObject);
-
-        const finalToken = Buffer.from(jsonString, 'utf8').toString('base64');
-
-        return finalToken;
     } catch (e) {
+        console.error("Token encryption failed:", e); // Log the actual error
         throw new Error("Token encryption failed.");
     }
 };
+
+// Example Decryption (if needed elsewhere, ensure consistency)
+// const decryptToken = (token: string, keyBuffer: Buffer): string => {
+//     try {
+//         const combined = Buffer.from(token, 'base64');
+//         const iv = combined.slice(0, 12);
+//         const tag = combined.slice(12, 12 + 16);
+//         const encrypted = combined.slice(12 + 16);
+//
+//         const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv);
+//         decipher.setAuthTag(tag);
+//
+//         const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+//         return decrypted.toString('utf8');
+//     } catch (e) {
+//         console.error("Token decryption failed:", e);
+//         throw new Error("Token decryption failed.");
+//     }
+// };
+
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 app.get('/api/get-token', (req: any, res: any) => {
@@ -126,33 +147,39 @@ app.get('/api/get-token', (req: any, res: any) => {
 
     try {
         const tokenData = JSON.stringify(connectionParams);
-        const encryptedToken = encryptToken(tokenData, ENCRYPTION_KEY_STRING);
+        // Use the validated key buffer for encryption
+        // Use the validated key buffer for encryption
+        const encryptedToken = encryptToken(tokenData, ENCRYPTION_KEY_BUFFER);
         res.json({ token: encryptedToken });
     } catch (error) {
+        console.error("Error in /api/get-token:", error); // Log specific error
         res.status(500).json({ error: 'Failed to generate token' });
     }
 });
 
 apiServer.listen(API_PORT, () => {
-    // Startup log removed
+    console.log(`RDP API server listening on port ${API_PORT}`); // Added startup log
+    console.log(`Guacamole WebSocket server expected to be running on port ${GUAC_WS_PORT}`);
 });
 
 const gracefulShutdown = (signal: string) => {
+    console.log(`Received ${signal}. Shutting down gracefully...`); // Added shutdown log
 
   let guacClosed = false;
   let apiClosed = false;
 
   const tryExit = () => {
     if (guacClosed && apiClosed) {
+      console.log("All servers closed. Exiting."); // Added exit log
       process.exit(0);
     }
   };
 
   apiServer.close((err) => {
     if (err) {
-        // Minimal error handling
+        console.error("Error closing API server:", err); // Added error log
     } else {
-        // Minimal close handling
+        console.log("API server closed."); // Added close log
     }
     apiClosed = true;
     tryExit();
@@ -160,24 +187,30 @@ const gracefulShutdown = (signal: string) => {
 
   // @ts-ignore - Assuming close method exists based on common patterns
   if (typeof guacServer !== 'undefined' && guacServer && typeof guacServer.close === 'function') {
+    console.log("Closing Guacamole server..."); // Added close log
     // @ts-ignore
     guacServer.close(() => {
+        console.log("Guacamole server closed."); // Added close log
         guacClosed = true;
         tryExit();
     });
   } else {
+    console.log("Guacamole server not running or doesn't support close()."); // Added info log
     guacClosed = true;
     tryExit();
   }
 
+  // Force exit after timeout
   setTimeout(() => {
+    console.error("Graceful shutdown timed out. Forcing exit."); // Added timeout log
     process.exit(1);
-  }, 10000);
+  }, 10000); // 10 seconds timeout
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 process.on('SIGUSR2', () => {
+    // Handle nodemon restarts gracefully
     gracefulShutdown('SIGUSR2 (nodemon restart)');
 });
