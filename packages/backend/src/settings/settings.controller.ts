@@ -44,7 +44,9 @@ export const settingsController = {
           'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
           'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
           'commandInputSyncTarget', // +++ 添加命令输入同步目标键 +++
-          'timezone' // NEW: 添加时区键
+          'timezone', // NEW: 添加时区键
+          'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
+          'rdpModalHeight' // NEW: 添加 RDP 模态框高度键
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {

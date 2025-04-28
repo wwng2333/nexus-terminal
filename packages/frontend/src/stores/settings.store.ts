@@ -45,6 +45,8 @@ interface SettingsState {
   fileManagerColWidths?: string; // NEW: 文件管理器列宽 JSON 字符串 (e.g., '{"name": 300, "size": 100}')
   commandInputSyncTarget?: 'quickCommands' | 'commandHistory' | 'none'; // NEW: 命令输入同步目标
   timezone?: string; // NEW: 时区设置 (e.g., 'Asia/Shanghai', 'UTC')
+  rdpModalWidth?: string; // NEW: RDP 模态框宽度
+  rdpModalHeight?: string; // NEW: RDP 模态框高度
   // Add other general settings keys here as needed
   [key: string]: string | undefined; // Allow other string settings
 }
@@ -211,6 +213,13 @@ export const useSettingsStore = defineStore('settings', () => {
       if (settings.value.timezone === undefined) {
           settings.value.timezone = 'UTC'; // 默认 UTC
       }
+      // NEW: RDP Modal Size defaults
+      if (settings.value.rdpModalWidth === undefined) {
+          settings.value.rdpModalWidth = '1064'; // 默认宽度 (1024 + 40 padding)
+      }
+      if (settings.value.rdpModalHeight === undefined) {
+          settings.value.rdpModalHeight = '858'; // 默认高度 (768 + chrome)
+      }
 
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
@@ -288,7 +297,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
         'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
         'commandInputSyncTarget', // +++ 添加命令输入同步目标键 +++
-        'timezone' // NEW: 添加时区键
+        'timezone', // NEW: 添加时区键
+        'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
+        'rdpModalHeight' // NEW: 添加 RDP 模态框高度键
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -296,8 +307,12 @@ export const useSettingsStore = defineStore('settings', () => {
     }
 
     try {
+      console.log(`[SettingsStore] Attempting to update setting - Key: ${key}, Value: ${value}`); // +++ Add log +++
       // 注意：后端 controller 现在会过滤，但前端也做一层检查更好
-      await apiClient.put('/settings', { [key]: value }); // 使用 apiClient
+      const payload = { [key]: value };
+      console.log('[SettingsStore] Sending PUT request to /settings with payload:', payload); // +++ Add log +++
+      await apiClient.put('/settings', payload); // 使用 apiClient
+      console.log(`[SettingsStore] Successfully updated setting via API - Key: ${key}`); // +++ Add log +++
       // Update store state *after* successful API call
       settings.value = { ...settings.value, [key]: value };
 
@@ -309,8 +324,19 @@ export const useSettingsStore = defineStore('settings', () => {
         console.warn(`[SettingsStore] updateSetting: Attempted to set invalid language '${value}'. Ignoring i18n update.`);
       }
     } catch (err: any) {
-      console.error(`更新设置项 '${key}' 失败:`, err);
-      throw new Error(err.response?.data?.message || err.message || `更新设置项 '${key}' 失败`);
+      // +++ Enhanced error logging +++
+      console.error(`[SettingsStore] Failed to update setting '${key}' via API. Error:`, err);
+      if (err.response) {
+        console.error('[SettingsStore] API Error Response Data:', err.response.data);
+        console.error('[SettingsStore] API Error Response Status:', err.response.status);
+        console.error('[SettingsStore] API Error Response Headers:', err.response.headers);
+      } else if (err.request) {
+        console.error('[SettingsStore] API Error Request:', err.request);
+      } else {
+        console.error('[SettingsStore] API Error Message:', err.message);
+      }
+      // Rethrow the error but maybe provide a more specific message if possible
+      throw new Error(err.response?.data?.message || `更新设置项 '${key}' 失败: ${err.message}`);
     }
   }
 
@@ -330,7 +356,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'fileManagerRowSizeMultiplier', // +++ 添加文件管理器行大小键 +++
         'fileManagerColWidths', // +++ 添加文件管理器列宽键 +++
         'commandInputSyncTarget', // +++ 添加命令输入同步目标键 +++
-        'timezone' // NEW: 添加时区键
+        'timezone', // NEW: 添加时区键
+        'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
+        'rdpModalHeight' // NEW: 添加 RDP 模态框高度键
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: string | undefined = undefined; // Use string type

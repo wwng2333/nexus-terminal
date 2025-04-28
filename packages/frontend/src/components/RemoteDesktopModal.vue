@@ -1,18 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick, computed, watchEffect } from 'vue'; // Import watchEffect
 import { useI18n } from 'vue-i18n';
+import { useSettingsStore } from '../stores/settings.store'; // Import settings store
 // @ts-ignore - guacamole-common-js lacks official types
 import Guacamole from 'guacamole-common-js';
 import apiClient from '../utils/apiClient';
 import { ConnectionInfo } from '../stores/connections.store';
 
 const { t } = useI18n();
+const settingsStore = useSettingsStore(); // Instantiate settings store
 
 const props = defineProps<{
   connection: ConnectionInfo | null;
 }>();
 
 const emit = defineEmits(['close']);
+
+let saveWidthTimeout: ReturnType<typeof setTimeout> | null = null;
+let saveHeightTimeout: ReturnType<typeof setTimeout> | null = null;
+const DEBOUNCE_DELAY = 500; // ms
 
 const rdpDisplayRef = ref<HTMLDivElement | null>(null);
 const rdpContainerRef = ref<HTMLDivElement | null>(null); // Added ref for the container
@@ -34,8 +40,7 @@ const MIN_MODAL_HEIGHT = 768;
 
 const RDP_BACKEND_API_BASE = 'http://localhost:9090';
 const RDP_BACKEND_WEBSOCKET_URL = 'ws://localhost:8081';
-const LOCAL_STORAGE_MODAL_WIDTH_KEY = 'rdpModalWidth'; // Reverted key name
-const LOCAL_STORAGE_MODAL_HEIGHT_KEY = 'rdpModalHeight'; // Reverted key name
+// Removed localStorage keys
 
 const connectRdp = async () => { // Removed useInputValues parameter
   if (!props.connection || !rdpDisplayRef.value) {
@@ -238,49 +243,54 @@ const closeModal = () => {
 // Removed setupResizeObserver as ResizeObserver is no longer used
 
 
-// Load desired MODAL size from localStorage on mount
-const loadDesiredModalSize = () => {
-  const savedWidth = localStorage.getItem(LOCAL_STORAGE_MODAL_WIDTH_KEY);
-  const savedHeight = localStorage.getItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY);
-  if (savedWidth) {
-    // Validate loaded width against minimum
-    desiredModalWidth.value = Math.max(MIN_MODAL_WIDTH, parseInt(savedWidth, 10) || MIN_MODAL_WIDTH);
-  } else {
-     // Ensure default is also valid if nothing is saved
-     desiredModalWidth.value = Math.max(MIN_MODAL_WIDTH, desiredModalWidth.value);
-  }
-  if (savedHeight) {
-    // Validate loaded height against minimum
-    desiredModalHeight.value = Math.max(MIN_MODAL_HEIGHT, parseInt(savedHeight, 10) || MIN_MODAL_HEIGHT);
-  } else {
-    // Ensure default is also valid if nothing is saved
-    desiredModalHeight.value = Math.max(MIN_MODAL_HEIGHT, desiredModalHeight.value);
-  }
-};
+// Removed loadDesiredModalSize function
 
-// Save desired MODAL size to localStorage when changed
+// Watch local refs and save validated size to settings store
 watch(desiredModalWidth, (newWidth) => {
-  // Validate new width before saving and potentially update the ref
+  // Validate new width before saving
   const validatedWidth = Math.max(MIN_MODAL_WIDTH, Number(newWidth) || MIN_MODAL_WIDTH);
-  if (validatedWidth !== newWidth) {
-    // If validation changed the value, update the v-model binding
-    desiredModalWidth.value = validatedWidth;
-  }
-  localStorage.setItem(LOCAL_STORAGE_MODAL_WIDTH_KEY, String(validatedWidth));
-});
-watch(desiredModalHeight, (newHeight) => {
-  // Validate new height before saving and potentially update the ref
-  const validatedHeight = Math.max(MIN_MODAL_HEIGHT, Number(newHeight) || MIN_MODAL_HEIGHT);
-   if (validatedHeight !== newHeight) {
-     // If validation changed the value, update the v-model binding
-    desiredModalHeight.value = validatedHeight;
-  }
-  localStorage.setItem(LOCAL_STORAGE_MODAL_HEIGHT_KEY, String(validatedHeight));
+  // Debounce saving the *validated* width
+  if (saveWidthTimeout) clearTimeout(saveWidthTimeout);
+  saveWidthTimeout = setTimeout(() => {
+    // Only save the validated width, don't change the input value here
+    console.log(`[RDP Modal] Debounced Save - Saving width: ${validatedWidth} (Input value: ${newWidth})`);
+    settingsStore.updateSetting('rdpModalWidth', String(validatedWidth));
+  }, DEBOUNCE_DELAY);
 });
 
+watch(desiredModalHeight, (newHeight) => {
+  // Validate new height before saving
+  const validatedHeight = Math.max(MIN_MODAL_HEIGHT, Number(newHeight) || MIN_MODAL_HEIGHT);
+  // Debounce saving the *validated* height
+  if (saveHeightTimeout) clearTimeout(saveHeightTimeout);
+  saveHeightTimeout = setTimeout(() => {
+    // Only save the validated height, don't change the input value here
+    console.log(`[RDP Modal] Debounced Save - Saving height: ${validatedHeight} (Input value: ${newHeight})`);
+    settingsStore.updateSetting('rdpModalHeight', String(validatedHeight));
+  }, DEBOUNCE_DELAY);
+});
+
+// Load initial size from settings store when component mounts or settings change
+watchEffect(() => {
+  const storeWidth = settingsStore.settings.rdpModalWidth;
+  const storeHeight = settingsStore.settings.rdpModalHeight;
+  console.log(`[RDP Modal] Loading size from store - Width: ${storeWidth}, Height: ${storeHeight}`); // +++ Add log +++
+ 
+  // Use defaults from store if available, otherwise use component defaults
+  const initialWidth = storeWidth ? parseInt(storeWidth, 10) : desiredModalWidth.value; // Use current ref value as fallback default
+  const initialHeight = storeHeight ? parseInt(storeHeight, 10) : desiredModalHeight.value; // Use current ref value as fallback default
+
+  // Validate against minimums
+  const finalWidth = Math.max(MIN_MODAL_WIDTH, isNaN(initialWidth) ? MIN_MODAL_WIDTH : initialWidth);
+  const finalHeight = Math.max(MIN_MODAL_HEIGHT, isNaN(initialHeight) ? MIN_MODAL_HEIGHT : initialHeight);
+  console.log(`[RDP Modal] Applying validated size - Width: ${finalWidth}, Height: ${finalHeight}`); // +++ Add log +++
+  desiredModalWidth.value = finalWidth;
+  desiredModalHeight.value = finalHeight;
+ });
+ 
 
 onMounted(() => {
-  loadDesiredModalSize(); // Load saved size first
+  // Initial size loading is now handled by watchEffect
 
   if (props.connection) {
     nextTick(async () => {
@@ -317,9 +327,12 @@ const computedModalStyle = computed(() => {
   // const footerHeight = 35; // Defined in connectRdp
   // const extraHeight = headerHeight + footerHeight + 10; // Defined in connectRdp
 
+  // Apply minimum constraints here for the actual modal style
+  const actualWidth = Math.max(MIN_MODAL_WIDTH, desiredModalWidth.value);
+  const actualHeight = Math.max(MIN_MODAL_HEIGHT, desiredModalHeight.value);
   return {
-    width: `${desiredModalWidth.value}px`, // Width is direct
-    height: `${desiredModalHeight.value}px`, // Height is direct
+    width: `${actualWidth}px`,
+    height: `${actualHeight}px`,
   };
 });
 
@@ -380,8 +393,7 @@ const computedModalStyle = computed(() => {
             <input
               id="modal-width"
               type="number"
-              v-model="desiredModalWidth"
-              min="1024"
+              v-model.number="desiredModalWidth"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
@@ -389,8 +401,7 @@ const computedModalStyle = computed(() => {
             <input
               id="modal-height"
               type="number"
-              v-model="desiredModalHeight"
-              min="768"
+              v-model.number="desiredModalHeight"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />

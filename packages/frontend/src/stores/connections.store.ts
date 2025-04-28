@@ -41,7 +41,6 @@ export const useConnectionsStore = defineStore('connections', {
             try {
                 const cachedData = localStorage.getItem(cacheKey);
                 if (cachedData) {
-                    console.log('[ConnectionsStore] Loading connections from cache.');
                     this.connections = JSON.parse(cachedData);
                     this.isLoading = false; // 先显示缓存，设置为 false
                 } else {
@@ -57,21 +56,16 @@ export const useConnectionsStore = defineStore('connections', {
             // 2. 后台获取最新数据
             this.isLoading = true; // 标记正在后台获取
             try {
-                console.log('[ConnectionsStore] Fetching latest connections from server...');
                 const response = await apiClient.get<ConnectionInfo[]>('/connections');
                 const freshData = response.data;
-                console.log('[ConnectionsStore] Data received from API:', JSON.stringify(freshData, null, 2)); // Log received data
                 const freshDataString = JSON.stringify(freshData);
 
                 // 3. 对比并更新
                 const currentDataString = JSON.stringify(this.connections);
                 if (currentDataString !== freshDataString) {
-                    console.log('[ConnectionsStore] Connections data changed, updating state and cache.');
                     this.connections = freshData;
-                    console.log('[ConnectionsStore] State updated with fresh data:', JSON.stringify(this.connections, null, 2)); // Log state after update
                     localStorage.setItem(cacheKey, freshDataString); // 更新缓存
                 } else {
-                    console.log('[ConnectionsStore] Connections data is up-to-date.');
                 }
                 this.error = null; // 清除之前的错误（如果有）
             } catch (err: any) {
