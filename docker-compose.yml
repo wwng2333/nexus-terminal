@@ -20,7 +20,7 @@ services:
       - .env # Load environment variables from .env file in the root
     container_name: nexus-terminal-backend
     ports:
-      - "18112:3001"
+      - "3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001

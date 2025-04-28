@@ -476,14 +476,17 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
             }
 
             // Determine RDP target URL based on deployment mode
-            const deploymentMode = process.env.DEPLOYMENT_MODE || 'docker'; // Default to docker mode
+            const deploymentMode = process.env.DEPLOYMENT_MODE; // Default to docker mode
             let rdpBaseUrl: string;
             if (deploymentMode === 'local') {
-                rdpBaseUrl = process.env.RDP_SERVICE_URL_LOCAL || 'ws://localhost:18114'; // Default for local
+                rdpBaseUrl = process.env.RDP_SERVICE_URL_LOCAL || 'ws://localhost:8081'; // Default for local, fallback to localhost:3001
                 console.log(`[WebSocket RDP Proxy] Using LOCAL deployment mode. RDP Target Base: ${rdpBaseUrl}`);
-            } else {
-                rdpBaseUrl = process.env.RDP_SERVICE_URL_DOCKER || 'ws://rdp:8081'; // Default for docker
+            } else if (deploymentMode === 'docker') { // Explicitly check for docker mode
+                rdpBaseUrl = process.env.RDP_SERVICE_URL_DOCKER || 'ws://rdp:8081'; // Default for docker, fallback to localhost:3001
                 console.log(`[WebSocket RDP Proxy] Using DOCKER deployment mode. RDP Target Base: ${rdpBaseUrl}`);
+            } else { // Handle unknown modes
+                rdpBaseUrl = 'ws://localhost:8081'; // Fallback to a safe default for unknown modes
+                console.warn(`[WebSocket RDP Proxy] Unknown deployment mode '${deploymentMode}'. Defaulting to safe fallback RDP Target Base: ${rdpBaseUrl}`);
             }
 
             // Ensure base URL doesn't end with a slash before appending query params

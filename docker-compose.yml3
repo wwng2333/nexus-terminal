@@ -3,7 +3,7 @@ services:
     image: heavrnl/nexus-terminal-frontend
     container_name: nexus-terminal-frontend
     ports:
-      - "18111:80"
+      - "3001:80"
     depends_on:
       - backend
       - rdp # Added rdp dependency
@@ -14,7 +14,7 @@ services:
     image: heavrnl/nexus-terminal-backend
     container_name: nexus-terminal-backend
     ports:
-      - "18112:3001"
+      - "3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
