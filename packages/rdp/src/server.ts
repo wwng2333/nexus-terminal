@@ -152,7 +152,7 @@ app.get('/api/get-token', (req: any, res: any) => {
                 port: port as string,
                 username: username as string,
                 password: password as string,
-                security: security as string,
+                security: 'nla',
                 'ignore-cert': ignoreCert as string,
                 // Include the dynamic (or default) size parameters from query
                 width: String(req.query.width || '1024'),
