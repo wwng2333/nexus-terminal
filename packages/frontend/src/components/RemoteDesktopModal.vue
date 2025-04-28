@@ -95,26 +95,26 @@ const connectRdp = async () => {
          // 考虑设置错误状态或通知用户
     }
 
-    // 使用确定的基础 URL 构建后端代理端点的 URL
-    let tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
-    // 强制移除末尾可能存在的 '?'
-    if (tunnelUrl.endsWith('?')) {
-      tunnelUrl = tunnelUrl.slice(0, -1);
-      console.warn(`[RDP 模态框] 移除了末尾多余的 '?'`);
-    }
+    // --- 测试：写死 width, height, dpi 参数 ---
+    const hardcodedWidth = 1024;
+    const hardcodedHeight = 768;
+    const hardcodedDpi = 96;
+    console.warn(`[RDP 模态框 - 测试] 使用写死尺寸: ${hardcodedWidth}x${hardcodedHeight} DPI: ${hardcodedDpi}`);
+    let tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${hardcodedWidth}&height=${hardcodedHeight}&dpi=${hardcodedDpi}`;
+    // --- 结束测试 ---
+
    console.log(`[RDP 模态框] 准备连接到隧道: ${tunnelUrl}`); // 记录准备使用的 URL
    // 再次强制清理，确保最终传递给库的 URL 没有末尾 '?' 或 '%3F'
    let finalTunnelUrl = tunnelUrl;
    if (finalTunnelUrl.endsWith('?')) {
        finalTunnelUrl = finalTunnelUrl.slice(0, -1);
        console.warn(`[RDP 模态框] 移除了末尾多余的 '?'`);
-   } else if (finalTunnelUrl.endsWith('%3F') || finalTunnelUrl.endsWith('%3f')) {
+   } else if (finalTunnelUrl.endsWith('%3F') || finalTunnelUrl.endsWith('%3f')) { // 检查大小写 %3F
        finalTunnelUrl = finalTunnelUrl.slice(0, -3); // 移除 '%3F' (3个字符)
        console.warn(`[RDP 模态框] 移除了末尾多余的 '%3F'`);
    }
-   if (finalTunnelUrl !== tunnelUrl) {
-        console.log(`[RDP 模态框] 清理后的最终隧道 URL: ${finalTunnelUrl}`);
-   }
+   // 增加日志，显示最终传递给库的 URL
+   console.log(`[RDP 模态框] 最终传递给 WebSocketTunnel 的 URL: ${finalTunnelUrl}`);
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(finalTunnelUrl); // 使用清理后的 URL
 
