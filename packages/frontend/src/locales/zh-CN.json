@@ -679,7 +679,9 @@
     "all": "全部",
     "filter": "筛选",
     "width": "宽度",
-    "height": "高度"
+    "height": "高度",
+    "reconnect": "重新连接",
+    "retry": "重试"
   },
   "layoutConfigurator": {
     "title": "布局管理器",
@@ -777,7 +779,8 @@
       "inputError": "设置输入监听器时出错。",
       "noConnection": "未提供连接信息。",
       "tokenError": "获取令牌失败"
-    }
+    },
+    "reconnectTooltip": "重新连接到远程桌面"
   },
   "commandInputBar": {
     "placeholder": "在此输入命令后按 Enter 发送到终端...",
@@ -830,6 +833,7 @@
     "sortByUsage": "使用频率",
     "usageCount": "使用次数",
     "empty": "没有快捷指令。点击“+”按钮创建一个吧！",
+    "addFirst": "添加第一个快捷指令",
     "confirmDelete": "确定要删除快捷指令 \"{name}\" 吗？",
     "form": {
       "titleAdd": "添加快捷指令",
