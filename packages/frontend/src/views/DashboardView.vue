@@ -26,23 +26,23 @@ const maxRecentLogs = 5;
 
 // --- 最近连接 ---
 const recentConnections = computed(() => {
-  console.log('[Dashboard] Raw connections from store:', JSON.parse(JSON.stringify(connections.value)));
+  console.log('[仪表盘] 从 Store 获取的原始连接列表:', JSON.parse(JSON.stringify(connections.value)));
 
   // 优先尝试按 last_connected_at 过滤和排序
   const connected = connections.value.filter(c => c.last_connected_at);
-  console.log('[Dashboard] Filtered connections (with last_connected_at):', JSON.parse(JSON.stringify(connected)));
+  console.log('[仪表盘] 过滤后的连接 (包含 last_connected_at):', JSON.parse(JSON.stringify(connected)));
 
   if (connected.length > 0) {
     connected.sort((a, b) => (b.last_connected_at ?? 0) - (a.last_connected_at ?? 0));
     const result = connected.slice(0, maxRecentConnections);
-    console.log('[Dashboard] Final recent connections (using last_connected_at):', JSON.parse(JSON.stringify(result)));
+    console.log('[仪表盘] 最终最近连接 (使用 last_connected_at):', JSON.parse(JSON.stringify(result)));
     return result;
   } else {
     // 如果没有带 last_connected_at 的连接，则按 updated_at 排序显示最近更新的
-    console.log('[Dashboard] No connections with last_connected_at found. Falling back to sorting by updated_at.');
+    console.log('[仪表盘] 未找到包含 last_connected_at 的连接，回退到按 updated_at 排序。');
     const sortedByUpdate = [...connections.value].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
     const result = sortedByUpdate.slice(0, maxRecentConnections);
-    console.log('[Dashboard] Final recent connections (fallback using updated_at):', JSON.parse(JSON.stringify(result)));
+    console.log('[仪表盘] 最终最近连接 (回退使用 updated_at):', JSON.parse(JSON.stringify(result)));
     return result;
   }
 });

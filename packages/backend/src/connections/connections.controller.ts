@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import * as ConnectionService from '../services/connection.service';
 import * as SshService from '../services/ssh.service';
 import * as ImportExportService from '../services/import-export.service';
+import * as ConnectionRepository from '../repositories/connection.repository'; // +++ 导入 ConnectionRepository +++
 
 
 
@@ -289,6 +290,17 @@ export const getRdpSessionToken = async (req: Request, res: Response): Promise<v
             res.status(400).json({ message: '此连接类型不是 RDP。' });
             return;
         }
+
+        // +++ 在确认是 RDP 连接后，立即更新 last_connected_at +++
+        try {
+            const currentTimeSeconds = Math.floor(Date.now() / 1000);
+            await ConnectionRepository.updateLastConnected(connectionId, currentTimeSeconds);
+            console.log(`[Controller:getRdpSessionToken] 已更新 RDP 连接 ${connectionId} 的 last_connected_at 为 ${currentTimeSeconds}`);
+        } catch (updateError) {
+            // 记录更新时间戳的错误，但不阻止获取令牌的流程
+            console.error(`[Controller:getRdpSessionToken] 更新 RDP 连接 ${connectionId} 的 last_connected_at 时出错:`, updateError);
+        }
+        // +++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
         // 3. 验证 RDP 连接是否使用密码认证
         if (connection.auth_method !== 'password' || !decryptedPassword) {
