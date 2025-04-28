@@ -1,34 +1,33 @@
 <script setup lang="ts">
-import { ref, computed, PropType, onMounted, watch } from 'vue'; // 导入 ref, computed, onMounted, watch
-import { useI18n } from 'vue-i18n'; // 导入 i18n
-import { useRoute } from 'vue-router'; // 导入 useRoute
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
-import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue'; // 导入连接列表组件
-import { useSessionStore } from '../stores/session.store'; // 导入 session store
-import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store'; // +++ 导入 connections store 和类型 +++
-import { useLayoutStore, type PaneName } from '../stores/layout.store'; // 导入布局 store 和类型
+import { ref, computed, PropType, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n'; 
+import { useRoute } from 'vue-router';
+import { storeToRefs } from 'pinia'; 
+import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue';
+import { useSessionStore } from '../stores/session.store';
+import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
+import { useLayoutStore, type PaneName } from '../stores/layout.store';
 // 导入会话状态类型
-import type { SessionTabInfoWithStatus } from '../stores/session.store'; // 导入更新后的类型
-// *** 假设 layoutStore 会有这些状态和方法 ***
-// import { useLayoutStore } from '../stores/layout.store';
+import type { SessionTabInfoWithStatus } from '../stores/session.store'; 
 
-// --- Setup ---
+
+
 const { t } = useI18n(); // 初始化 i18n
 const layoutStore = useLayoutStore(); // 初始化布局 store
-const connectionsStore = useConnectionsStore(); // +++ 获取 connections store 实例 +++
+const connectionsStore = useConnectionsStore(); 
 const { isHeaderVisible } = storeToRefs(layoutStore); // 从 layout store 获取主导航栏可见状态
 const route = useRoute(); // 获取路由实例
 
 // 定义 Props
 const props = defineProps({
   sessions: {
-    type: Array as PropType<SessionTabInfoWithStatus[]>, // 使用更新后的类型
+    type: Array as PropType<SessionTabInfoWithStatus[]>, 
     required: true,
   },
   activeSessionId: {
-    type: String as PropType<string | null>, // 类型已包含 null
-    required: false, // 改为非必需，允许初始为 null
-    default: null,   // 提供默认值 null
+    type: String as PropType<string | null>, 
+    required: false, 
+    default: null,  
   },
 });
 
@@ -37,10 +36,8 @@ const emit = defineEmits([
   'activate-session',
   'close-session',
   'open-layout-configurator',
-  'request-add-connection-from-popup', // 声明从弹窗发出的添加请求事件
-  'request-edit-connection-from-popup'  // 新增：声明从弹窗发出的编辑请求事件
-  // --- 移除 RDP 事件 ---
-  // 'request-rdp-modal-from-popup'
+  'request-add-connection-from-popup', 
+  'request-edit-connection-from-popup'  
 ]);
 
 const activateSession = (sessionId: string) => {
@@ -151,7 +148,7 @@ const toggleButtonTitle = computed(() => {
   // 调整 i18n key 和默认文本
   return isHeaderVisible.value ? t('header.hide', '隐藏顶部导航') : t('header.show', '显示顶部导航');
 });
-// --- End Header Visibility Logic ---
+
 
 </script>
 
@@ -226,4 +223,4 @@ const toggleButtonTitle = computed(() => {
   </div>
 </template>
 
-<!-- Scoped styles removed, now using Tailwind utility classes -->
+

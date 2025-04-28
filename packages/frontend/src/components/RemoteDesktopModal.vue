@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, computed, watchEffect } from 'vue'; // Import watchEffect
+import { ref, onMounted, onUnmounted, watch, nextTick, computed, watchEffect } from 'vue'; 
 import { useI18n } from 'vue-i18n';
-import { useSettingsStore } from '../stores/settings.store'; // Import settings store
-// @ts-ignore - guacamole-common-js lacks official types
+import { useSettingsStore } from '../stores/settings.store';
+// @ts-ignore - guacamole-common-js 缺少官方类型定义
 import Guacamole from 'guacamole-common-js';
 import apiClient from '../utils/apiClient';
 import { ConnectionInfo } from '../stores/connections.store';
 
 const { t } = useI18n();
-const settingsStore = useSettingsStore(); // Instantiate settings store
+const settingsStore = useSettingsStore(); 
 
 const props = defineProps<{
   connection: ConnectionInfo | null;
@@ -21,19 +21,14 @@ let saveHeightTimeout: ReturnType<typeof setTimeout> | null = null;
 const DEBOUNCE_DELAY = 500; // ms
 
 const rdpDisplayRef = ref<HTMLDivElement | null>(null);
-const rdpContainerRef = ref<HTMLDivElement | null>(null); // Added ref for the container
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const rdpContainerRef = ref<HTMLDivElement | null>(null);
 const guacClient = ref<any | null>(null);
 const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
 const statusMessage = ref('');
 const keyboard = ref<any | null>(null);
 const mouse = ref<any | null>(null);
-// const inputWidth = ref(1024); // Removed, size determined by container
-// const inputHeight = ref(768); // Removed, size determined by container
-// const modalStyle = ref({}); // Replaced by computedModalStyle
-// const rdpContainerStyle = ref<{ height?: string }>({}); // Removed, size determined by flex-1
-const desiredModalWidth = ref(1064); // User sets the desired TOTAL modal width (1024 + 40 padding)
-const desiredModalHeight = ref(858); // User sets the desired TOTAL modal height (768 + chrome)
+const desiredModalWidth = ref(1064); 
+const desiredModalHeight = ref(858); 
 
 const MIN_MODAL_WIDTH = 1024;
 const MIN_MODAL_HEIGHT = 768;
@@ -45,16 +40,16 @@ const LOCAL_BACKEND_URL = 'ws://localhost:3001'
 // Determine WebSocket URL based on hostname
 if (window.location.hostname === 'localhost') {
   backendBaseUrl = LOCAL_BACKEND_URL;
-  console.log(`[RDP Modal] Using localhost WebSocket Base URL: ${backendBaseUrl}`);
+  console.log(`[RDP 模态框] 使用 localhost WebSocket 基础 URL: ${backendBaseUrl}`);
 } else {
-  // Fallback: Construct URL based on current window location for production/other environments
+  // 备选方案: 根据当前 window.location 为生产环境或其他环境构建 URL
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsHostAndPort = window.location.host;
   backendBaseUrl = `${wsProtocol}//${wsHostAndPort}`;
-  console.log(`[RDP Modal] Using production WebSocket Base URL from window.location: ${backendBaseUrl}`);
+  console.log(`[RDP 模态框] 使用生产环境 WebSocket 基础 URL (来自 window.location): ${backendBaseUrl}`);
 }
 
-const connectRdp = async () => { // Removed useInputValues parameter
+const connectRdp = async () => {
   if (!props.connection || !rdpDisplayRef.value) {
     statusMessage.value = t('remoteDesktopModal.errors.missingInfo');
     connectionStatus.value = 'error';
@@ -80,29 +75,29 @@ const connectRdp = async () => { // Removed useInputValues parameter
     }
     statusMessage.value = t('remoteDesktopModal.status.connectingWs');
 
-    // Get RDP container dimensions after DOM update
+    // DOM 更新后获取 RDP 容器尺寸
     await nextTick();
 
-    let widthToSend = 800; // Default/fallback width
-    let heightToSend = 600; // Default/fallback height
+    let widthToSend = 800; // 默认/备用宽度
+    let heightToSend = 600; // 默认/备用高度
     const dpiToSend = 96;
 
     if (rdpContainerRef.value) {
-        // Use clientWidth/clientHeight as they represent the inner dimensions available for content
+        // 使用 clientWidth/clientHeight，因为它们代表可用于内容的内部尺寸
         widthToSend = rdpContainerRef.value.clientWidth;
-        heightToSend = rdpContainerRef.value.clientHeight - 1; // Subtract 1 based on feedback
-        // Ensure minimum dimensions, adjust if necessary based on backend requirements
+        heightToSend = rdpContainerRef.value.clientHeight - 1; // 根据反馈减去 1
+        // 确保最小尺寸，必要时根据后端要求进行调整
         widthToSend = Math.max(100, widthToSend);
         heightToSend = Math.max(100, heightToSend);
-        console.log(`Calculated RDP dimensions: ${widthToSend}x${heightToSend}`);
+        console.log(`计算出的 RDP 尺寸: ${widthToSend}x${heightToSend}`);
     } else {
-         console.warn("RDP container ref not available to get dimensions. Using defaults.");
-         // Consider setting an error state or notifying the user
+         console.warn("RDP 容器引用不可用，无法获取尺寸。使用默认值。");
+         // 考虑设置错误状态或通知用户
     }
 
-    // Construct URL for the backend proxy endpoint using the determined base URL
+    // 使用确定的基础 URL 构建后端代理端点的 URL
     const tunnelUrl = `${backendBaseUrl}/rdp-proxy?token=${encodeURIComponent(token)}&width=${widthToSend}&height=${heightToSend}&dpi=${dpiToSend}`;
-    console.log(`[RDP Modal] Connecting to tunnel: ${tunnelUrl}`); // Log the final URL
+   console.log(`[RDP 模态框] 连接到隧道: ${tunnelUrl}`); // 记录最终 URL
     // @ts-ignore
     const tunnel = new Guacamole.WebSocketTunnel(tunnelUrl);
 
@@ -116,8 +111,8 @@ const connectRdp = async () => { // Removed useInputValues parameter
 
     // @ts-ignore
     guacClient.value = new Guacamole.Client(tunnel);
-// Add this line to enable keep-alive (send NOP every 3 seconds)
-    guacClient.value.keepAliveFrequency = 3000; // milliseconds
+// 添加此行以启用 keep-alive (每 3 秒发送 NOP)
+    guacClient.value.keepAliveFrequency = 3000; // 毫秒
 
     rdpDisplayRef.value.appendChild(guacClient.value.getDisplay().getElement());
 
@@ -171,7 +166,7 @@ const connectRdp = async () => { // Removed useInputValues parameter
       disconnectRdp();
     };
 
-    guacClient.value.connect(''); // Keep the '' change
+    guacClient.value.connect(''); // 保留 '' 的更改
 
   } catch (error: any) {
     statusMessage.value = `${t('remoteDesktopModal.errors.connectionFailed')}: ${error.response?.data?.message || error.message || String(error)}`;
@@ -195,7 +190,7 @@ const setupInputListeners = () => {
         };
 
         // @ts-ignore
-        keyboard.value = new Guacamole.Keyboard(document); // Attach listener to document for better capture
+        keyboard.value = new Guacamole.Keyboard(document); // 将监听器附加到 document 以便更好地捕获
 
         keyboard.value.onkeydown = (keysym: number) => {
             if (guacClient.value) {
@@ -228,10 +223,7 @@ const removeInputListeners = () => {
 };
 
 
-// Removed stopResizeObserver as ResizeObserver is no longer used
-
 const disconnectRdp = () => {
-  // stopResizeObserver(); // Removed
   removeInputListeners();
   if (guacClient.value) {
     guacClient.value.disconnect();
@@ -249,38 +241,32 @@ const disconnectRdp = () => {
 };
 
 
-// Removed reconnectWithNewSize function
-
 const closeModal = () => {
   disconnectRdp();
   emit('close');
 };
 
-// Removed setupResizeObserver as ResizeObserver is no longer used
 
-
-// Removed loadDesiredModalSize function
-
-// Watch local refs and save validated size to settings store
+// 监听本地 ref 并将验证后的尺寸保存到设置存储
 watch(desiredModalWidth, (newWidth, oldWidth) => {
   // 只有当值真正改变时才处理
   if (newWidth === oldWidth) {
-      console.log(`[RDP Modal] Width watch triggered but value (${newWidth}) hasn't changed. Skipping save.`);
+      console.log(`[RDP 模态框] 宽度监听触发，但值 (${newWidth}) 未改变。跳过保存。`);
       return;
   }
-  console.log(`[RDP Modal] Watch triggered for desiredModalWidth: ${oldWidth} -> ${newWidth}`); // 添加日志
-  // Validate new width before saving
+  console.log(`[RDP 模态框] 监听 desiredModalWidth 触发: ${oldWidth} -> ${newWidth}`); // 添加日志
+  // 保存前验证新宽度
   const validatedWidth = Math.max(MIN_MODAL_WIDTH, Number(newWidth) || MIN_MODAL_WIDTH);
-  // Debounce saving the *validated* width
+  // 防抖保存 *验证后* 的宽度
   if (saveWidthTimeout) clearTimeout(saveWidthTimeout);
   saveWidthTimeout = setTimeout(() => {
-    // Only save the validated width, don't change the input value here
-    console.log(`[RDP Modal] Debounced Save - Saving width: ${validatedWidth} (Input value: ${newWidth})`);
+    // 只保存验证后的宽度，不要在此处更改输入值
+    console.log(`[RDP 模态框] 防抖保存 - 保存宽度: ${validatedWidth} (输入值: ${newWidth})`);
     // 再次检查，确保在延迟期间值没有变回原来的 store 值
     if (String(validatedWidth) !== settingsStore.settings.rdpModalWidth) {
          settingsStore.updateSetting('rdpModalWidth', String(validatedWidth));
     } else {
-         console.log(`[RDP Modal] Debounced Save - Width ${validatedWidth} matches store value. Skipping redundant save.`);
+         console.log(`[RDP 模态框] 防抖保存 - 宽度 ${validatedWidth} 与存储值匹配。跳过冗余保存。`);
     }
   }, DEBOUNCE_DELAY);
 });
@@ -288,52 +274,52 @@ watch(desiredModalWidth, (newWidth, oldWidth) => {
 watch(desiredModalHeight, (newHeight, oldHeight) => {
    // 只有当值真正改变时才处理
    if (newHeight === oldHeight) {
-       console.log(`[RDP Modal] Height watch triggered but value (${newHeight}) hasn't changed. Skipping save.`);
+       console.log(`[RDP 模态框] 高度监听触发，但值 (${newHeight}) 未改变。跳过保存。`);
        return;
    }
-   console.log(`[RDP Modal] Watch triggered for desiredModalHeight: ${oldHeight} -> ${newHeight}`); // 添加日志
-  // Validate new height before saving
+   console.log(`[RDP 模态框] 监听 desiredModalHeight 触发: ${oldHeight} -> ${newHeight}`);
+  // 保存前验证新高度
   const validatedHeight = Math.max(MIN_MODAL_HEIGHT, Number(newHeight) || MIN_MODAL_HEIGHT);
-  // Debounce saving the *validated* height
+  // 防抖保存 *验证后* 的高度
   if (saveHeightTimeout) clearTimeout(saveHeightTimeout);
   saveHeightTimeout = setTimeout(() => {
-    // Only save the validated height, don't change the input value here
-    console.log(`[RDP Modal] Debounced Save - Saving height: ${validatedHeight} (Input value: ${newHeight})`);
+    // 只保存验证后的高度，不要在此处更改输入值
+    console.log(`[RDP 模态框] 防抖保存 - 保存高度: ${validatedHeight} (输入值: ${newHeight})`);
     // 再次检查
     if (String(validatedHeight) !== settingsStore.settings.rdpModalHeight) {
         settingsStore.updateSetting('rdpModalHeight', String(validatedHeight));
     } else {
-        console.log(`[RDP Modal] Debounced Save - Height ${validatedHeight} matches store value. Skipping redundant save.`);
+        console.log(`[RDP 模态框] 防抖保存 - 高度 ${validatedHeight} 与存储值匹配。跳过冗余保存。`);
     }
   }, DEBOUNCE_DELAY);
 });
 
-// Load initial size from settings store when component mounts or settings change
+// 组件挂载或设置更改时从设置存储加载初始尺寸
 watchEffect(() => {
   const storeWidth = settingsStore.settings.rdpModalWidth;
   const storeHeight = settingsStore.settings.rdpModalHeight;
-  console.log(`[RDP Modal] Loading size from store - Width: ${storeWidth}, Height: ${storeHeight}`); // +++ Add log +++
+  console.log(`[RDP 模态框] 从存储加载尺寸 - 宽度: ${storeWidth}, 高度: ${storeHeight}`);
  
-  // Use defaults from store if available, otherwise use component defaults
-  const initialWidth = storeWidth ? parseInt(storeWidth, 10) : desiredModalWidth.value; // Use current ref value as fallback default
-  const initialHeight = storeHeight ? parseInt(storeHeight, 10) : desiredModalHeight.value; // Use current ref value as fallback default
+  // 如果存储中有默认值则使用，否则使用组件默认值
+  const initialWidth = storeWidth ? parseInt(storeWidth, 10) : desiredModalWidth.value; // 使用当前 ref 值作为备用默认值
+  const initialHeight = storeHeight ? parseInt(storeHeight, 10) : desiredModalHeight.value; // 使用当前 ref 值作为备用默认值
 
-  // Validate against minimums
+  // 根据最小值进行验证
   const finalWidth = Math.max(MIN_MODAL_WIDTH, isNaN(initialWidth) ? MIN_MODAL_WIDTH : initialWidth);
   const finalHeight = Math.max(MIN_MODAL_HEIGHT, isNaN(initialHeight) ? MIN_MODAL_HEIGHT : initialHeight);
-  console.log(`[RDP Modal] Applying validated size - Width: ${finalWidth}, Height: ${finalHeight}`); // +++ Add log +++
+  console.log(`[RDP 模态框] 应用验证后的尺寸 - 宽度: ${finalWidth}, 高度: ${finalHeight}`);
   desiredModalWidth.value = finalWidth;
   desiredModalHeight.value = finalHeight;
  });
  
 
 onMounted(() => {
-  // Initial size loading is now handled by watchEffect
+  // 初始尺寸加载现在由 watchEffect 处理
 
   if (props.connection) {
     nextTick(async () => {
-        await connectRdp(); // Connect using initial size
-        // No need to setup observer anymore
+        await connectRdp(); // 使用初始尺寸连接
+        // 不再需要设置 observer
     });
   } else {
       statusMessage.value = t('remoteDesktopModal.errors.noConnection');
@@ -342,14 +328,14 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  disconnectRdp(); // This already calls stopResizeObserver
+  disconnectRdp(); // 这里已经调用了 removeInputListeners
 });
 
 watch(() => props.connection, (newConnection, oldConnection) => {
   if (newConnection && newConnection.id !== oldConnection?.id) {
      nextTick(async () => {
-        await connectRdp(); // Connect using initial size
-        // No need to setup observer anymore
+        await connectRdp(); // 使用初始尺寸连接
+        // 不再需要设置 observer
      });
   } else if (!newConnection) {
       disconnectRdp();
@@ -358,14 +344,10 @@ watch(() => props.connection, (newConnection, oldConnection) => {
   }
 });
 
-// Use the desired modal size directly for the style
+// 直接使用所需的模态框尺寸作为样式
 const computedModalStyle = computed(() => {
-  // const extraWidth = 40; // Removed from here as well
-  // const headerHeight = 45; // Defined in connectRdp
-  // const footerHeight = 35; // Defined in connectRdp
-  // const extraHeight = headerHeight + footerHeight + 10; // Defined in connectRdp
 
-  // Apply minimum constraints here for the actual modal style
+  // 在此处为实际模态框样式应用最小约束
   const actualWidth = Math.max(MIN_MODAL_WIDTH, desiredModalWidth.value);
   const actualHeight = Math.max(MIN_MODAL_HEIGHT, desiredModalHeight.value);
   return {
@@ -442,7 +424,7 @@ const computedModalStyle = computed(() => {
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             />
-             <!-- Add Reconnect Button -->
+             <!-- 添加重新连接按钮 -->
              <button
                 @click="connectRdp"
                 :disabled="connectionStatus === 'connecting'"

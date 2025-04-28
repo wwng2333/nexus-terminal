@@ -2,8 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useProxiesStore, ProxyInfo } from '../stores/proxies.store';
-import ProxyList from '../components/ProxyList.vue'; // 引入列表组件
-import AddProxyForm from '../components/AddProxyForm.vue'; // 引入表单组件
+import ProxyList from '../components/ProxyList.vue';
+import AddProxyForm from '../components/AddProxyForm.vue'; 
 
 const { t } = useI18n();
 const proxiesStore = useProxiesStore();

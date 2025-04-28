@@ -1,49 +1,49 @@
 <template>
-  <!-- Root element with padding, background, border, and text styles -->
+  <!-- 根元素，包含内边距、背景、边框和文本样式 -->
   <div class="status-monitor p-4 bg-background text-foreground h-full overflow-y-auto text-sm">
-    <!-- Title with margin, border, padding, font size, and color -->
+    <!-- 标题，包含外边距、边框、内边距、字体大小和颜色 -->
     <h4 class="mt-0 mb-4 border-b border-border pb-2 text-base font-medium">
       {{ t('statusMonitor.title') }}
     </h4>
 
-    <!-- Error State -->
+    <!-- 错误状态 -->
     <div v-if="statusError" class="status-error flex flex-col items-center justify-center text-center text-red-500 mt-4 h-full">
        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
        <span>{{ t('statusMonitor.errorPrefix') }} {{ statusError }}</span>
     </div>
 
-    <!-- Loading State -->
+    <!-- 加载状态 -->
     <div v-else-if="!serverStatus" class="loading-status flex flex-col items-center justify-center text-center text-text-secondary mt-4 h-full">
       <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
       <span>{{ t('statusMonitor.loading') }}</span>
     </div>
 
-    <!-- Status Grid -->
+    <!-- 状态网格 -->
     <div v-else class="status-grid grid gap-3">
-      <!-- CPU Model -->
+      <!-- CPU 型号 -->
       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
         <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.cpuModelLabel') }}</label>
         <span class="cpu-model-value truncate text-left" :title="displayCpuModel">{{ displayCpuModel }}</span>
       </div>
 
-      <!-- OS Name -->
+      <!-- 操作系统名称 -->
       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
         <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.osLabel') }}</label>
         <span class="os-name-value truncate text-left" :title="displayOsName">{{ displayOsName }}</span>
       </div>
 
-      <!-- CPU Usage -->
+      <!-- CPU 使用率 -->
       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
         <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.cpuLabel') }}</label>
         <div class="value-wrapper flex items-center gap-2">
-          <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow"> <!-- Reduced height -->
+          <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow"> <!-- 减小高度 -->
             <div class="progress-bar bg-blue-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
           </div>
-          <span class="font-mono text-left text-xs w-12 text-right">{{ serverStatus.cpuPercent?.toFixed(1) ?? t('statusMonitor.notAvailable') }}%</span> <!-- Fixed width and right align -->
+          <span class="font-mono text-left text-xs w-12 text-right">{{ serverStatus.cpuPercent?.toFixed(1) ?? t('statusMonitor.notAvailable') }}%</span> <!-- 固定宽度并右对齐 -->
         </div>
       </div>
 
-      <!-- Memory Usage -->
+      <!-- 内存使用率 -->
       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
         <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.memoryLabel') }}</label>
         <div class="value-wrapper flex items-center gap-2">
@@ -54,12 +54,12 @@
         </div>
       </div>
 
-       <!-- Swap Usage -->
+       <!-- swap -->
        <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
         <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.swapLabel') }}</label>
         <div class="value-wrapper flex items-center gap-2">
           <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
-            <!-- Conditional color for swap -->
+            <!-- swap颜色 -->
             <div class="progress-bar h-full transition-width duration-300 ease-in-out"
                  :class="serverStatus.swapPercent && serverStatus.swapPercent > 0 ? 'bg-yellow-500' : 'bg-gray-500'"
                  :style="{ width: `${serverStatus.swapPercent ?? 0}%` }"></div>
@@ -68,7 +68,7 @@
         </div>
       </div>
 
-      <!-- Disk Usage -->
+      <!-- 磁盘使用率 -->
       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
         <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.diskLabel') }}</label>
         <div class="value-wrapper flex items-center gap-2">
@@ -79,16 +79,16 @@
         </div>
       </div>
 
-      <!-- Network Rate -->
+      <!-- 网络速率 -->
       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3 mt-2">
           <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.networkLabel') }} ({{ serverStatus.netInterface || '...' }}):</label>
-          <div class="network-values flex items-center justify-start gap-4"> <!-- Reduced gap -->
+          <div class="network-values flex items-center justify-start gap-4"> <!-- 减小间距 -->
             <span class="rate down inline-flex items-center gap-1 text-green-500 text-xs whitespace-nowrap">
-              <i class="fas fa-arrow-down w-3 text-center"></i> <!-- Font Awesome icon -->
+              <i class="fas fa-arrow-down w-3 text-center"></i> <!-- Font Awesome 图标 -->
               <span class="font-mono">{{ formatBytesPerSecond(serverStatus.netRxRate) }}</span>
             </span>
             <span class="rate up inline-flex items-center gap-1 text-orange-500 text-xs whitespace-nowrap">
-               <i class="fas fa-arrow-up w-3 text-center"></i> <!-- Font Awesome icon -->
+               <i class="fas fa-arrow-up w-3 text-center"></i> <!-- Font Awesome 图标 -->
                <span class="font-mono">{{ formatBytesPerSecond(serverStatus.netTxRate) }}</span>
             </span>
           </div>
@@ -103,7 +103,7 @@ import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
 
-// Interface remains the same
+
 interface ServerStatus {
   cpuPercent?: number;
   memPercent?: number;
@@ -116,8 +116,8 @@ interface ServerStatus {
   diskUsed?: number; // KB
   diskTotal?: number; // KB
   cpuModel?: string;
-  netRxRate?: number; // Bytes per second
-  netTxRate?: number; // Bytes per second
+  netRxRate?: number; // 字节/秒
+  netTxRate?: number; // 字节/秒
   netInterface?: string;
   osName?: string;
 }
@@ -128,7 +128,7 @@ const props = defineProps<{
   statusError?: string | null;
 }>();
 
-// --- Caching logic remains the same ---
+// --- 缓存逻辑保持不变 ---
 const cachedCpuModel = ref<string | null>(null);
 const cachedOsName = ref<string | null>(null);
 
@@ -143,7 +143,7 @@ watch(() => props.serverStatus, (newData) => {
   }
 }, { immediate: true });
 
-// --- Computed properties remain the same ---
+// --- 计算属性保持不变 ---
 const displayCpuModel = computed(() => {
   return (props.serverStatus?.cpuModel ?? cachedCpuModel.value) || t('statusMonitor.notAvailable');
 });
@@ -167,7 +167,7 @@ const formatKbToGb = (kb?: number): string => {
     return `${gb.toFixed(1)} ${t('statusMonitor.gigaBytes')}`;
 };
 
-// Helper function to format MB to GB if needed
+// 辅助函数，用于在需要时将 MB 格式化为 GB
 const formatMemorySize = (mb?: number): string => {
     if (mb === undefined || mb === null || isNaN(mb)) return t('statusMonitor.notAvailable');
     if (mb < 1024) {
@@ -182,14 +182,14 @@ const formatMemorySize = (mb?: number): string => {
 const memDisplay = computed(() => {
     const data = props.serverStatus;
     if (!data || data.memUsed === undefined || data.memTotal === undefined) return t('statusMonitor.notAvailable');
-    const percent = data.memPercent !== undefined ? `(${(data.memPercent).toFixed(1)}%)` : ''; // Keep 1 decimal for percent
+    const percent = data.memPercent !== undefined ? `(${(data.memPercent).toFixed(1)}%)` : ''; // 百分比保留 1 位小数
     return `${formatMemorySize(data.memUsed)} / ${formatMemorySize(data.memTotal)} ${percent}`;
 });
 
 const diskDisplay = computed(() => {
     const data = props.serverStatus;
     if (!data || data.diskUsed === undefined || data.diskTotal === undefined) return t('statusMonitor.notAvailable');
-    const percent = data.diskPercent !== undefined ? `(${(data.diskPercent).toFixed(1)}%)` : ''; // Keep 1 decimal for percent
+    const percent = data.diskPercent !== undefined ? `(${(data.diskPercent).toFixed(1)}%)` : ''; // 百分比保留 1 位小数
     return `${formatKbToGb(data.diskUsed)} / ${formatKbToGb(data.diskTotal)} ${percent}`;
 });
 
@@ -199,15 +199,14 @@ const swapDisplay = computed(() => {
     const total = data?.swapTotal ?? 0;
     const percentVal = data?.swapPercent ?? 0;
 
-    // Only show details if swap total > 0
+    // 仅当交换空间总量 > 0 时显示详细信息
     if (total === 0) {
-        return t('statusMonitor.swapNotAvailable'); // Or a more specific message
+        return t('statusMonitor.swapNotAvailable'); // 或更具体的消息
     }
 
-    const percent = `(${(percentVal).toFixed(1)}%)`; // Keep 1 decimal for percent
+    const percent = `(${(percentVal).toFixed(1)}%)`; // 百分比保留 1 位小数
     return `${formatMemorySize(used)} / ${formatMemorySize(total)} ${percent}`;
 });
 
 </script>
 
-<!-- No <style scoped> needed anymore -->

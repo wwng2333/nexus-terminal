@@ -1,48 +1,40 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useConnectionsStore } from '../stores/connections.store';
-import { useAuditLogStore } from '../stores/audit.store'; // 修正 Store 名称
-import { useSessionStore } from '../stores/session.store'; // +++ 引入 Session Store +++
+import { useAuditLogStore } from '../stores/audit.store';
+import { useSessionStore } from '../stores/session.store'; 
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import type { ConnectionInfo } from '../stores/connections.store'; // 只导入 ConnectionInfo
-import type { AuditLogEntry } from '../types/audit.types'; // 引入本地 AuditLogEntry 类型
+import type { ConnectionInfo } from '../stores/connections.store'; 
 import { storeToRefs } from 'pinia';
 import { formatDistanceToNow } from 'date-fns';
-import { zhCN, enUS, ja } from 'date-fns/locale'; // 导入所有需要的语言包
-import type { Locale } from 'date-fns'; // 导入 Locale 类型
+import { zhCN, enUS, ja } from 'date-fns/locale';
+import type { Locale } from 'date-fns';
 
 const { t, locale } = useI18n();
 const router = useRouter();
 const connectionsStore = useConnectionsStore();
-const auditLogStore = useAuditLogStore(); // 修正变量名
-const sessionStore = useSessionStore(); // +++ 获取 Session Store 实例 +++
+const auditLogStore = useAuditLogStore();
+const sessionStore = useSessionStore(); 
 
 const { connections, isLoading: isLoadingConnections } = storeToRefs(connectionsStore);
-const { logs: auditLogs, isLoading: isLoadingLogs, totalLogs } = storeToRefs(auditLogStore); // 使用修正后的变量名
+const { logs: auditLogs, isLoading: isLoadingLogs, totalLogs } = storeToRefs(auditLogStore);
 
 const maxRecentConnections = 5;
 const maxRecentLogs = 5;
 
-// --- 最近连接 ---
 const recentConnections = computed(() => {
-  console.log('[仪表盘] 从 Store 获取的原始连接列表:', JSON.parse(JSON.stringify(connections.value)));
 
-  // 优先尝试按 last_connected_at 过滤和排序
-  const connected = connections.value.filter(c => c.last_connected_at);
-  console.log('[仪表盘] 过滤后的连接 (包含 last_connected_at):', JSON.parse(JSON.stringify(connected)));
+
+const connected = connections.value.filter(c => c.last_connected_at);
 
   if (connected.length > 0) {
     connected.sort((a, b) => (b.last_connected_at ?? 0) - (a.last_connected_at ?? 0));
     const result = connected.slice(0, maxRecentConnections);
-    console.log('[仪表盘] 最终最近连接 (使用 last_connected_at):', JSON.parse(JSON.stringify(result)));
     return result;
   } else {
-    // 如果没有带 last_connected_at 的连接，则按 updated_at 排序显示最近更新的
-    console.log('[仪表盘] 未找到包含 last_connected_at 的连接，回退到按 updated_at 排序。');
     const sortedByUpdate = [...connections.value].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
     const result = sortedByUpdate.slice(0, maxRecentConnections);
-    console.log('[仪表盘] 最终最近连接 (回退使用 updated_at):', JSON.parse(JSON.stringify(result)));
     return result;
   }
 });
@@ -58,12 +50,9 @@ onMounted(async () => {
   // 如果 connections store 还没有加载过数据，则加载
   if (connections.value.length === 0) {
     try {
-      console.log('[Dashboard] onMounted: Fetching connections...'); // 添加日志
       await connectionsStore.fetchConnections();
-      console.log('[Dashboard] onMounted: Connections fetched.'); // 添加日志
     } catch (error) {
       console.error("加载连接列表失败:", error);
-      // 可以在这里显示错误通知
     }
   }
   // 加载最新的审计日志
@@ -84,7 +73,6 @@ onMounted(async () => {
 // --- 方法 ---
 // 修改函数签名，接受 ConnectionInfo 类型
 const connectTo = (connection: ConnectionInfo) => {
-  console.log(`[Dashboard] connectTo called for connection: ${connection.name} (ID: ${connection.id}, Type: ${connection.type})`);
   // 将连接处理逻辑委托给 sessionStore
   sessionStore.handleConnectRequest(connection);
 };
@@ -151,9 +139,6 @@ const isFailedAction = (actionType: string): boolean => {
   const lowerCaseAction = actionType.toLowerCase();
   // 检查常见的失败关键词
   return lowerCaseAction.includes('fail') || lowerCaseAction.includes('error') || lowerCaseAction.includes('denied');
-  // 或者，如果 action_type 本身不包含明确的失败词，但翻译后包含，可以这样判断：
-  // const translatedAction = getActionTranslation(actionType);
-  // return translatedAction.includes('失败') || translatedAction.toLowerCase().includes('fail');
 };
 </script>
 
