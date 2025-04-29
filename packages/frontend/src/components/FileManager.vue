@@ -655,7 +655,9 @@ const handleFileSelected = (event: Event) => {
     const input = event.target as HTMLInputElement;
     // 恢复使用 props.wsDeps.isConnected
     if (!input.files || !props.wsDeps.isConnected.value) return;
-    Array.from(input.files).forEach(startFileUpload); // Use startFileUpload from useFileUploader
+    // --- 修正：使用匿名函数包装 startFileUpload 调用 ---
+    Array.from(input.files).forEach(file => startFileUpload(file)); // 只传递 file 参数
+    // --- 结束修正 ---
     input.value = '';
 };
 

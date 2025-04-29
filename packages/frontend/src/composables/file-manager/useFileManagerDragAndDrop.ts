@@ -12,7 +12,7 @@ export interface UseFileManagerDragAndDropOptions {
 
   // 函数依赖
   joinPath: (base: string, target: string) => string; // 路径拼接函数
-  onFileUpload: (file: File) => void; // 触发文件上传的回调
+  onFileUpload: (file: File, relativePath?: string) => void; // 修改：触发文件上传的回调，增加相对路径
   onItemMove: (sourceItem: FileListItem, newFullPath: string) => void; // 触发文件/文件夹移动的回调
 }
 
@@ -146,40 +146,76 @@ export function useFileManagerDragAndDrop(options: UseFileManagerDragAndDropOpti
     }
   };
 
+  // --- 新增：递归遍历文件树的辅助函数 ---
+  const traverseFileTree = (item: FileSystemEntry, path = '') => {
+    path = path || '';
+    if (item.isFile) {
+      // 文件处理
+      (item as FileSystemFileEntry).file((file) => {
+        // 调用上传函数，传递文件和相对路径
+        console.log(`[DragDrop] Uploading file: ${path}${file.name}`);
+        onFileUpload(file, path); // 传递相对路径
+      }, (err) => {
+        console.error(`[DragDrop] Error getting file from entry: ${path}${item.name}`, err);
+      });
+    } else if (item.isDirectory) {
+      // 目录处理
+      const dirReader = (item as FileSystemDirectoryEntry).createReader();
+      dirReader.readEntries((entries) => {
+        console.log(`[DragDrop] Traversing directory: ${path}${item.name}, found ${entries.length} entries.`);
+        // 递归遍历目录中的每个条目
+        entries.forEach((entry) => {
+          traverseFileTree(entry, path + item.name + '/'); // 更新相对路径
+        });
+      }, (err) => {
+         console.error(`[DragDrop] Error reading directory entries: ${path}${item.name}`, err);
+      });
+    }
+  };
+  // --- 结束新增 ---
+
+
   const handleDrop = (event: DragEvent) => {
     const wasDraggingOver = isDraggingOver.value;
-    const currentDragTarget = dragOverTarget.value;
+    const currentDragTarget = dragOverTarget.value; // 拖放目标文件夹名称
     isDraggingOver.value = false;
     dragOverTarget.value = null;
     stopAutoScroll();
 
-    const files = event.dataTransfer?.files;
-    if (!files || files.length === 0 || !isConnected.value) {
+    // --- 修改：使用 DataTransferItemList 和 webkitGetAsEntry 处理拖放 ---
+    const items = event.dataTransfer?.items;
+    if (!items || items.length === 0 || !isConnected.value) {
         if (draggedItem.value) draggedItem.value = null; // 清理内部拖拽状态
         return;
     }
+
     // 检查放置目标是否有效 (由 handleDragOver 决定)
     // 对于外部文件，要么容器高亮 (wasDraggingOver)，要么行高亮 (currentDragTarget)
-    if (!wasDraggingOver && !currentDragTarget) {
-         console.log(`[DragDrop] Drop ignored: Drop target was not valid according to handleDragOver.`);
-         return;
+    // 注意：拖放到子文件夹的功能暂时移除，所有拖放都上传到当前目录或根目录
+    // 如果需要拖放到子文件夹，需要重新设计 targetFolderPath 的逻辑
+    // if (!wasDraggingOver && !currentDragTarget) {
+    //      console.log(`[DragDrop] Drop ignored: Drop target was not valid according to handleDragOver.`);
+    //      return;
+    // }
+
+    console.log(`[DragDrop] Drop event detected with ${items.length} items.`);
+
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+                console.log(`[DragDrop] Processing entry: ${entry.name}, isFile: ${entry.isFile}, isDirectory: ${entry.isDirectory}`);
+                traverseFileTree(entry); // 开始遍历文件树，初始相对路径为空
+            } else {
+                 console.warn(`[DragDrop] Could not get entry for item ${i}`);
+            }
+        } else {
+             console.log(`[DragDrop] Skipping non-file item kind: ${item.kind}`);
+        }
     }
+    // --- 结束修改 ---
 
-
-    const fileListArray = Array.from(files);
-    let targetFolderPath = currentPath.value; // 默认上传到当前目录
-
-    // 如果是放置在特定子文件夹行上
-    if (currentDragTarget && currentDragTarget !== '..') {
-        targetFolderPath = joinPath(currentPath.value, currentDragTarget);
-        console.log(`[DragDrop] Dropped ${fileListArray.length} external files onto folder '${currentDragTarget}'. Uploading to: ${targetFolderPath}`);
-    } else {
-        console.log(`[DragDrop] Dropped ${fileListArray.length} external files onto current path '${currentPath.value}'.`);
-    }
-
-    // 注意：原始代码中 startFileUpload 没有使用 targetFolderPath，这里暂时保持一致
-    // 如果需要上传到子目录，需要修改 useFileUploader 或此处的调用方式
-    fileListArray.forEach(onFileUpload);
     draggedItem.value = null; // 确保清理内部拖拽状态
   };
 

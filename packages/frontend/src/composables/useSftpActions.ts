@@ -586,17 +586,35 @@ export function createSftpActionsManager(
         return false;
     };
 
-    // *** 新增：辅助函数 - 向文件树添加或更新节点 ***
+    // *** 修改：辅助函数 - 向文件树添加或更新节点 (允许创建父节点占位符) ***
     const addOrUpdateNodeInTree = (parentPath: string, item: FileListItem): boolean => {
-        const parentNode = findNodeByPath(fileTree, parentPath);
-        if (parentNode && parentNode.childrenLoaded && parentNode.children) { // 确保父节点已加载子节点
-             const newNode: FileTreeNode = {
+        // --- 修改：调用 findNodeByPath 时允许创建缺失的父节点 ---
+        const parentNode = findNodeByPath(fileTree, parentPath, true);
+        // --- 结束修改 ---
+
+        // 如果父节点被成功找到或创建
+        if (parentNode) {
+             // 如果父节点的 children 为 null (可能刚被创建为占位符)，则初始化为空数组
+             if (parentNode.children === null) {
+                 parentNode.children = [];
+                 // 注意：此时 childrenLoaded 应该仍然是 false，除非它是叶子节点
+                 // findNodeByPath 创建占位符时 childrenLoaded 设为 false
+             }
+
+             // 确保 children 是一个数组再继续
+             if (!Array.isArray(parentNode.children)) {
+                  console.error(`[SFTP ${instanceSessionId}] Logic error: parentNode.children is not an array after findNodeByPath in addOrUpdateNodeInTree for path ${parentPath}`);
+                  return false; // 无法继续
+             }
+
+             // --- 现有逻辑：添加或更新子节点 ---
+             const newNode: FileTreeNode = reactive({ // 确保新节点也是响应式的
                 filename: item.filename,
                 longname: item.longname,
                 attrs: item.attrs,
                 children: item.attrs.isDirectory ? null : [],
                 childrenLoaded: !item.attrs.isDirectory,
-            };
+            });
 
             const existingIndex = parentNode.children.findIndex(node => node.filename === item.filename);
             if (existingIndex !== -1) {
@@ -612,16 +630,14 @@ export function createSftpActionsManager(
                 parentNode.children.splice(insertIndex, 0, newNode);
                 console.log(`[SFTP ${instanceSessionId}] 添加文件树节点: ${parentPath}/${item.filename}`);
             }
-            return true;
-        } else if (parentNode && !parentNode.childrenLoaded) {
-            // 父节点存在但子节点未加载，标记为需要重新加载
-            parentNode.childrenLoaded = false; // 下次访问时会重新加载
-            console.log(`[SFTP ${instanceSessionId}] 父节点 ${parentPath} 子节点未加载，标记为需要刷新`);
-            // 可以在这里触发一次 loadDirectory(parentPath) 如果需要立即更新
+            // --- 结束现有逻辑 ---
+            return true; // 添加/更新成功
+
         } else {
-             console.warn(`[SFTP ${instanceSessionId}] 尝试向文件树 ${parentPath} 添加/更新节点 ${item.filename} 失败，父节点未找到或未加载`);
+             // 如果 findNodeByPath 即使在 createIfMissing=true 时也失败了，说明有更深层的问题
+             console.error(`[SFTP ${instanceSessionId}] Failed to find or create parent node ${parentPath} in addOrUpdateNodeInTree for item ${item.filename}.`);
+             return false; // 添加/更新失败
         }
-        return false;
     };
 
 
@@ -841,22 +857,47 @@ export function createSftpActionsManager(
     // *** 新增：处理上传成功 ***
     const onUploadSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
         const newItem = payload as FileListItem | null; // 后端应发送 FileListItem 或 null
-        const parentPath = currentPathRef.value; // 上传总是发生在当前路径
-        const filename = newItem?.filename; // 从 newItem 获取文件名
+        const fullPath = message.path; // 后端现在应该在 message 中包含完整的上传路径
 
-        console.log(`[SFTP ${instanceSessionId}] 上传文件成功: ${filename ? joinPath(parentPath, filename) : '(未知文件名)'}`); // 改进日志
+        if (!fullPath) {
+            console.error(`[SFTP ${instanceSessionId}] Received upload success but message is missing 'path'. Payload:`, payload);
+            // 尝试从 newItem 获取文件名，但无法确定父路径，只能刷新当前目录
+            const filename = newItem?.filename;
+            console.warn(`[SFTP ${instanceSessionId}] Upload success for ${filename || '(unknown file)'} but cannot determine parent path. Reloading current directory.`);
+            loadDirectory(currentPathRef.value); // Fallback to reloading current dir
+            return;
+        }
 
-        // *** 修改：直接修改文件树 ***
+        // --- 修正：从完整路径推断父路径和文件名 ---
+        const parentPath = fullPath.substring(0, fullPath.lastIndexOf('/')) || '/';
+        const filename = fullPath.substring(fullPath.lastIndexOf('/') + 1);
+        // --- 结束修正 ---
+
+        console.log(`[SFTP ${instanceSessionId}] 上传文件成功: ${fullPath}`);
+
+        // *** 修改：使用推断出的 parentPath 更新文件树 ***
         if (newItem) {
+            // 确保 newItem 的 filename 与从路径中提取的一致
+            if (newItem.filename !== filename) {
+                 console.warn(`[SFTP ${instanceSessionId}] Upload success: filename mismatch between message.path ('${filename}') and payload.filename ('${newItem.filename}'). Using filename from path.`);
+                 // 可以选择信任哪个，这里信任从路径提取的
+                 newItem.filename = filename;
+            }
             addOrUpdateNodeInTree(parentPath, newItem);
         } else {
-            // 如果后端未能提供更新信息，标记父节点需要重新加载
+            // 如果后端未能提供更新信息，标记推断出的父节点需要重新加载
             const parentNode = findNodeByPath(fileTree, parentPath);
             if (parentNode) {
                 parentNode.childrenLoaded = false;
-                console.warn(`[SFTP ${instanceSessionId}] Upload success for ${message.path || filename} but no item details received. Marking parent ${parentPath} for reload.`);
-                // 上传总是在当前目录，所以直接触发刷新
-                loadDirectory(currentPathRef.value);
+                console.warn(`[SFTP ${instanceSessionId}] Upload success for ${fullPath} but no item details received. Marking parent ${parentPath} for reload.`);
+                // 如果上传发生在当前目录或其子目录，触发当前目录刷新可能有用
+                if (parentPath === currentPathRef.value || parentPath.startsWith(currentPathRef.value + '/')) {
+                    loadDirectory(currentPathRef.value);
+                }
+            } else {
+                 console.warn(`[SFTP ${instanceSessionId}] Upload success for ${fullPath}, no item details, and parent node ${parentPath} not found in tree.`);
+                 // 可能需要刷新根目录或当前目录
+                 loadDirectory(currentPathRef.value);
             }
         }
     };

@@ -1085,8 +1085,11 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                             ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId: payload?.uploadId, message: '缺少 uploadId, remotePath 或 size' } }));
                             return;
                         }
-                        
-                        sftpService.startUpload(sessionId, payload.uploadId, payload.remotePath, payload.size);
+                        // --- 修改：传递 relativePath 给 SftpService ---
+                        const relativePath = payload?.relativePath; // 获取 relativePath
+                        console.log(`WebSocket: SFTP Upload Start - Session: ${sessionId}, UploadID: ${payload.uploadId}, RemotePath: ${payload.remotePath}, Size: ${payload.size}, RelativePath: ${relativePath}`);
+                        sftpService.startUpload(sessionId, payload.uploadId, payload.remotePath, payload.size, relativePath); // 传递 relativePath
+                        // --- 结束修改 ---
                         break;
                     }
                     case 'sftp:upload:chunk': {

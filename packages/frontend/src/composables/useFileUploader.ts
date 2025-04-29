@@ -123,7 +123,7 @@ export function useFileUploader(
     };
 
 
-    const startFileUpload = (file: File) => {
+    const startFileUpload = (file: File, relativePath?: string) => { // 保持签名修改
         if (!isConnected.value) {
             console.warn('[文件上传模块] 无法开始上传：WebSocket 未连接。');
             // 可以选择向用户显示错误消息
@@ -131,16 +131,35 @@ export function useFileUploader(
         }
 
         const uploadId = generateUploadId();
-        const remotePath = joinPath(currentPathRef.value, file.name);
+        // --- 修正：直接构建最终远程路径 ---
+        let finalRemotePath: string;
+        if (relativePath) {
+            // 确保 currentPathRef.value 结尾有斜杠
+            const basePath = currentPathRef.value.endsWith('/') ? currentPathRef.value : `${currentPathRef.value}/`;
+            // 确保 relativePath 开头没有斜杠，末尾有斜杠 (如果非空)
+            let cleanRelativePath = relativePath.startsWith('/') ? relativePath.substring(1) : relativePath;
+            // 移除末尾斜杠（如果有），因为文件名会加上
+            cleanRelativePath = cleanRelativePath.endsWith('/') ? cleanRelativePath.slice(0, -1) : cleanRelativePath;
+            // 拼接路径，确保 cleanRelativePath 和 file.name 之间只有一个斜杠
+            finalRemotePath = `${basePath}${cleanRelativePath ? cleanRelativePath + '/' : ''}${file.name}`;
+        } else {
+            finalRemotePath = joinPath(currentPathRef.value, file.name); // 对于非文件夹上传，保持原样
+        }
+        // 规范化路径，移除多余的斜杠 e.g. /root//dir -> /root/dir
+        finalRemotePath = finalRemotePath.replace(/\/+/g, '/');
+        console.log(`[文件上传模块] Calculated finalRemotePath: ${finalRemotePath} (current: ${currentPathRef.value}, relative: ${relativePath}, filename: ${file.name})`); // 添加日志
+        // --- 结束修正 ---
 
-        // 使用传入的 fileListRef 检查是否覆盖
-        // fileListRef.value 现在是 readonly FileListItem[]
-        if (fileListRef.value.some((item: FileListItem) => item.filename === file.name && !item.attrs.isDirectory)) { // 添加 item 类型注解
-            if (!confirm(t('fileManager.prompts.confirmOverwrite', { name: file.name }))) {
-                console.log(`[文件上传模块] 用户取消了 ${file.name} 的上传`);
+        // --- 修正：检查覆盖逻辑需要使用 finalRemotePath 的 basename ---
+        const finalFilename = finalRemotePath.substring(finalRemotePath.lastIndexOf('/') + 1);
+        // 检查是否覆盖 *同名文件* (忽略目录)
+        if (fileListRef.value.some((item: FileListItem) => item.filename === finalFilename && !item.attrs.isDirectory)) {
+            if (!confirm(t('fileManager.prompts.confirmOverwrite', { name: finalFilename }))) {
+                console.log(`[文件上传模块] 用户取消了 ${finalFilename} 的上传`);
                 return; // 用户取消覆盖
             }
         }
+        // --- 结束修正 ---
 
         // 添加到响应式 uploads 字典
         uploads[uploadId] = {
@@ -151,10 +170,10 @@ export function useFileUploader(
             status: 'pending' // 初始状态
         };
 
-        console.log(`[文件上传模块] 开始上传 ${uploadId} 到 ${remotePath}`);
+        console.log(`[文件上传模块] 开始上传 ${uploadId} 到 ${finalRemotePath}`); // 使用 finalRemotePath
         sendMessage({
             type: 'sftp:upload:start',
-            payload: { uploadId, remotePath, size: file.size }
+            payload: { uploadId, remotePath: finalRemotePath, size: file.size, relativePath: relativePath || undefined } // 发送修正后的 remotePath
         });
         // 后端应该响应 sftp:upload:ready
     };

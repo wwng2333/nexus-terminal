@@ -52,6 +52,7 @@ interface ActiveUpload {
     bytesWritten: number;
     stream: WriteStream;
     sessionId: string; // Link back to the session for cleanup
+    relativePath?: string; // +++ 新增：存储相对路径 +++
 }
 
 export class SftpService {
@@ -730,35 +731,81 @@ export class SftpService {
         });
     }
 
-    // +++ 新增：辅助方法 - 确保目录存在 (Promise wrapper) +++
-    private ensureDirectoryExists(sftp: SFTPWrapper, dirPath: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-            sftp.stat(dirPath, (err: any, stats) => { // Cast err to any
-                if (err) {
-                    // If error is 'No such file', create the directory
-                    // Access err.code after casting to any
-                    if (err.code === 'ENOENT' || (err.message && err.message.includes('No such file'))) {
-                        sftp.mkdir(dirPath, (mkdirErr) => {
+    // +++ 修改：辅助方法 - 确保目录存在 (递归创建) +++
+    private async ensureDirectoryExists(sftp: SFTPWrapper, dirPath: string): Promise<void> {
+        // 规范化路径，移除尾部斜杠（如果存在）
+        const normalizedPath = dirPath.replace(/\/$/, '');
+        if (!normalizedPath || normalizedPath === '/') {
+            return; // 根目录不需要创建
+        }
+
+        try {
+            // 1. 尝试直接 stat 目录
+            await this.getStats(sftp, normalizedPath);
+            // console.log(`[SFTP Util] Directory already exists: ${normalizedPath}`);
+            return; // 目录已存在
+        } catch (statError: any) {
+            // 2. 如果 stat 失败，检查是否是 "No such file" 错误
+            if (statError.code === 'ENOENT' || (statError.message && statError.message.includes('No such file'))) {
+                // 目录不存在，尝试创建
+                try {
+                    // 3. 尝试递归创建 (ssh2 的 mkdir 支持非标准 recursive 属性)
+                    // 注意：这可能不适用于所有 SFTP 服务器
+                    await new Promise<void>((resolveMkdir, rejectMkdir) => {
+                        // @ts-ignore - ssh2 types might not include 'recursive' in attributes
+                        sftp.mkdir(normalizedPath, { recursive: true }, (mkdirErr) => {
                             if (mkdirErr) {
-                                reject(new Error(`创建目录失败 ${dirPath}: ${mkdirErr.message}`));
+                                // 如果递归创建失败，尝试逐级创建
+                                console.warn(`[SFTP Util] Recursive mkdir failed for ${normalizedPath}, falling back to iterative creation:`, mkdirErr);
+                                rejectMkdir(mkdirErr); // Reject to trigger fallback
                             } else {
-                                console.log(`[SFTP Util] Created directory: ${dirPath}`);
-                                resolve();
+                                console.log(`[SFTP Util] Recursively created directory: ${normalizedPath}`);
+                                resolveMkdir();
                             }
                         });
-                    } else {
-                        // Other stat error
-                        reject(new Error(`检查目录失败 ${dirPath}: ${err.message}`));
+                    });
+                    return; // 递归创建成功
+                } catch (recursiveMkdirError) {
+                    // 4. 递归创建失败，回退到逐级创建
+                    const parentDir = pathModule.dirname(normalizedPath).replace(/\\/g, '/');
+                    if (parentDir && parentDir !== '/' && parentDir !== '.') {
+                        // 递归确保父目录存在
+                        await this.ensureDirectoryExists(sftp, parentDir);
                     }
-                } else if (!stats.isDirectory()) {
-                    // Path exists but is not a directory
-                    reject(new Error(`路径 ${dirPath} 已存在但不是目录`));
-                } else {
-                    // Directory already exists
-                    resolve();
+                    // 创建当前目录
+                    try {
+                        await new Promise<void>((resolveMkdir, rejectMkdir) => {
+                             sftp.mkdir(normalizedPath, (mkdirErr) => {
+                                if (mkdirErr) {
+                                    // 如果逐级创建也失败，则抛出错误
+                                    rejectMkdir(new Error(`创建目录失败 ${normalizedPath}: ${mkdirErr.message}`));
+                                } else {
+                                    console.log(`[SFTP Util] Iteratively created directory: ${normalizedPath}`);
+                                    resolveMkdir();
+                                }
+                            });
+                        });
+                    } catch (iterativeMkdirError: any) {
+                         console.error(`[SFTP Util] Iterative mkdir failed for ${normalizedPath}:`, iterativeMkdirError);
+                         // 检查是否是因为目录已存在（可能由并发操作创建）
+                         try {
+                             const finalStats = await this.getStats(sftp, normalizedPath);
+                             if (!finalStats.isDirectory()) {
+                                 throw new Error(`路径 ${normalizedPath} 已存在但不是目录`);
+                             }
+                             // 如果目录现在存在，则忽略错误
+                             console.log(`[SFTP Util] Directory ${normalizedPath} exists after iterative mkdir failure, likely created concurrently.`);
+                         } catch (finalStatError) {
+                             // 如果最终检查也失败，则抛出原始的逐级创建错误
+                             throw iterativeMkdirError;
+                         }
+                    }
                 }
-            });
-        });
+            } else {
+                // 其他 stat 错误
+                throw new Error(`检查目录失败 ${normalizedPath}: ${statError.message}`);
+            }
+        }
     }
 
      // +++ 新增：辅助方法 - 列出目录内容 (Promise wrapper) +++
@@ -804,7 +851,8 @@ export class SftpService {
     // --- File Upload Methods ---
 
     /** Start a new file upload */
-    startUpload(sessionId: string, uploadId: string, remotePath: string, totalSize: number): void {
+    // --- 修改：添加 relativePath 参数 ---
+    async startUpload(sessionId: string, uploadId: string, remotePath: string, totalSize: number, relativePath?: string): Promise<void> {
         const state = this.clientStates.get(sessionId);
         if (!state || !state.sftp) {
             console.warn(`[SFTP Upload ${uploadId}] SFTP not ready for session ${sessionId}.`);
@@ -820,6 +868,58 @@ export class SftpService {
         console.log(`[SFTP Upload ${uploadId}] Starting upload for ${remotePath} (${totalSize} bytes) in session ${sessionId}`);
 
         try {
+            // --- 新增：在创建流之前确保目录存在 ---
+            if (relativePath) {
+                const targetDirectory = pathModule.dirname(remotePath).replace(/\\/g, '/');
+                console.log(`[SFTP Upload ${uploadId}] Ensuring directory exists: ${targetDirectory}`);
+                try {
+                    // 确保 state.sftp 存在
+                    if (!state.sftp) throw new Error('SFTP session is not available.');
+                    await this.ensureDirectoryExists(state.sftp, targetDirectory);
+                    console.log(`[SFTP Upload ${uploadId}] Directory ensured: ${targetDirectory}`); // +++ 增加成功日志 +++
+                } catch (dirError: any) {
+                    console.error(`[SFTP Upload ${uploadId}] Failed to create/ensure directory ${targetDirectory}:`, dirError);
+                    state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: `创建目录失败: ${dirError.message}` } }));
+                    // 不再删除 activeUploads，因为可能还没有创建
+                    return; // Stop the upload process
+                }
+            }
+            // --- 结束新增 ---
+
+            // --- 新增：预检查文件是否可写 ---
+            console.log(`[SFTP Upload ${uploadId}] Pre-checking writability for: ${remotePath}`);
+            try {
+                // 确保 state.sftp 存在
+                if (!state.sftp) throw new Error('SFTP session is not available.');
+                await new Promise<void>((resolve, reject) => {
+                    // 'w' flag: Open file for writing. The file is created (if it does not exist) or truncated (if it exists).
+                    state.sftp!.open(remotePath, 'w', (openErr, handle) => {
+                        if (openErr) {
+                            console.error(`[SFTP Upload ${uploadId}] Pre-check failed (sftp.open 'w') for ${remotePath}:`, openErr);
+                            return reject(openErr); // Reject if cannot open for writing
+                        }
+                        // Immediately close the handle, we just wanted to check writability
+                        state.sftp!.close(handle, (closeErr) => {
+                            if (closeErr) {
+                                // Log warning but don't fail the pre-check if closing fails
+                                console.warn(`[SFTP Upload ${uploadId}] Error closing handle during pre-check for ${remotePath}:`, closeErr);
+                            }
+                            console.log(`[SFTP Upload ${uploadId}] Pre-check successful for: ${remotePath}`);
+                            resolve();
+                        });
+                    });
+                });
+            } catch (preCheckError: any) {
+                 console.error(`[SFTP Upload ${uploadId}] Writability pre-check failed for ${remotePath}:`, preCheckError);
+                 state.ws.send(JSON.stringify({ type: 'sftp:upload:error', payload: { uploadId, message: `文件不可写或创建失败: ${preCheckError.message}` } }));
+                 return; // Stop if pre-check fails
+            }
+            // --- 结束新增 ---
+
+
+            console.log(`[SFTP Upload ${uploadId}] Creating write stream for: ${remotePath}`);
+            // 确保 state.sftp 存在
+            if (!state.sftp) throw new Error('SFTP session is not available after pre-check.');
             const stream = state.sftp.createWriteStream(remotePath);
             const uploadState: ActiveUpload = {
                 remotePath,
@@ -827,6 +927,7 @@ export class SftpService {
                 bytesWritten: 0,
                 stream,
                 sessionId,
+                relativePath, // +++ 存储 relativePath +++
             };
             this.activeUploads.set(uploadId, uploadState);
 
