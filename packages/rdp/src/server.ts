@@ -1,3 +1,4 @@
+// @ts-ignore - Still need this for the import as no types exist
 import GuacamoleLite from 'guacamole-lite';
 import express, { Request, Response } from 'express';
 import http from 'http';
