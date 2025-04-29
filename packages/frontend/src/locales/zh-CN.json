@@ -681,7 +681,9 @@
     "width": "宽度",
     "height": "高度",
     "reconnect": "重新连接",
-    "retry": "重试"
+    "retry": "重试",
+    "sortAscending": "升序",
+    "sortDescending": "降序"
   },
   "layoutConfigurator": {
     "title": "布局管理器",
@@ -930,7 +932,16 @@
     "viewAllConnections": "查看所有连接",
     "recentActivity": "最近活动",
     "noRecentActivity": "没有最近活动记录",
-    "viewFullAuditLog": "查看完整审计日志"
+    "viewFullAuditLog": "查看完整审计日志",
+    "connectionList": "连接列表",
+    "noConnections": "没有连接记录",
+    "sortOptions": {
+      "lastConnected": "最近连接",
+      "name": "名称",
+      "type": "类型",
+      "updated": "修改时间",
+      "created": "创建时间"
+    }
   },
   "terminalTabBar": {
     "selectServerTitle": "选择要连接的服务器"

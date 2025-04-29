@@ -676,7 +676,9 @@
       "collapse": "折りたたむ",
       "search": "検索",
       "all": "すべて",
-      "filter": "フィルター"
+      "filter": "フィルター",
+      "sortAscending": "昇順",
+      "sortDescending": "降順"
     },
     "layoutConfigurator": {
       "title": "レイアウトマネージャー",
@@ -897,7 +899,16 @@
     "viewAllConnections": "すべての接続を表示",
     "recentActivity": "最近のアクティビティ",
     "noRecentActivity": "最近のアクティビティ記録はありません",
-    "viewFullAuditLog": "完全な監査ログを表示"
+    "viewFullAuditLog": "完全な監査ログを表示",
+    "connectionList": "接続リスト",
+    "noConnections": "接続記録がありません",
+    "sortOptions": {
+      "lastConnected": "最終接続",
+      "name": "名前",
+      "type": "タイプ",
+      "updated": "更新日時",
+      "created": "作成日時"
+    }
   },
   "terminalTabBar": {
     "selectServerTitle": "接続するサーバーを選択"

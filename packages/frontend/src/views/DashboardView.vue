@@ -1,12 +1,14 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useConnectionsStore } from '../stores/connections.store';
 import { useAuditLogStore } from '../stores/audit.store';
-import { useSessionStore } from '../stores/session.store'; 
+import { useSessionStore } from '../stores/session.store';
+// Removed settings store import for sorting
+import type { SortField, SortOrder } from '../stores/settings.store'; // Keep type import
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import type { ConnectionInfo } from '../stores/connections.store'; 
-import { storeToRefs } from 'pinia';
+import type { ConnectionInfo } from '../stores/connections.store';
+import { storeToRefs } from 'pinia'; // Keep for other stores if needed
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN, enUS, ja } from 'date-fns/locale';
 import type { Locale } from 'date-fns';
@@ -15,39 +17,72 @@ const { t, locale } = useI18n();
 const router = useRouter();
 const connectionsStore = useConnectionsStore();
 const auditLogStore = useAuditLogStore();
-const sessionStore = useSessionStore(); 
+const sessionStore = useSessionStore();
+// Removed settings store instantiation
 
 const { connections, isLoading: isLoadingConnections } = storeToRefs(connectionsStore);
 const { logs: auditLogs, isLoading: isLoadingLogs, totalLogs } = storeToRefs(auditLogStore);
+// Removed refs from settings store
 
-const maxRecentConnections = 5;
+// Local state for sorting
+const localSortBy = ref<SortField>('last_connected_at');
+const localSortOrder = ref<SortOrder>('desc');
+
 const maxRecentLogs = 5;
 
-const recentConnections = computed(() => {
+const sortOptions: { value: SortField; labelKey: string }[] = [
+  { value: 'last_connected_at', labelKey: 'dashboard.sortOptions.lastConnected' },
+  { value: 'name', labelKey: 'dashboard.sortOptions.name' },
+  { value: 'type', labelKey: 'dashboard.sortOptions.type' },
+  { value: 'updated_at', labelKey: 'dashboard.sortOptions.updated' },
+  { value: 'created_at', labelKey: 'dashboard.sortOptions.created' },
+];
 
+const sortedConnections = computed(() => {
+  const sortBy = localSortBy.value; // Use local state
+  const sortOrderVal = localSortOrder.value; // Use local state
+  const factor = sortOrderVal === 'desc' ? -1 : 1;
 
-const connected = connections.value.filter(c => c.last_connected_at);
+  return [...connections.value].sort((a, b) => {
+    let valA: any;
+    let valB: any;
 
-  if (connected.length > 0) {
-    connected.sort((a, b) => (b.last_connected_at ?? 0) - (a.last_connected_at ?? 0));
-    const result = connected.slice(0, maxRecentConnections);
-    return result;
-  } else {
-    const sortedByUpdate = [...connections.value].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
-    const result = sortedByUpdate.slice(0, maxRecentConnections);
-    return result;
-  }
+    switch (sortBy) {
+      case 'name':
+        valA = a.name || '';
+        valB = b.name || '';
+        return valA.localeCompare(valB) * factor;
+      case 'type':
+        valA = a.type || '';
+        valB = b.type || '';
+        return valA.localeCompare(valB) * factor;
+      case 'created_at':
+        valA = a.created_at ?? 0;
+        valB = b.created_at ?? 0;
+        return (valA - valB) * factor;
+      case 'updated_at':
+        valA = a.updated_at ?? 0;
+        valB = b.updated_at ?? 0;
+        return (valA - valB) * factor;
+      case 'last_connected_at':
+        // Handle null/undefined last_connected_at based on sort order for consistent sorting
+        valA = a.last_connected_at ?? (sortOrderVal === 'desc' ? -Infinity : Infinity);
+        valB = b.last_connected_at ?? (sortOrderVal === 'desc' ? -Infinity : Infinity);
+        // Ensure consistent comparison for potentially infinite values
+        if (valA === valB) return 0;
+        if (valA < valB) return -1 * factor;
+        return 1 * factor;
+      default:
+        return 0;
+    }
+  });
 });
 
-// --- 最近活动 ---
 const recentAuditLogs = computed(() => {
-  // 直接取最新的 N 条 (假设 store 中已按时间倒序)
   return auditLogs.value.slice(0, maxRecentLogs);
 });
 
-// --- 加载数据 ---
 onMounted(async () => {
-  // 如果 connections store 还没有加载过数据，则加载
   if (connections.value.length === 0) {
     try {
       await connectionsStore.fetchConnections();
@@ -55,30 +90,31 @@ onMounted(async () => {
       console.error("加载连接列表失败:", error);
     }
   }
-  // 加载最新的审计日志
   try {
-    // 只需要加载少量日志用于摘要，并按时间倒序
-    // 调用 fetchLogs 并明确指示这是仪表盘请求以启用缓存
     await auditLogStore.fetchLogs({
         page: 1,
         limit: maxRecentLogs,
         sortOrder: 'desc',
-        isDashboardRequest: true // <--- 添加此标志
+        isDashboardRequest: true
     });
   } catch (error) {
     console.error("加载审计日志失败:", error);
-    // 可以在这里显示错误通知
   }
 });
-// --- 方法 ---
-// 修改函数签名，接受 ConnectionInfo 类型
+
 const connectTo = (connection: ConnectionInfo) => {
-  // 将连接处理逻辑委托给 sessionStore
   sessionStore.handleConnectRequest(connection);
 };
 
+const toggleSortOrder = () => {
+  // Only update the local sort order state
+  localSortOrder.value = localSortOrder.value === 'asc' ? 'desc' : 'asc';
+};
 
-// --- 动态语言包映射 ---
+const isAscending = computed(() => localSortOrder.value === 'asc'); // Use local state
+
+// Removed watch for saving preferences
+
 const dateFnsLocales: Record<string, Locale> = {
   'en-US': enUS,
   'zh-CN': zhCN,
@@ -148,20 +184,38 @@ const isFailedAction = (actionType: string): boolean => {
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-      <!-- Recent Connections -->
+      <!-- Connection List -->
       <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border">
-        <div class="px-4 py-3 border-b border-border">
-          <h2 class="text-lg font-medium">{{ t('dashboard.recentConnections', '最近连接') }}</h2>
+        <div class="px-4 py-3 border-b border-border flex justify-between items-center">
+          <h2 class="text-lg font-medium">{{ t('dashboard.connectionList', '连接列表') }}</h2>
+          <div class="flex items-center space-x-2">
+             <select
+                v-model="localSortBy"
+                class="h-8 px-2 py-1 text-sm border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                aria-label="Sort connections by"
+              >
+                <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+                  {{ t(option.labelKey, option.value.replace('_', ' ')) }}
+                </option>
+              </select>
+              <button
+                @click="toggleSortOrder"
+                class="h-8 px-1.5 py-1 border border-border rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary flex items-center justify-center"
+                :aria-label="isAscending ? t('common.sortAscending') : t('common.sortDescending')"
+                :title="isAscending ? t('common.sortAscending') : t('common.sortDescending')"
+              >
+                <i :class="['fas', isAscending ? 'fa-arrow-up-a-z' : 'fa-arrow-down-z-a', 'w-4 h-4']"></i>
+              </button>
+          </div>
         </div>
         <div class="p-4">
-          <!-- Loading State (Only show if loading AND no connections are displayed yet) -->
-          <div v-if="isLoadingConnections && recentConnections.length === 0" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
-          <ul v-else-if="recentConnections.length > 0" class="space-y-3">
-            <li v-for="conn in recentConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-header/50 border border-border/50 rounded transition duration-150 ease-in-out"> <!-- Applied audit log item style -->
+          <div v-if="isLoadingConnections && sortedConnections.length === 0" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
+          <ul v-else-if="sortedConnections.length > 0" class="space-y-3">
+            <li v-for="conn in sortedConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-header/50 border border-border/50 rounded transition duration-150 ease-in-out">
               <div class="flex-grow mr-4 overflow-hidden">
                 <span class="font-medium block truncate flex items-center" :title="conn.name || ''">
                   <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2 w-4 text-center text-text-secondary']"></i>
-                  <span>{{ conn.name || 'Unnamed' }}</span>
+                  <span>{{ conn.name || t('connections.unnamed') }}</span>
                 </span>
                 <span class="text-sm text-text-secondary block truncate" :title="`${conn.username}@${conn.host}:${conn.port}`">
                   {{ conn.username }}@{{ conn.host }}:{{ conn.port }}
@@ -175,7 +229,7 @@ const isFailedAction = (actionType: string): boolean => {
               </button>
             </li>
           </ul>
-          <div v-else class="text-center text-text-secondary">{{ t('dashboard.noRecentConnections', '没有最近连接记录') }}</div>
+          <div v-else class="text-center text-text-secondary">{{ t('dashboard.noConnections', '没有连接记录') }}</div>
         </div>
       </div>
 

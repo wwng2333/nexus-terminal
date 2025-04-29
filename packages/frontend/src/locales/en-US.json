@@ -680,7 +680,9 @@
     "width": "Width",
     "height": "Height",
     "reconnect": "Reconnect",
-    "retry": "Retry"
+    "retry": "Retry",
+    "sortAscending": "Ascending",
+    "sortDescending": "Descending"
   },
   "layoutConfigurator": {
     "title": "Layout Configurator",
@@ -927,7 +929,16 @@
     "viewAllConnections": "View All Connections",
     "recentActivity": "Recent Activity",
     "noRecentActivity": "No recent activity records",
-    "viewFullAuditLog": "View Full Audit Log"
+    "viewFullAuditLog": "View Full Audit Log",
+    "connectionList": "Connection List",
+    "noConnections": "No connection records",
+    "sortOptions": {
+      "lastConnected": "Last Connected",
+      "name": "Name",
+      "type": "Type",
+      "updated": "Updated",
+      "created": "Created"
+    }
   },
   "terminalTabBar": {
     "selectServerTitle": "Select server to connect"

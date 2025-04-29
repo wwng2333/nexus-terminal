@@ -2,10 +2,13 @@ import { defineStore } from 'pinia';
 import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
 import { ref, computed } from 'vue'; // 移除 watch
 import i18n, { setLocale, defaultLng, availableLocales } from '../i18n'; // Import i18n instance, setLocale, defaultLng, and availableLocales
-import type { PaneName } from './layout.store'; // +++ Import PaneName type +++
-import { useAuthStore } from './auth.store'; // <--- 导入 authStore
-// Import CAPTCHA types from backend (adjust path if needed, assuming types are mirrored or shared)
-// For now, let's assume they are available via a shared types definition or manually defined here
+import type { PaneName } from './layout.store';
+import { useAuthStore } from './auth.store';
+import type { ConnectionInfo } from './connections.store';
+
+export type SortField = keyof Pick<ConnectionInfo, 'created_at' | 'last_connected_at' | 'updated_at' | 'name' | 'type'>;
+export type SortOrder = 'asc' | 'desc';
+
 // Assuming manual definition for now if no shared types exist:
 type CaptchaProvider = 'hcaptcha' | 'recaptcha' | 'none';
 interface CaptchaSettings {
@@ -47,9 +50,10 @@ interface SettingsState {
   timezone?: string; // NEW: 时区设置 (e.g., 'Asia/Shanghai', 'UTC')
   rdpModalWidth?: string; // NEW: RDP 模态框宽度
   rdpModalHeight?: string; // NEW: RDP 模态框高度
-  ipBlacklistEnabled?: string; // <-- NEW: IP 黑名单启用状态 'true' or 'false'
-  // Add other general settings keys here as needed
-  [key: string]: string | undefined; // Allow other string settings
+  ipBlacklistEnabled?: string;
+  dashboardSortBy?: SortField;
+  dashboardSortOrder?: SortOrder;
+  [key: string]: string | undefined;
 }
 
 
@@ -224,7 +228,14 @@ export const useSettingsStore = defineStore('settings', () => {
           settings.value.rdpModalWidth = '1064'; // 默认宽度 (1024 + 40 padding)
       }
       if (settings.value.rdpModalHeight === undefined) {
-          settings.value.rdpModalHeight = '858'; // 默认高度 (768 + chrome)
+          settings.value.rdpModalHeight = '858';
+      }
+    
+      if (settings.value.dashboardSortBy === undefined) {
+          settings.value.dashboardSortBy = 'last_connected_at';
+      }
+      if (settings.value.dashboardSortOrder === undefined) {
+          settings.value.dashboardSortOrder = 'desc';
       }
 
       // --- 语言设置 ---
@@ -306,10 +317,12 @@ export const useSettingsStore = defineStore('settings', () => {
         'timezone', // NEW: 添加时区键
         'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
         'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
-        'ipBlacklistEnabled' // <-- NEW: 添加 IP 黑名单启用键
-    ];
-    if (!allowedKeys.includes(key)) {
-        console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
+        'ipBlacklistEnabled',
+        'dashboardSortBy',
+        'dashboardSortOrder'
+      ];
+      if (!allowedKeys.includes(key)) {
+          console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
         throw new Error(`不允许更新设置项 '${key}'`);
     }
 
@@ -366,10 +379,12 @@ export const useSettingsStore = defineStore('settings', () => {
         'timezone', // NEW: 添加时区键
         'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
         'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
-        'ipBlacklistEnabled' // <-- NEW: 添加 IP 黑名单启用键
-    ];
-    const filteredUpdates: Partial<SettingsState> = {};
-    let languageUpdate: string | undefined = undefined; // Use string type
+        'ipBlacklistEnabled',
+        'dashboardSortBy',
+        'dashboardSortOrder'
+      ];
+      const filteredUpdates: Partial<SettingsState> = {};
+      let languageUpdate: string | undefined = undefined;
 
     for (const key in updates) {
         if (allowedKeys.includes(key as keyof SettingsState)) {
@@ -517,6 +532,18 @@ export const useSettingsStore = defineStore('settings', () => {
       isLoading.value = false;
     }
   }
+  
+  async function saveDashboardSortPreference(sortBy: SortField, sortOrder: SortOrder) {
+      try {
+          await updateMultipleSettings({
+              dashboardSortBy: sortBy,
+              dashboardSortOrder: sortOrder,
+          });
+      } catch (error) {
+          console.error('[SettingsStore] Failed to save dashboard sort preference:', error);
+          // Optionally show error to user
+      }
+  }
 
 
   // 移除外观相关 actions: saveCustomThemes, resetCustomThemes, toggleStyleCustomizer
@@ -596,9 +623,19 @@ export const useSettingsStore = defineStore('settings', () => {
   });
 
   // NEW: Getter for timezone setting
-  const timezone = computed(() => settings.value.timezone || 'UTC'); // Fallback to UTC
-
-  // --- CAPTCHA Getters (Public Only) ---
+  const timezone = computed(() => settings.value.timezone || 'UTC');
+  
+  const dashboardSortBy = computed((): SortField => {
+      const savedSortBy = settings.value.dashboardSortBy;
+      const validFields: SortField[] = ['created_at', 'last_connected_at', 'updated_at', 'name', 'type'];
+      return savedSortBy && validFields.includes(savedSortBy) ? savedSortBy : 'last_connected_at';
+  });
+  
+  const dashboardSortOrder = computed((): SortOrder => {
+      const savedSortOrder = settings.value.dashboardSortOrder;
+      return savedSortOrder === 'asc' || savedSortOrder === 'desc' ? savedSortOrder : 'desc';
+  });
+  
   const isCaptchaEnabled = computed(() => captchaSettings.value?.enabled ?? false);
   const captchaProvider = computed(() => captchaSettings.value?.provider ?? 'none');
   const hcaptchaSiteKey = computed(() => captchaSettings.value?.hcaptchaSiteKey ?? '');
@@ -636,6 +673,9 @@ export const useSettingsStore = defineStore('settings', () => {
     updateSidebarPaneWidth, // +++ 暴露更新特定面板宽度的 action +++
     updateFileManagerLayoutSettings, // +++ 暴露更新文件管理器布局的 action +++
     commandInputSyncTarget, // +++ 暴露命令输入同步目标 getter +++
-    timezone, // NEW: 暴露时区 getter
+    timezone,
+    dashboardSortBy,
+    dashboardSortOrder,
+    saveDashboardSortPreference,
   };
-});
+  });
