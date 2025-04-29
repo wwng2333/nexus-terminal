@@ -207,12 +207,17 @@ export function useFileUploader(
             // 不再调用 refreshDirectory()，由 useSftpActions 处理列表更新
             // refreshDirectory();
 
+            // 立即删除记录
+            if (uploads[uploadId]) { // 确保记录仍然存在
+                delete uploads[uploadId];
+            }
+
             // 延迟后从列表中移除
-            setTimeout(() => {
-                 if (uploads[uploadId]?.status === 'success') {
-                    delete uploads[uploadId];
-                 }
-            }, 2000); // 成功状态显示时间短一些
+            // setTimeout(() => {
+            //      if (uploads[uploadId]?.status === 'success') {
+            //         delete uploads[uploadId];
+            //      }
+            // }, 2000); // 成功状态显示时间短一些
         } else {
             console.warn(`[文件上传模块] 收到未知上传 ID 的 upload:success 消息: ${uploadId}`);
         }

@@ -489,7 +489,7 @@ const {
   // 修改：确保在调用前检查 currentSftpManager.value
   onRefresh: () => {
       if (currentSftpManager.value) {
-          currentSftpManager.value.loadDirectory(currentSftpManager.value.currentPath.value);
+          currentSftpManager.value.loadDirectory(currentSftpManager.value.currentPath.value, true);
       }
   },
   onUpload: triggerFileUpload,
