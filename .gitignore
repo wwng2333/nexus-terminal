@@ -157,5 +157,4 @@ dist-scripts/
 # Ignore specific generated file in root
 /tsc
 
-# Environment variables
-.env
+/packages/backend/data
