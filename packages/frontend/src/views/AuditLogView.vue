@@ -46,31 +46,8 @@
 
       <!-- Table and Pagination (Show if not loading, no error, and logs exist) -->
       <div v-else-if="!store.isLoading && !store.error && logs.length > 0">
-          <div class="border border-border rounded-lg overflow-hidden shadow-sm mt-4 bg-background"> <!-- Table container -->
-            <div class="overflow-x-auto"> <!-- Allow horizontal scroll -->
-              <table class="min-w-full divide-y divide-border text-sm"> <!-- Table styling -->
-                <thead class="bg-header">
-                  <tr>
-                    <th scope="col" class="px-6 py-3 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('auditLog.table.timestamp') }}</th>
-                    <th scope="col" class="px-6 py-3 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('auditLog.table.actionType') }}</th>
-                    <th scope="col" class="px-6 py-3 text-left font-medium text-text-secondary tracking-wider">{{ $t('auditLog.table.details') }}</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-border">
-                  <tr v-for="log in logs" :key="log.id" class="hover:bg-header/50"> <!-- Table rows with hover -->
-                    <td class="px-6 py-4 whitespace-nowrap">{{ formatTimestamp(log.timestamp) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ translateActionType(log.action_type) }}</td>
-                    <td class="px-6 py-4">
-                      <pre v-if="log.details" class="whitespace-pre-wrap break-all bg-header/50 p-2 border border-border/50 rounded text-xs font-mono max-h-40 overflow-y-auto">{{ formatDetails(log.details) }}</pre> <!-- Details pre styling -->
-                      <span v-else class="text-text-secondary">-</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
           <!-- Pagination Controls -->
-          <nav aria-label="Audit Log Pagination" v-if="totalPages > 1" class="mt-6 flex justify-center">
+          <nav aria-label="Audit Log Pagination" v-if="totalPages > 1" class="mb-4 flex justify-center"> <!-- Removed mt-6, added mb-4 -->
             <ul class="inline-flex items-center -space-x-px">
               <li>
                 <a href="#" @click.prevent="changePage(currentPage - 1)"
@@ -93,8 +70,31 @@
               </li>
             </ul>
           </nav>
-           <div class="text-center text-text-secondary text-sm mt-3"> <!-- Pagination info -->
+           <div class="text-right text-text-secondary text-sm mb-4"> <!-- Changed text-center to text-right, removed mt-3, added mb-4 -->
               {{ $t('auditLog.paginationInfo', { currentPage, totalPages, totalLogs }) }}
+          </div>
+          <div class="border border-border rounded-lg overflow-hidden shadow-sm bg-background"> <!-- Removed mt-4 -->
+            <div class="overflow-x-auto"> <!-- Allow horizontal scroll -->
+              <table class="min-w-full divide-y divide-border text-sm"> <!-- Table styling -->
+                <thead class="bg-header">
+                  <tr>
+                    <th scope="col" class="px-6 py-3 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('auditLog.table.timestamp') }}</th>
+                    <th scope="col" class="px-6 py-3 text-left font-medium text-text-secondary tracking-wider whitespace-nowrap">{{ $t('auditLog.table.actionType') }}</th>
+                    <th scope="col" class="px-6 py-3 text-left font-medium text-text-secondary tracking-wider">{{ $t('auditLog.table.details') }}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-border">
+                  <tr v-for="log in logs" :key="log.id" class="hover:bg-header/50"> <!-- Table rows with hover -->
+                    <td class="px-6 py-4 whitespace-nowrap">{{ formatTimestamp(log.timestamp) }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ translateActionType(log.action_type) }}</td>
+                    <td class="px-6 py-4">
+                      <pre v-if="log.details" class="whitespace-pre-wrap break-all bg-header/50 p-2 border border-border/50 rounded text-xs font-mono max-h-40 overflow-y-auto">{{ formatDetails(log.details) }}</pre> <!-- Details pre styling -->
+                      <span v-else class="text-text-secondary">-</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 </div>
       </div>
