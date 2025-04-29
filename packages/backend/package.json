@@ -9,9 +9,11 @@
       "dev": "cross-env NODE_ENV=development npx ts-node-dev --respawn --transpile-only src/index.ts"
    },
    "dependencies": {
+      "@types/archiver": "^6.0.3",
       "@types/multer": "^1.4.12",
       "@types/session-file-store": "^1.2.5",
       "@types/uuid": "^10.0.0",
+      "archiver": "^7.0.1",
       "axios": "^1.9.0",
       "bcrypt": "^5.1.1",
       "date-fns": "^4.1.0",

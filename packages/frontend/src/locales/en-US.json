@@ -251,6 +251,7 @@
       "deleteMultiple": "Delete {count} items",
       "download": "Download",
       "downloadMultiple": "Download {count} items",
+      "downloadFolder": "Download Folder",
       "cancel": "Cancel",
       "save": "Save",
       "closeTab": "Close Tab",
@@ -291,7 +292,9 @@
       "sftpManagerNotFound": "SFTP manager not found",
       "noActiveSession": "No active session found",
       "terminalManagerNotFound": "Terminal manager not found",
-      "sendCommandFailed": "Failed to send command"
+      "sendCommandFailed": "Failed to send command",
+      "downloadDirectoryFailed": "Failed to download directory",
+      "downloadDirectoryNotImplemented": "Directory download feature is not yet implemented on the server."
     },
     "notifications": {
         "copySuccess": "Copy successful",

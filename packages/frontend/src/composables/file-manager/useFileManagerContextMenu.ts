@@ -30,7 +30,8 @@ export interface UseFileManagerContextMenuOptions {
   // --- 回调函数 ---
   onRefresh: () => void;
   onUpload: () => void;
-  onDownload: (items: FileListItem[]) => void; // 修改：接受 FileListItem 数组
+  onDownload: (items: FileListItem[]) => void; // 文件下载回调
+  onDownloadDirectory: (item: FileListItem) => void; // +++ 新增：文件夹下载回调 +++
   onDelete: () => void; // 删除操作现在由外部处理
   onRename: (item: FileListItem) => void;
   onChangePermissions: (item: FileListItem) => void;
@@ -62,6 +63,7 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
     onCopy, // +++ 解构复制回调 +++
     onCut, // +++ 解构剪切回调 +++
     onPaste, // +++ 解构粘贴回调 +++
+    onDownloadDirectory, // +++ 解构文件夹下载回调 +++
   } = options;
 
   const contextMenuVisible = ref(false);
@@ -110,9 +112,13 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
         ];
 
         // --- 新增：多选下载 ---
-        if (allFilesSelected) {
-            menu.push({ label: t('fileManager.actions.downloadMultiple', { count: selectionSize }), action: () => onDownload(selectedFileItems), disabled: !canPerformActions });
-        }
+        // 多选时暂时禁用文件夹下载，只允许下载文件
+        // 如果需要支持多选文件夹下载或混合下载，需要更复杂的逻辑和后端支持（例如打包成 zip）
+        // 目前仅在 allFilesSelected 为 true 时启用多文件下载
+         if (allFilesSelected) {
+             menu.push({ label: t('fileManager.actions.downloadMultiple', { count: selectionSize }), action: () => onDownload(selectedFileItems), disabled: !canPerformActions });
+         }
+
 
         menu.push(
              // --- 分隔符 (视觉) ---
@@ -122,13 +128,16 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
         );
     } else if (targetItem && targetItem.filename !== '..') {
         // Single item (not '..') menu
-        // --- 修改：单选下载也调用接收数组的回调 ---
         menu = [];
 
-        // 1. 主要操作 (下载 - 如果是文件)
+        // --- 修改：区分文件和文件夹下载 ---
         if (targetItem.attrs.isFile) {
-            menu.push({ label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload([targetItem]), disabled: !canPerformActions }); // 传递包含单个项的数组
+            menu.push({ label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload([targetItem]), disabled: !canPerformActions }); // 文件下载
+        } else if (targetItem.attrs.isDirectory) {
+            menu.push({ label: t('fileManager.actions.downloadFolder', { name: targetItem.filename }), action: () => onDownloadDirectory(targetItem), disabled: !canPerformActions }); // 文件夹下载
         }
+        // --- 结束修改 ---
+
 
         // 2. 剪切、复制、粘贴 (粘贴 - 如果是文件夹)
         menu.push({ label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions });

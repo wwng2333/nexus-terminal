@@ -251,6 +251,7 @@
       "deleteMultiple": "删除 {count} 个项目",
       "download": "下载",
       "downloadMultiple": "下载 {count} 个项目",
+      "downloadFolder": "下载文件夹",
       "cancel": "取消",
       "save": "保存",
       "closeTab": "关闭标签页",
@@ -291,7 +292,9 @@
       "sftpManagerNotFound": "SFTP 管理器未找到",
       "noActiveSession": "未找到活动会话",
       "terminalManagerNotFound": "未找到终端管理器",
-      "sendCommandFailed": "发送命令失败"
+      "sendCommandFailed": "发送命令失败",
+      "downloadDirectoryFailed": "下载文件夹失败",
+      "downloadDirectoryNotImplemented": "服务器尚未实现文件夹下载功能。"
     },
     "notifications": {
         "copySuccess": "复制成功",

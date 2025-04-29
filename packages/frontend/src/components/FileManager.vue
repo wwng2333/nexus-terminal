@@ -470,7 +470,10 @@ const triggerDownload = (items: FileListItem[]) => { // 修改：接受 FileList
         // 为每个文件创建一个链接并点击
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.setAttribute('download', item.filename); // 使用原始文件名
+        // --- 修正：移除文件名中的双引号以兼容 Chrome ---
+        const safeFilename = item.filename.replace(/"/g, ''); // 移除所有双引号
+        link.setAttribute('download', safeFilename);
+        // --- 结束修正 ---
         document.body.appendChild(link);
         link.click();
 
@@ -480,6 +483,95 @@ const triggerDownload = (items: FileListItem[]) => { // 修改：接受 FileList
         }, 100);
     });
 };
+
+
+// +++ 新增：文件夹下载触发器 +++
+const triggerDownloadDirectory = (item: FileListItem) => {
+    if (!props.wsDeps.isConnected.value) {
+        alert(t('fileManager.errors.notConnected'));
+        return;
+    }
+    const currentConnectionId = props.dbConnectionId;
+    if (!currentConnectionId) {
+        console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Cannot download directory: Missing connection ID.`);
+        alert(t('fileManager.errors.missingConnectionId'));
+        return;
+    }
+    if (!currentSftpManager.value) {
+        console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Cannot download directory: SFTP manager is not available.`);
+        alert(t('fileManager.errors.sftpManagerNotFound'));
+        return;
+    }
+
+    // 确保是目录
+    if (!item.attrs.isDirectory) {
+        console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Skipping directory download for non-directory item: ${item.filename}`);
+        return;
+    }
+
+    const directoryPath = currentSftpManager.value.joinPath(currentSftpManager.value.currentPath.value, item.filename);
+    // 定义新的后端 API 端点 URL (稍后实现)
+    const downloadUrl = `/api/v1/sftp/download-directory?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(directoryPath)}`;
+
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Attempting directory download for ${item.filename}: ${downloadUrl}`);
+
+    // --- 修改：使用 fetch 尝试下载，并处理后端未实现的情况 ---
+    fetch(downloadUrl)
+        .then(async response => {
+            if (response.ok) {
+                // 后端实现成功，尝试触发下载
+                const blob = await response.blob();
+                // 从 Content-Disposition 头获取文件名 (需要后端设置)
+                const contentDisposition = response.headers.get('content-disposition');
+                let filename = `${item.filename}.zip`; // 默认文件名
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+                    if (filenameMatch && filenameMatch.length > 1) {
+                        filename = filenameMatch[1];
+                    }
+                }
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                // --- 修正：移除 ZIP 文件名中的双引号以兼容 Chrome ---
+                const safeZipFilename = filename.replace(/"/g, '');
+                link.setAttribute('download', safeZipFilename);
+                // --- 结束修正 ---
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href); // 释放对象 URL
+                console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Directory download triggered for: ${filename}`);
+            } else {
+                // 处理错误，例如 404 Not Found
+                console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Directory download failed: ${response.status} ${response.statusText}`);
+                // 尝试读取错误信息体
+                let errorMsg = `Server responded with status ${response.status}`;
+                try {
+                    const errorData = await response.json(); // 假设后端返回 JSON 错误
+                    errorMsg = errorData.message || errorMsg;
+                } catch (e) {
+                    // 如果响应体不是 JSON 或读取失败
+                    try {
+                       const textError = await response.text();
+                       if (textError) errorMsg = textError;
+                    } catch (e2) { /* ignore */}
+                }
+
+                if (response.status === 404) {
+                     alert(t('fileManager.errors.downloadDirectoryNotImplemented', 'Directory download feature is not yet implemented on the server.'));
+                } else {
+                    alert(`${t('fileManager.errors.downloadDirectoryFailed', 'Failed to download directory')}: ${errorMsg}`);
+                }
+            }
+        })
+        .catch(error => {
+            console.error(`[FileManager ${props.sessionId}-${props.instanceId}] Network error during directory download:`, error);
+            alert(`${t('fileManager.errors.downloadDirectoryFailed', 'Failed to download directory')}: Network error.`);
+        });
+    // --- 结束修改 ---
+};
+// --- 结束新增 ---
 
 
 // --- 上下文菜单逻辑 (使用 Composable, 需要 Selection 和 Action Handlers) ---
@@ -517,6 +609,7 @@ const {
   onCopy: handleCopy, // +++ 传递复制回调 +++
   onCut: handleCut, // +++ 传递剪切回调 +++
   onPaste: handlePaste, // +++ 传递粘贴回调 +++
+  onDownloadDirectory: triggerDownloadDirectory, // +++ 传递文件夹下载回调 +++
 });
 
 // --- 目录加载与导航 ---
