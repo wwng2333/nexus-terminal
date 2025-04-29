@@ -617,14 +617,16 @@ const {
 
 // --- 拖放逻辑 (使用 Composable) ---
 const {
-  isDraggingOver, // 容器拖拽悬停状态 (外部文件)
-  dragOverTarget, // 行拖拽悬停目标 (内部/外部)
+  // isDraggingOver, // 不再直接使用容器的悬停状态
+  showExternalDropOverlay, // 新增：控制蒙版显示
+  dragOverTarget, // 行拖拽悬停目标 (内部)
   // draggedItem, // 内部状态，不需要在 FileManager 中直接使用
   // --- 事件处理器 ---
   handleDragEnter,
-  handleDragOver,
+  handleDragOver, // 容器的 dragover (主要处理内部滚动)
   handleDragLeave,
-  handleDrop,
+  handleDrop, // 容器的 drop (主要用于清理)
+  handleOverlayDrop, // 新增：蒙版的 drop
   handleDragStart,
   handleDragEnd,
   handleDragOverRow,
@@ -1260,9 +1262,6 @@ defineExpose({ focusSearchInput, startPathEdit });
     <div
       ref="fileListContainerRef"
       class="flex-grow overflow-y-auto relative outline-none"
-      :class="{
-        'outline-dashed outline-2 outline-offset-[-2px] outline-primary bg-primary/5': isDraggingOver
-      }"
       @dragenter.prevent="handleDragEnter"
       @dragover.prevent="handleDragOver"
       @dragleave.prevent="handleDragLeave"
@@ -1274,13 +1273,19 @@ defineExpose({ focusSearchInput, startPathEdit });
       tabindex="0"
       :style="{ '--row-size-multiplier': rowSizeMultiplier }"
     >
-        <!-- Drag over overlay text (optional) -->
-        <div v-if="isDraggingOver" class="absolute inset-0 flex items-center justify-center bg-black/60 text-white text-lg font-medium rounded pointer-events-none z-10">
+        <!-- 新增：外部文件拖拽蒙版 -->
+        <div
+          v-if="showExternalDropOverlay"
+          class="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-xl font-semibold rounded z-50 pointer-events-auto"
+          @dragover.prevent
+          @dragleave.prevent="handleDragLeave"
+          @drop.prevent="handleOverlayDrop"
+        >
           {{ t('fileManager.dropFilesHere', 'Drop files here to upload') }}
         </div>
 
         <!-- File Table -->
-        <table ref="tableRef" class="w-full border-collapse table-fixed  border-border rounded" @contextmenu.prevent>
+        <table ref="tableRef" class="w-full border-collapse table-fixed border-border rounded" :class="{'pointer-events-none': showExternalDropOverlay}" @contextmenu.prevent>
             <colgroup>
                  <col :style="{ width: `${colWidths.type}px` }">
                 <col :style="{ width: `${colWidths.name}px` }">
