@@ -254,7 +254,10 @@
       "save": "保存",
       "closeTab": "关闭标签页",
       "closeEditor": "关闭编辑器",
-      "cdToTerminal": "将终端目录切换到当前路径"
+      "cdToTerminal": "将终端目录切换到当前路径",
+      "copy": "复制",
+      "cut": "剪切",
+      "paste": "粘贴"
     },
     "headers": {
       "type": "类型",
@@ -280,7 +283,22 @@
       "saveFailed": "保存文件失败",
       "saveTimeout": "保存超时",
       "fileExists": "文件 \"{name}\" 已存在。",
-      "loadDirectoryFailed": "加载目录失败"
+      "loadDirectoryFailed": "加载目录失败",
+      "copyFailed": "复制失败",
+      "moveFailed": "移动失败",
+      "sftpNotReady": "SFTP 会话未就绪",
+      "sftpManagerNotFound": "SFTP 管理器未找到",
+      "noActiveSession": "未找到活动会话",
+      "terminalManagerNotFound": "未找到终端管理器",
+      "sendCommandFailed": "发送命令失败"
+    },
+    "notifications": {
+        "copySuccess": "复制成功",
+        "moveSuccess": "移动成功",
+        "cdCommandSent": "CD 命令已发送到终端"
+    },
+    "warnings": {
+        "moveSameDirectory": "不能在同一目录下剪切和粘贴。"
     },
     "prompts": {
       "enterFolderName": "请输入新文件夹的名称:",

@@ -406,6 +406,48 @@ export function createSftpActionsManager(
         });
     };
 
+    // +++ 新增：复制项目 +++
+    const copyItems = (sourcePaths: string[], destinationDir: string) => {
+        if (!isSftpReady.value) {
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 });
+            console.warn(`[SFTP ${instanceSessionId}] 尝试复制项目但 SFTP 未就绪。`);
+            return;
+        }
+        if (sourcePaths.length === 0) return;
+        const requestId = generateRequestId();
+        sendMessage({
+            type: 'sftp:copy',
+            requestId: requestId,
+            payload: { sources: sourcePaths, destination: destinationDir }
+        });
+        console.log(`[SFTP ${instanceSessionId}] 发送 sftp:copy 请求 (ID: ${requestId}) Sources: ${sourcePaths.join(', ')}, Dest: ${destinationDir}`);
+        // 可选：显示一个“正在复制...”的通知
+    };
+
+    // +++ 新增：移动项目 +++
+    const moveItems = (sourcePaths: string[], destinationDir: string) => {
+        if (!isSftpReady.value) {
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 });
+            console.warn(`[SFTP ${instanceSessionId}] 尝试移动项目但 SFTP 未就绪。`);
+            return;
+        }
+        if (sourcePaths.length === 0) return;
+        // 可以在这里再次检查源目录和目标目录是否相同，虽然 FileManager.vue 也检查了
+        // const sourceDir = sourcePaths[0].substring(0, sourcePaths[0].lastIndexOf('/')) || '/';
+        // if (sourceDir === destinationDir) {
+        //     uiNotificationsStore.showWarning(t('fileManager.warnings.moveSameDirectory'), { timeout: 3000 });
+        //     return;
+        // }
+        const requestId = generateRequestId();
+        sendMessage({
+            type: 'sftp:move', // 使用 'sftp:move' 类型
+            requestId: requestId,
+            payload: { sources: sourcePaths, destination: destinationDir }
+        });
+         console.log(`[SFTP ${instanceSessionId}] 发送 sftp:move 请求 (ID: ${requestId}) Sources: ${sourcePaths.join(', ')}, Dest: ${destinationDir}`);
+        // 可选：显示一个“正在移动...”的通知
+    };
+
 
     // --- Message Handlers ---
 
@@ -716,6 +758,86 @@ export function createSftpActionsManager(
         }
     };
 
+    // +++ 新增：处理复制成功 +++
+    const onCopySuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+        // 后端应发送 { destination: string, items: FileListItem[] | null }
+        const copyPayload = payload as { destination: string, items: FileListItem[] | null };
+        const destinationDir = copyPayload.destination;
+        const newItems = copyPayload.items;
+
+        console.log(`[SFTP ${instanceSessionId}] 复制成功到: ${destinationDir}`);
+        uiNotificationsStore.showSuccess(t('fileManager.notifications.copySuccess'), { timeout: 3000 }); // 添加成功通知
+
+        // 更新文件树
+        const destNode = findNodeByPath(fileTree, destinationDir);
+        if (destNode && newItems) {
+            // 如果目标节点已加载，直接添加新项目
+            if (destNode.childrenLoaded && destNode.children) {
+                 newItems.forEach(item => addOrUpdateNodeInTree(destinationDir, item));
+            } else {
+                // 如果目标节点未加载，标记为需要刷新
+                destNode.childrenLoaded = false;
+                console.log(`[SFTP ${instanceSessionId}] 复制成功，但目标目录 ${destinationDir} 未加载，标记为需要刷新`);
+                // 如果复制发生在当前目录，触发刷新
+                if (destinationDir === currentPathRef.value) {
+                    loadDirectory(currentPathRef.value);
+                }
+            }
+        } else if (destNode && !newItems) {
+            // 成功但没有收到项目详情，标记目标目录需要刷新
+            destNode.childrenLoaded = false;
+            console.warn(`[SFTP ${instanceSessionId}] Copy success to ${destinationDir} but no item details received. Marking parent for reload.`);
+            if (destinationDir === currentPathRef.value) {
+                loadDirectory(currentPathRef.value);
+            }
+        } else {
+             console.warn(`[SFTP ${instanceSessionId}] Copy success, but destination node ${destinationDir} not found in tree.`);
+             // 可能需要刷新根目录或采取其他措施
+        }
+    };
+
+    // +++ 新增：处理移动成功 +++
+    const onMoveSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
+         // 后端应发送 { sources: string[], destination: string, items: FileListItem[] | null }
+        const movePayload = payload as { sources: string[], destination: string, items: FileListItem[] | null };
+        const sourcePaths = movePayload.sources;
+        const destinationDir = movePayload.destination;
+        const newItems = movePayload.items;
+
+        console.log(`[SFTP ${instanceSessionId}] 移动成功到: ${destinationDir}`);
+        uiNotificationsStore.showSuccess(t('fileManager.notifications.moveSuccess'), { timeout: 3000 }); // 添加成功通知
+
+        // 1. 从旧位置移除
+        sourcePaths.forEach(oldPath => {
+            const oldParentPath = oldPath.substring(0, oldPath.lastIndexOf('/')) || '/';
+            const oldFilename = oldPath.substring(oldPath.lastIndexOf('/') + 1);
+            removeNodeFromTree(oldParentPath, oldFilename);
+        });
+
+        // 2. 添加到新位置
+        const destNode = findNodeByPath(fileTree, destinationDir);
+        if (destNode && newItems) {
+            if (destNode.childrenLoaded && destNode.children) {
+                newItems.forEach(item => addOrUpdateNodeInTree(destinationDir, item));
+            } else {
+                destNode.childrenLoaded = false; // 标记需要刷新
+                console.log(`[SFTP ${instanceSessionId}] 移动成功，但目标目录 ${destinationDir} 未加载，标记为需要刷新`);
+                if (destinationDir === currentPathRef.value) {
+                    loadDirectory(currentPathRef.value);
+                }
+            }
+        } else if (destNode && !newItems) {
+            destNode.childrenLoaded = false;
+            console.warn(`[SFTP ${instanceSessionId}] Move success to ${destinationDir} but no item details received. Marking parent for reload.`);
+             if (destinationDir === currentPathRef.value) {
+                loadDirectory(currentPathRef.value);
+            }
+        } else {
+             console.warn(`[SFTP ${instanceSessionId}] Move success, but destination node ${destinationDir} not found in tree.`);
+        }
+    };
+
+
     // *** 新增：处理上传成功 ***
     const onUploadSuccess = (payload: MessagePayload, message: WebSocketMessage) => {
         const newItem = payload as FileListItem | null; // 后端应发送 FileListItem 或 null
@@ -750,6 +872,8 @@ export function createSftpActionsManager(
             'sftp:rename:error': t('fileManager.errors.renameFailed'),
             'sftp:chmod:error': t('fileManager.errors.chmodFailed'),
             'sftp:writefile:error': t('fileManager.errors.saveFailed'),
+            'sftp:copy:error': t('fileManager.errors.copyFailed'), // +++
+            'sftp:move:error': t('fileManager.errors.moveFailed'), // +++
         };
         const prefix = actionTypeMap[message.type] || t('fileManager.errors.generic');
         // error.value = `${prefix}: ${errorPayload}`; // 使用通知
@@ -773,6 +897,11 @@ export function createSftpActionsManager(
     unregisterCallbacks.push(onMessage('sftp:rename:error', onActionError));
     unregisterCallbacks.push(onMessage('sftp:chmod:error', onActionError));
     unregisterCallbacks.push(onMessage('sftp:writefile:error', onActionError));
+    // +++ 新增：监听复制/移动错误 +++
+    unregisterCallbacks.push(onMessage('sftp:copy:success', onCopySuccess));
+    unregisterCallbacks.push(onMessage('sftp:copy:error', onActionError));
+    unregisterCallbacks.push(onMessage('sftp:move:success', onMoveSuccess));
+    unregisterCallbacks.push(onMessage('sftp:move:error', onActionError));
 
     // 移除 onUnmounted 块
 
@@ -808,6 +937,8 @@ export function createSftpActionsManager(
         changePermissions,
         readFile,
         writeFile,
+        copyItems, // +++ 暴露 copyItems +++
+        moveItems, // +++ 暴露 moveItems +++
         joinPath, // 暴露辅助函数
         // clearSftpError, // 移除 clearSftpError
 

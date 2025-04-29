@@ -10,6 +10,13 @@ export interface ContextMenuItem {
   disabled?: boolean;
 }
 
+// 定义剪贴板状态类型
+export interface ClipboardState {
+  hasContent: boolean;
+  operation?: 'copy' | 'cut';
+  // 可以添加 sourcePaths: string[] 等更多信息，但对于禁用/启用粘贴，hasContent 就够了
+}
+
 // 定义 Composable 的输入参数类型
 export interface UseFileManagerContextMenuOptions {
   selectedItems: Ref<Set<string>>;
@@ -18,6 +25,7 @@ export interface UseFileManagerContextMenuOptions {
   currentPath: Ref<string>;
   isConnected: Ref<boolean>;
   isSftpReady: Ref<boolean>;
+  clipboardState: Ref<Readonly<ClipboardState>>; // +++ 新增：剪贴板状态 +++
   t: ReturnType<typeof useI18n>['t']; // 使用 useI18n 获取 t 的类型
   // --- 回调函数 ---
   onRefresh: () => void;
@@ -28,6 +36,9 @@ export interface UseFileManagerContextMenuOptions {
   onChangePermissions: (item: FileListItem) => void;
   onNewFolder: () => void;
   onNewFile: () => void;
+  onCopy: () => void; // +++ 新增：复制回调 +++
+  onCut: () => void; // +++ 新增：剪切回调 +++
+  onPaste: () => void; // +++ 新增：粘贴回调 +++
 }
 
 export function useFileManagerContextMenu(options: UseFileManagerContextMenuOptions) {
@@ -38,6 +49,7 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
     currentPath,
     isConnected,
     isSftpReady,
+    clipboardState, // +++ 解构剪贴板状态 +++
     t,
     onRefresh,
     onUpload,
@@ -47,6 +59,9 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
     onChangePermissions,
     onNewFolder,
     onNewFile,
+    onCopy, // +++ 解构复制回调 +++
+    onCut, // +++ 解构剪切回调 +++
+    onPaste, // +++ 解构粘贴回调 +++
   } = options;
 
   const contextMenuVisible = ref(false);
@@ -77,24 +92,37 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
     const selectionSize = selectedItems.value.size;
     const clickedItemIsSelected = targetItem && selectedItems.value.has(targetItem.filename);
     const canPerformActions = isConnected.value && isSftpReady.value;
+    const hasClipboardContent = clipboardState.value.hasContent; // +++ 获取剪贴板状态 +++
 
     // Build context menu items (使用传入的回调)
     if (selectionSize > 1 && clickedItemIsSelected) {
         // Multi-selection menu
         menu = [
+            // +++ 添加复制/剪切 +++
+            { label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions },
+            { label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions },
             { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: onDelete, disabled: !canPerformActions },
             { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
         ];
     } else if (targetItem && targetItem.filename !== '..') {
         // Single item (not '..') menu
         menu = [
+            // +++ 添加复制/剪切 +++
+            { label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions },
+            { label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions },
+            // --- 分隔符 (视觉上，实际由 CSS 处理) ---
+            // { label: '---', action: () => {}, disabled: true },
             { label: t('fileManager.actions.newFolder'), action: onNewFolder, disabled: !canPerformActions },
             { label: t('fileManager.actions.newFile'), action: onNewFile, disabled: !canPerformActions },
             { label: t('fileManager.actions.upload'), action: onUpload, disabled: !canPerformActions },
             { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
         ];
         if (targetItem.attrs.isFile) {
-            menu.splice(1, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload(targetItem), disabled: !canPerformActions });
+            menu.splice(3, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload(targetItem), disabled: !canPerformActions }); // 调整插入位置
+        }
+        // +++ 如果目标是文件夹，添加粘贴 +++
+        if (targetItem.attrs.isDirectory) {
+             menu.splice(3, 0, { label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent }); // 调整插入位置
         }
         menu.push({ label: t('fileManager.actions.delete'), action: onDelete, disabled: !canPerformActions });
         menu.push({ label: t('fileManager.actions.rename'), action: () => onRename(targetItem), disabled: !canPerformActions });
@@ -106,10 +134,16 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
             { label: t('fileManager.actions.newFolder'), action: onNewFolder, disabled: !canPerformActions },
             { label: t('fileManager.actions.newFile'), action: onNewFile, disabled: !canPerformActions },
             { label: t('fileManager.actions.upload'), action: onUpload, disabled: !canPerformActions },
+            // +++ 添加粘贴 +++
+            { label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent },
             { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
         ];
     } else { // Clicked on '..'
-        menu = [{ label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions }];
+        menu = [
+             // +++ 添加粘贴 (可以粘贴到上级目录) +++
+            { label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent },
+            { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions }
+        ];
     }
 
     contextMenuItems.value = menu;

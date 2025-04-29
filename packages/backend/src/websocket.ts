@@ -988,7 +988,10 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                     case 'sftp:unlink':
                     case 'sftp:rename':
                     case 'sftp:chmod':
-                    case 'sftp:realpath': {
+                    case 'sftp:realpath':
+                    case 'sftp:copy':
+                    case 'sftp:move':
+                     { // Keep the outer grouping for common checks
                         if (!sessionId || !state) {
                             console.warn(`WebSocket: 收到来自 ${ws.username} 的 SFTP 请求 (${type})，但无活动会话。`);
                             const errPayload: { message: string; requestId?: string } = { message: '无效的会话' };
@@ -1046,7 +1049,23 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                     if (payload?.path) sftpService.realpath(sessionId, payload.path, requestId);
                                     else throw new Error("Missing 'path' in payload for realpath");
                                     break;
-                                default: throw new Error(`Unhandled SFTP type: ${type}`);
+                                // Cases for copy and move are now handled within this inner switch
+                                case 'sftp:copy':
+                                    if (Array.isArray(payload?.sources) && payload?.destination) {
+                                        sftpService.copy(sessionId, payload.sources, payload.destination, requestId);
+                                    } else throw new Error("Missing 'sources' (array) or 'destination' in payload for copy");
+                                    break;
+                                case 'sftp:move':
+                                     if (Array.isArray(payload?.sources) && payload?.destination) {
+                                        sftpService.move(sessionId, payload.sources, payload.destination, requestId);
+                                    } else throw new Error("Missing 'sources' (array) or 'destination' in payload for move");
+                                    break;
+                                default:
+                                    // Only throw error if the type wasn't handled by any SFTP case
+                                    console.warn(`WebSocket: Received unhandled SFTP message type inside SFTP block: ${type}`);
+                                    // Optionally send a specific error back, or rely on the outer catch
+                                    // ws.send(JSON.stringify({ type: 'sftp_error', payload: { message: `内部未处理的 SFTP 类型: ${type}`, requestId } }));
+                                    throw new Error(`Unhandled SFTP type: ${type}`); // Keep throwing for the outer catch
                             }
                         } catch (sftpCallError: any) {
                              console.error(`WebSocket: Error preparing/calling SFTP service for ${type} (Request ID: ${requestId}):`, sftpCallError);
@@ -1195,5 +1214,6 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
     console.log('WebSocket 服务器初始化完成。');
     return wss;
 };
+
 
 

@@ -12,7 +12,7 @@ import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; 
 import { useSessionStore } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store'; // +++ 实例化 Settings Store +++
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 实例化焦点切换 Store +++
-import { useFileManagerContextMenu } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable +++
+import { useFileManagerContextMenu, type ClipboardState } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable 和 ClipboardState +++
 import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; // +++ 导入选择 Composable +++
 import { useFileManagerDragAndDrop } from '../composables/file-manager/useFileManagerDragAndDrop'; // +++ 导入拖放 Composable +++
 import { useFileManagerKeyboardNavigation } from '../composables/file-manager/useFileManagerKeyboardNavigation'; // +++ 导入键盘导航 Composable +++
@@ -128,6 +128,11 @@ const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
 const fileListContainerRef = ref<HTMLDivElement | null>(null); // 文件列表容器引用 (保留，传递给 Composable)
 // const scrollIntervalId = ref<number | null>(null); // 已移至 useFileManagerDragAndDrop
+
+// +++ 新增：剪贴板状态 +++
+const clipboardState = ref<ClipboardState>({ hasContent: false });
+const clipboardSourcePaths = ref<string[]>([]); // 存储源完整路径
+const clipboardSourceBaseDir = ref<string>(''); // 存储源目录
 
 const rowSizeMultiplier = ref(1.0); // 新增：行大小（字体）乘数, 默认值会被 store 覆盖
 // --- 键盘导航状态 (移至 useFileManagerKeyboardNavigation) ---
@@ -370,6 +375,62 @@ const handleNewFileContextMenuClick = () => {
     }
 };
 
+// +++ 新增：复制、剪切、粘贴处理函数 +++
+const handleCopy = () => {
+    if (!currentSftpManager.value || selectedItems.value.size === 0) return;
+    const manager = currentSftpManager.value;
+    clipboardSourcePaths.value = Array.from(selectedItems.value)
+        .map(filename => manager.joinPath(manager.currentPath.value, filename));
+    clipboardState.value = { hasContent: true, operation: 'copy' };
+    clipboardSourceBaseDir.value = manager.currentPath.value; // 记录源目录
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Copied to clipboard:`, clipboardSourcePaths.value);
+    // 可选：添加 UI 通知
+};
+
+const handleCut = () => {
+    if (!currentSftpManager.value || selectedItems.value.size === 0) return;
+    const manager = currentSftpManager.value;
+    clipboardSourcePaths.value = Array.from(selectedItems.value)
+        .map(filename => manager.joinPath(manager.currentPath.value, filename));
+    clipboardState.value = { hasContent: true, operation: 'cut' };
+    clipboardSourceBaseDir.value = manager.currentPath.value; // 记录源目录
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Cut to clipboard:`, clipboardSourcePaths.value);
+    // 可选：添加 UI 通知
+};
+
+const handlePaste = () => {
+    if (!currentSftpManager.value || !clipboardState.value.hasContent || clipboardSourcePaths.value.length === 0) return;
+    const manager = currentSftpManager.value;
+    const destinationDir = manager.currentPath.value;
+    const operation = clipboardState.value.operation;
+    const sources = clipboardSourcePaths.value;
+    const sourceBaseDir = clipboardSourceBaseDir.value; // 获取源目录
+
+    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Pasting items. Operation: ${operation}, Sources: ${sources.join(', ')}, Destination: ${destinationDir}`);
+
+    if (operation === 'copy') {
+        // 调用 SFTP 管理器的 copyItems 方法 (稍后添加)
+        manager.copyItems(sources, destinationDir);
+    } else if (operation === 'cut') {
+        // 调用 SFTP 管理器的 moveItems 方法 (稍后添加)
+        // 检查是否在同一目录下剪切粘贴（无效操作）
+        if (sourceBaseDir === destinationDir) {
+             console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Cannot cut and paste in the same directory.`);
+             // 可选：显示警告通知
+             return;
+        }
+        manager.moveItems(sources, destinationDir);
+        // 剪切后清空剪贴板
+        clipboardState.value = { hasContent: false };
+        clipboardSourcePaths.value = [];
+        clipboardSourceBaseDir.value = '';
+    }
+    // 粘贴后不清空复制的剪贴板，允许重复粘贴
+    // 清空选择可能不是最佳体验，用户可能想继续操作粘贴后的文件
+    // clearSelection();
+};
+
+
 // --- 文件上传触发器 (定义在此处，供 Composable 使用) ---
 const triggerFileUpload = () => { fileInputRef.value?.click(); };
 
@@ -422,6 +483,7 @@ const {
   currentPath: computed(() => currentSftpManager.value?.currentPath.value ?? '/'),
   isConnected: props.wsDeps.isConnected,
   isSftpReady: props.wsDeps.isSftpReady,
+  clipboardState: readonly(clipboardState), // +++ 传递剪贴板状态 (只读) +++
   t,
   // --- 传递回调函数 ---
   // 修改：确保在调用前检查 currentSftpManager.value
@@ -437,6 +499,9 @@ const {
   onChangePermissions: handleChangePermissionsContextMenuClick,
   onNewFolder: handleNewFolderContextMenuClick,
   onNewFile: handleNewFileContextMenuClick,
+  onCopy: handleCopy, // +++ 传递复制回调 +++
+  onCut: handleCut, // +++ 传递剪切回调 +++
+  onPaste: handlePaste, // +++ 传递粘贴回调 +++
 });
 
 // --- 目录加载与导航 ---
@@ -1095,6 +1160,7 @@ defineExpose({ focusSearchInput, startPathEdit });
       @click="fileListContainerRef?.focus()"
       @keydown="handleKeydown"
       @wheel="handleWheel"
+      @contextmenu.prevent="showContextMenu($event)"
       tabindex="0"
       :style="{ '--row-size-multiplier': rowSizeMultiplier }"
     >
@@ -1179,7 +1245,7 @@ defineExpose({ focusSearchInput, startPathEdit });
           </tbody>
 
           <!-- File List State -->
-          <tbody v-else @contextmenu.prevent="showContextMenu($event)">
+          <tbody v-else> <!-- Remove context menu handler from tbody -->
             <!-- '..' Entry -->
             <tr v-if="currentSftpManager?.currentPath.value !== '/'"
                 class="transition-colors duration-150 cursor-pointer select-none"

@@ -254,7 +254,10 @@
       "save": "Save",
       "closeTab": "Close Tab",
       "closeEditor": "Close Editor",
-      "cdToTerminal": "Change terminal directory to current path"
+      "cdToTerminal": "Change terminal directory to current path",
+      "copy": "Copy",
+      "cut": "Cut",
+      "paste": "Paste"
     },
     "headers": {
       "type": "Type",
@@ -280,7 +283,22 @@
       "saveFailed": "Failed to save file",
       "saveTimeout": "Save timed out",
       "fileExists": "File \"{name}\" already exists.",
-      "loadDirectoryFailed": "Failed to load directory"
+      "loadDirectoryFailed": "Failed to load directory",
+      "copyFailed": "Copy failed",
+      "moveFailed": "Move failed",
+      "sftpNotReady": "SFTP session not ready",
+      "sftpManagerNotFound": "SFTP manager not found",
+      "noActiveSession": "No active session found",
+      "terminalManagerNotFound": "Terminal manager not found",
+      "sendCommandFailed": "Failed to send command"
+    },
+    "notifications": {
+        "copySuccess": "Copy successful",
+        "moveSuccess": "Move successful",
+        "cdCommandSent": "CD command sent to terminal"
+    },
+     "warnings": {
+        "moveSameDirectory": "Cannot cut and paste in the same directory."
     },
     "prompts": {
       "enterFolderName": "Enter the name for the new folder:",
