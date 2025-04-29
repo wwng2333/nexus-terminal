@@ -77,7 +77,14 @@ export const useAppearanceStore = defineStore('appearance', () => {
         const size = appearanceSettings.value.editorFontSize;
         return typeof size === 'number' && size > 0 ? size : 14;
     });
-
+ 
+    // 终端背景是否启用
+    const isTerminalBackgroundEnabled = computed<boolean>(() => {
+        // 提供默认值 true，如果后端没有设置或设置无效
+        const enabled = appearanceSettings.value.terminalBackgroundEnabled;
+        return typeof enabled === 'boolean' ? enabled : true; // 默认启用
+    });
+ 
     // --- Actions ---
 
     /**
@@ -94,9 +101,10 @@ export const useAppearanceStore = defineStore('appearance', () => {
             ]);
             appearanceSettings.value = settingsResponse.data;
             allTerminalThemes.value = themesResponse.data; // 更新 allTerminalThemes
-            console.log('[AppearanceStore] 外观设置已加载:', appearanceSettings.value);
+            console.log('[AppearanceStore LOG] 外观设置已加载 (原始数据):', JSON.stringify(settingsResponse.data)); // 添加原始数据日志
+            console.log(`[AppearanceStore LOG] 从后端加载的 terminalBackgroundEnabled 原始值: ${settingsResponse.data.terminalBackgroundEnabled}`); // 专门记录该值
             console.log('[AppearanceStore] 所有终端主题列表已加载:', allTerminalThemes.value);
-
+ 
             // --- 后端返回的 activeTerminalThemeId 已经是 number | null ---
             // 前端不再需要设置默认主题 ID 的逻辑，后端初始化时会保证它不为 NULL
             // 如果后端返回 null (理论上不应发生，除非初始化失败)，则 currentTerminalTheme 计算属性会回退到 defaultXtermTheme
@@ -146,7 +154,8 @@ export const useAppearanceStore = defineStore('appearance', () => {
             if (updates.customUiTheme !== undefined) applyUiTheme(currentUiTheme.value);
             if (updates.pageBackgroundImage !== undefined) applyPageBackground(); // 移除 pageBackgroundOpacity 检查
             // 终端相关设置由 Terminal 组件监听应用
-
+            // 注意：terminalBackgroundEnabled 的应用逻辑在 Terminal 组件中处理
+ 
         } catch (err: any) {
             console.error('更新外观设置失败:', err);
             throw new Error(err.response?.data?.message || err.message || '更新外观设置失败');
@@ -221,7 +230,17 @@ export const useAppearanceStore = defineStore('appearance', () => {
     async function setEditorFontSize(size: number) {
         await updateAppearanceSettings({ editorFontSize: size });
     }
-
+ 
+    /**
+     * 设置终端背景是否启用
+     * @param enabled 是否启用
+     */
+    async function setTerminalBackgroundEnabled(enabled: boolean) {
+        console.log(`[AppearanceStore LOG] setTerminalBackgroundEnabled 调用，准备发送给后端的值: ${enabled}`); // 添加日志
+        await updateAppearanceSettings({ terminalBackgroundEnabled: enabled });
+        console.log(`[AppearanceStore LOG] setTerminalBackgroundEnabled 更新后端调用完成。`); // 添加日志
+    }
+ 
     // --- 终端主题列表管理 Actions ---
 
     /**
@@ -565,6 +584,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         setTerminalFontFamily,
         setTerminalFontSize,
         setEditorFontSize, // <-- 新增
+        setTerminalBackgroundEnabled, // <-- 新增
         createTerminalTheme, // 保留
         updateTerminalTheme, // 保留
         deleteTerminalTheme, // 保留
@@ -577,6 +597,7 @@ export const useAppearanceStore = defineStore('appearance', () => {
         removePageBackground,
         removeTerminalBackground,
         loadTerminalThemeData, // <-- 新增导出
+        isTerminalBackgroundEnabled, // <-- 新增导出
         // Visibility control
         isStyleCustomizerVisible,
         toggleStyleCustomizer,

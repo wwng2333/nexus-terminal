@@ -37,8 +37,14 @@ let selectionListenerDisposable: IDisposable | null = null; // +++ 提升声明�
 
 // --- Appearance Store ---
 const appearanceStore = useAppearanceStore();
-const { currentTerminalTheme, currentTerminalFontFamily, terminalBackgroundImage, currentTerminalFontSize } = storeToRefs(appearanceStore); // <-- 添加 currentTerminalFontSize
-
+const {
+  currentTerminalTheme,
+  currentTerminalFontFamily,
+  terminalBackgroundImage,
+  currentTerminalFontSize,
+  isTerminalBackgroundEnabled // <-- 新增：导入背景启用状态
+} = storeToRefs(appearanceStore);
+ 
 // --- Settings Store ---
 const settingsStore = useSettingsStore(); // +++ 实例化设置 store +++
 const { autoCopyOnSelectBoolean } = storeToRefs(settingsStore); // +++ 获取选中即复制状态 +++
@@ -289,11 +295,11 @@ onMounted(() => {
         }
     });
 
-    // 监听背景图片变化
-    watch(terminalBackgroundImage, () => { // 只监听图片
-        console.log(`[Terminal Watcher] terminalBackgroundImage changed. New image: ${terminalBackgroundImage.value}`); // 添加日志确认 watcher 触发
+    // 监听背景图片和启用状态的变化
+    watch([terminalBackgroundImage, isTerminalBackgroundEnabled], () => {
+        console.log(`[Terminal Watcher] Background image or enabled status changed. Image: ${terminalBackgroundImage.value}, Enabled: ${isTerminalBackgroundEnabled.value}`);
         applyTerminalBackground();
-    }, { immediate: true }); // 添加 immediate: true，强制立即执行一次
+    }, { immediate: true }); // 强制立即执行一次
     // 移除 onMounted 中的 applyTerminalBackground 调用，完全依赖 watch
     // applyTerminalBackground(); // 初始应用一次
 
@@ -400,6 +406,20 @@ defineExpose({ write, findNext, findPrevious, clearSearch });
 // --- 应用终端背景 ---
 const applyTerminalBackground = () => {
     if (terminalRef.value) {
+        // 首先检查背景功能是否启用
+        if (!isTerminalBackgroundEnabled.value) {
+            // 如果禁用，则移除背景并返回
+            nextTick(() => {
+                 if (terminalRef.value) {
+                    terminalRef.value.style.backgroundImage = 'none';
+                    terminalRef.value.classList.remove('has-terminal-background');
+                 }
+            });
+            console.log(`[Terminal ${props.sessionId}] 终端背景已禁用，移除背景。`);
+            return; // 提前退出
+        }
+ 
+        // 如果启用，再检查是否有背景图片
         if (terminalBackgroundImage.value) {
             // --- 修改开始 ---
             // 使用环境变量获取后端基础 URL

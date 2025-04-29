@@ -18,7 +18,8 @@ interface DbAppearanceSettingsRow {
 const mapRowsToAppearanceSettings = (rows: DbAppearanceSettingsRow[]): AppearanceSettings => {
     const settings: Partial<AppearanceSettings> = {};
     let latestUpdatedAt = 0;
-
+    let terminalBackgroundEnabledFound = false; // 新增：标记是否在数据库中找到该设置
+ 
     for (const row of rows) {
         // 更新 latestUpdatedAt
         if (row.updated_at > latestUpdatedAt) {
@@ -48,9 +49,13 @@ const mapRowsToAppearanceSettings = (rows: DbAppearanceSettingsRow[]): Appearanc
             case 'pageBackgroundImage':
                 settings.pageBackgroundImage = row.value || undefined;
                 break;
+            case 'terminalBackgroundEnabled':
+                settings.terminalBackgroundEnabled = row.value === 'true'; // 将 'true'/'false' 字符串转为 boolean
+                terminalBackgroundEnabledFound = true; // 标记已找到
+                break;
         }
     }
-
+ 
     const defaults = getDefaultAppearanceSettings();
     return {
         _id: 'global_appearance', // 全局外观设置的固定 ID
@@ -61,11 +66,15 @@ const mapRowsToAppearanceSettings = (rows: DbAppearanceSettingsRow[]): Appearanc
         editorFontSize: settings.editorFontSize ?? defaults.editorFontSize,
         terminalBackgroundImage: settings.terminalBackgroundImage ?? defaults.terminalBackgroundImage,
         pageBackgroundImage: settings.pageBackgroundImage ?? defaults.pageBackgroundImage,
+        // 修改：只有当数据库中未找到记录时才使用默认值
+        terminalBackgroundEnabled: terminalBackgroundEnabledFound
+            ? settings.terminalBackgroundEnabled // 使用数据库找到的值 (true 或 false)
+            : defaults.terminalBackgroundEnabled, // 否则使用默认值 (true)
         updatedAt: latestUpdatedAt || defaults.updatedAt, // 使用最新的更新时间，否则使用默认时间戳
     };
 };
-
-
+ 
+ 
 // 获取默认外观设置 (已简化, _id 在此不再相关)
 const getDefaultAppearanceSettings = (): Omit<AppearanceSettings, '_id'> => {
     return {
@@ -76,11 +85,12 @@ const getDefaultAppearanceSettings = (): Omit<AppearanceSettings, '_id'> => {
         editorFontSize: 14,
         terminalBackgroundImage: undefined,
         pageBackgroundImage: undefined,
+        terminalBackgroundEnabled: true, // 新增：默认启用
         updatedAt: Date.now(), // 提供默认时间戳
     };
 };
-
-
+ 
+ 
 /**
  * 确保默认设置存在于键值表中。
  * 此函数在数据库初始化期间调用。
@@ -100,8 +110,9 @@ export const ensureDefaultSettingsExist = async (db: sqlite3.Database): Promise<
         { key: 'editorFontSize', value: defaults.editorFontSize },
         { key: 'terminalBackgroundImage', value: defaults.terminalBackgroundImage ?? '' }, // 数据库中使用空字符串
         { key: 'pageBackgroundImage', value: defaults.pageBackgroundImage ?? '' }, // 数据库中使用空字符串
+        { key: 'terminalBackgroundEnabled', value: defaults.terminalBackgroundEnabled }, // 新增
     ];
-
+ 
     try {
         for (const entry of defaultEntries) {
             // 将值转换为字符串以存储到数据库，处理 null/undefined
@@ -177,7 +188,10 @@ export const getAppearanceSettings = async (): Promise<AppearanceSettings> => {
     const db = await getDbInstance();
     // 从键值表中获取所有行
     const rows = await allDb<DbAppearanceSettingsRow>(db, `SELECT key, value, updated_at FROM ${TABLE_NAME}`);
-    return mapRowsToAppearanceSettings(rows); // 将键值对映射到设置对象
+    console.log('[AppearanceRepo LOG] 从数据库读取的原始行:', JSON.stringify(rows)); // 添加原始行日志
+    const mappedSettings = mapRowsToAppearanceSettings(rows); // 将键值对映射到设置对象
+    console.log(`[AppearanceRepo LOG] 映射后的 terminalBackgroundEnabled 值: ${mappedSettings.terminalBackgroundEnabled}`); // 添加映射后值的日志
+    return mappedSettings;
   } catch (err: any) {
     console.error('[AppearanceRepo] 获取外观设置失败:', err.message);
     throw new Error('获取外观设置失败');
@@ -235,6 +249,8 @@ const updateAppearanceSettingsInternal = async (db: sqlite3.Database, settingsDt
                dbValue = key === 'activeTerminalThemeId' ? 'null' : ''; // 主题 ID 特殊存储为 'null'
           } else if (typeof value === 'object') {
                dbValue = JSON.stringify(value);
+          } else if (typeof value === 'boolean') { // 新增：处理布尔值
+               dbValue = value ? 'true' : 'false';
           } else {
                dbValue = String(value);
           }
@@ -252,8 +268,10 @@ const updateAppearanceSettingsInternal = async (db: sqlite3.Database, settingsDt
           }
 
           // 对每个键值对执行 INSERT OR REPLACE
+          console.log(`[AppearanceRepo LOG] 准备更新/插入键: '${key}', 值: '${dbValue}'`); // 添加保存日志
           const result = await runDb(db, sqlReplace, [key, dbValue, nowSeconds]);
           if (result.changes > 0) {
+              console.log(`[AppearanceRepo LOG] 键 '${key}' 更新成功。`); // 添加成功日志
               changesMade = true;
           }
       }

@@ -22,8 +22,9 @@ const {
   // pageBackgroundOpacity, // Removed
   terminalBackgroundImage,
   // terminalBackgroundOpacity, // Removed
+  isTerminalBackgroundEnabled, // <-- 新增：终端背景启用状态
 } = storeToRefs(appearanceStore);
-
+ 
 // --- 本地状态用于编辑 ---
 const editableUiTheme = ref<Record<string, string>>({});
 const editableTerminalFontFamily = ref('');
@@ -33,7 +34,8 @@ const editableEditorFontSize = ref(14); // <-- 新增，编辑器字体大小
 // const editableTerminalBackgroundOpacity = ref(1.0); // Removed
 const editableUiThemeString = ref(''); // 用于 textarea 绑定
 const themeParseError = ref<string | null>(null); // 用于显示 JSON 解析错误
-
+const localTerminalBackgroundEnabled = ref(true); // <-- 新增：本地终端背景开关状态
+ 
 // 终端主题管理相关状态
 const isEditingTheme = ref(false); // 是否正在编辑某个主题
 const themeSearchTerm = ref(''); // 主题搜索词
@@ -92,6 +94,8 @@ const initializeEditableState = () => {
   editableTerminalFontFamily.value = currentTerminalFontFamily.value;
   editableTerminalFontSize.value = currentTerminalFontSize.value;
   editableEditorFontSize.value = currentEditorFontSize.value; // <-- 新增
+  localTerminalBackgroundEnabled.value = isTerminalBackgroundEnabled.value; // <-- 重新添加：在此处初始化
+  console.log(`[StyleCustomizer initializeEditableState] Initializing localTerminalBackgroundEnabled to: ${localTerminalBackgroundEnabled.value} (from store: ${isTerminalBackgroundEnabled.value})`); // 添加日志
   uploadError.value = null;
   importError.value = null;
   saveThemeError.value = null;
@@ -130,12 +134,13 @@ watch([
     const newActiveThemeId = newVals[1];
     const oldActiveThemeId = oldVals ? oldVals[1] : null;
 
-    // 仅当非编辑状态时，或活动终端主题ID变化时，或 UI 主题设置本身发生变化时 (例如重置)，才重新初始化
-    if (!isEditingTheme.value || newActiveThemeId !== oldActiveThemeId || newSettings?.customUiTheme !== oldSettings?.customUiTheme) {
-        console.log('[StyleCustomizer] Watch triggered re-initialization.');
+    // 仅当非编辑状态时，或活动终端主题ID变化时，或 UI 主题/终端背景启用状态设置本身发生变化时 (例如重置或外部更改)，才重新初始化
+    const settingsChanged = newSettings?.customUiTheme !== oldSettings?.customUiTheme || newSettings?.terminalBackgroundEnabled !== oldSettings?.terminalBackgroundEnabled; // 检查相关设置是否变化
+    if (!isEditingTheme.value || newActiveThemeId !== oldActiveThemeId || settingsChanged) {
+        console.log(`[StyleCustomizer Watch] Triggering re-initialization. isEditing: ${isEditingTheme.value}, themeIdChanged: ${newActiveThemeId !== oldActiveThemeId}, settingsChanged: ${settingsChanged}`); // 添加日志
         initializeEditableState(); // 调用修改后的初始化函数
     } else {
-        // 如果正在编辑，只更新非编辑相关的部分 (不包括 UI 主题，因为它由 initializeEditableState 处理)
+        // 如果正在编辑，只更新非编辑相关的部分 (不包括 UI 主题和终端背景开关，因为它们由 initializeEditableState 处理)
         console.log('[StyleCustomizer] Watch triggered partial update (editing).');
         // editableUiTheme.value = JSON.parse(JSON.stringify(newVals[0] || {})); // 移除或注释掉，避免覆盖编辑状态
         // 确保从正确的 newVals 索引获取值，现在 watch 的依赖项变了
@@ -144,12 +149,26 @@ watch([
         editableTerminalFontFamily.value = newSettings?.terminalFontFamily || '';
         editableTerminalFontSize.value = newSettings?.terminalFontSize || 14;
         editableEditorFontSize.value = newSettings?.editorFontSize || 14; // <-- 新增同步
+        // localTerminalBackgroundEnabled.value = newSettings?.terminalBackgroundEnabled ?? true; // <-- 移除此行，避免冲突
     }
 }, { deep: true });
-
-
+ 
+// 监听 store 中 isTerminalBackgroundEnabled 的变化，以同步本地状态
+watch(isTerminalBackgroundEnabled, (newValue) => {
+  // 只有当本地状态与 store 状态不一致时才更新本地状态
+  // 这避免了 handleToggleTerminalBackground 触发的不必要更新
+  if (localTerminalBackgroundEnabled.value !== newValue) {
+    console.log(`[StyleCustomizer Watch isTerminalBackgroundEnabled] Store changed to ${newValue}, updating local state.`); // 添加日志
+    localTerminalBackgroundEnabled.value = newValue;
+  } else {
+     console.log(`[StyleCustomizer Watch isTerminalBackgroundEnabled] Store changed to ${newValue}, but local state already matches. No update needed.`); // 添加日志
+  }
+});
+// 移除单独监听 isTerminalBackgroundEnabled 的 watcher
+ 
 const emit = defineEmits(['close']);
-
+ 
+ 
 const closeCustomizer = () => {
   // 如果正在编辑主题，直接关闭并重置状态
   if (isEditingTheme.value) {
@@ -756,9 +775,24 @@ const handleRemoveTerminalBg = async () => {
          alert(t('styleCustomizer.removeBgFailed', { message: error.message }));
     }
 };
-
+ 
+// 处理终端背景启用/禁用切换
+const handleToggleTerminalBackground = async () => {
+    const newValue = !localTerminalBackgroundEnabled.value; // 先计算新值
+    localTerminalBackgroundEnabled.value = newValue; // 立即更新本地 UI
+    try {
+        await appearanceStore.setTerminalBackgroundEnabled(newValue);
+        // 成功后不需要提示，UI 已更新
+    } catch (error: any) {
+        console.error("更新终端背景启用状态失败:", error);
+        // 失败时回滚本地状态
+        localTerminalBackgroundEnabled.value = !newValue;
+        alert(t('styleCustomizer.errorToggleTerminalBg', { message: error.message })); // 需要添加翻译
+    }
+};
+ 
 // Removed handlePageOpacityChange and handleTerminalOpacityChange functions
-
+ 
 // --- 辅助函数 ---
 // 格式化 UI 主题标签
 const formatLabel = (key: string): string => {
@@ -1140,17 +1174,45 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                 <hr class="my-8 border-border"> <!-- Replaced inline style with Tailwind -->
 
                 <!-- 终端背景 -->
-                <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalBackground') }}</h4>
-                 <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: terminalBackgroundImage ? `url(${terminalBackgroundImage})` : 'none' }">
-                     <span v-if="!terminalBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span>
-                 </div>
+                <div class="flex items-center justify-between mb-3"> <!-- 使用 flex 布局 -->
+                  <h4 class="m-0 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalBackground') }}</h4>
+                  <!-- 开关按钮 -->
+                  <button
+                    type="button"
+                    @click="handleToggleTerminalBackground"
+                    :class="[
+                      'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
+                      localTerminalBackgroundEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                    ]"
+                    role="switch"
+                    :aria-checked="localTerminalBackgroundEnabled"
+                  >
+                    <span
+                      aria-hidden="true"
+                      :class="[
+                        'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200',
+                        localTerminalBackgroundEnabled ? 'translate-x-5' : 'translate-x-0'
+                      ]"
+                    ></span>
+                  </button>
+                </div>
+ 
+                 <!-- 条件渲染背景设置区域 -->
+                 <div v-if="localTerminalBackgroundEnabled">
+                   <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: terminalBackgroundImage ? `url(${terminalBackgroundImage})` : 'none' }">
+                       <span v-if="!terminalBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span>
+                   </div>
                  <div class="flex gap-2 mb-4 flex-wrap items-center">
                     <button @click="handleTriggerTerminalBgUpload" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.uploadTerminalBg') }}</button>
                     <button @click="handleRemoveTerminalBg" :disabled="!terminalBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removeTerminalBg') }}</button> <!-- Applied danger button styles -->
                     <input type="file" ref="terminalBgFileInput" @change="handleTerminalBgUpload" accept="image/*" class="hidden" /> <!-- Use hidden class -->
-                </div>
+                 </div>
                  <!-- Removed Opacity Slider -->
-
+                </div> <!-- End v-if="localTerminalBackgroundEnabled" -->
+                <div v-else class="p-4 text-center text-text-secondary italic border border-dashed border-border/50 rounded-md">
+                   {{ t('styleCustomizer.terminalBgDisabled', '终端背景功能已禁用。') }} <!-- 需要添加翻译 -->
+                </div>
+ 
            </section>
            <section v-if="currentTab === 'other'">
              <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.otherSettings') }}</h3> <!-- 需要添加翻译 -->
