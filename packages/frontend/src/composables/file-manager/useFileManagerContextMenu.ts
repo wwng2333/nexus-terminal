@@ -98,44 +98,60 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
     if (selectionSize > 1 && clickedItemIsSelected) {
         // Multi-selection menu
         menu = [
-            // +++ 添加复制/剪切 +++
-            { label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions },
+            // 调整顺序：剪切、复制优先
             { label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions },
+            { label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions },
+            // --- 分隔符 (视觉) ---
             { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: onDelete, disabled: !canPerformActions },
+            // --- 分隔符 (视觉) ---
             { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
         ];
     } else if (targetItem && targetItem.filename !== '..') {
         // Single item (not '..') menu
-        menu = [
-            // +++ 添加复制/剪切 +++
-            { label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions },
-            { label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions },
-            // --- 分隔符 (视觉上，实际由 CSS 处理) ---
-            // { label: '---', action: () => {}, disabled: true },
-            { label: t('fileManager.actions.newFolder'), action: onNewFolder, disabled: !canPerformActions },
-            { label: t('fileManager.actions.newFile'), action: onNewFile, disabled: !canPerformActions },
-            { label: t('fileManager.actions.upload'), action: onUpload, disabled: !canPerformActions },
-            { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
-        ];
+        menu = [];
+
+        // 1. 主要操作 (下载 - 如果是文件)
         if (targetItem.attrs.isFile) {
-            menu.splice(3, 0, { label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload(targetItem), disabled: !canPerformActions }); // 调整插入位置
+            menu.push({ label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload(targetItem), disabled: !canPerformActions });
         }
-        // +++ 如果目标是文件夹，添加粘贴 +++
+
+        // 2. 剪切、复制、粘贴 (粘贴 - 如果是文件夹)
+        menu.push({ label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions });
+        menu.push({ label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions });
         if (targetItem.attrs.isDirectory) {
-             menu.splice(3, 0, { label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent }); // 调整插入位置
+             menu.push({ label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent });
         }
+
+        // --- 分隔符 (视觉) ---
+
+        // 3. 删除、重命名
         menu.push({ label: t('fileManager.actions.delete'), action: onDelete, disabled: !canPerformActions });
         menu.push({ label: t('fileManager.actions.rename'), action: () => onRename(targetItem), disabled: !canPerformActions });
-        menu.push({ label: t('fileManager.actions.changePermissions'), action: () => onChangePermissions(targetItem), disabled: !canPerformActions });
 
+        // --- 分隔符 (视觉) ---
+
+        // 4. 新建、上传 (这些更像空白处操作，但保留)
+        menu.push({ label: t('fileManager.actions.newFolder'), action: onNewFolder, disabled: !canPerformActions });
+        menu.push({ label: t('fileManager.actions.newFile'), action: onNewFile, disabled: !canPerformActions });
+        menu.push({ label: t('fileManager.actions.upload'), action: onUpload, disabled: !canPerformActions }); // 上传放在新建之后
+
+        // --- 分隔符 (视觉) ---
+
+        // 5. 权限、刷新
+        menu.push({ label: t('fileManager.actions.changePermissions'), action: () => onChangePermissions(targetItem), disabled: !canPerformActions });
+        menu.push({ label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions });
     } else if (!targetItem) {
         // Right-click on empty space menu
         menu = [
+            // 1. 粘贴
+            { label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent },
+            // --- 分隔符 (视觉) ---
+            // 2. 新建、上传
             { label: t('fileManager.actions.newFolder'), action: onNewFolder, disabled: !canPerformActions },
             { label: t('fileManager.actions.newFile'), action: onNewFile, disabled: !canPerformActions },
             { label: t('fileManager.actions.upload'), action: onUpload, disabled: !canPerformActions },
-            // +++ 添加粘贴 +++
-            { label: t('fileManager.actions.paste'), action: onPaste, disabled: !canPerformActions || !hasClipboardContent },
+            // --- 分隔符 (视觉) ---
+            // 3. 刷新
             { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
         ];
     } else { // Clicked on '..'
