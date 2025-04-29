@@ -101,27 +101,6 @@
                  </div>
                  <p v-if="twoFactorMessage" :class="['mt-3 text-sm', twoFactorSuccess ? 'text-success' : 'text-error']">{{ twoFactorMessage }}</p>
               </div>
-              <hr class="border-border/50">
-              <!-- IP Whitelist -->
-              <div class="settings-section-content">
-                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.ipWhitelist.title') }}</h3>
-                 <p class="text-sm text-text-secondary mb-4">{{ $t('settings.ipWhitelist.description') }}</p>
-                 <form @submit.prevent="handleUpdateIpWhitelist" class="space-y-4">
-                   <div>
-                     <label for="ipWhitelist" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.ipWhitelist.label') }}</label>
-                     <textarea id="ipWhitelist" v-model="ipWhitelistInput" rows="4"
-                               class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
-                     <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.ipWhitelist.hint') }}</small>
-                   </div>
-                   <div class="flex items-center justify-between">
-                      <button type="submit"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
-                        {{ $t('settings.ipWhitelist.saveButton') }}
-                      </button>
-                      <p v-if="ipWhitelistMessage" :class="['text-sm', ipWhitelistSuccess ? 'text-success' : 'text-error']">{{ ipWhitelistMessage }}</p>
-                   </div>
-                 </form>
-              </div>
               <hr class="border-border/50"> <!-- Separator -->
               <!-- CAPTCHA Settings -->
               <div class="settings-section-content">
@@ -192,6 +171,29 @@
                     </div>
                  </form>
               </div>
+            </div>
+          </div>
+
+          <!-- IP Whitelist Section: Only show if settings data is loaded -->
+          <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
+            <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.ipWhitelist.title') }}</h2>
+            <div class="p-6 space-y-6">
+               <p class="text-sm text-text-secondary mb-4">{{ $t('settings.ipWhitelist.description') }}</p>
+               <form @submit.prevent="handleUpdateIpWhitelist" class="space-y-4">
+                 <div>
+                   <label for="ipWhitelist" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.ipWhitelist.label') }}</label>
+                   <textarea id="ipWhitelist" v-model="ipWhitelistInput" rows="4"
+                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+                   <small class="block mt-1 text-xs text-text-secondary">{{ $t('settings.ipWhitelist.hint') }}</small>
+                 </div>
+                 <div class="flex items-center justify-between">
+                    <button type="submit" :disabled="ipWhitelistLoading"
+                            class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                      {{ ipWhitelistLoading ? $t('common.loading') : $t('settings.ipWhitelist.saveButton') }}
+                    </button>
+                    <p v-if="ipWhitelistMessage" :class="['text-sm', ipWhitelistSuccess ? 'text-success' : 'text-error']">{{ ipWhitelistMessage }}</p>
+                 </div>
+               </form>
             </div>
           </div>
 

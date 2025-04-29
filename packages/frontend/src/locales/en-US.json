@@ -386,7 +386,7 @@
       }
     },
     "ipWhitelist": {
-      "title": "IP Whitelist",
+      "title": "IP Whitelist Management",
       "description": "Configure allowed IP addresses or ranges to access this application. Leave empty to allow all IPs.",
       "label": "Allowed IP Addresses/Ranges (one per line or comma-separated):",
       "hint": "Supports IPv4, IPv6, and CIDR (e.g., 192.168.1.100, 10.0.0.0/8, 2001:db8::/32).",
