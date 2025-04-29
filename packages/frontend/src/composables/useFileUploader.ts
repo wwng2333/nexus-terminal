@@ -150,16 +150,6 @@ export function useFileUploader(
         console.log(`[文件上传模块] Calculated finalRemotePath: ${finalRemotePath} (current: ${currentPathRef.value}, relative: ${relativePath}, filename: ${file.name})`); // 添加日志
         // --- 结束修正 ---
 
-        // --- 修正：检查覆盖逻辑需要使用 finalRemotePath 的 basename ---
-        const finalFilename = finalRemotePath.substring(finalRemotePath.lastIndexOf('/') + 1);
-        // 检查是否覆盖 *同名文件* (忽略目录)
-        if (fileListRef.value.some((item: FileListItem) => item.filename === finalFilename && !item.attrs.isDirectory)) {
-            if (!confirm(t('fileManager.prompts.confirmOverwrite', { name: finalFilename }))) {
-                console.log(`[文件上传模块] 用户取消了 ${finalFilename} 的上传`);
-                return; // 用户取消覆盖
-            }
-        }
-        // --- 结束修正 ---
 
         // 添加到响应式 uploads 字典
         uploads[uploadId] = {
