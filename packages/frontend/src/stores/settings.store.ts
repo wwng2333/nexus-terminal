@@ -47,6 +47,7 @@ interface SettingsState {
   timezone?: string; // NEW: 时区设置 (e.g., 'Asia/Shanghai', 'UTC')
   rdpModalWidth?: string; // NEW: RDP 模态框宽度
   rdpModalHeight?: string; // NEW: RDP 模态框高度
+  ipBlacklistEnabled?: string; // <-- NEW: IP 黑名单启用状态 'true' or 'false'
   // Add other general settings keys here as needed
   [key: string]: string | undefined; // Allow other string settings
 }
@@ -99,6 +100,11 @@ export const useSettingsStore = defineStore('settings', () => {
           settings.value.loginBanDuration = '300'; // 默认 300 秒
       }
 
+
+      // NEW: IP Blacklist enabled default
+      if (settings.value.ipBlacklistEnabled === undefined) {
+          settings.value.ipBlacklistEnabled = 'true'; // 默认启用 IP 黑名单
+      }
 
       if (settings.value.autoCopyOnSelect === undefined) {
           settings.value.autoCopyOnSelect = 'false'; // 默认禁用选中即复制
@@ -299,7 +305,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'commandInputSyncTarget', // +++ 添加命令输入同步目标键 +++
         'timezone', // NEW: 添加时区键
         'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
-        'rdpModalHeight' // NEW: 添加 RDP 模态框高度键
+        'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
+        'ipBlacklistEnabled' // <-- NEW: 添加 IP 黑名单启用键
     ];
     if (!allowedKeys.includes(key)) {
         console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -358,7 +365,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'commandInputSyncTarget', // +++ 添加命令输入同步目标键 +++
         'timezone', // NEW: 添加时区键
         'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
-        'rdpModalHeight' // NEW: 添加 RDP 模态框高度键
+        'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
+        'ipBlacklistEnabled' // <-- NEW: 添加 IP 黑名单启用键
     ];
     const filteredUpdates: Partial<SettingsState> = {};
     let languageUpdate: string | undefined = undefined; // Use string type
@@ -530,6 +538,11 @@ export const useSettingsStore = defineStore('settings', () => {
   // Getter for IP Whitelist enabled status
   const ipWhitelistEnabled = computed(() => settings.value.ipWhitelistEnabled === 'true');
 
+  // <-- NEW: Getter for IP Blacklist enabled status -->
+  const ipBlacklistEnabledBoolean = computed(() => {
+      // Default to true if the setting is missing or not 'false'
+      return settings.value.ipBlacklistEnabled !== 'false';
+  });
 
   // Getter for auto copy on select setting, returning boolean
   const autoCopyOnSelectBoolean = computed(() => {
@@ -600,6 +613,7 @@ export const useSettingsStore = defineStore('settings', () => {
     showPopupFileEditorBoolean,
     shareFileEditorTabsBoolean,
     ipWhitelistEnabled, // 暴露 IP 白名单启用状态
+    ipBlacklistEnabledBoolean, // <-- NEW: 暴露 IP 黑名单启用状态 getter
     autoCopyOnSelectBoolean,
     dockerDefaultExpandBoolean, // +++ 暴露 Docker 默认展开 getter +++
     statusMonitorIntervalSecondsNumber, // +++ 暴露状态监控间隔 getter +++

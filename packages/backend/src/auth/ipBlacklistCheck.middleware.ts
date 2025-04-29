@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ipBlacklistService } from '../services/ip-blacklist.service';
+import { settingsService } from '../services/settings.service'; // <-- Import settingsService
 
 /**
  * IP 黑名单检查中间件
@@ -17,6 +18,13 @@ export const ipBlacklistCheckMiddleware = async (req: Request, res: Response, ne
     }
 
     try {
+        // 首先检查 IP 黑名单功能是否启用
+        const isEnabled = await settingsService.isIpBlacklistEnabled();
+        if (!isEnabled) {
+            // console.log('[IP Blacklist Check] 功能已禁用，跳过检查。');
+            return next(); // 功能禁用，直接放行
+        }
+
         const isBlocked = await ipBlacklistService.isBlocked(clientIp);
         if (isBlocked) {
             console.warn(`[IP Blacklist Check] 已阻止来自被封禁 IP ${clientIp} 的访问。`);

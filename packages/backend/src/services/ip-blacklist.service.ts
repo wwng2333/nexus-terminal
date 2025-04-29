@@ -51,10 +51,16 @@ export class IpBlacklistService {
      * @param ip IP 地址
      * @returns 如果被封禁则返回 true，否则返回 false
      */
-    async isBlocked(ip: string): Promise<boolean> {
-        try {
-            const entry = await this.getEntry(ip);
-            if (!entry) {
+     async isBlocked(ip: string): Promise<boolean> {
+         // 首先检查功能是否启用
+         if (!(await settingsService.isIpBlacklistEnabled())) {
+             // console.log('[IP Blacklist] 功能已禁用，跳过 isBlocked 检查。');
+             return false; // 如果禁用，则认为 IP 未被阻止
+         }
+ 
+         try {
+             const entry = await this.getEntry(ip);
+             if (!entry) {
                 return false; // 不在黑名单中
             }
             // 检查封禁时间是否已过
@@ -75,6 +81,12 @@ export class IpBlacklistService {
      * @param ip IP 地址
      */
     async recordFailedAttempt(ip: string): Promise<void> {
+        // 首先检查功能是否启用
+        if (!(await settingsService.isIpBlacklistEnabled())) {
+            // console.log('[IP Blacklist] 功能已禁用，跳过 recordFailedAttempt。');
+            return; // 如果禁用，则不记录失败尝试
+        }
+
         if (LOCAL_IPS.includes(ip)) {
             console.log(`[IP Blacklist] 检测到本地 IP ${ip} 登录失败，跳过黑名单处理。`);
             return;

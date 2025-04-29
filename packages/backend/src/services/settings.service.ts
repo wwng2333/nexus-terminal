@@ -30,6 +30,7 @@ const LAYOUT_TREE_KEY = 'layoutTree'; // 布局树设置键
 const AUTO_COPY_ON_SELECT_KEY = 'autoCopyOnSelect'; // 终端选中自动复制设置键
 const STATUS_MONITOR_INTERVAL_SECONDS_KEY = 'statusMonitorIntervalSeconds'; // 状态监控间隔设置键
 const DEFAULT_STATUS_MONITOR_INTERVAL_SECONDS = 3; // 默认状态监控间隔
+const IP_BLACKLIST_ENABLED_KEY = 'ipBlacklistEnabled'; // IP 黑名单启用设置键
 
 export const settingsService = {
   /**
@@ -107,6 +108,24 @@ export const settingsService = {
       settingsRepository.setSetting('ipWhitelist', whitelist),
     ]);
   },
+
+  /**
+   * 检查 IP 黑名单功能是否已启用
+   * @returns 返回是否启用 (boolean)，如果未设置则默认为 true
+   */
+  async isIpBlacklistEnabled(): Promise<boolean> {
+    console.log(`[Service] Attempting to get setting for key: ${IP_BLACKLIST_ENABLED_KEY}`);
+    try {
+      const enabledStr = await settingsRepository.getSetting(IP_BLACKLIST_ENABLED_KEY);
+      console.log(`[Service] Raw value from repository for ${IP_BLACKLIST_ENABLED_KEY}:`, enabledStr);
+      // 如果设置存在且值为 'false'，则返回 false，否则都返回 true (包括未设置的情况)
+      return enabledStr !== 'false';
+    } catch (error) {
+      console.error(`[Service] Error getting IP blacklist enabled setting (key: ${IP_BLACKLIST_ENABLED_KEY}):`, error);
+      // 出错时返回默认值 true (安全起见，默认启用)
+      return true;
+    }
+  }, // *** 确保这里有逗号 ***
 
   /**
    * 获取焦点切换顺序

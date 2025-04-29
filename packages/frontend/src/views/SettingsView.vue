@@ -199,13 +199,38 @@
 
           <!-- IP Blacklist Section: Only show if settings data is loaded (as config depends on it) -->
            <div v-if="settings" class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
-             <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.ipBlacklist.title') }}</h2>
+             <div class="flex items-center justify-between px-6 py-4 border-b border-border bg-header/50">
+               <h2 class="text-lg font-semibold text-foreground">{{ $t('settings.ipBlacklist.title') }}</h2>
+               <!-- IP Blacklist Enable/Disable Switch -->
+               <button
+                 type="button"
+                 @click="handleUpdateIpBlacklistEnabled"
+                 :class="[
+                   'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
+                   ipBlacklistEnabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                 ]"
+                 role="switch"
+                 :aria-checked="ipBlacklistEnabled"
+               >
+                 <span
+                   aria-hidden="true"
+                   :class="[
+                     'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200',
+                     ipBlacklistEnabled ? 'translate-x-5' : 'translate-x-0'
+                   ]"
+                 ></span>
+               </button>
+             </div>
              <div class="p-6 space-y-6">
-                <p class="text-sm text-text-secondary">{{ $t('settings.ipBlacklist.description') }}</p>
-                <!-- Blacklist config form -->
-                <form @submit.prevent="handleUpdateBlacklistSettings" class="flex flex-wrap items-end gap-4 pt-4 border-t border-border/50">
-                   <div class="flex-grow min-w-[150px]">
-                     <label for="maxLoginAttempts" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.ipBlacklist.maxAttemptsLabel') }}</label>
+                 <!-- Description moved below -->
+
+                 <!-- Existing Blacklist Content (Conditional Rendering) -->
+                <div v-if="ipBlacklistEnabled" class="space-y-6 pt-4">
+                  <p class="text-sm text-text-secondary">{{ $t('settings.ipBlacklist.description') }}</p>
+                  <!-- Blacklist config form -->
+                  <form @submit.prevent="handleUpdateBlacklistSettings" class="flex flex-wrap items-end gap-4">
+                     <div class="flex-grow min-w-[150px]">
+                       <label for="maxLoginAttempts" class="block text-sm font-medium text-text-secondary mb-1">{{ $t('settings.ipBlacklist.maxAttemptsLabel') }}</label>
                      <input type="number" id="maxLoginAttempts" v-model="blacklistSettingsForm.maxLoginAttempts" min="1" required
                             class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
                    </div>
@@ -220,11 +245,11 @@
                         {{ $t('settings.ipBlacklist.saveConfigButton') }}
                       </button>
                    </div>
-                   <p v-if="blacklistSettingsMessage" :class="['w-full mt-2 text-sm', blacklistSettingsSuccess ? 'text-success' : 'text-error']">{{ blacklistSettingsMessage }}</p>
-                </form>
-                <hr class="border-border/50">
-                <!-- Blacklist table -->
-                <h3 class="text-base font-semibold text-foreground">{{ $t('settings.ipBlacklist.currentBannedTitle') }}</h3>
+                     <p v-if="blacklistSettingsMessage" :class="['w-full mt-2 text-sm', blacklistSettingsSuccess ? 'text-success' : 'text-error']">{{ blacklistSettingsMessage }}</p>
+                  </form>
+                  <hr class="border-border/50">
+                  <!-- Blacklist table -->
+                  <h3 class="text-base font-semibold text-foreground">{{ $t('settings.ipBlacklist.currentBannedTitle') }}</h3>
                 <!-- Error state -->
                 <div v-if="ipBlacklist.error" class="p-3 border-l-4 border-error bg-error/10 text-error text-sm rounded">{{ ipBlacklist.error }}</div>
                 <!-- Loading state (Only show if loading AND no entries are displayed yet) -->
@@ -263,7 +288,12 @@
                   </table>
                 </div>
                 <!-- Delete Error (Show regardless of loading state if present) -->
-                <p v-if="blacklistDeleteError" class="mt-3 text-sm text-error">{{ blacklistDeleteError }}</p>
+                  <p v-if="blacklistDeleteError" class="mt-3 text-sm text-error">{{ blacklistDeleteError }}</p>
+                </div> <!-- End v-if="ipBlacklistEnabled" -->
+                <!-- Message when disabled -->
+                <div v-else class="p-4 text-center text-text-secondary italic border border-dashed border-border/50 rounded-md">
+                   {{ $t('settings.ipBlacklist.disabledMessage', 'IP 黑名单功能当前已禁用。') }}
+                </div>
              </div>
            </div>
         </div>
@@ -547,6 +577,7 @@ const {
     workspaceSidebarPersistentBoolean,
     captchaSettings, // <-- Import CAPTCHA settings state
     commandInputSyncTarget, // NEW: Import command input sync target getter
+    ipBlacklistEnabledBoolean, // <-- Import IP Blacklist enabled getter
 } = storeToRefs(settingsStore);
 
 // Removed Passkey state import from authStore
@@ -570,6 +601,7 @@ const blacklistSettingsForm = reactive({ // Renamed to avoid conflict with store
 const popupEditorEnabled = ref(true); // 本地状态，用于 v-model
 const workspaceSidebarPersistentEnabled = ref(false); // 新增：侧边栏固定设置的本地状态
 const commandInputSyncTargetLocal = ref<'none' | 'quickCommands' | 'commandHistory'>('none'); // NEW: Local state for command input sync target
+const ipBlacklistEnabled = ref(true); // <-- Local state for IP Blacklist switch
 
 // --- Local UI feedback state ---
 const ipWhitelistLoading = ref(false);
@@ -581,6 +613,9 @@ const languageSuccess = ref(false);
 const blacklistSettingsLoading = ref(false);
 const blacklistSettingsMessage = ref('');
 const blacklistSettingsSuccess = ref(false);
+// Removed ipBlacklistEnabledLoading, ipBlacklistEnabledMessage, ipBlacklistEnabledSuccess refs
+
+
 const popupEditorLoading = ref(false);
 const popupEditorMessage = ref('');
 const popupEditorSuccess = ref(false);
@@ -658,6 +693,7 @@ watch(settings, (newSettings, oldSettings) => {
   workspaceSidebarPersistentEnabled.value = workspaceSidebarPersistentBoolean.value; // 新增：同步侧边栏固定设置
   commandInputSyncTargetLocal.value = commandInputSyncTarget.value; // NEW: Sync command input sync target
   selectedTimezone.value = newSettings.timezone || 'UTC'; // 同步时区设置
+  ipBlacklistEnabled.value = ipBlacklistEnabledBoolean.value; // <-- Sync IP Blacklist enabled state
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -1067,6 +1103,26 @@ const handleUpdateBlacklistSettings = async () => {
     } finally {
         blacklistSettingsLoading.value = false;
     }
+};
+
+// --- IP Blacklist Enable/Disable Method (Button Style) ---
+const handleUpdateIpBlacklistEnabled = async () => {
+   // Toggle local state immediately for instant UI feedback
+   const originalValue = ipBlacklistEnabled.value;
+   ipBlacklistEnabled.value = !ipBlacklistEnabled.value;
+
+   try {
+       const valueToSave = ipBlacklistEnabled.value ? 'true' : 'false';
+       await settingsStore.updateSetting('ipBlacklistEnabled', valueToSave);
+       // Save successful, no message needed for toggle switch
+       console.log('IP Blacklist enabled status saved:', valueToSave);
+   } catch (error: any) {
+       console.error('更新 IP 黑名单启用状态失败:', error);
+       // Optionally show error notification to user here
+       // Revert button state on failure
+       ipBlacklistEnabled.value = originalValue; // Revert to original value
+   }
+   // No loading/message state management needed
 };
 
 // --- CAPTCHA Settings Method ---

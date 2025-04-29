@@ -46,7 +46,8 @@ export const settingsController = {
           'commandInputSyncTarget', // +++ 添加命令输入同步目标键 +++
           'timezone', // NEW: 添加时区键
           'rdpModalWidth', // NEW: 添加 RDP 模态框宽度键
-          'rdpModalHeight' // NEW: 添加 RDP 模态框高度键
+          'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
+          'ipBlacklistEnabled' // <-- 添加 IP 黑名单启用键
       ];
       const filteredSettings: Record<string, string> = {};
       for (const key in settingsToUpdate) {
