@@ -629,6 +629,25 @@ export class SftpService {
                  }
 
                 try {
+                    // --- 新增：移动前检查目标是否存在 ---
+                    let targetExists = false;
+                    try {
+                        await this.getStats(sftp, newPath);
+                        targetExists = true;
+                    } catch (statErr: any) {
+                        if (!(statErr.code === 'ENOENT' || (statErr.message && statErr.message.includes('No such file')))) {
+                            // 如果 stat 失败不是因为 "No such file"，则抛出未知错误
+                            throw new Error(`检查目标路径 ${newPath} 状态时出错: ${statErr.message}`);
+                        }
+                        // 如果是 "No such file"，则 targetExists 保持 false，可以继续移动
+                    }
+
+                    if (targetExists) {
+                        console.error(`[SFTP ${sessionId}] Move failed: Target path ${newPath} already exists (ID: ${requestId})`);
+                        throw new Error(`目标路径 ${pathModule.basename(newPath)} 已存在`);
+                    }
+                    // --- 结束新增 ---
+
                     console.log(`[SFTP ${sessionId}] Moving ${oldPath} to ${newPath} (ID: ${requestId})`);
                     await this.performRename(sftp, oldPath, newPath); // Use helper for rename logic
 
