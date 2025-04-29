@@ -25,15 +25,15 @@ services:
       - nexus-terminal-network
 
   rdp:
-    image: heavrnl/nexus-terminal-rdp # <-- Replace with your actual image name
+    image: heavrnl/nexus-terminal-rdp
     container_name: nexus-terminal-rdp
     environment:
       GUACD_HOST: guacd
       GUACD_PORT: 4822
-      API_PORT: 9090 # Default API port for rdp service
-      GUAC_WS_PORT: 8081 # Default WebSocket port for rdp service
-      FRONTEND_URL: http://frontend # Allow CORS from frontend container
-      MAIN_BACKEND_URL: http://backend:3001 # Allow CORS from backend container
+      API_PORT: 9090
+      GUAC_WS_PORT: 8081
+      FRONTEND_URL: http://frontend
+      MAIN_BACKEND_URL: http://backend:3001
       NODE_ENV: production
     networks:
       - nexus-terminal-network
