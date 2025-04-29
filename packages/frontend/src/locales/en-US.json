@@ -250,6 +250,7 @@
       "delete": "Delete",
       "deleteMultiple": "Delete {count} items",
       "download": "Download",
+      "downloadMultiple": "Download {count} items",
       "cancel": "Cancel",
       "save": "Save",
       "closeTab": "Close Tab",

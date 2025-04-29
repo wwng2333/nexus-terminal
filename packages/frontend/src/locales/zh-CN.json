@@ -250,6 +250,7 @@
       "delete": "删除",
       "deleteMultiple": "删除 {count} 个项目",
       "download": "下载",
+      "downloadMultiple": "下载 {count} 个项目",
       "cancel": "取消",
       "save": "保存",
       "closeTab": "关闭标签页",

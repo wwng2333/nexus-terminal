@@ -435,7 +435,7 @@ const handlePaste = () => {
 const triggerFileUpload = () => { fileInputRef.value?.click(); };
 
 // --- 下载触发器 (定义在此处，供 Composable 使用) ---
-const triggerDownload = (item: FileListItem) => { // item 已有类型
+const triggerDownload = (items: FileListItem[]) => { // 修改：接受 FileListItem 数组
     // 恢复使用 props.wsDeps.isConnected
     if (!props.wsDeps.isConnected.value) {
         alert(t('fileManager.errors.notConnected'));
@@ -455,15 +455,30 @@ const triggerDownload = (item: FileListItem) => { // item 已有类型
         return;
     }
 
-    const downloadPath = currentSftpManager.value.joinPath(currentSftpManager.value.currentPath.value, item.filename);
-    const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
-    console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering download: ${downloadUrl}`);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', item.filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // 遍历数组中的每个文件项
+    items.forEach(item => {
+        // 确保只下载文件
+        if (!item.attrs.isFile) {
+            console.warn(`[FileManager ${props.sessionId}-${props.instanceId}] Skipping download for non-file item: ${item.filename}`);
+            return;
+        }
+
+        const downloadPath = currentSftpManager.value!.joinPath(currentSftpManager.value!.currentPath.value, item.filename);
+        const downloadUrl = `/api/v1/sftp/download?connectionId=${currentConnectionId}&remotePath=${encodeURIComponent(downloadPath)}`;
+        console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering download for ${item.filename}: ${downloadUrl}`);
+
+        // 为每个文件创建一个链接并点击
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.setAttribute('download', item.filename); // 使用原始文件名
+        document.body.appendChild(link);
+        link.click();
+
+        // 稍微延迟移除链接，以确保下载开始
+        setTimeout(() => {
+            document.body.removeChild(link);
+        }, 100);
+    });
 };
 
 

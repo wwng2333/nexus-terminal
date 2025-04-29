@@ -30,7 +30,7 @@ export interface UseFileManagerContextMenuOptions {
   // --- 回调函数 ---
   onRefresh: () => void;
   onUpload: () => void;
-  onDownload: (item: FileListItem) => void;
+  onDownload: (items: FileListItem[]) => void; // 修改：接受 FileListItem 数组
   onDelete: () => void; // 删除操作现在由外部处理
   onRename: (item: FileListItem) => void;
   onChangePermissions: (item: FileListItem) => void;
@@ -97,22 +97,37 @@ export function useFileManagerContextMenu(options: UseFileManagerContextMenuOpti
     // Build context menu items (使用传入的回调)
     if (selectionSize > 1 && clickedItemIsSelected) {
         // Multi-selection menu
+        const selectedFileItems = Array.from(selectedItems.value)
+            .map(filename => fileList.value.find(f => f.filename === filename))
+            .filter((item): item is FileListItem => !!item); // 过滤掉未找到的项并确保类型
+
+        const allFilesSelected = selectedFileItems.length === selectionSize && selectedFileItems.every(item => item.attrs.isFile);
+
         menu = [
             // 调整顺序：剪切、复制优先
             { label: t('fileManager.actions.cut'), action: onCut, disabled: !canPerformActions },
             { label: t('fileManager.actions.copy'), action: onCopy, disabled: !canPerformActions },
-            // --- 分隔符 (视觉) ---
+        ];
+
+        // --- 新增：多选下载 ---
+        if (allFilesSelected) {
+            menu.push({ label: t('fileManager.actions.downloadMultiple', { count: selectionSize }), action: () => onDownload(selectedFileItems), disabled: !canPerformActions });
+        }
+
+        menu.push(
+             // --- 分隔符 (视觉) ---
             { label: t('fileManager.actions.deleteMultiple', { count: selectionSize }), action: onDelete, disabled: !canPerformActions },
             // --- 分隔符 (视觉) ---
-            { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions },
-        ];
+            { label: t('fileManager.actions.refresh'), action: onRefresh, disabled: !canPerformActions }
+        );
     } else if (targetItem && targetItem.filename !== '..') {
         // Single item (not '..') menu
+        // --- 修改：单选下载也调用接收数组的回调 ---
         menu = [];
 
         // 1. 主要操作 (下载 - 如果是文件)
         if (targetItem.attrs.isFile) {
-            menu.push({ label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload(targetItem), disabled: !canPerformActions });
+            menu.push({ label: t('fileManager.actions.download', { name: targetItem.filename }), action: () => onDownload([targetItem]), disabled: !canPerformActions }); // 传递包含单个项的数组
         }
 
         // 2. 剪切、复制、粘贴 (粘贴 - 如果是文件夹)
