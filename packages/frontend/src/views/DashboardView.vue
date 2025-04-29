@@ -182,10 +182,10 @@ const isFailedAction = (actionType: string): boolean => {
   <div class="p-4 md:p-6 lg:p-8 bg-background text-foreground">
     <h1 class="text-2xl font-semibold mb-6">{{ t('nav.dashboard') }}</h1>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
 
       <!-- Connection List -->
-      <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border">
+      <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border min-h-[400px]">
         <div class="px-4 py-3 border-b border-border flex justify-between items-center">
           <h2 class="text-lg font-medium">{{ t('dashboard.connectionList', '连接列表') }}</h2>
           <div class="flex items-center space-x-2">
@@ -235,7 +235,7 @@ const isFailedAction = (actionType: string): boolean => {
       </div>
 
       <!-- Recent Activity -->
-      <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border">
+      <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border min-h-[400px]">
         <div class="px-4 py-3 border-b border-border">
           <h2 class="text-lg font-medium">{{ t('dashboard.recentActivity', '最近活动') }}</h2>
         </div>
