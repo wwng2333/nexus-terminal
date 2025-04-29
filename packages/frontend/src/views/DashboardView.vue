@@ -224,7 +224,7 @@ const isFailedAction = (actionType: string): boolean => {
                   {{ t('dashboard.lastConnected', '上次连接:') }} {{ formatRelativeTime(conn.last_connected_at) }}
                 </span>
               </div>
-              <button @click="connectTo(conn)" class="px-3 py-1.5 text-sm rounded border transition-colors duration-150 bg-primary text-white border-primary hover:bg-primary-dark hover:border-primary-dark flex-shrink-0"> <!-- Increased padding and font size -->
+              <button @click="connectTo(conn)" class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium flex-shrink-0"> <!-- Applied standard button style -->
                 {{ t('connections.actions.connect') }}
               </button>
             </li>
