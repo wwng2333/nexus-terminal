@@ -126,7 +126,8 @@ const isSearchActive = ref(false); // 新增：控制搜索框激活状态
 const searchInputRef = ref<HTMLInputElement | null>(null); // 新增：搜索输入框 ref
 const pathInputRef = ref<HTMLInputElement | null>(null);
 const editablePath = ref('');
-const fileListContainerRef = ref<HTMLDivElement | null>(null); // 文件列表容器引用 (保留，传递给 Composable)
+const fileListContainerRef = ref<HTMLDivElement | null>(null); // 文件列表容器引用
+const dropOverlayRef = ref<HTMLDivElement | null>(null); // +++ 新增：拖拽蒙版引用 +++
 // const scrollIntervalId = ref<number | null>(null); // 已移至 useFileManagerDragAndDrop
 
 // +++ 新增：剪贴板状态 +++
@@ -923,6 +924,25 @@ onBeforeUnmount(() => {
   sessionStore.removeSftpManager(props.sessionId, props.instanceId);
 });
 
+// +++ 新增：监听蒙版可见性，动态调整高度 +++
+watch(showExternalDropOverlay, (isVisible) => {
+  if (isVisible) {
+    nextTick(() => { // 确保 refs 可用且 scrollHeight 已计算
+      if (dropOverlayRef.value && fileListContainerRef.value) {
+        const scrollHeight = fileListContainerRef.value.scrollHeight;
+        dropOverlayRef.value.style.height = `${scrollHeight}px`;
+        // console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Overlay shown. Setting height to scrollHeight: ${scrollHeight}px`);
+      }
+    });
+  } else {
+    // 蒙版隐藏时重置高度
+    if (dropOverlayRef.value) {
+      dropOverlayRef.value.style.height = ''; // 移除内联样式
+      // console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Overlay hidden. Resetting height.`);
+    }
+  }
+});
+
 // --- 列宽调整逻辑 (保持不变) ---
 const getColumnKeyByIndex = (index: number): keyof typeof colWidths.value | null => {
     const keys = Object.keys(colWidths.value) as Array<keyof typeof colWidths.value>;
@@ -1276,6 +1296,7 @@ defineExpose({ focusSearchInput, startPathEdit });
         <!-- 新增：外部文件拖拽蒙版 -->
         <div
           v-if="showExternalDropOverlay"
+          ref="dropOverlayRef"
           class="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-xl font-semibold rounded z-50 pointer-events-auto"
           @dragover.prevent
           @dragleave.prevent="handleDragLeave"
