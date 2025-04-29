@@ -136,16 +136,54 @@ export const establishSshConnection = (
         };
 
         const errorHandler = (err: Error) => {
+            // Ensure this handler only runs once effectively
+            sshClient.removeListener('ready', readyHandler);
+            sshClient.removeListener('error', errorHandler); // Remove itself
+            sshClient.removeListener('close', closeHandler); // Remove close handler if attached
+
             console.error(`SshService: SSH 连接到 ${connDetails.host}:${connDetails.port} (ID: ${connDetails.id}) 失败:`, err);
-            sshClient.removeListener('ready', readyHandler); // 失败后移除成功监听器
-            sshClient.end(); // 确保关闭客户端
-            reject(err);
+
+            // Try ending the client gracefully, but don't wait for it if it hangs
+            try {
+                sshClient.end();
+            } catch (endError) {
+                console.error(`SshService: Error while calling sshClient.end() during error handling:`, endError);
+            }
+
+            reject(err); // Reject the promise
         };
 
-        sshClient.once('ready', readyHandler);
-        sshClient.once('error', errorHandler);
+        const closeHandler = () => {
+            // Handle unexpected close events if needed, or just ensure listeners are removed
+            sshClient.removeListener('ready', readyHandler);
+            sshClient.removeListener('error', errorHandler);
+            sshClient.removeListener('close', closeHandler);
+            // console.log(`SshService: SSH connection closed unexpectedly during connection phase for ${connDetails.id}`);
+            // Avoid rejecting here, let the 'error' handler manage rejection on failure.
+        };
+
+        // Modify readyHandler to remove error and close listeners
+        const originalReadyHandler = readyHandler; // Keep original logic
+        const enhancedReadyHandler = async () => {
+            sshClient.removeListener('error', errorHandler); // Remove error listener on success
+            sshClient.removeListener('close', closeHandler); // Remove close listener on success
+            await originalReadyHandler(); // Execute original logic (updates DB, resolves promise)
+        };
+
+
+        sshClient.once('ready', enhancedReadyHandler); // Use enhanced handler
+        sshClient.on('error', errorHandler);   // Use 'on' but handler removes itself
+        sshClient.on('close', closeHandler); // Add a handler for close events during connection phase
+
 
         // --- 处理代理 ---
+        // Make sure the proxy error handling also calls the main errorHandler
+        const handleProxyError = (proxyError: Error) => {
+             console.error(`SshService: Proxy setup failed for ${connDetails.host}:${connDetails.port} (ID: ${connDetails.id})`, proxyError);
+             // Call the main error handler to ensure consistent cleanup and rejection
+             errorHandler(proxyError);
+        };
+
         if (connDetails.proxy) {
             const proxy = connDetails.proxy;
             console.log(`SshService: 应用代理 ${proxy.name} (${proxy.type}) 连接到 ${connDetails.host}:${connDetails.port}`);
@@ -163,7 +201,7 @@ export const establishSshConnection = (
                         sshClient.connect(connectConfig);
                     })
                     .catch(socksError => {
-                        errorHandler(new Error(`SOCKS5 代理 ${proxy.host}:${proxy.port} 连接失败: ${socksError.message}`));
+                        handleProxyError(new Error(`SOCKS5 代理 ${proxy.host}:${proxy.port} 连接失败: ${socksError.message}`));
                     });
 
             } else if (proxy.type === 'HTTP') {
@@ -188,19 +226,19 @@ export const establishSshConnection = (
                         sshClient.connect(connectConfig);
                     } else {
                         socket.destroy();
-                        errorHandler(new Error(`HTTP 代理 ${proxy.host}:${proxy.port} 连接失败 (状态码: ${res.statusCode})`));
+                        handleProxyError(new Error(`HTTP 代理 ${proxy.host}:${proxy.port} 连接失败 (状态码: ${res.statusCode})`));
                     }
                 });
                 req.on('error', (err) => {
-                    errorHandler(new Error(`HTTP 代理 ${proxy.host}:${proxy.port} 请求错误: ${err.message}`));
+                    handleProxyError(new Error(`HTTP 代理 ${proxy.host}:${proxy.port} 请求错误: ${err.message}`));
                 });
                 req.on('timeout', () => {
                     req.destroy();
-                    errorHandler(new Error(`HTTP 代理 ${proxy.host}:${proxy.port} 连接超时`));
+                    handleProxyError(new Error(`HTTP 代理 ${proxy.host}:${proxy.port} 连接超时`));
                 });
                 req.end();
             } else {
-                errorHandler(new Error(`不支持的代理类型: ${proxy.type}`));
+                handleProxyError(new Error(`不支持的代理类型: ${proxy.type}`));
             }
         } else {
             // 无代理，直接连接

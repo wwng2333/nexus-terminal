@@ -831,9 +831,11 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                 reason: connectError.message
                             });
                             ws.send(JSON.stringify({ type: 'ssh:error', payload: `连接失败: ${connectError.message}` }));
-                    }
+                            // 在 SSH 连接建立失败时关闭 WebSocket
+                            ws.close(1011, `SSH Connection Failed: ${connectError.message}`);
+                        }
                         break;
-                    } 
+                    }
 
                     // --- SSH 输入 ---
                     case 'ssh:input': {
