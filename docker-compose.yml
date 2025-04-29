@@ -3,6 +3,7 @@ services:
     build:
       context: .
       dockerfile: packages/frontend/Dockerfile
+    image: heavrnl/nexus-terminal-frontend:latest
     container_name: nexus-terminal-frontend
     ports:
       - "18111:80"
@@ -17,7 +18,8 @@ services:
       context: .
       dockerfile: packages/backend/Dockerfile
     env_file:
-      - .env 
+      - .env
+    image: heavrnl/nexus-terminal-backend:latest
     container_name: nexus-terminal-backend
     ports:
       - "3001:3001"
@@ -34,6 +36,7 @@ services:
     build:
       context: .
       dockerfile: packages/rdp/Dockerfile
+    image: heavrnl/nexus-terminal-rdp:latest
     container_name: nexus-terminal-rdp
     environment:
       GUACD_HOST: guacd
