@@ -1,24 +1,23 @@
-// @ts-ignore - Still need this for the import as no types exist
 import GuacamoleLite from 'guacamole-lite';
 import express, { Request, Response } from 'express';
 import http from 'http';
 import crypto from 'crypto';
 import cors from 'cors';
-// --- Removed fs, path, dotenv imports ---
 
-// --- Configuration ---
+
+// --- 配置 ---
 const GUAC_WS_PORT = process.env.GUAC_WS_PORT || 8081;
 const API_PORT = process.env.API_PORT || 9090;
 const GUACD_HOST = process.env.GUACD_HOST || 'localhost';
 const GUACD_PORT = parseInt(process.env.GUACD_PORT || '4822', 10);
 
-// --- Generate In-Memory Encryption Key on Startup ---
-console.log("Generating new in-memory encryption key for this session...");
+// --- 启动时生成内存加密密钥 ---
+console.log("正在为此会话生成新的内存加密密钥...");
 const ENCRYPTION_KEY_STRING = crypto.randomBytes(32).toString('hex');
 const ENCRYPTION_KEY_BUFFER = Buffer.from(ENCRYPTION_KEY_STRING, 'hex');
-console.log("In-memory encryption key generated.");
+console.log("内存加密密钥已生成。");
 
-// --- Express App Setup ---
+// --- Express 应用设置 ---
 const app = express();
 const apiServer = http.createServer(app);
 
@@ -41,22 +40,20 @@ const websocketOptions = {
 
 const clientOptions = {
     crypt: {
-        // Pass the actual key Buffer to guacamole-lite for its internal crypto operations
+        // 将实际的密钥 Buffer 传递给 guacamole-lite 用于其内部加密操作
         key: ENCRYPTION_KEY_BUFFER,
-        cypher: 'aes-256-cbc' // Ensure cipher matches between encryption and decryption
+        cypher: 'aes-256-cbc' // 确保加密和解密之间的密码算法一致
     },
-    // Default connection settings
+    // 默认连接设置
     connectionDefaultSettings: {
         rdp: {
-            'security': 'nla', // Default security mode to NLA
-            'ignore-cert': 'true', // Default ignore certificate errors
-            // Add other desired RDP defaults here
+            'security': 'nla',
+            'ignore-cert': 'true', 
         }
-        // Add defaults for other protocols (vnc, ssh) if needed
     },
 };
 
-let guacServer: any; // Define guacServer here to make it accessible in gracefulShutdown
+let guacServer: any;
 
 try {
     console.log(`[RDP 服务] 正在使用选项初始化 GuacamoleLite: WS 端口=${websocketOptions.port}, Guacd=${guacdOptions.host}:${guacdOptions.port}`);
@@ -68,13 +65,9 @@ try {
             console.error(`[RDP 服务] GuacamoleLite 服务器错误:`, error);
         });
         guacServer.on('connection', (client: any) => {
-            // 注意：这里的 'client' 通常代表到 guacd 的连接，而不是直接的 WebSocket 连接。
-            // guacamole-lite 库可能抽象了直接的 WebSocket 处理。
-            // 我们主要记录与 guacd 交互的事件。
             const clientId = client.id || '未知客户端ID';
             console.log(`[RDP 服务] Guacd 连接事件触发。客户端 ID: ${clientId}`);
-            // 尝试记录更多信息，如果库提供的话 (可能需要查看 guacamole-lite 文档或源码)
-            // console.log(`[RDP 服务] 客户端连接参数 (如果可用):`, client.connection?.settings);
+
 
             if (client && typeof client.on === 'function') {
                 client.on('disconnect', (reason: string) => {
@@ -85,11 +78,11 @@ try {
                 });
 
                 client.on('message', (message: Buffer | string) => {
-                    // Message handling removed in reverted state
+                    // 在回滚状态下移除了消息处理
                 });
 
             } else {
-                 // Minimal handling for clients without 'on'
+                 // 对没有 'on' 方法的客户端进行最小化处理
             }
         });
    }
@@ -98,30 +91,30 @@ try {
    process.exit(1);
 }
 
-// Updated encryptToken to match guacamole-lite's expected format (aes-256-cbc and specific JSON structure)
-// Now accepts the key Buffer directly for correct crypto operation
+// 更新了 encryptToken 以匹配 guacamole-lite 期望的格式 (aes-256-cbc 和特定的 JSON 结构)
+// 现在直接接受密钥 Buffer 以进行正确的加密操作
 const encryptToken = (data: string, keyBuffer: Buffer): string => {
     try {
-        const iv = crypto.randomBytes(16); // AES-CBC typically uses a 16-byte IV
-        // Use the key Buffer for Node.js crypto operations
+        const iv = crypto.randomBytes(16); // AES-CBC 通常使用 16 字节的 IV
+        // 使用密钥 Buffer 进行 Node.js 加密操作
         const cipher = crypto.createCipheriv('aes-256-cbc', keyBuffer, iv);
 
         let encrypted = cipher.update(data, 'utf8', 'base64');
         encrypted += cipher.final('base64');
 
-        // Construct the JSON object expected by guacamole-lite's decrypt function
+        // 构建 guacamole-lite 的解密函数期望的 JSON 对象
         const output = {
             iv: iv.toString('base64'),
             value: encrypted
         };
 
-        // Stringify the JSON and then Base64 encode the entire string
+        // 将 JSON 字符串化，然后对整个字符串进行 Base64 编码
         const jsonString = JSON.stringify(output);
         return Buffer.from(jsonString).toString('base64');
 
     } catch (e) {
-        console.error("Token encryption failed:", e); // Log the actual error
-        throw new Error("Token encryption failed.");
+        console.error("令牌加密失败:", e);
+        throw new Error("令牌加密失败。");
     }
 };
 
@@ -132,7 +125,7 @@ app.get('/api/get-token', (req: any, res: any) => {
     const { hostname, port, username, password, security = 'any', ignoreCert = 'true' } = req.query;
 
     if (!hostname || !port || !username || typeof password === 'undefined') {
-        return res.status(400).json({ error: 'Missing required RDP parameters (hostname, port, username, password)' });
+        return res.status(400).json({ error: '缺少必需的 RDP 参数 (hostname, port, username, password)' });
     }
 
     const connectionParams = {
@@ -143,7 +136,7 @@ app.get('/api/get-token', (req: any, res: any) => {
                 port: port as string,
                 username: username as string,
                 password: password as string,
-                // Include the dynamic (or default) size parameters from query
+                // 从查询中包含动态（或默认）的大小参数
                 width: String(req.query.width || '1024'),
                 height: String(req.query.height || '768'),
                 dpi: String(req.query.dpi || '96'),
@@ -153,13 +146,11 @@ app.get('/api/get-token', (req: any, res: any) => {
 
     try {
         const tokenData = JSON.stringify(connectionParams);
-        // Use the validated key buffer for encryption
-        // Use the key Buffer for encryption
         const encryptedToken = encryptToken(tokenData, ENCRYPTION_KEY_BUFFER);
         res.json({ token: encryptedToken });
     } catch (error) {
-        console.error("Error in /api/get-token:", error); // Log specific error
-        res.status(500).json({ error: 'Failed to generate token' });
+        console.error("/api/get-token 接口出错:", error);
+        res.status(500).json({ error: '生成令牌失败' });
     }
 });
 
@@ -169,54 +160,54 @@ apiServer.listen(API_PORT, () => {
 });
 
 const gracefulShutdown = (signal: string) => {
-    console.log(`Received ${signal}. Shutting down gracefully...`); // Added shutdown log
+    console.log(`收到 ${signal} 信号。正在优雅地关闭...`);
 
   let guacClosed = false;
   let apiClosed = false;
 
   const tryExit = () => {
     if (guacClosed && apiClosed) {
-      console.log("All servers closed. Exiting."); // Added exit log
+      console.log("所有服务器已关闭。正在退出。");
       process.exit(0);
     }
   };
 
   apiServer.close((err) => {
     if (err) {
-        console.error("Error closing API server:", err); // Added error log
+        console.error("关闭 API 服务器时出错:", err);
     } else {
-        console.log("API server closed."); // Added close log
+        console.log("API 服务器已关闭。");
     }
     apiClosed = true;
     tryExit();
   });
 
-  // @ts-ignore - Assuming close method exists based on common patterns
+  // @ts-ignore - 假设基于通用模式存在 close 方法
   if (typeof guacServer !== 'undefined' && guacServer && typeof guacServer.close === 'function') {
-    console.log("Closing Guacamole server..."); // Added close log
+    console.log("正在关闭 Guacamole 服务器..."); // 添加了关闭日志
     // @ts-ignore
     guacServer.close(() => {
-        console.log("Guacamole server closed."); // Added close log
+        console.log("Guacamole 服务器已关闭。"); // 添加了关闭日志
         guacClosed = true;
         tryExit();
     });
   } else {
-    console.log("Guacamole server not running or doesn't support close()."); // Added info log
+    console.log("Guacamole 服务器未运行或不支持 close() 方法。");
     guacClosed = true;
     tryExit();
   }
 
-  // Force exit after timeout
+  // 超时后强制退出
   setTimeout(() => {
-    console.error("Graceful shutdown timed out. Forcing exit."); // Added timeout log
+    console.error("优雅关闭超时。强制退出。");
     process.exit(1);
-  }, 10000); // 10 seconds timeout
+  }, 10000); // 10 秒超时
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 process.on('SIGUSR2', () => {
-    // Handle nodemon restarts gracefully
+    // 优雅地处理 nodemon 重启
     gracefulShutdown('SIGUSR2 (nodemon restart)');
 });
