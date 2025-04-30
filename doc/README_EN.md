@@ -36,27 +36,15 @@
 
 |                            Login Interface                            |
 |:-------------------------------------------------------------:|
-| ![login.png](https://lsky.tuyu.me/i/2025/04/30/681209911d74f.png) |
+| ![Login_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4016788.png) |
 
 ---
 
-|                            Terminal Interface (Light)                            |
+|                            Terminal Interface                             |
 |:-------------------------------------------------------------:|
-| ![workspace_light.png](https://lsky.tuyu.me/i/2025/04/30/68120a8dd0489.png) |
+| ![workspace_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e410d34f.png) |
 
----
 
-|                            Terminal Interface (Darker)                            |
-|:-------------------------------------------------------------:|
-| ![workspace_darker.png](https://lsky.tuyu.me/i/2025/04/30/68120aa275a76.png) |
-
----
-
----
-
-|                            RDP                           |
-|:-------------------------------------------------------------:|
-| ![RDP.png](https://lsky.tuyu.me/i/2025/04/30/68123a318b817.png) |
 
 ---
 
@@ -64,7 +52,7 @@
 
 |                          Style Settings                            |                          Layout Settings                            |                          Settings Panel                            |
 |:-------------------------------------------------------------:|:-------------------------------------------------------------:|:-------------------------------------------------------------:|
-| ![ui.png](https://lsky.tuyu.me/i/2025/04/30/68120acb7a6fb.png) | ![layout.png](https://lsky.tuyu.me/i/2025/04/30/68120ac6d6a51.png) | ![settings.png](https://lsky.tuyu.me/i/2025/04/30/68120ac76bcb8.png) |
+| ![ui_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e40570cc.png) | ![layout_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4122276.png) | ![settings_en.png](https://lsky.tuyu.me/i/2025/04/30/68123e4036cd6.png) |
 
 
 
