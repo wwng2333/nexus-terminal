@@ -367,6 +367,17 @@
       "appearance": "外观设置",
       "system": "系统设置"
     },
+    "timezone": {
+      "title": "时区设置",
+      "selectLabel": "选择时区:",
+      "description": "通知中的时间戳将根据此时区进行格式化。",
+      "success": {
+        "saved": "时区设置已成功保存。"
+      },
+      "error": {
+        "saveFailed": "保存时区设置失败。"
+      }
+    },
     "changePassword": {
       "title": "修改密码",
       "currentPassword": "当前密码:",
@@ -664,18 +675,8 @@
       },
       "error": {
         "saveFailed": "保存同步目标失败。"
-      },
-      "timezone": {
-        "title": "时区设置",
-        "selectLabel": "选择时区:",
-        "description": "通知中的时间戳将根据此时区进行格式化。",
-        "success": {
-          "saved": "时区设置已成功保存。"
-        },
-        "error": {
-          "saveFailed": "保存时区设置失败。"
-        }
       }
+
     }
 },
 "notificationController": {

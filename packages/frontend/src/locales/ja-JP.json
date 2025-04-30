@@ -529,6 +529,17 @@
             "description": "アプリケーションのビジュアルテーマと背景をカスタマイズします。",
             "title": "外観設定"
         },
+        "timezone": {
+                "description": "通知のタイムスタンプはこのタイムゾーンに基づいてフォーマットされます。",
+                "error": {
+                    "saveFailed": "タイムゾーン設定の保存に失敗しました。"
+                },
+                "selectLabel": "タイムゾーンを選択:",
+                "success": {
+                    "saved": "タイムゾーン設定が正常に保存されました。"
+                },
+                "title": "タイムゾーン設定"
+            },
         "autoCopyOnSelect": {
             "enableLabel": "マウスボタンを離したときに選択したテキストを自動的にコピーする",
             "error": {
@@ -588,17 +599,7 @@
             "targetCommandHistory": "コマンド履歴",
             "targetNone": "なし",
             "targetQuickCommands": "クイックコマンド",
-            "timezone": {
-                "description": "通知のタイムスタンプはこのタイムゾーンに基づいてフォーマットされます。",
-                "error": {
-                    "saveFailed": "タイムゾーン設定の保存に失敗しました。"
-                },
-                "selectLabel": "タイムゾーンを選択:",
-                "success": {
-                    "saved": "タイムゾーン設定が正常に保存されました。"
-                },
-                "title": "タイムゾーン設定"
-            },
+            
             "title": "コマンド入力同期"
         },
         "docker": {

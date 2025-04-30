@@ -367,6 +367,18 @@
       "appearance": "Appearance Settings",
       "system": "System Settings"
     },
+    
+      "timezone": {
+        "title": "Timezone Settings",
+        "selectLabel": "Select Timezone:",
+        "description": "Timestamps in notifications will be formatted according to this timezone.",
+        "success": {
+          "saved": "Timezone setting saved successfully."
+        },
+        "error": {
+          "saveFailed": "Failed to save timezone setting."
+        }
+      },
     "changePassword": {
       "title": "Change Password",
       "currentPassword": "Current Password:",
@@ -663,17 +675,6 @@
       },
       "error": {
         "saveFailed": "Failed to save sync target."
-      },
-      "timezone": {
-        "title": "Timezone Settings",
-        "selectLabel": "Select Timezone:",
-        "description": "Timestamps in notifications will be formatted according to this timezone.",
-        "success": {
-          "saved": "Timezone setting saved successfully."
-        },
-        "error": {
-          "saveFailed": "Failed to save timezone setting."
-        }
       }
     }
   },
