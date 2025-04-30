@@ -37,23 +37,34 @@
 
 |                            登录界面                            |
 |:-------------------------------------------------------------:|
-| ![登录界面](https://i.111666.best/image/Dgfy0Y9SoqPOquazKszgux.png) |
+| ![image](https://i.111666.best/image/Dgfy0Y9SoqPOquazKszgux.png) |
+
+---
+
+|                            终端界面（Light）                            |
+|:-------------------------------------------------------------:|
+| ![image](https://i.111666.best/image/9BEiHGtlIBrCY2wMDeon7X.png) |
+
+---
+
+|                            终端界面（Darker）                            |
+|:-------------------------------------------------------------:|
+| ![image](https://i.111666.best/image/8wdW1ffDRR5TcsHrCeHusc.png) |
 
 ---
 
 
-
-|                        终端界面（Light）                        |                        终端界面（Darker）                        |
+<!-- |                        终端界面（Light）                        |                        终端界面（Darker）                        |
 |:-------------------------------------------------------------:|:-------------------------------------------------------------:|
-| ![终端界面1](https://i.111666.best/image/9BEiHGtlIBrCY2wMDeon7X.png) | ![终端界面2](https://i.111666.best/image/8wdW1ffDRR5TcsHrCeHusc.png) |
+| ![image](https://i.111666.best/image/9BEiHGtlIBrCY2wMDeon7X.png) | ![image](https://i.111666.best/image/8wdW1ffDRR5TcsHrCeHusc.png) |
 
----
+--- -->
 
 
 
 |                          样式设置                            |                          布局设置                            |                          设置面板                            |
 |:-------------------------------------------------------------:|:-------------------------------------------------------------:|:-------------------------------------------------------------:|
-| ![设置1](https://i.111666.best/image/P1RxdXJhY0Q6G6VUm6H5Ws.png) | ![设置2](https://i.111666.best/image/PLd79JcWkH3WNuSZBuUQHC.png) | ![设置3](https://i.111666.best/image/ZpLbvsUdrf5IIaEHsBJ2Of.png) |
+| ![image](https://i.111666.best/image/P1RxdXJhY0Q6G6VUm6H5Ws.png) | ![image](https://i.111666.best/image/PLd79JcWkH3WNuSZBuUQHC.png) | ![image](https://i.111666.best/image/ZpLbvsUdrf5IIaEHsBJ2Of.png) |
 
 
 
