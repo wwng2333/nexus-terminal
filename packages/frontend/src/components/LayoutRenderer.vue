@@ -338,11 +338,11 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
   if (props.layoutNode && typeof props.layoutNode.id === 'undefined') {
     console.warn(`[LayoutRenderer DEBUG] handlePaneResize triggered but props.layoutNode.id is undefined. Full layoutNode prop:`, JSON.parse(JSON.stringify(props.layoutNode)));
   }
-  console.log(`[LayoutRenderer DEBUG] handlePaneResize triggered for node ID: ${props.layoutNode?.id}, direction: ${props.layoutNode?.direction ?? 'N/A'}`); // Use optional chaining for safety
-  console.log('[LayoutRenderer DEBUG] Splitpanes resized event object:', eventData);
+  // console.log(`[LayoutRenderer DEBUG] handlePaneResize triggered for node ID: ${props.layoutNode?.id}, direction: ${props.layoutNode?.direction ?? 'N/A'}`); // Use optional chaining for safety
+  // console.log('[LayoutRenderer DEBUG] Splitpanes resized event object:', eventData);
   const paneSizes = eventData.panes; // 从事件对象中提取 panes 数组
 
-  console.log('[LayoutRenderer DEBUG] Extracted paneSizes:', paneSizes); // 打印提取出的数组
+  // console.log('[LayoutRenderer DEBUG] Extracted paneSizes:', paneSizes); // 打印提取出的数组
 
   // +++ Use optional chaining for safety +++
   if (props.layoutNode?.type === 'container' && props.layoutNode?.children) {
@@ -358,11 +358,11 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
     }));
 
     // +++ 添加调用 store action 前的日志 +++
-    console.log(`[LayoutRenderer DEBUG] Calling layoutStore.updateNodeSizes for node ID: ${props.layoutNode.id} with sizes:`, JSON.parse(JSON.stringify(childrenSizes)));
+    // console.log(`[LayoutRenderer DEBUG] Calling layoutStore.updateNodeSizes for node ID: ${props.layoutNode.id} with sizes:`, JSON.parse(JSON.stringify(childrenSizes)));
     // 调用 store action 来更新节点大小
     layoutStore.updateNodeSizes(props.layoutNode.id, childrenSizes);
   } else {
-    console.log(`[LayoutRenderer DEBUG] handlePaneResize ignored for node ID: ${props.layoutNode.id} (type: ${props.layoutNode.type})`);
+    // console.log(`[LayoutRenderer DEBUG] handlePaneResize ignored for node ID: ${props.layoutNode.id} (type: ${props.layoutNode.type})`);
   }
 };
 
@@ -398,7 +398,7 @@ const handleMainAreaClick = () => {
 
 // --- Debug Watcher for sidebarPanes from store ---
 watch(sidebarPanes, (newVal) => {
-  console.log('[LayoutRenderer] Received updated sidebarPanes from store:', JSON.parse(JSON.stringify(newVal)));
+  // console.log('[LayoutRenderer] Received updated sidebarPanes from store:', JSON.parse(JSON.stringify(newVal)));
 }, { deep: true, immediate: true }); // Immediate to log initial value
 
 // --- Icon Helper ---

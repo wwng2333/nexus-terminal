@@ -211,8 +211,8 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         }
 
         // --- 添加前端日志 ---
-        console.log(`[会话 ${sessionId}][SSH前端] 收到 ssh:output 原始 payload (解码前):`, payload);
-        console.log(`[会话 ${sessionId}][SSH前端] 解码后的数据 (尝试写入):`, outputData);
+        // console.log(`[会话 ${sessionId}][SSH前端] 收到 ssh:output 原始 payload (解码前):`, payload);
+        // console.log(`[会话 ${sessionId}][SSH前端] 解码后的数据 (尝试写入):`, outputData);
         // --------------------
 
         if (terminalInstance.value) {

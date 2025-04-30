@@ -101,7 +101,7 @@ function parsePortsString(portsString: string | undefined | null): PortInfo[] {
 
         const privateMatch = privatePart.match(/^(\d+)\/(tcp|udp|\w+)$/);
         if (!privateMatch) {
-             console.warn(`[WebSocket] Skipping unparsable private port part: ${privatePart}`);
+            //  console.warn(`[WebSocket] Skipping unparsable private port part: ${privatePart}`);
              continue;
         }
         const privatePort = parseInt(privateMatch[1], 10);
@@ -117,7 +117,7 @@ function parsePortsString(portsString: string | undefined | null): PortInfo[] {
                  ip = publicMatch[1] || undefined; 
                  publicPort = parseInt(publicMatch[2], 10);
              } else {
-                  console.warn(`[WebSocket] Skipping unparsable public port part: ${publicPart}`);
+                //   console.warn(`[WebSocket] Skipping unparsable public port part: ${publicPart}`);
                   
              }
         }
