@@ -102,23 +102,8 @@ const handleChildUpdate = (updatedChildNode: LayoutNode, index: number) => {
 // 处理子节点移除事件
 const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeIndex: number }) => {
    // 总是将移除事件向上传递，让顶层 LayoutConfigurator 处理
-   console.log(`[LayoutNodeEditor ${props.node.id}] Relaying removeNode event upwards:`, payload); // 添加日志
+   console.log(`[LayoutNodeEditor ${props.node.id}] Relaying removeNode event upwards:`, payload);
    emit('removeNode', payload);
-
-   /* 移除旧逻辑：
-   // 如果移除的是当前节点的直接子节点
-   if (payload.parentNodeId === props.node.id && props.node.children) {
-     const newChildren = [...props.node.children];
-     newChildren.splice(payload.nodeIndex, 1);
-     // 如果容器变空，可以选择移除容器自身或保留空容器
-     // 这里选择保留空容器，让用户手动删除
-     // 问题：这里 emit update:node，但实际移除逻辑在 LayoutConfigurator
-     emit('update:node', { ...props.node, children: newChildren });
-   } else {
-     // 如果不是直接子节点，继续向上传递事件
-     emit('removeNode', payload);
-   }
-   */
 };
 
 </script>
@@ -194,28 +179,16 @@ const handleChildRemove = (payload: { parentNodeId: string | undefined; nodeInde
 
 <style scoped>
 .layout-node-editor {
-  /* border: 1px solid var(--border-color);
-  margin: var(--base-margin);
-  padding: var(--base-margin); 
-  position: relative;
-  background-color: var(--header-bg-color); 
-  min-height: 60px; 
-  display: flex;
-  flex-direction: column; */
+
 }
 
-/* .node-type-container {
-  background-color: var(--app-bg-color); 
-}
-.node-type-pane {
-  background-color: var(--app-bg-color);
-} */
+
 
 .node-controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--header-bg-color); /* Or a specific control bar background */
+  background-color: var(--header-bg-color);
   padding: 3px var(--base-margin);
   margin-bottom: var(--base-margin);
   font-size: 0.8em;

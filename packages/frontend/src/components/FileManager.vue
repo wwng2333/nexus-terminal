@@ -1,31 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch, watchEffect, type PropType, readonly, defineExpose, shallowRef } from 'vue';
-// 移除 debounce 导入
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router'; // 保留用于生成下载 URL (如果下载逻辑移动则可移除)
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
-// 导入 SFTP Actions 工厂函数和所需的类型
+import { useRoute } from 'vue-router'; 
+import { storeToRefs } from 'pinia'; 
 import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions';
 import { useFileUploader } from '../composables/useFileUploader';
-// import { useFileEditor } from '../composables/useFileEditor'; // 移除旧的 composable 导入
-import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; // 导入新的 Store 和 FileInfo 类型
+import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; 
 import { useSessionStore } from '../stores/session.store';
-import { useSettingsStore } from '../stores/settings.store'; // +++ 实例化 Settings Store +++
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 实例化焦点切换 Store +++
-import { useFileManagerContextMenu, type ClipboardState } from '../composables/file-manager/useFileManagerContextMenu'; // +++ 导入上下文菜单 Composable 和 ClipboardState +++
-import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; // +++ 导入选择 Composable +++
-import { useFileManagerDragAndDrop } from '../composables/file-manager/useFileManagerDragAndDrop'; // +++ 导入拖放 Composable +++
-import { useFileManagerKeyboardNavigation } from '../composables/file-manager/useFileManagerKeyboardNavigation'; // +++ 导入键盘导航 Composable +++
-// WebSocket composable 不再直接使用
+import { useSettingsStore } from '../stores/settings.store'; 
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; 
+import { useFileManagerContextMenu, type ClipboardState } from '../composables/file-manager/useFileManagerContextMenu'; 
+import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; 
+import { useFileManagerDragAndDrop } from '../composables/file-manager/useFileManagerDragAndDrop'; 
+import { useFileManagerKeyboardNavigation } from '../composables/file-manager/useFileManagerKeyboardNavigation'; 
 import FileUploadPopup from './FileUploadPopup.vue';
-import FileManagerContextMenu from './FileManagerContextMenu.vue'; // +++ 导入上下文菜单组件 +++
-// import FileEditorOverlay from './FileEditorOverlay.vue'; // 不再在此处渲染
-// 从类型文件导入所需类型
+import FileManagerContextMenu from './FileManagerContextMenu.vue'; 
 import type { FileListItem } from '../types/sftp.types';
-// 从 websocket 类型文件导入所需类型
-import type { WebSocketMessage } from '../types/websocket.types'; // 导入 WebSocketMessage
+import type { WebSocketMessage } from '../types/websocket.types'; 
 
-// 定义 SftpManagerInstance 类型，基于 createSftpActionsManager 的返回类型
+
 type SftpManagerInstance = ReturnType<typeof createSftpActionsManager>;
 
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { UploadItem } from '../types/upload.types'; // 导入上传项类型
+import type { UploadItem } from '../types/upload.types'; 
 
 const props = defineProps<{
   uploads: Record<string, UploadItem>; // 接收上传任务字典

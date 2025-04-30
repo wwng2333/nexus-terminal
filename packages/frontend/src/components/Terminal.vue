@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
-import { ITheme } from 'xterm';
-import { Terminal, ITerminalAddon, IDisposable } from 'xterm'; // +++ 导入 ITerminalAddon 和 IDisposable +++
-import { useAppearanceStore } from '../stores/appearance.store'; // 导入外观 store
-import { useSettingsStore } from '../stores/settings.store'; // +++ 导入设置 store +++
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
+import { Terminal, ITerminalAddon, IDisposable } from 'xterm'; 
+import { useAppearanceStore } from '../stores/appearance.store'; 
+import { useSettingsStore } from '../stores/settings.store'; 
+import { storeToRefs } from 'pinia'; 
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
-import { SearchAddon, type ISearchOptions } from '@xterm/addon-search'; // *** 更新导入路径 ***
-import 'xterm/css/xterm.css'; // 引入 xterm 样式
-// *** 移除无效的 CSS 导入 ***
+import { SearchAddon, type ISearchOptions } from '@xterm/addon-search'; 
+import 'xterm/css/xterm.css'; 
+
 
 // 定义 props 和 emits
 const props = defineProps<{

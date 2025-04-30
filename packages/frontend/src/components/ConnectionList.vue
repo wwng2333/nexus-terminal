@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { onMounted, computed, ref, reactive, watch } from 'vue'; // 统一导入, 添加 watch
+import { onMounted, computed, ref, reactive, watch } from 'vue'; 
 import { storeToRefs } from 'pinia';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store'; // 引入 ConnectionInfo 类型
-import { useTagsStore } from '../stores/tags.store'; // 引入 Tags Store
+import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store'; 
+import { useTagsStore } from '../stores/tags.store'; 
 
-const { t } = useI18n(); // 获取 t 函数
-const router = useRouter(); // 获取 router 实例
-const tagsStore = useTagsStore(); // 获取 Tags Store 实例
-// 使用 storeToRefs 来保持 state 属性的响应性
-// 不再直接从 connectionsStore 获取 connections, isLoading, error
-// const { connections, isLoading, error } = storeToRefs(connectionsStore);
-const { tags: allTags, isLoading: isTagsLoading, error: tagsError } = storeToRefs(tagsStore); // 获取所有标签及其状态
+const { t } = useI18n(); 
+const router = useRouter(); 
+const tagsStore = useTagsStore(); 
+
+
+
+const { tags: allTags, isLoading: isTagsLoading, error: tagsError } = storeToRefs(tagsStore); 
 
 // 定义 Props，接收筛选后的连接列表
 const props = defineProps<{

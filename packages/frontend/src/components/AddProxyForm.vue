@@ -3,8 +3,8 @@ import { ref, reactive, watch, computed, onMounted } from 'vue'; // 添加 onMou
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useProxiesStore, ProxyInfo } from '../stores/proxies.store';
-import { useTagsStore } from '../stores/tags.store'; // 引入标签 Store
-import TagInput from './TagInput.vue'; // 导入新的 TagInput 组件
+import { useTagsStore } from '../stores/tags.store'; 
+import TagInput from './TagInput.vue'; 
 
 // 定义组件发出的事件
 const emit = defineEmits(['close', 'proxy-added', 'proxy-updated']);

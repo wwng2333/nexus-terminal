@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed, watch, reactive, type Ref } from 'vue'; // 添加 Ref
+import { ref, computed, watch, reactive, type Ref } from 'vue'; 
 import { useI18n } from 'vue-i18n';
 import draggable from 'vuedraggable';
-import { useFocusSwitcherStore, type FocusableInput, type FocusItemConfig, type FocusSwitcherFullConfig } from '../stores/focusSwitcher.store'; // ++ 导入新接口 ++
+import { useFocusSwitcherStore, type FocusableInput, type FocusItemConfig, type FocusSwitcherFullConfig } from '../stores/focusSwitcher.store'; 
 import { storeToRefs } from 'pinia';
 
 // 本地接口，仅用于右侧列表显示

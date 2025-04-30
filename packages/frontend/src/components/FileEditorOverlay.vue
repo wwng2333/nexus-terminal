@@ -4,16 +4,15 @@ import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import MonacoEditor from './MonacoEditor.vue';
 import FileEditorTabs from './FileEditorTabs.vue';
-import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store'; // 导入 FileTab 类型
+import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store'; 
 import { useSettingsStore } from '../stores/settings.store';
-import { useSessionStore } from '../stores/session.store'; // 导入 Session Store
-import type { EditorFileContent, SaveStatus } from '../types/sftp.types';
-import { getLanguageFromFilename, getFilenameFromPath } from '../stores/fileEditor.store';
+import { useSessionStore } from '../stores/session.store'; 
+
 
 const { t } = useI18n();
 const fileEditorStore = useFileEditorStore();
 const settingsStore = useSettingsStore();
-const sessionStore = useSessionStore(); // 实例化 Session Store
+const sessionStore = useSessionStore(); 
 
 // --- 本地状态控制弹窗显示 ---
 const isVisible = ref(false);

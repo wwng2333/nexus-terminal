@@ -236,9 +236,6 @@ const clonePane = (paneName: PaneName): LayoutNode => {
 // Handle updates from LayoutNodeEditor (for main layout)
 const handleNodeUpdate = (updatedNode: LayoutNode) => {
   console.log('[LayoutConfigurator] Received node update from editor:', updatedNode);
-  // Assuming the update is for the root node for simplicity
-  // v-model on LayoutNodeEditor might handle this, but explicit update is safer
-  // Update the local tree; isModified will react automatically
   localLayoutTree.value = updatedNode;
 };
 
@@ -278,11 +275,6 @@ const handleNodeRemove = (payload: { parentNodeId: string | undefined; nodeIndex
   console.log('[LayoutConfigurator] Received node remove request:', payload);
   if (payload.parentNodeId === undefined && payload.nodeIndex === 0) {
      if (confirm(t('layoutConfigurator.confirmClearLayout', '确定要清空整个布局吗？所有面板将返回可用列表。'))) { // Keep default text for now
-       // Add all panes from the tree back to available list before clearing - REMOVED, no longer needed
-       // const usedInTree = getMainLayoutUsedPaneNames(localLayoutTree.value);
-       // usedInTree.forEach(paneName => addPaneToAvailableList(paneName));
-       // Clear the tree
-       // Update the local tree; isModified will react automatically
        localLayoutTree.value = null;
      }
   } else if (payload.parentNodeId) {

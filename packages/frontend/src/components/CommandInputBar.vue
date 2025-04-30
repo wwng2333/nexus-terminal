@@ -1,23 +1,18 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed } from 'vue'; // Import computed
+import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed } from 'vue'; 
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia'; // Import storeToRefs
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // 导入 Store
-import { useSettingsStore } from '../stores/settings.store'; // NEW: Import settings store
-import { useQuickCommandsStore } from '../stores/quickCommands.store'; // NEW: Import quick commands store
-import { useCommandHistoryStore } from '../stores/commandHistory.store'; // NEW: Import command history store
-// 假设你有一个图标库，例如 unplugin-icons 或类似库
-// import SearchIcon from '~icons/mdi/magnify';
-// import ArrowUpIcon from '~icons/mdi/arrow-up';
-// import ArrowDownIcon from '~icons/mdi/arrow-down';
-// import CloseIcon from '~icons/mdi/close';
+import { storeToRefs } from 'pinia'; 
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; 
+import { useSettingsStore } from '../stores/settings.store'; 
+import { useQuickCommandsStore } from '../stores/quickCommands.store'; 
+import { useCommandHistoryStore } from '../stores/commandHistory.store'; 
 
-const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search']); // 移除 open-focus-switcher-config 事件
+const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search']); 
 const { t } = useI18n();
-const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化 Store +++
-const settingsStore = useSettingsStore(); // NEW: Instantiate settings store
-const quickCommandsStore = useQuickCommandsStore(); // NEW: Instantiate quick commands store
-const commandHistoryStore = useCommandHistoryStore(); // NEW: Instantiate command history store
+const focusSwitcherStore = useFocusSwitcherStore(); 
+const settingsStore = useSettingsStore(); 
+const quickCommandsStore = useQuickCommandsStore(); 
+const commandHistoryStore = useCommandHistoryStore(); 
 
 // Get reactive setting from store
 const { commandInputSyncTarget } = storeToRefs(settingsStore);

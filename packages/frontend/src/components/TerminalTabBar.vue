@@ -7,7 +7,7 @@ import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue';
 import { useSessionStore } from '../stores/session.store';
 import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
 import { useLayoutStore, type PaneName } from '../stores/layout.store';
-// 导入会话状态类型
+
 import type { SessionTabInfoWithStatus } from '../stores/session.store'; 
 
 

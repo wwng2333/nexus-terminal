@@ -1,5 +1,5 @@
 <template>
-  <div class="p-0"> <!-- Remove padding from here, parent view provides it -->
+  <div class="p-0"> 
     <h2 class="text-xl font-semibold text-foreground mb-4 pb-2 border-b border-border"> <!-- Title styling -->
       {{ $t('settings.notifications.title') }}
     </h2>

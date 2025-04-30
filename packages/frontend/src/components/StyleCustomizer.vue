@@ -1,40 +1,40 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useAppearanceStore } from '../stores/appearance.store'; // 使用新的 store
+import { useAppearanceStore } from '../stores/appearance.store'; 
 import { storeToRefs } from 'pinia';
 import type { ITheme } from 'xterm';
-import type { TerminalTheme } from '../types/terminal-theme.types'; // 引入本地类型
-import { defaultXtermTheme } from '../features/appearance/config/default-themes'; // 引入默认主题
+import type { TerminalTheme } from '../types/terminal-theme.types'; 
+import { defaultXtermTheme } from '../features/appearance/config/default-themes'; 
 
 const { t } = useI18n();
 const appearanceStore = useAppearanceStore();
 const {
-  appearanceSettings, // <-- 添加这个 ref
+  appearanceSettings, 
   currentUiTheme,
-  // currentTerminalTheme, // 这个是计算属性，只读，在编辑时不需要直接用
-  activeTerminalThemeId, // 现在是 number | null | undefined
-  allTerminalThemes, // 使用重命名后的变量
+  
+  activeTerminalThemeId, 
+  allTerminalThemes, 
   currentTerminalFontFamily,
   currentTerminalFontSize,
-  currentEditorFontSize, // <-- 新增
+  currentEditorFontSize, 
   pageBackgroundImage,
-  // pageBackgroundOpacity, // Removed
+  
   terminalBackgroundImage,
-  // terminalBackgroundOpacity, // Removed
-  isTerminalBackgroundEnabled, // <-- 新增：终端背景启用状态
+  
+  isTerminalBackgroundEnabled, 
 } = storeToRefs(appearanceStore);
  
-// --- 本地状态用于编辑 ---
+
 const editableUiTheme = ref<Record<string, string>>({});
 const editableTerminalFontFamily = ref('');
 const editableTerminalFontSize = ref(14);
-const editableEditorFontSize = ref(14); // <-- 新增，编辑器字体大小
-// const editablePageBackgroundOpacity = ref(1.0); // Removed
-// const editableTerminalBackgroundOpacity = ref(1.0); // Removed
-const editableUiThemeString = ref(''); // 用于 textarea 绑定
-const themeParseError = ref<string | null>(null); // 用于显示 JSON 解析错误
-const localTerminalBackgroundEnabled = ref(true); // <-- 新增：本地终端背景开关状态
+const editableEditorFontSize = ref(14); 
+
+
+const editableUiThemeString = ref(''); 
+const themeParseError = ref<string | null>(null); 
+const localTerminalBackgroundEnabled = ref(true); 
  
 // 终端主题管理相关状态
 const isEditingTheme = ref(false); // 是否正在编辑某个主题

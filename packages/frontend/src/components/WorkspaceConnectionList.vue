@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, defineExpose, watch, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
-// import { useRouter } from 'vue-router'; // 不再需要 router
+
 import { useI18n } from 'vue-i18n';
-// import RemoteDesktopModal from './RemoteDesktopModal.vue'; // --- 移除 RDP 模态框导入 ---
+
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useTagsStore, TagInfo } from '../stores/tags.store';
-import { useSessionStore } from '../stores/session.store'; // 导入 session store
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
+import { useSessionStore } from '../stores/session.store'; 
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; 
 
 // 定义事件
 const emit = defineEmits([
@@ -15,8 +15,7 @@ const emit = defineEmits([
   // 'open-new-session',       // 中键单击 - 请求在新标签中打开 (已移除)
   'request-add-connection', // 右键菜单 - 添加
   'request-edit-connection' // 右键菜单 - 编辑
-  // --- 移除 RDP 事件 ---
-  // 'request-rdp-modal'
+
 ]);
 
 const { t } = useI18n();

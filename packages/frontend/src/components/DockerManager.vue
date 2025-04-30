@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useSessionStore } from '../stores/session.store'; // Import session store
+import { useSessionStore } from '../stores/session.store'; 
 import { storeToRefs } from 'pinia';
-// Removed unused imports: ref, onMounted, onUnmounted, watch, useSettingsStore
-// Removed unused interfaces: PortInfo, DockerContainer, DockerStats (now in composable)
+
+
 
 const { t } = useI18n();
 const sessionStore = useSessionStore();

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { FileTab } from '../stores/fileEditor.store'; // 导入 FileTab 类型
+import type { FileTab } from '../stores/fileEditor.store';
 
 defineProps({
   tabs: {
