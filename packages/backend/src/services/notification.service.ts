@@ -408,7 +408,7 @@ export class NotificationService {
     event: NotificationEvent,
     details?: Record<string, any> | string
   ): Promise<void> {
-    console.log(`[通知] 事件触发: ${event}`, details || "");
+    // console.log(`[通知] 事件触发: ${event}`, details || "");
 
     let userLang = defaultLng;
     let userTimezone = "UTC";
