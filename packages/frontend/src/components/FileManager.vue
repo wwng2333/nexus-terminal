@@ -1150,93 +1150,96 @@ defineExpose({ focusSearchInput, startPathEdit });
 <template>
   <div class="flex flex-col h-full overflow-hidden bg-background text-foreground text-sm font-sans">
     <div class="flex items-center justify-between flex-wrap gap-2 p-2 bg-header  flex-shrink-0">
-        <!-- Path Bar -->
-        <div class="flex items-center bg-background border border-border rounded px-1.5 py-0.5 overflow-hidden min-w-[100px] flex-shrink">
-          <span v-show="!isEditingPath" class="text-text-secondary whitespace-nowrap overflow-x-auto pr-2">
-            {{ t('fileManager.currentPath') }}:
-            <strong
-              @click="startPathEdit"
-              :title="t('fileManager.editPathTooltip')"
-              class="font-medium text-link ml-1 px-1 rounded cursor-text transition-colors duration-200"
-              :class="{
-                'hover:bg-black/5': currentSftpManager && props.wsDeps.isConnected.value,
-                'opacity-60 cursor-not-allowed': !currentSftpManager || !props.wsDeps.isConnected.value
-              }"
-            >
-              {{ currentSftpManager?.currentPath?.value ?? '/' }}
-            </strong>
-          </span>
-          <input
-            v-show="isEditingPath"
-            ref="pathInputRef"
-            type="text"
-            v-model="editablePath"
-            class="flex-grow bg-transparent text-foreground p-0.5 outline-none min-w-[100px]"
-            data-focus-id="fileManagerPathInput"
-            @keyup.enter="handlePathInput"
-            @blur="handlePathInput"
-            @keyup.esc="cancelPathEdit"
-          />
-        </div>
-        <!-- Path Actions -->
-        <div class="flex items-center flex-shrink-0 mr-auto">
-          <!-- 新增：CD 到终端按钮 -->
-          <button
-            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
-            @click.stop="sendCdCommandToTerminal"
-            :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath"
-            :title="t('fileManager.actions.cdToTerminal', 'Change terminal directory to current path')"
-          >
-            <i class="fas fa-terminal text-base"></i>
-          </button>
-          <!-- 刷新按钮 -->
-          <button
-            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
-            @click.stop="currentSftpManager?.loadDirectory(currentSftpManager?.currentPath?.value ?? '/', true)"
-            :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath"
-            :title="t('fileManager.actions.refresh')"
-          >
-            <i class="fas fa-sync-alt text-base"></i>
-          </button>
-          <button
-            class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
-            @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
-            :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || currentSftpManager?.currentPath?.value === '/' || isEditingPath"
-            :title="t('fileManager.actions.parentDirectory')"
-          >
-            <i class="fas fa-arrow-up text-base"></i>
-          </button>
-         <!-- Search Area -->
-         <div class="flex items-center flex-shrink-0">
-             <button
-                 v-if="!isSearchActive"
-                 class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
-                 @click.stop="activateSearch"
-                 :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
-                 :title="t('fileManager.searchPlaceholder')"
-             >
-                 <i class="fas fa-search text-base"></i>
-             </button>
-             <div v-else class="relative flex items-center min-w-[150px] flex-shrink">
-                 <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"></i>
-                 <input
-                     ref="searchInputRef"
-                     type="text"
-                     v-model="searchQuery"
-                     :placeholder="t('fileManager.searchPlaceholder')"
-                     class="flex-grow bg-background border border-border rounded pl-7 pr-2 py-1 text-foreground text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary min-w-[10px] transition-colors duration-200"
-                     data-focus-id="fileManagerSearch"
-                     @blur="deactivateSearch"
-                     @keyup.esc="cancelSearch"
-                     @keydown.up.prevent="handleKeydown"
-                     @keydown.down.prevent="handleKeydown"
-                     @keydown.enter.prevent="handleKeydown"
-                 />
-                 <!-- Optional: Clear button -->
-                 <!-- <button @click="searchQuery = ''; searchInputRef?.focus()" v-if="searchQuery" class="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-foreground">&times;</button> -->
+        <!-- Wrapper for Path Actions and Path Bar -->
+        <div class="flex items-center gap-2 flex-shrink"> <!-- Added gap-2 -->
+            <!-- Path Actions -->
+            <div class="flex items-center flex-shrink-0"> <!-- Removed mr-auto -->
+              <!-- 新增：CD 到终端按钮 -->
+              <button
+                class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+                @click.stop="sendCdCommandToTerminal"
+                :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath"
+                :title="t('fileManager.actions.cdToTerminal', 'Change terminal directory to current path')"
+              >
+                <i class="fas fa-terminal text-base"></i>
+              </button>
+              <!-- 刷新按钮 -->
+              <button
+                class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+                @click.stop="currentSftpManager?.loadDirectory(currentSftpManager?.currentPath?.value ?? '/', true)"
+                :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || isEditingPath"
+                :title="t('fileManager.actions.refresh')"
+              >
+                <i class="fas fa-sync-alt text-base"></i>
+              </button>
+              <button
+                class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+                @click.stop="handleItemClick($event, { filename: '..', longname: '..', attrs: { isDirectory: true, isFile: false, isSymbolicLink: false, size: 0, uid: 0, gid: 0, mode: 0, atime: 0, mtime: 0 } })"
+                :disabled="!currentSftpManager || !props.wsDeps.isConnected.value || currentSftpManager?.currentPath?.value === '/' || isEditingPath"
+                :title="t('fileManager.actions.parentDirectory')"
+              >
+                <i class="fas fa-arrow-up text-base"></i>
+              </button>
+             <!-- Search Area -->
+             <div class="flex items-center flex-shrink-0">
+                 <button
+                     v-if="!isSearchActive"
+                     class="flex items-center justify-center w-7 h-7 text-text-secondary rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-black/10 hover:enabled:text-foreground"
+                     @click.stop="activateSearch"
+                     :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
+                     :title="t('fileManager.searchPlaceholder')"
+                 >
+                     <i class="fas fa-search text-base"></i>
+                 </button>
+                 <div v-else class="relative flex items-center min-w-[150px] flex-shrink">
+                     <i class="fas fa-search absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none"></i>
+                     <input
+                         ref="searchInputRef"
+                         type="text"
+                         v-model="searchQuery"
+                         :placeholder="t('fileManager.searchPlaceholder')"
+                         class="flex-grow bg-background border border-border rounded pl-7 pr-2 py-1 text-foreground text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary min-w-[10px] transition-colors duration-200"
+                         data-focus-id="fileManagerSearch"
+                         @blur="deactivateSearch"
+                         @keyup.esc="cancelSearch"
+                         @keydown.up.prevent="handleKeydown"
+                         @keydown.down.prevent="handleKeydown"
+                         @keydown.enter.prevent="handleKeydown"
+                     />
+                     <!-- Optional: Clear button -->
+                     <!-- <button @click="searchQuery = ''; searchInputRef?.focus()" v-if="searchQuery" class="absolute right-2 top-1/2 -translate-y-1/2 text-text-secondary hover:text-foreground">&times;</button> -->
+                 </div>
              </div>
-         </div>
-        </div> <!-- End Path Actions -->
+            </div> <!-- End Path Actions -->
+            <!-- Path Bar -->
+            <div class="flex items-center bg-background border border-border rounded px-1.5 py-0.5 overflow-hidden min-w-[100px] flex-shrink">
+              <span v-show="!isEditingPath" class="text-text-secondary whitespace-nowrap overflow-x-auto pr-2">
+                {{ t('fileManager.currentPath') }}:
+                <strong
+                  @click="startPathEdit"
+                  :title="t('fileManager.editPathTooltip')"
+                  class="font-medium text-link ml-1 px-1 rounded cursor-text transition-colors duration-200"
+                  :class="{
+                    'hover:bg-black/5': currentSftpManager && props.wsDeps.isConnected.value,
+                    'opacity-60 cursor-not-allowed': !currentSftpManager || !props.wsDeps.isConnected.value
+                  }"
+                >
+                  {{ currentSftpManager?.currentPath?.value ?? '/' }}
+                </strong>
+              </span>
+              <input
+                v-show="isEditingPath"
+                ref="pathInputRef"
+                type="text"
+                v-model="editablePath"
+                class="flex-grow bg-transparent text-foreground p-0.5 outline-none min-w-[100px]"
+                data-focus-id="fileManagerPathInput"
+                @keyup.enter="handlePathInput"
+                @blur="handlePathInput"
+                @keyup.esc="cancelPathEdit"
+              />
+            </div>
+        </div> <!-- End Wrapper -->
        <!-- Main Actions Bar -->
        <div class="flex items-center gap-2 flex-shrink-0">
             <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple class="hidden" />
