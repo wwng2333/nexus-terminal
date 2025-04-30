@@ -35,21 +35,18 @@ export function useFileManagerKeyboardNavigation(options: UseFileManagerKeyboard
     if (selectedIndex.value < 0 || !fileListContainerRef.value) return;
 
     const container = fileListContainerRef.value;
-    // 使用 querySelectorAll 获取所有行，包括 '..'
-    const rows = container.querySelectorAll('tr.file-row');
+    // 使用更通用的选择器获取所有数据行
+    const rows = container.querySelectorAll('tbody > tr'); // Changed selector
     if (selectedIndex.value >= rows.length) return; // 索引超出范围
 
     const selectedRow = rows[selectedIndex.value] as HTMLElement;
 
     if (selectedRow) {
-        const containerRect = container.getBoundingClientRect();
-        const rowRect = selectedRow.getBoundingClientRect();
-
-        if (rowRect.top < containerRect.top) {
-            container.scrollTop -= containerRect.top - rowRect.top;
-        } else if (rowRect.bottom > containerRect.bottom) {
-            container.scrollTop += rowRect.bottom - containerRect.bottom;
-        }
+        // 使用 scrollIntoView 使元素可见，滚动最小距离
+        selectedRow.scrollIntoView({
+            behavior: 'smooth', // 可以使用 'auto' 来实现即时滚动
+            block: 'nearest',
+        });
     }
   };
 
