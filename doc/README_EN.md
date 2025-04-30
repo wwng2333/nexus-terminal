@@ -106,7 +106,7 @@ docker-compose up -d
 ```
 ## 📚 Usage Guide
 
-Here are some useful hidden or implicit features.
+Here are some implicit practical features.
 
 ### Command Input Component
 
