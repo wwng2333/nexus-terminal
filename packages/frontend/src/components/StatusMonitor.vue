@@ -32,68 +32,78 @@
         <span class="os-name-value truncate text-left" :title="displayOsName">{{ displayOsName }}</span>
       </div>
 
-      <!-- CPU 使用率 -->
-      <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
-        <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.cpuLabel') }}</label>
-        <div class="value-wrapper flex items-center gap-2">
-          <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow"> <!-- 减小高度 -->
-            <div class="progress-bar bg-blue-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
+      <!-- 资源使用率分组 -->
+      <div class="resource-monitor-group grid gap-3 mb-3">
+        <!-- CPU 使用率 -->
+        <!-- 设置第一列固定宽度为 80px -->
+        <div class="status-item grid grid-cols-[40px_1fr] items-center gap-3">
+          <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.cpuLabel') }}</label>
+          <div class="value-wrapper flex items-center gap-2">
+            <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow"> <!-- 减小高度 -->
+              <div class="progress-bar bg-blue-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.cpuPercent ?? 0}%` }"></div>
+            </div>
+            <!-- 移除 w-12 和 text-right 以实现左对齐 -->
+            <span class="font-mono text-left text-xs">{{ serverStatus.cpuPercent?.toFixed(1) ?? t('statusMonitor.notAvailable') }}%</span>
           </div>
-          <span class="font-mono text-left text-xs w-12 text-right">{{ serverStatus.cpuPercent?.toFixed(1) ?? t('statusMonitor.notAvailable') }}%</span> <!-- 固定宽度并右对齐 -->
+        </div>
+
+        <!-- 内存使用率 -->
+        <!-- 设置第一列固定宽度为 80px -->
+        <div class="status-item grid grid-cols-[40px_1fr] items-center gap-3">
+          <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.memoryLabel') }}</label>
+          <div class="value-wrapper flex items-center gap-2">
+            <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
+              <div class="progress-bar bg-green-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.memPercent ?? 0}%` }"></div>
+            </div>
+            <span class="mem-disk-details font-mono text-xs whitespace-nowrap text-left">{{ memDisplay }}</span>
+          </div>
+        </div>
+
+         <!-- swap -->
+         <!-- 设置第一列固定宽度为 80px -->
+         <div class="status-item grid grid-cols-[40px_1fr] items-center gap-3">
+          <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.swapLabel') }}</label>
+          <div class="value-wrapper flex items-center gap-2">
+            <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
+              <!-- swap颜色 -->
+              <div class="progress-bar h-full transition-width duration-300 ease-in-out"
+                   :class="serverStatus?.swapPercent && serverStatus.swapPercent > 0 ? 'bg-yellow-500' : 'bg-gray-500'"
+                   :style="{ width: `${serverStatus?.swapPercent ?? 0}%` }"></div>
+            </div>
+            <span class="mem-disk-details font-mono text-xs whitespace-nowrap text-left">{{ swapDisplay }}</span>
+          </div>
+        </div>
+
+        <!-- 磁盘使用率 -->
+        <!-- 设置第一列固定宽度为 80px -->
+        <div class="status-item grid grid-cols-[40px_1fr] items-center gap-3">
+          <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.diskLabel') }}</label>
+          <div class="value-wrapper flex items-center gap-2">
+            <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
+              <div class="progress-bar bg-purple-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.diskPercent ?? 0}%` }"></div>
+            </div>
+            <span class="mem-disk-details font-mono text-xs whitespace-nowrap text-left">{{ diskDisplay }}</span>
+          </div>
         </div>
       </div>
 
-      <!-- 内存使用率 -->
-      <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
-        <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.memoryLabel') }}</label>
-        <div class="value-wrapper flex items-center gap-2">
-          <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
-            <div class="progress-bar bg-green-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.memPercent ?? 0}%` }"></div>
-          </div>
-          <span class="mem-disk-details font-mono text-xs whitespace-nowrap text-left">{{ memDisplay }}</span>
-        </div>
-      </div>
+    </div>
 
-       <!-- swap -->
-       <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
-        <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.swapLabel') }}</label>
-        <div class="value-wrapper flex items-center gap-2">
-          <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
-            <!-- swap颜色 -->
-            <div class="progress-bar h-full transition-width duration-300 ease-in-out"
-                 :class="serverStatus.swapPercent && serverStatus.swapPercent > 0 ? 'bg-yellow-500' : 'bg-gray-500'"
-                 :style="{ width: `${serverStatus.swapPercent ?? 0}%` }"></div>
-          </div>
-          <span class="mem-disk-details font-mono text-xs whitespace-nowrap text-left">{{ swapDisplay }}</span>
-        </div>
-      </div>
-
-      <!-- 磁盘使用率 -->
-      <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3">
-        <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.diskLabel') }}</label>
-        <div class="value-wrapper flex items-center gap-2">
-          <div class="progress-bar-container bg-header rounded h-3 overflow-hidden flex-grow">
-            <div class="progress-bar bg-purple-500 h-full transition-width duration-300 ease-in-out" :style="{ width: `${serverStatus.diskPercent ?? 0}%` }"></div>
-          </div>
-          <span class="mem-disk-details font-mono text-xs whitespace-nowrap text-left">{{ diskDisplay }}</span>
-        </div>
-      </div>
-
-      <!-- 网络速率 -->
-      <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3 mt-2">
-          <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.networkLabel') }} ({{ serverStatus.netInterface || '...' }}):</label>
+     <!-- 网络速率 -->
+     <div class="status-item grid grid-cols-[auto_1fr] items-center gap-3 mt-2">
+          <label class="font-semibold text-text-secondary text-left whitespace-nowrap">{{ t('statusMonitor.networkLabel') }} ({{ serverStatus?.netInterface || '...' }}):</label>
           <div class="network-values flex items-center justify-start gap-4"> <!-- 减小间距 -->
             <span class="rate down inline-flex items-center gap-1 text-green-500 text-xs whitespace-nowrap">
               <i class="fas fa-arrow-down w-3 text-center"></i> <!-- Font Awesome 图标 -->
-              <span class="font-mono">{{ formatBytesPerSecond(serverStatus.netRxRate) }}</span>
+              <span class="font-mono">{{ formatBytesPerSecond(serverStatus?.netRxRate) }}</span>
             </span>
             <span class="rate up inline-flex items-center gap-1 text-orange-500 text-xs whitespace-nowrap">
                <i class="fas fa-arrow-up w-3 text-center"></i> <!-- Font Awesome 图标 -->
-               <span class="font-mono">{{ formatBytesPerSecond(serverStatus.netTxRate) }}</span>
+               <span class="font-mono">{{ formatBytesPerSecond(serverStatus?.netTxRate) }}</span>
             </span>
           </div>
+
       </div>
-    </div>
   </div>
 </template>
 
