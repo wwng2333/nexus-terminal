@@ -140,6 +140,11 @@ const handleCommandInputKeydown = (event: KeyboardEvent) => {
       emit('send-command', selectedCommand + '\n');
       commandInput.value = ''; // Clear input after sending selected command
     }
+  } else if (event.ctrlKey && event.key === 'c' && commandInput.value === '') {
+    // Handle Ctrl+C when input is empty
+    event.preventDefault();
+    console.log('[CommandInputBar] Ctrl+C detected with empty input. Sending SIGINT.');
+    emit('send-command', '\x03'); // Send ETX character (Ctrl+C)
   } else if (!event.altKey && event.key === 'Enter') {
      // Handle regular Enter key press - send current input
      event.preventDefault(); // Prevent default if needed, e.g., form submission
