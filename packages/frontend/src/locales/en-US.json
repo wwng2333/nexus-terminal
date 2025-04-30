@@ -657,7 +657,7 @@
       "targetNone": "None",
       "targetQuickCommands": "Quick Commands",
       "targetCommandHistory": "Command History",
-      "description": "Sync the content of the command input bar to the search box of the selected panel in real-time.",
+      "description": "Sync the content of the command input bar to the search box of the selected panel in real-time. After selecting with the up/down keys, press Alt + Enter to execute the command.",
       "success": {
         "saved": "Sync target saved."
       },
