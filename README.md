@@ -37,7 +37,7 @@
 
 |                            登录界面                            |
 |:-------------------------------------------------------------:|
-| ![image](https://i.111666.best/image/Dgfy0Y9SoqPOquazKszgux.png) |
+| ![login.png](https://lsky.tuyu.me/i/2025/04/30/681209911d74f.png) |
 
 ---
 
