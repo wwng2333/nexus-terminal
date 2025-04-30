@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
-// 导入 axios 用于 API 调用
-import apiClient from '../utils/apiClient'; // 使用统一的 apiClient
+import apiClient from '../utils/apiClient';
 
 // 定义所有可用面板的名称
 export type PaneName = 'connections' | 'terminal' | 'commandBar' | 'fileManager' | 'editor' | 'statusMonitor' | 'commandHistory' | 'quickCommands' | 'dockerManager';

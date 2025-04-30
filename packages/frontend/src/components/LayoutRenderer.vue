@@ -419,10 +419,7 @@ const getIconClasses = (paneName: PaneName): string[] => {
 
 // --- Sidebar Resize Logic ---
 onMounted(() => {
-  // +++ Log current layout tree from store on root mount +++
-  if (props.isRootRenderer) {
-    console.log('[LayoutRenderer DEBUG] Current layoutTree from store on mount:', JSON.stringify(layoutStore.layoutTree.value, null, 2));
-  }
+
 
   // Left Sidebar Resize
   useSidebarResize({
