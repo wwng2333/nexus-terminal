@@ -1,916 +1,986 @@
 {
     "appName": "星枢ターミナル",
-    "projectName": "星枢ターミナル",
-    "slogan": "星垂平野闊，枢動万端通",
-    "nav": {
-      "dashboard": "ダッシュボード",
-      "terminal": "ターミナル",
-      "proxies": "プロキシ管理",
-      "login": "ログイン",
-      "logout": "ログアウト",
-      "notifications": "通知管理",
-      "auditLogs": "監査ログ",
-      "settings": "設定",
-      "customizeStyle": "外観のカスタマイズ"
-    },
-    "styleCustomizer": {
-      "title": "外観のカスタマイズ",
-      "uiStyles": "UI スタイル",
-      "terminalStyles": "ターミナルスタイル",
-      "backgroundSettings": "背景設定",
-      "uiDescription": "アプリケーションの UI の色、フォントなどを調整します。",
-      "resetUiTheme": "UI テーマをリセット",
-      "saveUiTheme": "UI テーマを保存",
-      "terminalFontFamily": "ターミナルフォント",
-      "terminalFontPlaceholder": "例: \"Fira Code\", Consolas, monospace",
-      "terminalFontDescription": "フォント名を入力し、カンマで区切ります。フォント名にスペースが含まれる場合は、引用符で囲んでください。",
-      "terminalThemeSelection": "ターミナルテーマ",
-      "activeTheme": "現在のテーマ",
-      "addNewTheme": "新しいテーマを作成",
-      "importTheme": "テーマをインポート",
-      "editThemeTitle": "ターミナルテーマの編集",
-      "newThemeTitle": "ターミナルテーマの作成",
-      "newThemeDefaultName": "新しいテーマ",
-      "themeName": "テーマ名",
-      "errorThemeNameRequired": "テーマ名を入力してください。",
-      "themeUpdatedSuccess": "テーマの更新に成功しました。",
-      "themeCreatedSuccess": "テーマの作成に成功しました。",
-      "themeSaveFailed": "テーマの保存に失敗しました。",
-      "themeDeletedSuccess": "テーマの削除に成功しました。",
-      "themeDeleteFailed": "テーマの削除に失敗しました: {message}",
-      "importSuccess": "テーマのインポートに成功しました。",
-      "importFailed": "テーマのインポートに失敗しました。",
-      "exportFailed": "テーマのエクスポートに失敗しました: {message}",
-      "pageBackground": "ページの背景",
-      "terminalBackground": "ターミナルの背景",
-      "noBackground": "背景なし",
-      "uploadPageBg": "ページの背景をアップロード",
-      "removePageBg": "ページの背景を削除",
-      "uploadTerminalBg": "ターミナルの背景をアップロード",
-      "removeTerminalBg": "ターミナルの背景を削除",
-      "uploadFailed": "アップロードに失敗しました: {message}",
-      "pageBgUploadSuccess": "ページの背景のアップロードに成功しました。",
-      "terminalBgUploadSuccess": "ターミナルの背景のアップロードに成功しました。",
-      "pageBgRemoved": "ページの背景を削除しました。",
-      "terminalBgRemoved": "ターミナルの背景を削除しました。",
-      "removeBgFailed": "背景の削除に失敗しました: {message}",
-      "uiThemeSaveFailed": "UI テーマの保存に失敗しました: {message}",
-      "uiThemeReset": "UI テーマをデフォルトにリセットしました。",
-      "uiThemeResetFailed": "UI テーマのリセットに失敗しました: {message}",
-      "terminalFontSaved": "ターミナルフォントを保存しました。",
-      "terminalFontSaveFailed": "ターミナルフォントの保存に失敗しました: {message}",
-      "setActiveThemeFailed": "アクティブなターミナルテーマの設定に失敗しました: {message}",
-      "terminalFontSize": "ターミナルフォントサイズ",
-      "errorInvalidFontSize": "無効なフォントサイズです。正数を入力してください。",
-      "terminalFontSizeSaved": "ターミナルフォントサイズを保存しました。",
-      "terminalFontSizeSaveFailed": "ターミナルフォントサイズの保存に失敗しました: {message}",
-      "otherSettings": "その他の設定",
-      "editorFontSize": "エディターフォントサイズ",
-      "editorFontSizeSaved": "エディターフォントサイズを保存しました。",
-      "editorFontSizeSaveFailed": "エディターフォントサイズの保存に失敗しました: {message}",
-      "errorInvalidEditorFontSize": "無効なフォントサイズです。正数を入力してください。",
-      "uiThemeJsonEditorTitle": "UI テーマ JSON エディター",
-      "uiThemeJsonEditorDesc": "JSON を使用して UI テーマ設定を直接編集します。ここで変更を加えてテキスト領域からフォーカスを外すと、上記のカラーピッカーが同期的に更新されます。",
-      "errorInvalidJsonObject": "無効な入力です。有効な JSON オブジェクトを入力してください。",
-      "errorInvalidJsonConfig": "無効な JSON 設定",
-      "editAsCopy": "コピーとして編集",
-      "cannotDeletePreset": "プリセットテーマは削除できません",
-      "applyThemeTooltip": "このテーマを適用",
-      "terminalThemeJsonEditorTitle": "ターミナルテーマ JSON エディター",
-      "terminalThemeJsonEditorDesc": "JSON を使用してターミナルテーマ設定を直接編集します。ここで変更を加えてテキスト領域からフォーカスを外すと、下のカラーピッカーが同期的に更新されます。",
-      "terminalThemeColorEditorTitle": "ターミナルテーマカラーエディター",
-      "errorFixJsonBeforeSave": "保存する前に JSON フォーマットのエラーを修正してください。",
-      "applyButton": "適用",
-      "searchThemePlaceholder": "テーマ名を検索...",
-      "exportActiveThemeTooltip": "現在アクティブなテーマを JSON ファイルとしてエクスポート",
-      "exportActiveTheme": "現在のテーマをエクスポート",
-      "themeModeLabel": "テーマモード:",
-      "defaultMode": "デフォルトモード",
-      "darkMode": "ダークモード",
-      "darkModeApplied": "ダークモードが適用されました",
-      "darkModeApplyFailed": "ダークモードの適用に失敗しました: {message}"
-    },
-    "login": {
-      "title": "ユーザーログイン",
-      "username": "ユーザー名",
-      "password": "パスワード",
-      "loginButton": "ログイン",
-      "loggingIn": "ログイン中...",
-      "twoFactorPrompt": "2段階認証コードを入力してください:",
-      "verifyButton": "検証",
-      "rememberMe": "ログイン状態を保持",
-      "captchaPrompt": "以下の認証を完了してください：",
-      "error": {
-          "captchaLoadFailed": "CAPTCHA の読み込みに失敗しました。ページをリロードしてください。",
-          "captchaRequired": "CAPTCHA を完了してください。"
-      },
-      "recaptchaV3Notice": "このサイトは reCAPTCHA によって保護されており、Google のプライバシーポリシーと利用規約が適用されます。",
-      "passkeyLoginButton": "Passkeyでログイン"
-    },
-    "connections": {
-      "addConnection": "新しい接続を追加",
-      "noConnections": "接続がありません。'新しい接続を追加'をクリックして作成してください。",
-      "addFirstConnection": "最初の接続を追加",
-      "table": {
-        "name": "名前",
-        "host": "ホスト",
-        "port": "ポート",
-        "user": "ユーザー名",
-        "authMethod": "認証方法",
-        "tags": "タグ",
-        "lastConnected": "最終接続",
-        "actions": "アクション"
-      },
-      "actions": {
-        "connect": "接続",
-        "edit": "編集",
-        "delete": "削除",
-        "test": "テスト",
-        "testing": "テスト中..."
-      },
-      "form": {
-        "title": "新しい接続を追加",
-        "name": "名前:",
-        "host": "ホスト/IP:",
-        "port": "ポート:",
-        "username": "ユーザー名:",
-        "authMethod": "認証方法:",
-        "authMethodPassword": "パスワード",
-        "authMethodKey": "SSHキー",
-        "password": "パスワード:",
-        "privateKey": "秘密鍵:",
-        "passphrase": "パスフレーズ:",
-        "optional": "オプション",
-        "confirm": "追加",
-        "adding": "追加中...",
-        "cancel": "キャンセル",
-        "errorRequiredFields": "すべての必須フィールドを入力してください。",
-        "errorPasswordRequired": "パスワード認証を使用する場合は、パスワードは必須です。",
-        "errorPrivateKeyRequired": "キー認証を使用する場合は、秘密鍵は必須です。",
-        "errorPasswordRequiredOnSwitch": "パスワード認証に切り替える場合は、パスワードは必須です。",
-        "errorPrivateKeyRequiredOnSwitch": "キー認証に切り替える場合は、秘密鍵は必須です。",
-        "errorPort": "ポート番号は 1 から 65535 の間である必要があります。",
-        "errorAdd": "接続の追加に失敗しました: {error}",
-        "titleEdit": "接続の編集",
-        "confirmEdit": "編集を確定",
-        "saving": "保存中...",
-        "errorUpdate": "接続の更新に失敗しました: {error}",
-        "keyUpdateNote": "秘密鍵とパスフレーズを空のままにして、既存のキーを保持します。",
-        "proxy": "プロキシ:",
-        "noProxy": "プロキシなし",
-        "tags": "タグ:",
-"connectionType": "接続タイプ:",
-      "typeSsh": "SSH",
-      "typeRdp": "RDP",
-        "sectionBasic": "基本情報",
-        "sectionAuth": "認証情報",
-        "sectionAdvanced": "詳細設定",
-        "testConnection": "接続をテスト",
-        "testing": "テスト中..."
-      },
-      "test": {
-        "success": "接続テストに成功しました！",
-        "failed": "接続テストに失敗しました: {error}",
-        "latencyTooltip": "このレイテンシは、TCP接続、プロキシネゴシエーション、SSHハンドシェイク、認証などのステップを含む、新しいSSH接続の確立にかかる時間を測定します。通常、確立された接続上のインタラクションのレイテンシよりも高くなります。",
-        "errorMissingFields": "ホスト、ポート、ユーザー名を入力し、認証方法を選択してください。",
-        "errorUnknown": "テスト中に不明なエラーが発生しました。",
-        "errorNetwork": "ネットワークエラーまたはサーバーにアクセスできません。",
-        "testingInProgress": "テスト実行中...",
-        "errorPrefix": "エラー:"
-      },
-      "prompts": {
-        "confirmDelete": "\"{name}\"接続を削除しますか？この操作は元に戻せません。"
-      },
-      "errors": {
-        "deleteFailed": "接続の削除に失敗しました: {error}"
-      },
-      "status": {
-        "never": "なし"
-      },
-      "untaggedGroup": "タグなし",
-      "noUntaggedConnections": "タグなしの接続はありません。"
-    },
-    "proxies": {
-      "title": "プロキシ管理",
-      "addProxy": "新しいプロキシを追加",
-      "loading": "プロキシをロード中...",
-      "error": "プロキシリストのロードに失敗しました: {error}",
-      "noProxies": "プロキシがありません。'新しいプロキシを追加'をクリックして作成してください。",
-      "actions": {
-        "edit": "編集",
-        "delete": "削除"
-      },
-      "form": {
-        "title": "新しいプロキシを追加",
-        "titleEdit": "プロキシの編集",
-        "name": "名前:",
-        "type": "タイプ:",
-        "host": "ホスト/IP:",
-        "port": "ポート:",
-        "username": "ユーザー名:",
-        "password": "パスワード:",
-        "optional": "オプション",
-        "confirm": "追加",
-        "confirmEdit": "編集を確定",
-        "adding": "追加中...",
-        "saving": "保存中...",
-        "cancel": "キャンセル",
-        "errorRequiredFields": "すべての必須フィールドを入力してください。",
-        "errorPort": "ポート番号は 1 から 65535 の間である必要があります。",
-        "errorAdd": "プロキシの追加に失敗しました: {error}",
-        "errorUpdate": "プロキシの更新に失敗しました: {error}",
-        "passwordUpdateNote": "パスワードを空のままにして、既存のパスワードを保持します。"
-      },
-      "prompts": {
-        "confirmDelete": "\"{name}\"プロキシを削除しますか？この操作は元に戻せません。"
-      },
-      "errors": {
-        "deleteFailed": "プロキシの削除に失敗しました: {error}"
-      }
-    },
-    "workspace": {
-      "terminal": {
-        "reconnectingMsg": "再接続を試行中..."
-      }
-    },
-    "fileManager": {
-      "currentPath": "現在のパス",
-      "loading": "ディレクトリをロード中...",
-      "emptyDirectory": "ディレクトリは空です",
-      "uploadTasks": "アップロードタスク",
-      "actions": {
-        "refresh": "更新",
-        "parentDirectory": "上位ディレクトリ",
-        "uploadFile": "ファイルをアップロード",
-        "upload": "アップロード",
-        "newFolder": "新しいフォルダー",
-        "newFile": "新しいファイル",
-        "rename": "名前を変更",
-        "changePermissions": "権限を変更",
-        "delete": "削除",
-        "deleteMultiple": "{count} 個の項目を削除",
-        "download": "ダウンロード",
-        "cancel": "キャンセル",
-        "save": "保存",
-        "closeTab": "タブを閉じる",
-        "closeEditor": "エディターを閉じる",
-        "cdToTerminal": "ターミナルのディレクトリを現在のパスに変更"
-      },
-      "headers": {
-        "type": "タイプ",
-        "name": "名前",
-        "size": "サイズ",
-        "permissions": "権限",
-        "modified": "変更日"
-      },
-      "uploadStatus": {
-        "cancelled": "キャンセルされました"
-      },
-      "errors": {
-        "generic": "エラー",
-        "missingConnectionId": "現在の接続 ID を取得できません",
-        "createFolderFailed": "フォルダーの作成に失敗しました",
-        "deleteFailed": "削除に失敗しました",
-        "renameFailed": "名前の変更に失敗しました",
-        "chmodFailed": "権限の変更に失敗しました",
-        "invalidPermissionsFormat": "無効な権限形式です。3 桁または 4 桁の 8 進数を入力してください (例: 755 または 0755)。",
-        "readFileError": "ファイルの読み取り中にエラーが発生しました",
-        "readFileFailed": "ファイルの読み取りに失敗しました",
-        "fileDecodeError": "ファイルのデコードに失敗しました (UTF-8 エンコーディングではない可能性があります)",
-        "saveFailed": "ファイルの保存に失敗しました",
-        "saveTimeout": "保存がタイムアウトしました",
-        "fileExists": "ファイル \"{name}\" はすでに存在します。",
-        "loadDirectoryFailed": "ディレクトリの読み込みに失敗しました"
-      },
-      "prompts": {
-        "enterFolderName": "新しいフォルダーの名前を入力してください:",
-        "confirmOverwrite": "ファイル \"{name}\" はすでに存在します。上書きしますか？",
-        "confirmDeleteMultiple": "選択した {count} 個の項目を削除しますか？この操作は元に戻せません。",
-        "confirmDeleteFolder": "フォルダー \"{name}\" とそのすべての内容を削除しますか？この操作は元に戻せません。",
-        "confirmDeleteFile": "ファイル \"{name}\" を削除しますか？この操作は元に戻せません。",
-        "enterNewName": "\"{oldName}\" の新しい名前を入力してください:",
-        "enterNewPermissions": "\"{name}\" の新しい権限を入力してください (8 進数, 例: 755):",
-        "enterFileName": "新しいファイルの名前を入力してください:"
-      },
-      "editingFile": "編集中",
-      "loadingFile": "ファイルをロード中...",
-      "saving": "保存中",
-      "saveSuccess": "保存に成功しました",
-      "saveError": "保存中にエラーが発生しました",
-      "editPathTooltip": "パスをクリックして編集",
-      "noOpenFile": "ファイルが開いていません",
-      "selectFileToEdit": "ファイルマネージャーから編集するファイルを選択してください。",
-      "searchPlaceholder": "ファイルを検索..."
-    },
-    "statusMonitor": {
-      "title": "サーバー状態",
-      "errorPrefix": "エラー:",
-      "loading": "データを待機中...",
-      "cpuModelLabel": "CPU モデル:",
-      "osLabel": "OS:",
-      "cpuLabel": "CPU:",
-      "memoryLabel": "メモリ:",
-      "swapLabel": "スワップ:",
-      "diskLabel": "ディスク:",
-      "networkLabel": "ネットワーク",
-      "notAvailable": "N/A",
-      "bytesPerSecond": "B/秒",
-      "kiloBytesPerSecond": "KB/秒",
-      "megaBytesPerSecond": "MB/秒",
-      "gigaBytesPerSecond": "GB/秒",
-      "megaBytes": "MB",
-      "gigaBytes": "GB",
-      "swapNotAvailable": "スワップは利用できません"
-    },
-    "tags": {
-      "title": "タグ管理",
-      "addTag": "新しいタグを追加",
-      "loading": "タグをロード中...",
-      "error": "タグリストのロードに失敗しました: {error}",
-      "noTags": "タグがありません。'新しいタグを追加'をクリックして作成してください。",
-      "prompts": {
-        "confirmDelete": "\"{name}\"タグを削除しますか？この操作は元に戻せません。"
-      },
-      "inputPlaceholder": "検索またはタグを作成...",
-      "removeSelection": "このタグの選択を解除",
-      "deleteTagGlobally": "このタグをグローバルに削除"
-    },
-    "settings": {
-      "title": "設定",
-      "category": {
-        "security": "セキュリティ設定",
-        "appearance": "外観設定",
-        "system": "システム設定"
-      },
-      "changePassword": {
-        "title": "パスワードを変更",
-        "currentPassword": "現在のパスワード:",
-        "newPassword": "新しいパスワード:",
-        "confirmPassword": "新しいパスワードを再入力:",
-        "submit": "変更を確定",
-        "success": "パスワードの変更に成功しました！",
-        "error": {
-          "passwordsDoNotMatch": "新しいパスワードと確認用パスワードが一致しません。",
-          "generic": "パスワードの変更に失敗しました。後でもう一度お試しください。"
-        }
-      },
-      "twoFactor": {
-        "title": "2段階認証 (TOTP)",
-        "status": {
-          "enabled": "2段階認証は有効です。",
-          "disabled": "2段階認証は現在無効です。"
+    "auditLog": {
+        "actions": {
+            "2FA_DISABLED": "2段階認証無効",
+            "2FA_ENABLED": "2段階認証有効",
+            "ADMIN_SETUP_COMPLETE": "初期管理者設定完了",
+            "CONNECTION_CREATED": "接続作成",
+            "CONNECTION_DELETED": "接続削除",
+            "CONNECTION_UPDATED": "接続更新",
+            "DATABASE_MIGRATION": "データベース移行",
+            "IP_WHITELIST_UPDATED": "IP ホワイトリスト更新",
+            "LOGIN_FAILURE": "ログイン失敗",
+            "LOGIN_SUCCESS": "ログイン成功",
+            "LOGOUT": "ログアウト",
+            "NOTIFICATION_SETTING_CREATED": "通知設定作成",
+            "NOTIFICATION_SETTING_DELETED": "通知設定削除",
+            "NOTIFICATION_SETTING_UPDATED": "通知設定更新",
+            "PASSWORD_CHANGED": "パスワード変更",
+            "PROXY_CREATED": "プロキシ作成",
+            "PROXY_DELETED": "プロキシ削除",
+            "PROXY_UPDATED": "プロキシ更新",
+            "REMOTE_DESKTOP_CONNECTED": "リモートデスクトップ接続済",
+            "REMOTE_DESKTOP_CONNECTING": "リモートデスクトップ接続中",
+            "REMOTE_DESKTOP_DISCONNECTED": "リモートデスクトップ切断",
+            "SETTINGS_UPDATED": "設定更新",
+            "SSH_CONNECT_FAILURE": "SSH 接続失敗",
+            "SSH_CONNECT_SUCCESS": "SSH 接続成功",
+            "SSH_SHELL_FAILURE": "SSH Shell オープン失敗",
+            "TAG_CREATED": "タグ作成",
+            "TAG_DELETED": "タグ削除",
+            "TAG_UPDATED": "タグ更新"
         },
-        "enable": {
-          "button": "2段階認証を有効にする"
-        },
-        "setup": {
-          "scanQrCode": "Authenticator アプリを使用して、以下の QR コードをスキャンしてください:",
-          "orEnterSecret": "または、シークレットキーを手動で入力してください:",
-          "enterCode": "アプリで生成された 6 桁のコードを入力してください:",
-          "verifyButton": "確認して有効にする"
-        },
-        "disable": {
-          "button": "2段階認証を無効にする",
-          "passwordPrompt": "現在のログインパスワードを入力して、無効にすることを確認してください:"
-        },
-        "success": {
-          "activated": "2段階認証が有効になりました！",
-          "disabled": "2段階認証が無効になりました。"
-        },
-        "error": {
-          "setupFailed": "2段階認証の設定情報の取得に失敗しました。",
-          "codeRequired": "コードを入力してください。",
-          "verificationFailed": "無効なコードまたは期限切れのコードです。",
-          "passwordRequiredForDisable": "無効にするには、現在のパスワードを入力する必要があります。",
-          "disableFailed": "2段階認証の無効化に失敗しました。"
-        }
-      },
-      "ipWhitelist": {
-        "title": "IP ホワイトリスト",
-        "description": "このアプリケーションへのアクセスを許可する IP アドレスまたは範囲を設定します。空白のままにすると、すべての IP が許可されます。",
-        "label": "許可された IP アドレス/範囲 (1 行に 1 つまたはカンマ区切り):",
-        "hint": "IPv4, IPv6 および CIDR をサポート (例: 192.168.1.100, 10.0.0.0/8, 2001:db8::/32)。",
-        "saveButton": "ホワイトリストを保存",
-        "success": {
-          "saved": "IP ホワイトリストを保存しました。"
-        },
-        "error": {
-          "saveFailed": "IP ホワイトリストの保存に失敗しました。"
-        }
-      },
-      "popupEditor": {
-        "title": "ポップアップファイルエディター",
-        "enableLabel": "ファイルを開くときにポップアップエディターを表示する",
-        "saveButton": "設定を保存",
-        "success": {
-          "saved": "ポップアップエディターの設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "ポップアップエディターの設定の保存に失敗しました。"
-        }
-      },
-      "shareEditorTabs": {
-        "title": "エディタータブ",
-        "enableLabel": "すべてのセッションでエディタータブを共有する",
-        "description": "有効にすると、すべての SSH セッションが同じ開いているファイルエディタータブのセットを共有します。無効にすると、各セッションには独自の独立したタブのセットがあります。",
-        "saveButton": "設定を保存",
-        "success": {
-          "saved": "エディタータブの共有設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "エディタータブの共有設定の保存に失敗しました。"
-        }
-      },
-      "language": {
-        "title": "言語設定",
-        "selectLabel": "インターフェース言語:",
-        "saveButton": "言語を保存",
-        "success": {
-          "saved": "言語設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "言語設定の保存に失敗しました。"
-        }
-      },
-      "passkey": {
-        "title": "Passkey 設定",
-        "description": "Passkey (生体認証またはセキュリティキー) を使用してパスワードなし認証を行い、アカウントのセキュリティとログインの利便性を向上させます。",
-        "nameLabel": "Passkey 名",
-        "namePlaceholder": "例: マイノートパソコン",
-        "registerButton": "新しい Passkey を登録",
-        "error": {
-          "nameRequired": "Passkey 名を入力してください。",
-          "cancelled": "Passkey の登録がキャンセルされました。",
-          "genericRegistration": "Passkey を登録できません: {message}",
-          "verificationFailed": "登録に失敗しました: {message}"
-        },
-        "success": {
-          "registered": "Passkey の登録に成功しました！"
-        }
-      },
-      "notifications": {
-        "title": "通知設定",
-        "addChannel": "通知チャンネルを追加",
-        "noChannels": "通知チャンネルが設定されていません。",
-        "triggers": "トリガーイベント",
-        "noEventsEnabled": "有効なイベントはありません",
-        "confirmDelete": "通知チャンネル\"{name}\"を削除しますか？この操作は元に戻せません。",
-        "types": {
-          "webhook": "Webhook",
-          "email": "メール",
-          "telegram": "Telegram"
-        },
-        "form": {
-          "addTitle": "通知チャンネルの追加",
-          "editTitle": "通知チャンネルの編集",
-          "name": "チャンネル名:",
-          "channelType": "チャンネルタイプ:",
-          "channelTypeEditNote": "作成後はチャンネルタイプを変更できません。",
-          "webhookMethod": "HTTP メソッド:",
-          "webhookHeaders": "カスタムヘッダー",
-          "webhookBodyTemplate": "リクエスト本文テンプレート (オプション)",
-          "webhookBodyPlaceholder": "デフォルト: JSON フォーマットのペイロード。利用可能:",
-          "emailTo": "宛先メールアドレス:",
-          "emailToHelp": "複数のメールアドレスをカンマで区切ります。",
-          "emailBodyTemplate": "メール本文テンプレート (オプション)",
-          "emailBodyPlaceholder": "デフォルト: イベントベースの通知内容。利用可能:",
-          "smtpHost": "SMTP ホスト:",
-          "smtpPort": "SMTP ポート:",
-          "smtpSecure": "TLS/SSL を使用",
-          "smtpUser": "SMTP ユーザー名:",
-          "smtpPass": "SMTP パスワード:",
-          "smtpFrom": "送信元メールアドレス:",
-          "smtpFromHelp": "'From' フィールドで使用されるアドレス。",
-          "testButton": "テスト通知",
-          "testSuccess": "テスト通知の送信に成功しました！",
-          "testFailed": "テスト通知の送信に失敗しました",
-          "fillRequiredToTest": "テストを有効にするには、必須フィールドを入力してください。",
-          "telegramToken": "ボットトークン:",
-          "telegramTokenHelp": "安全に保管してください。環境変数の使用をお勧めします。",
-          "telegramChatId": "チャット ID:",
-          "telegramMessageTemplate": "メッセージテンプレート (オプション)",
-          "telegramMessagePlaceholder": "デフォルト: Markdown 形式。利用可能:",
-          "enabledEvents": "有効なイベント:",
-          "templateHelp": "利用可能なプレースホルダー:",
-          "invalidJson": "無効な JSON 形式"
-        },
-        "events": {
-          "LOGIN_SUCCESS": "ログイン成功",
-          "LOGIN_FAILURE": "ログイン失敗",
-          "LOGOUT": "ログアウト",
-          "PASSWORD_CHANGED": "パスワード変更",
-          "2FA_ENABLED": "2段階認証有効",
-          "2FA_DISABLED": "2段階認証無効",
-          "CONNECTION_CREATED": "接続作成",
-          "CONNECTION_UPDATED": "接続更新",
-          "CONNECTION_DELETED": "接続削除",
-          "PROXY_CREATED": "プロキシ作成",
-          "PROXY_UPDATED": "プロキシ更新",
-          "PROXY_DELETED": "プロキシ削除",
-          "TAG_CREATED": "タグ作成",
-          "TAG_UPDATED": "タグ更新",
-          "TAG_DELETED": "タグ削除",
-          "SETTINGS_UPDATED": "設定更新",
-          "IP_WHITELIST_UPDATED": "IP ホワイトリスト更新",
-          "NOTIFICATION_SETTING_CREATED": "通知設定作成",
-          "NOTIFICATION_SETTING_UPDATED": "通知設定更新",
-          "NOTIFICATION_SETTING_DELETED": "通知設定削除",
-          "SSH_CONNECT_SUCCESS": "SSH 接続成功",
-          "SSH_CONNECT_FAILURE": "SSH 接続失敗",
-          "SSH_SHELL_FAILURE": "SSH Shell オープン失敗",
-          "DATABASE_MIGRATION": "データベース移行",
-          "ADMIN_SETUP_COMPLETE": "初期管理者設定完了"
-        }
-      },
-      "appearance": {
-        "title": "外観設定",
-        "description": "アプリケーションのビジュアルテーマと背景をカスタマイズします。",
-        "customizeButton": "外観をカスタマイズ"
-      },
-      "autoCopyOnSelect": {
-        "title": "ターミナル自動コピー",
-        "enableLabel": "マウスボタンを離したときに選択したテキストを自動的にコピーする",
-        "saveButton": "保存",
-        "success": {
-          "saved": "自動コピーの設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "自動コピーの設定の保存に失敗しました。"
-        }
-      },
-      "docker": {
-        "title": "Docker マネージャー設定",
-        "refreshIntervalLabel": "ステータス更新間隔 (秒):",
-        "refreshIntervalHint": "Docker コンテナのステータスと統計情報を取得する頻度 (最小値は 1)。",
-        "defaultExpandLabel": "デフォルトでコンテナの詳細を展開",
-        "saveButton": "Docker 設定を保存",
-        "success": {
-          "saved": "Docker 設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "Docker 設定の保存に失敗しました。",
-          "invalidInterval": "更新間隔は正の整数である必要があります。"
-        }
-      },
-      "statusMonitor": {
-        "title": "ステータスモニター設定",
-        "refreshIntervalLabel": "ステータス更新間隔 (秒):",
-        "refreshIntervalHint": "サーバーの CPU、メモリ、ディスクなどのステータスを取得する頻度 (最小値は 1)。",
-        "saveButton": "ステータスモニター設定を保存",
-        "success": {
-          "saved": "ステータスモニター設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "ステータスモニター設定の保存に失敗しました。",
-          "invalidInterval": "更新間隔は正の整数である必要があります。"
-        }
-      },
-      "workspace": {
-        "title": "ワークスペースとターミナル",
-        "sidebarPersistentTitle": "サイドバーの動作",
-        "sidebarPersistentLabel": "ポップアップ後にサイドバーを固定 (自動的に折りたたまない)",
-        "sidebarPersistentDescription": "有効にすると、サイドバーの外側をクリックしてもサイドバーは自動的に折りたたまれません。",
-        "success": {
-          "sidebarPersistentSaved": "サイドバーの設定を保存しました。"
-        },
-        "error": {
-          "sidebarPersistentSaveFailed": "サイドバーの設定の保存に失敗しました。"
-        }
-      },
-      "ipBlacklist": {
-        "title": "IP ブラックリスト管理",
-        "description": "ログイン試行回数制限と自動禁止時間を設定します。ローカルアドレス (127.0.0.1, ::1) は禁止されません。",
-        "maxAttemptsLabel": "最大試行回数:",
-        "banDurationLabel": "禁止時間 (秒):",
-        "saveConfigButton": "構成を保存",
-        "currentBannedTitle": "現在禁止されている IP アドレス",
-        "loadingList": "ブラックリストを読み込み中...",
-        "noBannedIps": "ブラックリストに IP アドレスはありません。",
-        "confirmRemoveIp": "IP アドレス \"{ip}\" をブラックリストから削除しますか？",
+        "noLogs": "監査ログが見つかりませんでした。",
+        "paginationInfo": "{currentPage} ページ / 全 {totalPages} ページ ({totalLogs} 件のログ)",
+        "searchPlaceholder": "詳細を",
         "table": {
-          "ipAddress": "IP アドレス",
-          "attempts": "試行回数",
-          "lastAttempt": "最終試行時間",
-          "bannedUntil": "禁止終了時間",
-          "actions": "アクション",
-          "removeButton": "削除",
-          "deleting": "削除中..."
+            "actionType": "アクションタイプ",
+            "details": "詳細",
+            "timestamp": "タイムスタンプ"
         },
-        "success": {
-          "configUpdated": "ブラックリスト構成を保存しました。"
-        },
-        "error": {
-          "fetchFailed": "ブラックリストの取得に失敗しました",
-          "deleteFailed": "削除に失敗しました",
-          "invalidMaxAttempts": "最大試行回数は正の整数である必要があります。",
-          "invalidBanDuration": "禁止時間は正の整数 (秒) である必要があります。",
-          "updateConfigFailed": "ブラックリスト構成の更新に失敗しました"
-        }
-      },
-      "captcha": {
-        "title": "CAPTCHA 設定",
-        "description": "自動化された攻撃を防ぐために、ログインページに CAPTCHA 検証を設定します。",
-        "enableLabel": "ログインページで CAPTCHA を有効にする",
-        "providerLabel": "CAPTCHA プロバイダー:",
-        "providerNone": "なし (無効)",
-        "hcaptchaHint": "から",
-        "recaptchaHint": "から",
-        "siteKeyLabel": "サイトキー (公開):",
-        "secretKeyLabel": "シークレットキー (非公開):",
-        "secretKeyHint": "このキーは安全に保管してください。サーバーに安全に保存されます。",
-        "saveButton": "CAPTCHA 設定を保存",
-        "success": {
-          "saved": "CAPTCHA 設定を保存しました。"
-        },
-        "error": {
-          "saveFailed": "CAPTCHA 設定の保存に失敗しました。"
-        }
-      },
-      "commandInputSync": {
-        "title": "コマンド入力同期",
-        "selectLabel": "同期ターゲット:",
-        "targetNone": "なし",
-        "targetQuickCommands": "クイックコマンド",
-        "targetCommandHistory": "コマンド履歴",
-        "description": "コマンド入力バーの内容を選択したパネルの検索ボックスにリアルタイムで同期します。",
-        "success": {
-          "saved": "同期ターゲットを保存しました。"
-        },
-        "error": {
-          "saveFailed": "同期ターゲットの保存に失敗しました。"
-        }
-      }
-},
-"notificationController": {
-      "errorFetchSettings": "通知設定の取得に失敗しました",
-      "errorMissingFields": "必須の通知設定フィールドが不足しています (channel_type, name, config)",
-      "errorCreateSetting": "通知設定の作成に失敗しました",
-      "errorInvalidId": "無効な通知設定 ID",
-      "errorNoUpdateData": "更新するデータが提供されていません",
-      "errorNotFound": "ID {id} の通知設定が見つかりません",
-      "errorUpdateSetting": "通知設定の更新に失敗しました",
-      "errorDeleteNotFound": "ID {id} の通知設定の削除に失敗しました。すでに削除されている可能性があります",
-      "errorDeleteSetting": "通知設定の削除に失敗しました",
-      "testMessageSaved": "設定 ID {id} ({name}) のテストがトリガーされました",
-      "testEventTriggered": "テスト通知イベントがトリガーされました。対応するチャネルで受信を確認してください。",
-      "errorTriggerTest": "テスト通知のトリガー中に内部エラーが発生しました",
-      "errorMissingTestInfo": "必須のテスト情報が不足しています (channel_type, config)",
-      "errorInvalidChannelType": "無効なチャネルタイプ",
-      "testMessageUnsaved": "未保存の {channelType} 設定のテストがトリガーされました"
+        "title": "監査ログ"
+    },
+    "commandHistory": {
+        "clear": "クリア",
+        "confirmClear": "すべての履歴をクリアしますか？",
+        "copied": "クリップボードにコピーしました",
+        "copy": "コピー",
+        "copyFailed": "コピーに失敗しました",
+        "delete": "削除",
+        "empty": "履歴はありません",
+        "loading": "ロード中...",
+        "searchPlaceholder": "履歴を検索..."
+    },
+    "commandInputBar": {
+        "closeSearch": "ターミナル検索を閉じる",
+        "configureFocusSwitch": "フォーカススイッチャーを設定",
+        "findNext": "次を検索",
+        "findPrevious": "前を検索",
+        "openSearch": "ターミナル検索を開く",
+        "placeholder": "ここにコマンドを入力して Enter キーを押すと、ターミナルに送信されます...",
+        "searchPlaceholder": "ターミナル内で検索..."
     },
     "common": {
-      "loading": "ロード中...",
-      "cancel": "キャンセル",
-      "save": "保存",
-      "saving": "保存中...",
-      "testing": "テスト中...",
-      "edit": "編集",
-      "delete": "削除",
-      "enabled": "有効",
-      "disabled": "無効",
-      "settings": "設定",
-      "errorOccurred": "エラーが発生しました。",
-      "close": "閉じる",
-      "remove": "削除",
-      "expand": "展開",
-      "collapse": "折りたたむ",
-      "search": "検索",
-      "all": "すべて",
-      "filter": "フィルター",
-      "sortAscending": "昇順",
-      "sortDescending": "降順"
+        "all": "すべて",
+        "cancel": "キャンセル",
+        "close": "閉じる",
+        "collapse": "折りたたむ",
+        "delete": "削除",
+        "disabled": "無効",
+        "edit": "編集",
+        "enabled": "有効",
+        "errorOccurred": "エラーが発生しました。",
+        "expand": "展開",
+        "filter": "フィルター",
+        "height": "高さ",
+        "loading": "ロード中...",
+        "reconnect": "再接続",
+        "remove": "削除",
+        "retry": "再試行",
+        "save": "保存",
+        "saving": "保存中...",
+        "search": "検索",
+        "settings": "設定",
+        "sortAscending": "昇順",
+        "sortDescending": "降順",
+        "testing": "テスト中...",
+        "width": "幅"
+    },
+    "connections": {
+        "actions": {
+            "connect": "接続",
+            "delete": "削除",
+            "edit": "編集",
+            "test": "テスト",
+            "testing": "テスト中..."
+        },
+        "addConnection": "新しい接続を追加",
+        "addFirstConnection": "最初の接続を追加",
+        "errors": {
+            "deleteFailed": "接続の削除に失敗しました: {error}"
+        },
+        "form": {
+            "adding": "追加中...",
+            "authMethod": "認証方法:",
+            "authMethodKey": "SSHキー",
+            "authMethodPassword": "パスワード",
+            "cancel": "キャンセル",
+            "confirm": "追加",
+            "confirmEdit": "編集を確定",
+            "connectionType": "接続タイプ:",
+            "errorAdd": "接続の追加に失敗しました: {error}",
+            "errorPasswordRequired": "パスワード認証を使用する場合は、パスワードは必須です。",
+            "errorPasswordRequiredOnSwitch": "パスワード認証に切り替える場合は、パスワードは必須です。",
+            "errorPort": "ポート番号は 1 から 65535 の間である必要があります。",
+            "errorPrivateKeyRequired": "キー認証を使用する場合は、秘密鍵は必須です。",
+            "errorPrivateKeyRequiredOnSwitch": "キー認証に切り替える場合は、秘密鍵は必須です。",
+            "errorRequiredFields": "すべての必須フィールドを入力してください。",
+            "errorUpdate": "接続の更新に失敗しました: {error}",
+            "host": "ホスト/IP:",
+            "keyUpdateNote": "秘密鍵とパスフレーズを空のままにして、既存のキーを保持します。",
+            "name": "名前:",
+            "noProxy": "プロキシなし",
+            "optional": "オプション",
+            "passphrase": "パスフレーズ:",
+            "password": "パスワード:",
+            "port": "ポート:",
+            "privateKey": "秘密鍵:",
+            "proxy": "プロキシ:",
+            "saving": "保存中...",
+            "sectionAdvanced": "詳細設定",
+            "sectionAuth": "認証情報",
+            "sectionBasic": "基本情報",
+            "tags": "タグ:",
+            "testConnection": "接続をテスト",
+            "testing": "テスト中...",
+            "title": "新しい接続を追加",
+            "titleEdit": "接続の編集",
+            "typeRdp": "RDP",
+            "typeSsh": "SSH",
+            "username": "ユーザー名:"
+        },
+        "noConnections": "接続がありません。'新しい接続を追加'をクリックして作成してください。",
+        "noUntaggedConnections": "タグなしの接続はありません。",
+        "prompts": {
+            "confirmDelete": "\"{name}\"接続を削除しますか？この操作は元に戻せません。"
+        },
+        "status": {
+            "never": "なし"
+        },
+        "table": {
+            "actions": "アクション",
+            "authMethod": "認証方法",
+            "host": "ホスト",
+            "lastConnected": "最終接続",
+            "name": "名前",
+            "port": "ポート",
+            "tags": "タグ",
+            "user": "ユーザー名"
+        },
+        "test": {
+            "errorMissingFields": "ホスト、ポート、ユーザー名を入力し、認証方法を選択してください。",
+            "errorNetwork": "ネットワークエラーまたはサーバーにアクセスできません。",
+            "errorPrefix": "エラー:",
+            "errorUnknown": "テスト中に不明なエラーが発生しました。",
+            "failed": "接続テストに失敗しました: {error}",
+            "latencyTooltip": "このレイテンシは、TCP接続、プロキシネゴシエーション、SSHハンドシェイク、認証などのステップを含む、新しいSSH接続の確立にかかる時間を測定します。通常、確立された接続上のインタラクションのレイテンシよりも高くなります。",
+            "success": "接続テストに成功しました！",
+            "testingInProgress": "テスト実行中..."
+        },
+        "untaggedGroup": "タグなし"
+    },
+    "dashboard": {
+        "connectionList": "接続リスト",
+        "lastConnected": "最終接続:",
+        "noConnections": "接続記録がありません",
+        "noRecentActivity": "最近のアクティビティ記録はありません",
+        "noRecentConnections": "最近の接続記録はありません",
+        "recentActivity": "最近のアクティビティ",
+        "recentConnections": "最近の接続",
+        "sortOptions": {
+            "created": "作成日時",
+            "lastConnected": "最終接続",
+            "name": "名前",
+            "type": "タイプ",
+            "updated": "更新日時"
+        },
+        "viewAllConnections": "すべての接続を表示",
+        "viewFullAuditLog": "完全な監査ログを表示"
+    },
+    "dockerManager": {
+        "action": {
+            "remove": "削除",
+            "restart": "再起動",
+            "start": "起動",
+            "stop": "停止"
+        },
+        "error": {
+            "commandFailed": "リモートコマンド'{command}'の実行に失敗しました",
+            "connectFirst": "最初にセッションに接続してください",
+            "fetchFailed": "リモートコンテナの状態の取得に失敗しました",
+            "invalidResponse": "無効なサーバー応答を受信しました",
+            "noActiveSession": "アクティブなセッションはありません",
+            "sshDisconnected": "SSHセッションが切断されました。",
+            "sshError": "SSH接続エラー",
+            "sshNotConnected": "SSHセッションは接続されていません。"
+        },
+        "header": {
+            "actions": "操作",
+            "image": "イメージ",
+            "name": "名前",
+            "ports": "ポート",
+            "status": "ステータス"
+        },
+        "installHintRemote": "リモートホストにDockerがインストールされ、実行されていることを確認してください。",
+        "loading": "Dockerコンテナをロード中...",
+        "noContainers": "リモートホストで実行中または停止中のコンテナは見つかりませんでした。",
+        "notAvailable": "リモートホストのDockerは利用できません",
+        "stats": {
+            "blockIO": "ブロックI/O",
+            "cpu": "CPU使用率",
+            "memory": "メモリ使用量/制限",
+            "netIO": "ネットワークI/O",
+            "noData": "利用可能な統計データはありません。",
+            "pids": "プロセス数"
+        },
+        "waitingForSsh": "SSH接続を待機中..."
+    },
+    "fileManager": {
+        "actions": {
+            "cancel": "キャンセル",
+            "cdToTerminal": "ターミナルのディレクトリを現在のパスに変更",
+            "changePermissions": "権限を変更",
+            "closeEditor": "エディターを閉じる",
+            "closeTab": "タブを閉じる",
+            "copy": "コピー",
+            "cut": "切り取り",
+            "delete": "削除",
+            "deleteMultiple": "{count} 個の項目を削除",
+            "download": "ダウンロード",
+            "downloadFolder": "フォルダをダウンロード",
+            "downloadMultiple": "{count} 個のアイテムをダウンロード",
+            "newFile": "新しいファイル",
+            "newFolder": "新しいフォルダー",
+            "parentDirectory": "上位ディレクトリ",
+            "paste": "貼り付け",
+            "refresh": "更新",
+            "rename": "名前を変更",
+            "save": "保存",
+            "upload": "アップロード",
+            "uploadFile": "ファイルをアップロード"
+        },
+        "currentPath": "現在のパス",
+        "dropFilesHere": "ファイルをここにドラッグ＆ドロップしてアップロード",
+        "editPathTooltip": "パスをクリックして編集",
+        "editingFile": "編集中",
+        "emptyDirectory": "ディレクトリは空です",
+        "errors": {
+            "chmodFailed": "権限の変更に失敗しました",
+            "copyFailed": "コピーに失敗しました",
+            "createFolderFailed": "フォルダーの作成に失敗しました",
+            "deleteFailed": "削除に失敗しました",
+            "downloadDirectoryFailed": "フォルダのダウンロードに失敗しました",
+            "downloadDirectoryNotImplemented": "サーバーはフォルダダウンロード機能をまだ実装していません。",
+            "fileDecodeError": "ファイルのデコードに失敗しました (UTF-8 エンコーディングではない可能性があります)",
+            "fileExists": "ファイル \"{name}\" はすでに存在します。",
+            "generic": "エラー",
+            "invalidPermissionsFormat": "無効な権限形式です。3 桁または 4 桁の 8 進数を入力してください (例: 755 または 0755)。",
+            "loadDirectoryFailed": "ディレクトリの読み込みに失敗しました",
+            "missingConnectionId": "現在の接続 ID を取得できません",
+            "moveFailed": "移動に失敗しました",
+            "noActiveSession": "アクティブなセッションが見つかりません",
+            "readFileError": "ファイルの読み取り中にエラーが発生しました",
+            "readFileFailed": "ファイルの読み取りに失敗しました",
+            "renameFailed": "名前の変更に失敗しました",
+            "saveFailed": "ファイルの保存に失敗しました",
+            "saveTimeout": "保存がタイムアウトしました",
+            "sendCommandFailed": "コマンドの送信に失敗しました",
+            "sftpManagerNotFound": "SFTP マネージャーが見つかりません",
+            "sftpNotReady": "SFTP セッションの準備ができていません",
+            "terminalManagerNotFound": "ターミナルマネージャーが見つかりません"
+        },
+        "headers": {
+            "modified": "変更日",
+            "name": "名前",
+            "permissions": "権限",
+            "size": "サイズ",
+            "type": "タイプ"
+        },
+        "loading": "ディレクトリをロード中...",
+        "loadingFile": "ファイルをロード中...",
+        "noOpenFile": "ファイルが開いていません",
+        "notifications": {
+            "cdCommandSent": "CD コマンドがターミナルに送信されました",
+            "copySuccess": "コピーに成功しました",
+            "moveSuccess": "移動に成功しました"
+        },
+        "prompts": {
+            "confirmDeleteFile": "ファイル \"{name}\" を削除しますか？この操作は元に戻せません。",
+            "confirmDeleteFolder": "フォルダー \"{name}\" とそのすべての内容を削除しますか？この操作は元に戻せません。",
+            "confirmDeleteMultiple": "選択した {count} 個の項目を削除しますか？この操作は元に戻せません。",
+            "confirmOverwrite": "ファイル \"{name}\" はすでに存在します。上書きしますか？",
+            "enterFileName": "新しいファイルの名前を入力してください:",
+            "enterFolderName": "新しいフォルダーの名前を入力してください:",
+            "enterNewName": "\"{oldName}\" の新しい名前を入力してください:",
+            "enterNewPermissions": "\"{name}\" の新しい権限を入力してください (8 進数, 例: 755):"
+        },
+        "saveError": "保存中にエラーが発生しました",
+        "saveSuccess": "保存に成功しました",
+        "saving": "保存中",
+        "searchPlaceholder": "ファイルを検索...",
+        "selectFileToEdit": "ファイルマネージャーから編集するファイルを選択してください。",
+        "uploadStatus": {
+            "cancelled": "キャンセルされました",
+            "pending": "待機中",
+            "uploading": "アップロード中"
+        },
+        "uploadTasks": "アップロードタスク",
+        "warnings": {
+            "moveSameDirectory": "同じディレクトリ内で切り取りと貼り付けはできません。"
+        }
+    },
+    "focusSwitcher": {
+        "allInputsConfigured": "すべての利用可能な入力ソースが設定されました",
+        "altSwitchHint": "ヒント：Alt キーを押すと、設定された入力ソース間でフォーカスを素早く切り替えることができます。",
+        "availableInputs": "利用可能な入力ソース",
+        "configTitle": "フォーカススイッチャーの設定",
+        "configuredSequence": "設定されたシーケンス（ドラッグしてソート）",
+        "confirmClose": "未保存の変更があります。閉じてもよろしいですか？",
+        "dragHere": "左側からここに入力ボックスをドラッグ",
+        "input": {
+            "commandHistorySearch": "コマンド履歴検索",
+            "commandInput": "コマンド入力",
+            "connectionListSearch": "接続リスト検索",
+            "fileEditorActive": "ファイルエディター",
+            "fileManagerPathInput": "ファイルマネージャーパス入力",
+            "fileManagerSearch": "ファイルマネージャー検索",
+            "quickCommandsSearch": "クイックコマンド検索",
+            "terminalSearch": "ターミナル内検索"
+        },
+        "noInputsAvailable": "設定可能な入力項目はありません",
+        "shortcutPlaceholder": "例：Alt + K",
+        "shortcutSettings": "ショートカット設定"
+    },
+    "header": {
+        "hide": "非表示"
+    },
+    "layout": {
+        "configure": "レイアウトを設定",
+        "loading": "ロード中...",
+        "noActiveSession": {
+            "fileManagerSidebar": "ファイルマネージャーにはアクティブなセッションが必要です",
+            "message": "最初にセッションに接続してください",
+            "statusMonitorSidebar": "ステータスモニターにはアクティブなセッションが必要です",
+            "title": "アクティブなセッションはありません"
+        },
+        "pane": {
+            "commandBar": "コマンドバー",
+            "commandHistory": "コマンド履歴",
+            "connections": "接続リスト",
+            "dockerManager": "Docker マネージャー",
+            "editor": "エディター",
+            "fileManager": "ファイルマネージャー",
+            "quickCommands": "クイックコマンド",
+            "statusMonitor": "ステータスモニター",
+            "terminal": "ターミナル"
+        }
     },
     "layoutConfigurator": {
-      "title": "レイアウトマネージャー",
-      "availablePanes": "利用可能なパネル",
-      "layoutPreview": "メインレイアウトプレビュー (ここにドラッグ)",
-      "resetDefault": "デフォルトに戻す",
-      "noAvailablePanes": "すべてのパネルがレイアウトにあります",
-      "emptyLayout": "レイアウトが空です。左側からパネルをドラッグするか、コンテナーを追加してください。",
-      "leftSidebar": "左サイドバーパネル",
-      "rightSidebar": "右サイドバーパネル",
-      "dropHere": "利用可能なパネルからここにドラッグ",
-      "confirmClose": "未保存の変更があります。閉じてもよろしいですか？",
-      "confirmReset": "デフォルトのレイアウトとサイドバー構成に戻しますか？現在の変更は失われます。",
-      "saveError": "レイアウトの保存中にエラーが発生しました。後でもう一度お試しください。",
-      "confirmClearLayout": "レイアウト全体をクリアしますか？すべてのパネルが利用可能なリストに戻ります。"
+        "availablePanes": "利用可能なパネル",
+        "confirmClearLayout": "レイアウト全体をクリアしますか？すべてのパネルが利用可能なリストに戻ります。",
+        "confirmClose": "未保存の変更があります。閉じてもよろしいですか？",
+        "confirmReset": "デフォルトのレイアウトとサイドバー構成に戻しますか？現在の変更は失われます。",
+        "dropHere": "利用可能なパネルからここにドラッグ",
+        "emptyLayout": "レイアウトが空です。左側からパネルをドラッグするか、コンテナーを追加してください。",
+        "layoutPreview": "メインレイアウトプレビュー (ここにドラッグ)",
+        "leftSidebar": "左サイドバーパネル",
+        "noAvailablePanes": "すべてのパネルがレイアウトにあります",
+        "resetDefault": "デフォルトに戻す",
+        "rightSidebar": "右サイドバーパネル",
+        "saveError": "レイアウトの保存中にエラーが発生しました。後でもう一度お試しください。",
+        "title": "レイアウトマネージャー"
     },
     "layoutNodeEditor": {
-      "containerLabel": "コンテナー ({direction})",
-      "horizontal": "水平",
-      "vertical": "垂直",
-      "toggleDirection": "方向を切り替える",
-      "addHorizontalContainer": "水平コンテナーを追加",
-      "addVerticalContainer": "垂直コンテナーを追加",
-      "removeNode": "このノードを削除",
-      "dragHandle": "ドラッグして順序を調整または移動",
-      "dropHere": "パネルまたはコンテナーをここにドラッグ"
+        "addHorizontalContainer": "水平コンテナーを追加",
+        "addVerticalContainer": "垂直コンテナーを追加",
+        "containerLabel": "コンテナー ({direction})",
+        "dragHandle": "ドラッグして順序を調整または移動",
+        "dropHere": "パネルまたはコンテナーをここにドラッグ",
+        "horizontal": "水平",
+        "removeNode": "このノードを削除",
+        "toggleDirection": "方向を切り替える",
+        "vertical": "垂直"
     },
-    "auditLog": {
-      "title": "監査ログ",
-      "searchPlaceholder": "詳細を",
-      "noLogs": "監査ログが見つかりませんでした。",
-    "table": {
-      "timestamp": "タイムスタンプ",
-      "actionType": "アクションタイプ",
-      "details": "詳細"
+    "login": {
+        "captchaPrompt": "以下の認証を完了してください：",
+        "error": {
+            "captchaLoadFailed": "CAPTCHA の読み込みに失敗しました。ページをリロードしてください。",
+            "captchaRequired": "CAPTCHA を完了してください。"
+        },
+        "loggingIn": "ログイン中...",
+        "loginButton": "ログイン",
+        "passkeyLoginButton": "Passkeyでログイン",
+        "password": "パスワード",
+        "recaptchaV3Notice": "このサイトは reCAPTCHA によって保護されており、Google のプライバシーポリシーと利用規約が適用されます。",
+        "rememberMe": "ログイン状態を保持",
+        "title": "ユーザーログイン",
+        "twoFactorPrompt": "2段階認証コードを入力してください:",
+        "username": "ユーザー名",
+        "verifyButton": "検証"
     },
-    "paginationInfo": "{currentPage} ページ / 全 {totalPages} ページ ({totalLogs} 件のログ)",
-    "actions": {
-        "LOGIN_SUCCESS": "ログイン成功",
-        "LOGIN_FAILURE": "ログイン失敗",
-        "LOGOUT": "ログアウト",
-        "PASSWORD_CHANGED": "パスワード変更",
-        "2FA_ENABLED": "2段階認証有効",
-        "2FA_DISABLED": "2段階認証無効",
-        "CONNECTION_CREATED": "接続作成",
-        "CONNECTION_UPDATED": "接続更新",
-        "CONNECTION_DELETED": "接続削除",
-        "PROXY_CREATED": "プロキシ作成",
-        "PROXY_UPDATED": "プロキシ更新",
-        "PROXY_DELETED": "プロキシ削除",
-        "TAG_CREATED": "タグ作成",
-        "TAG_UPDATED": "タグ更新",
-        "TAG_DELETED": "タグ削除",
-        "SETTINGS_UPDATED": "設定更新",
-        "IP_WHITELIST_UPDATED": "IP ホワイトリスト更新",
-        "NOTIFICATION_SETTING_CREATED": "通知設定作成",
-        "NOTIFICATION_SETTING_UPDATED": "通知設定更新",
-        "NOTIFICATION_SETTING_DELETED": "通知設定削除",
-        "SSH_CONNECT_SUCCESS": "SSH 接続成功",
-        "SSH_CONNECT_FAILURE": "SSH 接続失敗",
-        "SSH_SHELL_FAILURE": "SSH Shell オープン失敗",
-        "DATABASE_MIGRATION": "データベース移行",
-        "ADMIN_SETUP_COMPLETE": "初期管理者設定完了",
-        "REMOTE_DESKTOP_CONNECTING": "リモートデスクトップ接続中",
-        "REMOTE_DESKTOP_CONNECTED": "リモートデスクトップ接続済",
-        "REMOTE_DESKTOP_DISCONNECTED": "リモートデスクトップ切断"
+    "nav": {
+        "auditLogs": "監査ログ",
+        "customizeStyle": "外観のカスタマイズ",
+        "dashboard": "ダッシュボード",
+        "login": "ログイン",
+        "logout": "ログアウト",
+        "notifications": "通知管理",
+        "proxies": "プロキシ管理",
+        "settings": "設定",
+        "terminal": "ターミナル"
+    },
+    "notificationController": {
+        "errorCreateSetting": "通知設定の作成に失敗しました",
+        "errorDeleteNotFound": "ID {id} の通知設定の削除に失敗しました。すでに削除されている可能性があります",
+        "errorDeleteSetting": "通知設定の削除に失敗しました",
+        "errorFetchSettings": "通知設定の取得に失敗しました",
+        "errorInvalidChannelType": "無効なチャネルタイプ",
+        "errorInvalidId": "無効な通知設定 ID",
+        "errorMissingFields": "必須の通知設定フィールドが不足しています (channel_type, name, config)",
+        "errorMissingTestInfo": "必須のテスト情報が不足しています (channel_type, config)",
+        "errorNoUpdateData": "更新するデータが提供されていません",
+        "errorNotFound": "ID {id} の通知設定が見つかりません",
+        "errorTriggerTest": "テスト通知のトリガー中に内部エラーが発生しました",
+        "errorUpdateSetting": "通知設定の更新に失敗しました",
+        "testEventTriggered": "テスト通知イベントがトリガーされました。対応するチャネルで受信を確認してください。",
+        "testMessageSaved": "設定 ID {id} ({name}) のテストがトリガーされました",
+        "testMessageUnsaved": "未保存の {channelType} 設定のテストがトリガーされました"
+    },
+    "projectName": "星枢ターミナル",
+    "proxies": {
+        "actions": {
+            "delete": "削除",
+            "edit": "編集"
+        },
+        "addProxy": "新しいプロキシを追加",
+        "error": "プロキシリストのロードに失敗しました: {error}",
+        "errors": {
+            "deleteFailed": "プロキシの削除に失敗しました: {error}"
+        },
+        "form": {
+            "adding": "追加中...",
+            "cancel": "キャンセル",
+            "confirm": "追加",
+            "confirmEdit": "編集を確定",
+            "errorAdd": "プロキシの追加に失敗しました: {error}",
+            "errorPort": "ポート番号は 1 から 65535 の間である必要があります。",
+            "errorRequiredFields": "すべての必須フィールドを入力してください。",
+            "errorUpdate": "プロキシの更新に失敗しました: {error}",
+            "host": "ホスト/IP:",
+            "name": "名前:",
+            "optional": "オプション",
+            "password": "パスワード:",
+            "passwordUpdateNote": "パスワードを空のままにして、既存のパスワードを保持します。",
+            "port": "ポート:",
+            "saving": "保存中...",
+            "title": "新しいプロキシを追加",
+            "titleEdit": "プロキシの編集",
+            "type": "タイプ:",
+            "username": "ユーザー名:"
+        },
+        "loading": "プロキシをロード中...",
+        "noProxies": "プロキシがありません。'新しいプロキシを追加'をクリックして作成してください。",
+        "prompts": {
+            "confirmDelete": "\"{name}\"プロキシを削除しますか？この操作は元に戻せません。"
+        },
+        "title": "プロキシ管理"
+    },
+    "quickCommands": {
+        "add": "追加",
+        "addFirst": "最初のクイックコマンドを追加",
+        "confirmDelete": "クイックコマンド\"{name}\"を削除しますか？",
+        "empty": "クイックコマンドはありません。'+'ボタンをクリックして作成してください！",
+        "form": {
+            "add": "追加",
+            "command": "コマンド:",
+            "commandPlaceholder": "例：ls -alh /home/user",
+            "errorCommandRequired": "コマンドは空にできません",
+            "name": "名前:",
+            "namePlaceholder": "オプション。素早く認識するために使用",
+            "titleAdd": "クイックコマンドの追加",
+            "titleEdit": "クイックコマンドの編集"
+        },
+        "searchPlaceholder": "名前またはコマンドを検索...",
+        "sortByName": "名前",
+        "sortByUsage": "使用頻度",
+        "usageCount": "使用回数"
+    },
+    "remoteDesktopModal": {
+        "errors": {
+            "clientError": "クライアントエラー",
+            "connectionFailed": "接続に失敗しました",
+            "inputError": "入力リスナーの設定中にエラーが発生しました。",
+            "missingInfo": "接続情報または表示要素がありません。",
+            "noConnection": "接続情報が提供されていません。",
+            "tokenError": "トークンの取得に失敗しました",
+            "tunnelError": "トンネルエラー"
+        },
+        "reconnectTooltip": "リモートデスクトップに再接続",
+        "status": {
+            "connected": "接続済み",
+            "connecting": "接続中...",
+            "connectingRdp": "リモートデスクトップに接続中...",
+            "connectingWs": "WebSocket に接続中...",
+            "disconnected": "切断済み",
+            "disconnecting": "切断中...",
+            "error": "エラー",
+            "fetchingToken": "接続トークンを取得中...",
+            "idle": "アイドル",
+            "unknownState": "不明な状態",
+            "waiting": "サーバーの応答を待機中..."
+        },
+        "title": "リモートデスクトップ",
+        "titlePlaceholder": "リモートデスクトップ接続"
+    },
+    "settings": {
+        "appearance": {
+            "customizeButton": "外観をカスタマイズ",
+            "description": "アプリケーションのビジュアルテーマと背景をカスタマイズします。",
+            "title": "外観設定"
+        },
+        "autoCopyOnSelect": {
+            "enableLabel": "マウスボタンを離したときに選択したテキストを自動的にコピーする",
+            "error": {
+                "saveFailed": "自動コピーの設定の保存に失敗しました。"
+            },
+            "saveButton": "保存",
+            "success": {
+                "saved": "自動コピーの設定を保存しました。"
+            },
+            "title": "ターミナル自動コピー"
+        },
+        "captcha": {
+            "description": "自動化された攻撃を防ぐために、ログインページに CAPTCHA 検証を設定します。",
+            "enableLabel": "ログインページで CAPTCHA を有効にする",
+            "error": {
+                "saveFailed": "CAPTCHA 設定の保存に失敗しました。"
+            },
+            "hcaptchaHint": "から",
+            "providerLabel": "CAPTCHA プロバイダー:",
+            "providerNone": "なし (無効)",
+            "recaptchaHint": "から",
+            "saveButton": "CAPTCHA 設定を保存",
+            "secretKeyHint": "このキーは安全に保管してください。サーバーに安全に保存されます。",
+            "secretKeyLabel": "シークレットキー (非公開):",
+            "siteKeyLabel": "サイトキー (公開):",
+            "success": {
+                "saved": "CAPTCHA 設定を保存しました。"
+            },
+            "title": "CAPTCHA 設定"
+        },
+        "category": {
+            "appearance": "外観設定",
+            "security": "セキュリティ設定",
+            "system": "システム設定"
+        },
+        "changePassword": {
+            "confirmPassword": "新しいパスワードを再入力:",
+            "currentPassword": "現在のパスワード:",
+            "error": {
+                "generic": "パスワードの変更に失敗しました。後でもう一度お試しください。",
+                "passwordsDoNotMatch": "新しいパスワードと確認用パスワードが一致しません。"
+            },
+            "newPassword": "新しいパスワード:",
+            "submit": "変更を確定",
+            "success": "パスワードの変更に成功しました！",
+            "title": "パスワードを変更"
+        },
+        "commandInputSync": {
+            "description": "コマンド入力バーの内容を選択したパネルの検索ボックスにリアルタイムで同期します。",
+            "error": {
+                "saveFailed": "同期ターゲットの保存に失敗しました。"
+            },
+            "selectLabel": "同期ターゲット:",
+            "success": {
+                "saved": "同期ターゲットを保存しました。"
+            },
+            "targetCommandHistory": "コマンド履歴",
+            "targetNone": "なし",
+            "targetQuickCommands": "クイックコマンド",
+            "timezone": {
+                "description": "通知のタイムスタンプはこのタイムゾーンに基づいてフォーマットされます。",
+                "error": {
+                    "saveFailed": "タイムゾーン設定の保存に失敗しました。"
+                },
+                "selectLabel": "タイムゾーンを選択:",
+                "success": {
+                    "saved": "タイムゾーン設定が正常に保存されました。"
+                },
+                "title": "タイムゾーン設定"
+            },
+            "title": "コマンド入力同期"
+        },
+        "docker": {
+            "defaultExpandLabel": "デフォルトでコンテナの詳細を展開",
+            "error": {
+                "invalidInterval": "更新間隔は正の整数である必要があります。",
+                "saveFailed": "Docker 設定の保存に失敗しました。"
+            },
+            "refreshIntervalHint": "Docker コンテナのステータスと統計情報を取得する頻度 (最小値は 1)。",
+            "refreshIntervalLabel": "ステータス更新間隔 (秒):",
+            "saveButton": "Docker 設定を保存",
+            "success": {
+                "saved": "Docker 設定を保存しました。"
+            },
+            "title": "Docker マネージャー設定"
+        },
+        "ipBlacklist": {
+            "banDurationLabel": "禁止時間 (秒):",
+            "confirmRemoveIp": "IP アドレス \"{ip}\" をブラックリストから削除しますか？",
+            "currentBannedTitle": "現在禁止されている IP アドレス",
+            "description": "ログイン試行回数制限と自動禁止時間を設定します。ローカルアドレス (127.0.0.1, ::1) は禁止されません。",
+            "error": {
+                "deleteFailed": "削除に失敗しました",
+                "fetchFailed": "ブラックリストの取得に失敗しました",
+                "invalidBanDuration": "禁止時間は正の整数 (秒) である必要があります。",
+                "invalidMaxAttempts": "最大試行回数は正の整数である必要があります。",
+                "updateConfigFailed": "ブラックリスト構成の更新に失敗しました"
+            },
+            "loadingList": "ブラックリストを読み込み中...",
+            "maxAttemptsLabel": "最大試行回数:",
+            "noBannedIps": "ブラックリストに IP アドレスはありません。",
+            "saveConfigButton": "構成を保存",
+            "success": {
+                "configUpdated": "ブラックリスト構成を保存しました。"
+            },
+            "table": {
+                "actions": "アクション",
+                "attempts": "試行回数",
+                "bannedUntil": "禁止終了時間",
+                "deleting": "削除中...",
+                "ipAddress": "IP アドレス",
+                "lastAttempt": "最終試行時間",
+                "removeButton": "削除"
+            },
+            "title": "IP ブラックリスト管理"
+        },
+        "ipWhitelist": {
+            "description": "このアプリケーションへのアクセスを許可する IP アドレスまたは範囲を設定します。空白のままにすると、すべての IP が許可されます。",
+            "error": {
+                "saveFailed": "IP ホワイトリストの保存に失敗しました。"
+            },
+            "hint": "IPv4, IPv6 および CIDR をサポート (例: 192.168.1.100, 10.0.0.0/8, 2001:db8::/32)。",
+            "label": "許可された IP アドレス/範囲 (1 行に 1 つまたはカンマ区切り):",
+            "saveButton": "ホワイトリストを保存",
+            "success": {
+                "saved": "IP ホワイトリストを保存しました。"
+            },
+            "title": "IP ホワイトリスト"
+        },
+        "language": {
+            "error": {
+                "saveFailed": "言語設定の保存に失敗しました。"
+            },
+            "saveButton": "言語を保存",
+            "selectLabel": "インターフェース言語:",
+            "success": {
+                "saved": "言語設定を保存しました。"
+            },
+            "title": "言語設定"
+        },
+        "notifications": {
+            "addChannel": "通知チャンネルを追加",
+            "confirmDelete": "通知チャンネル\"{name}\"を削除しますか？この操作は元に戻せません。",
+            "events": {
+                "2FA_DISABLED": "2段階認証無効",
+                "2FA_ENABLED": "2段階認証有効",
+                "ADMIN_SETUP_COMPLETE": "初期管理者設定完了",
+                "CONNECTIONS_EXPORTED": "接続がエクスポートされました",
+                "CONNECTION_CREATED": "接続作成",
+                "CONNECTION_DELETED": "接続削除",
+                "CONNECTION_UPDATED": "接続更新",
+                "DATABASE_MIGRATION": "データベース移行",
+                "IP_WHITELIST_UPDATED": "IP ホワイトリスト更新",
+                "LOGIN_FAILURE": "ログイン失敗",
+                "LOGIN_SUCCESS": "ログイン成功",
+                "LOGOUT": "ログアウト",
+                "NOTIFICATION_SETTING_CREATED": "通知設定作成",
+                "NOTIFICATION_SETTING_DELETED": "通知設定削除",
+                "NOTIFICATION_SETTING_UPDATED": "通知設定更新",
+                "PASSWORD_CHANGED": "パスワード変更",
+                "PROXY_CREATED": "プロキシ作成",
+                "PROXY_DELETED": "プロキシ削除",
+                "PROXY_UPDATED": "プロキシ更新",
+                "SETTINGS_UPDATED": "設定更新",
+                "SSH_CONNECT_FAILURE": "SSH 接続失敗",
+                "SSH_CONNECT_SUCCESS": "SSH 接続成功",
+                "SSH_SHELL_FAILURE": "SSH Shell オープン失敗",
+                "TAG_CREATED": "タグ作成",
+                "TAG_DELETED": "タグ削除",
+                "TAG_UPDATED": "タグ更新"
+            },
+            "form": {
+                "addTitle": "通知チャンネルの追加",
+                "channelType": "チャンネルタイプ:",
+                "channelTypeEditNote": "作成後はチャンネルタイプを変更できません。",
+                "editTitle": "通知チャンネルの編集",
+                "emailBodyPlaceholder": "デフォルト: イベントベースの通知内容。利用可能:",
+                "emailBodyTemplate": "メール本文テンプレート (オプション)",
+                "emailTo": "宛先メールアドレス:",
+                "emailToHelp": "複数のメールアドレスをカンマで区切ります。",
+                "enabledEvents": "有効なイベント:",
+                "fillRequiredToTest": "テストを有効にするには、必須フィールドを入力してください。",
+                "invalidJson": "無効な JSON 形式",
+                "name": "チャンネル名:",
+                "smtpFrom": "送信元メールアドレス:",
+                "smtpFromHelp": "'From' フィールドで使用されるアドレス。",
+                "smtpHost": "SMTP ホスト:",
+                "smtpPass": "SMTP パスワード:",
+                "smtpPort": "SMTP ポート:",
+                "smtpSecure": "TLS/SSL を使用",
+                "smtpUser": "SMTP ユーザー名:",
+                "telegramChatId": "チャット ID:",
+                "telegramMessagePlaceholder": "デフォルト: Markdown 形式。利用可能:",
+                "telegramMessageTemplate": "メッセージテンプレート (オプション)",
+                "telegramToken": "ボットトークン:",
+                "telegramTokenHelp": "安全に保管してください。環境変数の使用をお勧めします。",
+                "templateHelp": "利用可能なプレースホルダー:",
+                "testButton": "テスト通知",
+                "testFailed": "テスト通知の送信に失敗しました",
+                "testSuccess": "テスト通知の送信に成功しました！",
+                "webhookBodyPlaceholder": "デフォルト: JSON フォーマットのペイロード。利用可能:",
+                "webhookBodyTemplate": "リクエスト本文テンプレート (オプション)",
+                "webhookHeaders": "カスタムヘッダー",
+                "webhookMethod": "HTTP メソッド:"
+            },
+            "noChannels": "通知チャンネルが設定されていません。",
+            "noEventsEnabled": "有効なイベントはありません",
+            "title": "通知設定",
+            "triggers": "トリガーイベント",
+            "types": {
+                "email": "メール",
+                "telegram": "Telegram",
+                "webhook": "Webhook"
+            }
+        },
+        "passkey": {
+            "description": "Passkey (生体認証またはセキュリティキー) を使用してパスワードなし認証を行い、アカウントのセキュリティとログインの利便性を向上させます。",
+            "error": {
+                "cancelled": "Passkey の登録がキャンセルされました。",
+                "genericRegistration": "Passkey を登録できません: {message}",
+                "nameRequired": "Passkey 名を入力してください。",
+                "verificationFailed": "登録に失敗しました: {message}"
+            },
+            "nameLabel": "Passkey 名",
+            "namePlaceholder": "例: マイノートパソコン",
+            "registerButton": "新しい Passkey を登録",
+            "success": {
+                "registered": "Passkey の登録に成功しました！"
+            },
+            "title": "Passkey 設定"
+        },
+        "popupEditor": {
+            "enableLabel": "ファイルを開くときにポップアップエディターを表示する",
+            "error": {
+                "saveFailed": "ポップアップエディターの設定の保存に失敗しました。"
+            },
+            "saveButton": "設定を保存",
+            "success": {
+                "saved": "ポップアップエディターの設定を保存しました。"
+            },
+            "title": "ポップアップファイルエディター"
+        },
+        "shareEditorTabs": {
+            "description": "有効にすると、すべての SSH セッションが同じ開いているファイルエディタータブのセットを共有します。無効にすると、各セッションには独自の独立したタブのセットがあります。",
+            "enableLabel": "すべてのセッションでエディタータブを共有する",
+            "error": {
+                "saveFailed": "エディタータブの共有設定の保存に失敗しました。"
+            },
+            "saveButton": "設定を保存",
+            "success": {
+                "saved": "エディタータブの共有設定を保存しました。"
+            },
+            "title": "エディタータブ"
+        },
+        "statusMonitor": {
+            "error": {
+                "invalidInterval": "更新間隔は正の整数である必要があります。",
+                "saveFailed": "ステータスモニター設定の保存に失敗しました。"
+            },
+            "refreshIntervalHint": "サーバーの CPU、メモリ、ディスクなどのステータスを取得する頻度 (最小値は 1)。",
+            "refreshIntervalLabel": "ステータス更新間隔 (秒):",
+            "saveButton": "ステータスモニター設定を保存",
+            "success": {
+                "saved": "ステータスモニター設定を保存しました。"
+            },
+            "title": "ステータスモニター設定"
+        },
+        "title": "設定",
+        "twoFactor": {
+            "disable": {
+                "button": "2段階認証を無効にする",
+                "passwordPrompt": "現在のログインパスワードを入力して、無効にすることを確認してください:"
+            },
+            "enable": {
+                "button": "2段階認証を有効にする"
+            },
+            "error": {
+                "codeRequired": "コードを入力してください。",
+                "disableFailed": "2段階認証の無効化に失敗しました。",
+                "passwordRequiredForDisable": "無効にするには、現在のパスワードを入力する必要があります。",
+                "setupFailed": "2段階認証の設定情報の取得に失敗しました。",
+                "verificationFailed": "無効なコードまたは期限切れのコードです。"
+            },
+            "setup": {
+                "enterCode": "アプリで生成された 6 桁のコードを入力してください:",
+                "orEnterSecret": "または、シークレットキーを手動で入力してください:",
+                "scanQrCode": "Authenticator アプリを使用して、以下の QR コードをスキャンしてください:",
+                "verifyButton": "確認して有効にする"
+            },
+            "status": {
+                "disabled": "2段階認証は現在無効です。",
+                "enabled": "2段階認証は有効です。"
+            },
+            "success": {
+                "activated": "2段階認証が有効になりました！",
+                "disabled": "2段階認証が無効になりました。"
+            },
+            "title": "2段階認証 (TOTP)"
+        },
+        "workspace": {
+            "error": {
+                "sidebarPersistentSaveFailed": "サイドバーの設定の保存に失敗しました。"
+            },
+            "sidebarPersistentDescription": "有効にすると、サイドバーの外側をクリックしてもサイドバーは自動的に折りたたまれません。",
+            "sidebarPersistentLabel": "ポップアップ後にサイドバーを固定 (自動的に折りたたまない)",
+            "sidebarPersistentTitle": "サイドバーの動作",
+            "success": {
+                "sidebarPersistentSaved": "サイドバーの設定を保存しました。"
+            },
+            "title": "ワークスペースとターミナル"
+        }
+    },
+    "setup": {
+        "confirmPassword": "パスワードを再入力",
+        "confirmPasswordPlaceholder": "パスワードを再入力して確認",
+        "description": "最初の管理者アカウントを作成します。",
+        "error": {
+            "fieldsRequired": "ユーザー名とパスワードは必須です。",
+            "generic": "設定中にエラーが発生しました。サーバーログを確認してください。",
+            "passwordsDoNotMatch": "入力したパスワードが一致しません。"
+        },
+        "password": "パスワード",
+        "passwordPlaceholder": "パスワードを入力",
+        "settingUp": "アカウントを作成中...",
+        "submitButton": "アカウントを作成",
+        "success": "アカウントの作成に成功しました！ログインページにリダイレクトしています...",
+        "title": "初期設定",
+        "username": "ユーザー名",
+        "usernamePlaceholder": "ユーザー名を入力"
+    },
+    "slogan": "星垂平野闊，枢動万端通",
+    "statusMonitor": {
+        "bytesPerSecond": "B/秒",
+        "cpuLabel": "CPU:",
+        "cpuModelLabel": "CPU モデル:",
+        "diskLabel": "ディスク:",
+        "errorPrefix": "エラー:",
+        "gigaBytes": "GB",
+        "gigaBytesPerSecond": "GB/秒",
+        "kiloBytesPerSecond": "KB/秒",
+        "loading": "データを待機中...",
+        "megaBytes": "MB",
+        "megaBytesPerSecond": "MB/秒",
+        "memoryLabel": "メモリ:",
+        "networkLabel": "ネットワーク",
+        "notAvailable": "N/A",
+        "osLabel": "OS:",
+        "swapLabel": "スワップ:",
+        "swapNotAvailable": "スワップは利用できません",
+        "title": "サーバー状態"
+    },
+    "styleCustomizer": {
+        "activeTheme": "現在のテーマ",
+        "addNewTheme": "新しいテーマを作成",
+        "applyButton": "適用",
+        "applyThemeTooltip": "このテーマを適用",
+        "backgroundSettings": "背景設定",
+        "cannotDeletePreset": "プリセットテーマは削除できません",
+        "darkMode": "ダークモード",
+        "darkModeApplied": "ダークモードが適用されました",
+        "darkModeApplyFailed": "ダークモードの適用に失敗しました: {message}",
+        "defaultMode": "デフォルトモード",
+        "editAsCopy": "コピーとして編集",
+        "editThemeTitle": "ターミナルテーマの編集",
+        "editorFontSize": "エディターフォントサイズ",
+        "editorFontSizeSaveFailed": "エディターフォントサイズの保存に失敗しました: {message}",
+        "editorFontSizeSaved": "エディターフォントサイズを保存しました。",
+        "errorFixJsonBeforeSave": "保存する前に JSON フォーマットのエラーを修正してください。",
+        "errorInvalidEditorFontSize": "無効なフォントサイズです。正数を入力してください。",
+        "errorInvalidFontSize": "無効なフォントサイズです。正数を入力してください。",
+        "errorInvalidJsonConfig": "無効な JSON 設定",
+        "errorInvalidJsonObject": "無効な入力です。有効な JSON オブジェクトを入力してください。",
+        "errorThemeNameRequired": "テーマ名を入力してください。",
+        "exportActiveTheme": "現在のテーマをエクスポート",
+        "exportActiveThemeTooltip": "現在アクティブなテーマを JSON ファイルとしてエクスポート",
+        "exportFailed": "テーマのエクスポートに失敗しました: {message}",
+        "importFailed": "テーマのインポートに失敗しました。",
+        "importSuccess": "テーマのインポートに成功しました。",
+        "importTheme": "テーマをインポート",
+        "newThemeDefaultName": "新しいテーマ",
+        "newThemeTitle": "ターミナルテーマの作成",
+        "noBackground": "背景なし",
+        "otherSettings": "その他の設定",
+        "pageBackground": "ページの背景",
+        "pageBgRemoved": "ページの背景を削除しました。",
+        "pageBgUploadSuccess": "ページの背景のアップロードに成功しました。",
+        "removeBgFailed": "背景の削除に失敗しました: {message}",
+        "removePageBg": "ページの背景を削除",
+        "removeTerminalBg": "ターミナルの背景を削除",
+        "resetUiTheme": "UI テーマをリセット",
+        "saveUiTheme": "UI テーマを保存",
+        "searchThemePlaceholder": "テーマ名を検索...",
+        "setActiveThemeFailed": "アクティブなターミナルテーマの設定に失敗しました: {message}",
+        "terminalBackground": "ターミナルの背景",
+        "terminalBgRemoved": "ターミナルの背景を削除しました。",
+        "terminalBgUploadSuccess": "ターミナルの背景のアップロードに成功しました。",
+        "terminalFontDescription": "フォント名を入力し、カンマで区切ります。フォント名にスペースが含まれる場合は、引用符で囲んでください。",
+        "terminalFontFamily": "ターミナルフォント",
+        "terminalFontPlaceholder": "例: \"Fira Code\", Consolas, monospace",
+        "terminalFontSaveFailed": "ターミナルフォントの保存に失敗しました: {message}",
+        "terminalFontSaved": "ターミナルフォントを保存しました。",
+        "terminalFontSize": "ターミナルフォントサイズ",
+        "terminalFontSizeSaveFailed": "ターミナルフォントサイズの保存に失敗しました: {message}",
+        "terminalFontSizeSaved": "ターミナルフォントサイズを保存しました。",
+        "terminalStyles": "ターミナルスタイル",
+        "terminalThemeColorEditorTitle": "ターミナルテーマカラーエディター",
+        "terminalThemeJsonEditorDesc": "JSON を使用してターミナルテーマ設定を直接編集します。ここで変更を加えてテキスト領域からフォーカスを外すと、下のカラーピッカーが同期的に更新されます。",
+        "terminalThemeJsonEditorTitle": "ターミナルテーマ JSON エディター",
+        "terminalThemeSelection": "ターミナルテーマ",
+        "themeCreatedSuccess": "テーマの作成に成功しました。",
+        "themeDeleteFailed": "テーマの削除に失敗しました: {message}",
+        "themeDeletedSuccess": "テーマの削除に成功しました。",
+        "themeModeLabel": "テーマモード:",
+        "themeName": "テーマ名",
+        "themeSaveFailed": "テーマの保存に失敗しました。",
+        "themeUpdatedSuccess": "テーマの更新に成功しました。",
+        "title": "外観のカスタマイズ",
+        "uiDescription": "アプリケーションの UI の色、フォントなどを調整します。",
+        "uiStyles": "UI スタイル",
+        "uiThemeJsonEditorDesc": "JSON を使用して UI テーマ設定を直接編集します。ここで変更を加えてテキスト領域からフォーカスを外すと、上記のカラーピッカーが同期的に更新されます。",
+        "uiThemeJsonEditorTitle": "UI テーマ JSON エディター",
+        "uiThemeReset": "UI テーマをデフォルトにリセットしました。",
+        "uiThemeResetFailed": "UI テーマのリセットに失敗しました: {message}",
+        "uiThemeSaveFailed": "UI テーマの保存に失敗しました: {message}",
+        "uploadFailed": "アップロードに失敗しました: {message}",
+        "uploadPageBg": "ページの背景をアップロード",
+        "uploadTerminalBg": "ターミナルの背景をアップロード"
+    },
+    "tags": {
+        "addTag": "新しいタグを追加",
+        "deleteTagGlobally": "このタグをグローバルに削除",
+        "error": "タグリストのロードに失敗しました: {error}",
+        "inputPlaceholder": "検索またはタグを作成...",
+        "loading": "タグをロード中...",
+        "noTags": "タグがありません。'新しいタグを追加'をクリックして作成してください。",
+        "prompts": {
+            "confirmDelete": "\"{name}\"タグを削除しますか？この操作は元に戻せません。"
+        },
+        "removeSelection": "このタグの選択を解除",
+        "title": "タグ管理"
+    },
+    "terminalTabBar": {
+        "selectServerTitle": "接続するサーバーを選択"
+    },
+    "workspace": {
+        "terminal": {
+            "reconnectingMsg": "再接続を試行中..."
+        }
+    },
+    "workspaceConnectionList": {
+        "noResults": "\"{searchTerm}\"に一致する接続は見つかりませんでした。",
+        "searchPlaceholder": "名前またはホストを検索...",
+        "untagged": "タグなし"
     }
-  },
-  "workspaceConnectionList": {
-    "untagged": "タグなし",
-    "searchPlaceholder": "名前またはホストを検索...",
-    "noResults": "\"{searchTerm}\"に一致する接続は見つかりませんでした。"
-  },
-  "commandInputBar": {
-    "placeholder": "ここにコマンドを入力して Enter キーを押すと、ターミナルに送信されます...",
-    "searchPlaceholder": "ターミナル内で検索...",
-    "openSearch": "ターミナル検索を開く",
-    "closeSearch": "ターミナル検索を閉じる",
-    "findPrevious": "前を検索",
-    "findNext": "次を検索",
-    "configureFocusSwitch": "フォーカススイッチャーを設定"
-  },
-  "layout": {
-    "loading": "ロード中...",
-    "configure": "レイアウトを設定",
-    "pane": {
-      "connections": "接続リスト",
-      "terminal": "ターミナル",
-      "commandBar": "コマンドバー",
-      "fileManager": "ファイルマネージャー",
-      "editor": "エディター",
-      "statusMonitor": "ステータスモニター",
-      "commandHistory": "コマンド履歴",
-      "quickCommands": "クイックコマンド",
-      "dockerManager": "Docker マネージャー"
-    },
-    "noActiveSession": {
-      "title": "アクティブなセッションはありません",
-      "message": "最初にセッションに接続してください",
-      "fileManagerSidebar": "ファイルマネージャーにはアクティブなセッションが必要です",
-      "statusMonitorSidebar": "ステータスモニターにはアクティブなセッションが必要です"
-    }
-  },
-  "header": {
-    "hide": "非表示"
-  },
-  "commandHistory": {
-    "searchPlaceholder": "履歴を検索...",
-    "clear": "クリア",
-    "copy": "コピー",
-    "delete": "削除",
-    "loading": "ロード中...",
-    "empty": "履歴はありません",
-    "confirmClear": "すべての履歴をクリアしますか？",
-    "copied": "クリップボードにコピーしました",
-    "copyFailed": "コピーに失敗しました"
-  },
-  "quickCommands": {
-    "searchPlaceholder": "名前またはコマンドを検索...",
-    "add": "追加",
-    "sortByName": "名前",
-    "sortByUsage": "使用頻度",
-    "usageCount": "使用回数",
-    "empty": "クイックコマンドはありません。'+'ボタンをクリックして作成してください！",
-    "confirmDelete": "クイックコマンド\"{name}\"を削除しますか？",
-    "form": {
-      "titleAdd": "クイックコマンドの追加",
-      "titleEdit": "クイックコマンドの編集",
-      "name": "名前:",
-      "namePlaceholder": "オプション。素早く認識するために使用",
-      "command": "コマンド:",
-      "commandPlaceholder": "例：ls -alh /home/user",
-      "errorCommandRequired": "コマンドは空にできません",
-      "add": "追加"
-    }
-  },
-  "setup": {
-    "title": "初期設定",
-    "description": "最初の管理者アカウントを作成します。",
-    "username": "ユーザー名",
-    "usernamePlaceholder": "ユーザー名を入力",
-    "password": "パスワード",
-    "passwordPlaceholder": "パスワードを入力",
-    "confirmPassword": "パスワードを再入力",
-    "confirmPasswordPlaceholder": "パスワードを再入力して確認",
-    "submitButton": "アカウントを作成",
-    "settingUp": "アカウントを作成中...",
-    "success": "アカウントの作成に成功しました！ログインページにリダイレクトしています...",
-    "error": {
-      "passwordsDoNotMatch": "入力したパスワードが一致しません。",
-      "fieldsRequired": "ユーザー名とパスワードは必須です。",
-      "generic": "設定中にエラーが発生しました。サーバーログを確認してください。"
-    }
-  },
-  "focusSwitcher": {
-    "configTitle": "フォーカススイッチャーの設定",
-    "availableInputs": "利用可能な入力ソース",
-    "configuredSequence": "設定されたシーケンス（ドラッグしてソート）",
-    "dragHere": "左側からここに入力ボックスをドラッグ",
-    "allInputsConfigured": "すべての利用可能な入力ソースが設定されました",
-    "input": {
-      "commandHistorySearch": "コマンド履歴検索",
-      "quickCommandsSearch": "クイックコマンド検索",
-      "fileManagerSearch": "ファイルマネージャー検索",
-      "commandInput": "コマンド入力",
-      "terminalSearch": "ターミナル内検索",
-      "connectionListSearch": "接続リスト検索",
-      "fileEditorActive": "ファイルエディター",
-      "fileManagerPathInput": "ファイルマネージャーパス入力"
-    },
-    "confirmClose": "未保存の変更があります。閉じてもよろしいですか？",
-    "shortcutPlaceholder": "例：Alt + K",
-    "shortcutSettings": "ショートカット設定",
-    "noInputsAvailable": "設定可能な入力項目はありません"
-  },
-  "dockerManager": {
-    "loading": "Dockerコンテナをロード中...",
-    "notAvailable": "リモートホストのDockerは利用できません",
-    "installHintRemote": "リモートホストにDockerがインストールされ、実行されていることを確認してください。",
-    "error": {
-      "fetchFailed": "リモートコンテナの状態の取得に失敗しました",
-      "commandFailed": "リモートコマンド'{command}'の実行に失敗しました",
-      "invalidResponse": "無効なサーバー応答を受信しました",
-      "noActiveSession": "アクティブなセッションはありません",
-      "connectFirst": "最初にセッションに接続してください",
-      "sshDisconnected": "SSHセッションが切断されました。",
-      "sshError": "SSH接続エラー",
-      "sshNotConnected": "SSHセッションは接続されていません。"
-    },
-    "noContainers": "リモートホストで実行中または停止中のコンテナは見つかりませんでした。",
-    "header": {
-      "name": "名前",
-      "image": "イメージ",
-      "status": "ステータス",
-      "ports": "ポート",
-      "actions": "操作"
-    },
-    "action": {
-      "restart": "再起動",
-      "stop": "停止",
-      "start": "起動",
-      "remove": "削除"
-    },
-    "waitingForSsh": "SSH接続を待機中...",
-    "stats": {
-      "noData": "利用可能な統計データはありません。",
-      "cpu": "CPU使用率",
-      "memory": "メモリ使用量/制限",
-      "netIO": "ネットワークI/O",
-      "blockIO": "ブロックI/O",
-      "pids": "プロセス数"
-    }
-  },
-  "dashboard": {
-    "recentConnections": "最近の接続",
-    "lastConnected": "最終接続:",
-    "noRecentConnections": "最近の接続記録はありません",
-    "viewAllConnections": "すべての接続を表示",
-    "recentActivity": "最近のアクティビティ",
-    "noRecentActivity": "最近のアクティビティ記録はありません",
-    "viewFullAuditLog": "完全な監査ログを表示",
-    "connectionList": "接続リスト",
-    "noConnections": "接続記録がありません",
-    "sortOptions": {
-      "lastConnected": "最終接続",
-      "name": "名前",
-      "type": "タイプ",
-      "updated": "更新日時",
-      "created": "作成日時"
-    }
-  },
-  "terminalTabBar": {
-    "selectServerTitle": "接続するサーバーを選択"
-  }
 }
