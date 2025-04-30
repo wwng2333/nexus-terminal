@@ -106,7 +106,7 @@ docker-compose up -d
 ```
 ## 📚 Usage Guide
 
-Here are some hidden practical features to help you use Nexus Terminal more efficiently.
+Here are some useful hidden or implicit features.
 
 ### Command Input Component
 
