@@ -40,6 +40,7 @@
             class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
             :class="{ 'bg-primary/20 font-medium': index === storeSelectedIndex }"
             @click="executeCommand(entry.command)"
+            :title="entry.command"
           >
             <!-- Command Text -->
             <span class="truncate mr-2 flex-grow font-mono text-sm text-foreground">{{ entry.command }}</span>
