@@ -333,12 +333,19 @@ const sidebarProps = computed(() => (paneName: PaneName | null, side: 'left' | '
 // --- Methods ---
 // 处理 Splitpanes 大小调整事件
 const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string]: any }> }) => {
-  console.log('Splitpanes resized event object:', eventData); // 打印整个事件对象
+  // +++ 添加更详细的日志 +++
+  // +++ Log the entire layoutNode object if ID is undefined +++
+  if (props.layoutNode && typeof props.layoutNode.id === 'undefined') {
+    console.warn(`[LayoutRenderer DEBUG] handlePaneResize triggered but props.layoutNode.id is undefined. Full layoutNode prop:`, JSON.parse(JSON.stringify(props.layoutNode)));
+  }
+  console.log(`[LayoutRenderer DEBUG] handlePaneResize triggered for node ID: ${props.layoutNode?.id}, direction: ${props.layoutNode?.direction ?? 'N/A'}`); // Use optional chaining for safety
+  console.log('[LayoutRenderer DEBUG] Splitpanes resized event object:', eventData);
   const paneSizes = eventData.panes; // 从事件对象中提取 panes 数组
 
-  console.log('Extracted paneSizes:', paneSizes); // 打印提取出的数组
+  console.log('[LayoutRenderer DEBUG] Extracted paneSizes:', paneSizes); // 打印提取出的数组
 
-  if (props.layoutNode.type === 'container' && props.layoutNode.children) {
+  // +++ Use optional chaining for safety +++
+  if (props.layoutNode?.type === 'container' && props.layoutNode?.children) {
     // 确保 paneSizes 是一个数组
     if (!Array.isArray(paneSizes)) {
       console.error('[LayoutRenderer] handlePaneResize: 从事件对象提取的 panes 不是数组:', paneSizes);
@@ -350,8 +357,12 @@ const handlePaneResize = (eventData: { panes: Array<{ size: number; [key: string
         size: paneInfo.size
     }));
 
+    // +++ 添加调用 store action 前的日志 +++
+    console.log(`[LayoutRenderer DEBUG] Calling layoutStore.updateNodeSizes for node ID: ${props.layoutNode.id} with sizes:`, JSON.parse(JSON.stringify(childrenSizes)));
     // 调用 store action 来更新节点大小
     layoutStore.updateNodeSizes(props.layoutNode.id, childrenSizes);
+  } else {
+    console.log(`[LayoutRenderer DEBUG] handlePaneResize ignored for node ID: ${props.layoutNode.id} (type: ${props.layoutNode.type})`);
   }
 };
 
@@ -408,6 +419,11 @@ const getIconClasses = (paneName: PaneName): string[] => {
 
 // --- Sidebar Resize Logic ---
 onMounted(() => {
+  // +++ Log current layout tree from store on root mount +++
+  if (props.isRootRenderer) {
+    console.log('[LayoutRenderer DEBUG] Current layoutTree from store on mount:', JSON.stringify(layoutStore.layoutTree.value, null, 2));
+  }
+
   // Left Sidebar Resize
   useSidebarResize({
     sidebarRef: leftSidebarPanelRef,
