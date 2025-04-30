@@ -200,7 +200,7 @@ const gracefulShutdown = (signal: string) => {
 
   // 超时后强制退出
   setTimeout(() => {
-    console.error("优雅关闭超时。强制退出。");
+    console.error("关闭超时。强制退出。");
     process.exit(1);
   }, 10000); // 10 秒超时
 };
@@ -209,6 +209,5 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 process.on('SIGUSR2', () => {
-    // 优雅地处理 nodemon 重启
     gracefulShutdown('SIGUSR2 (nodemon restart)');
 });

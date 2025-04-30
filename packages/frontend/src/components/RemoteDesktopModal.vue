@@ -27,8 +27,9 @@ const connectionStatus = ref<'disconnected' | 'connecting' | 'connected' | 'erro
 const statusMessage = ref('');
 const keyboard = ref<any | null>(null);
 const mouse = ref<any | null>(null);
-const desiredModalWidth = ref(1064); 
-const desiredModalHeight = ref(858); 
+const desiredModalWidth = ref(1064);
+const desiredModalHeight = ref(858);
+const isKeyboardDisabledForInput = ref(false); // 标记键盘是否因输入框聚焦而禁用
 
 const MIN_MODAL_WIDTH = 1024;
 const MIN_MODAL_HEIGHT = 768;
@@ -134,6 +135,16 @@ const connectRdp = async () => {
           statusMessage.value = t('remoteDesktopModal.status.connected');
           connectionStatus.value = 'connected';
           setupInputListeners();
+          // 连接成功后，尝试将焦点设置到 RDP 显示区域
+          nextTick(() => {
+            const displayEl = guacClient.value?.getDisplay()?.getElement();
+            if (displayEl && typeof displayEl.focus === 'function') {
+              displayEl.focus();
+              console.log('[RDP Modal] Focused RDP display after connection.');
+            } else {
+              console.warn('[RDP Modal] Could not focus RDP display after connection.');
+            }
+          });
 
           setTimeout(() => {
             nextTick(() => {
@@ -179,6 +190,18 @@ const setupInputListeners = () => {
     if (!guacClient.value || !rdpDisplayRef.value) return;
     try {
         const displayEl = guacClient.value.getDisplay().getElement() as HTMLElement;
+        displayEl.tabIndex = 0; // 使 RDP 显示区域可聚焦
+
+        // 添加点击事件监听器以处理失焦逻辑
+        const handleRdpDisplayClick = () => {
+          const activeElement = document.activeElement as HTMLElement;
+          // 检查活动元素是否是宽度或高度输入框
+          if (activeElement && (activeElement.id === 'modal-width' || activeElement.id === 'modal-height')) {
+            activeElement.blur();
+            console.log('[RDP Modal] Blurred input field on RDP display click.');
+          }
+        };
+        displayEl.addEventListener('click', handleRdpDisplayClick);
 
         // @ts-ignore
         mouse.value = new Guacamole.Mouse(displayEl);
@@ -188,17 +211,25 @@ const setupInputListeners = () => {
                 guacClient.value.sendMouseState(mouseState);
             }
         };
+        // @ts-ignore
+        mouse.value.onmouseup = mouse.value.onmousemove = (mouseState: any) => {
+            if (guacClient.value) {
+                guacClient.value.sendMouseState(mouseState);
+            }
+        };
 
         // @ts-ignore
-        keyboard.value = new Guacamole.Keyboard(document); // 将监听器附加到 document 以便更好地捕获
+        keyboard.value = new Guacamole.Keyboard(displayEl); // 将监听器附加到 RDP 显示元素
 
         keyboard.value.onkeydown = (keysym: number) => {
-            if (guacClient.value) {
+            // 仅当输入框未聚焦时发送按键事件
+            if (guacClient.value && !isKeyboardDisabledForInput.value) {
                 guacClient.value.sendKeyEvent(1, keysym);
             }
         };
         keyboard.value.onkeyup = (keysym: number) => {
-             if (guacClient.value) {
+             // 仅当输入框未聚焦时发送按键事件
+             if (guacClient.value && !isKeyboardDisabledForInput.value) {
                 guacClient.value.sendKeyEvent(0, keysym);
              }
         };
@@ -212,9 +243,11 @@ const removeInputListeners = () => {
     if (keyboard.value) {
         keyboard.value.onkeydown = null;
         keyboard.value.onkeyup = null;
-        keyboard.value = null;
+        keyboard.value = null; // Guacamole 内部可能会处理移除监听器，但显式置 null 更好
     }
      if (mouse.value) {
+        // Guacamole Mouse 对象没有明确的 'destroy' 或 'removeListeners' 方法
+        // 我们需要确保事件处理器被移除
         mouse.value.onmousedown = null;
         mouse.value.onmouseup = null;
         mouse.value.onmousemove = null;
@@ -222,9 +255,26 @@ const removeInputListeners = () => {
     }
 };
 
+const disableRdpKeyboard = () => {
+  isKeyboardDisabledForInput.value = true;
+  console.log('[RDP Modal] Keyboard disabled for input focus.');
+};
+
+const enableRdpKeyboard = () => {
+  isKeyboardDisabledForInput.value = false;
+  console.log('[RDP Modal] Keyboard enabled after input blur.');
+  // 尝试将焦点移回 RDP 显示区域
+  nextTick(() => {
+    const displayEl = guacClient.value?.getDisplay()?.getElement();
+    if (displayEl && typeof displayEl.focus === 'function') {
+      displayEl.focus();
+    }
+  });
+};
 
 const disconnectRdp = () => {
   removeInputListeners();
+  isKeyboardDisabledForInput.value = false; // 确保状态重置
   if (guacClient.value) {
     guacClient.value.disconnect();
     guacClient.value = null;
@@ -415,6 +465,8 @@ const computedModalStyle = computed(() => {
               v-model.number="desiredModalWidth"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              @focus="disableRdpKeyboard"
+              @blur="enableRdpKeyboard"
             />
             <label for="modal-height" class="text-xs">{{ t('common.height') }}:</label>
             <input
@@ -423,6 +475,8 @@ const computedModalStyle = computed(() => {
               v-model.number="desiredModalHeight"
               step="10"
               class="w-16 px-1 py-0.5 text-xs border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              @focus="disableRdpKeyboard"
+              @blur="enableRdpKeyboard"
             />
              <!-- 添加重新连接按钮 -->
              <button

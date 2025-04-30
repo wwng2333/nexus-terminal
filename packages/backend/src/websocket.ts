@@ -465,16 +465,33 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
         if (isRdpProxy) {
             // Retrieve all necessary parameters passed from the upgrade handler
             const rdpToken = (request as any).rdpToken;
-            const rdpWidth = (request as any).rdpWidth;
-            const rdpHeight = (request as any).rdpHeight;
-            const rdpDpi = (request as any).rdpDpi;
+            const rdpWidthStr = (request as any).rdpWidth; // Get as string first
+            const rdpHeightStr = (request as any).rdpHeight; // Get as string first
+            // const rdpDpi = (request as any).rdpDpi; // Original DPI from URL - we will recalculate
 
-            if (!rdpToken || !rdpWidth || !rdpHeight || !rdpDpi) {
-                console.error(`WebSocket: RDP Proxy connection for ${ws.username} missing required parameters (token, width, height, dpi).`);
-                ws.send(JSON.stringify({ type: 'rdp:error', payload: 'Missing RDP connection parameters.' }));
+            // --- 新增：参数验证和 DPI 计算 ---
+            if (!rdpToken || !rdpWidthStr || !rdpHeightStr) { // Check string presence
+                console.error(`WebSocket: RDP Proxy connection for ${ws.username} missing required parameters (token, width, height).`);
+                ws.send(JSON.stringify({ type: 'rdp:error', payload: 'Missing RDP connection parameters (token, width, height).' }));
                 ws.close(1008, 'Missing RDP parameters');
                 return;
             }
+
+            const rdpWidth = parseInt(rdpWidthStr, 10);
+            const rdpHeight = parseInt(rdpHeightStr, 10);
+
+            if (isNaN(rdpWidth) || isNaN(rdpHeight) || rdpWidth <= 0 || rdpHeight <= 0) {
+                 console.error(`WebSocket: RDP Proxy connection for ${ws.username} has invalid width or height parameters.`);
+                 ws.send(JSON.stringify({ type: 'rdp:error', payload: 'Invalid width or height parameters.' }));
+                 ws.close(1008, 'Invalid RDP dimensions');
+                 return;
+            }
+
+            // 根据宽高的简单 DPI 计算逻辑 (如果宽度 > 1920，则 DPI=120，否则 DPI=96)
+            const calculatedDpi = rdpWidth > 1920 ? 120 : 96;
+            console.log(`WebSocket: RDP Proxy calculated DPI for ${ws.username} based on width ${rdpWidth}: ${calculatedDpi}`);
+            // --- 结束新增 ---
+
 
             // Determine RDP target URL based on deployment mode
             const deploymentMode = process.env.DEPLOYMENT_MODE; // Default to docker mode
@@ -492,8 +509,8 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
 
             // Ensure base URL doesn't end with a slash before appending query params
             const cleanRdpBaseUrl = rdpBaseUrl.endsWith('/') ? rdpBaseUrl.slice(0, -1) : rdpBaseUrl;
-            // Append ALL parameters to the target URL
-            const rdpTargetUrl = `${cleanRdpBaseUrl}/?token=${encodeURIComponent(rdpToken)}&width=${encodeURIComponent(rdpWidth)}&height=${encodeURIComponent(rdpHeight)}&dpi=${encodeURIComponent(rdpDpi)}`;
+            // Append ALL parameters to the target URL, using calculated DPI
+            const rdpTargetUrl = `${cleanRdpBaseUrl}/?token=${encodeURIComponent(rdpToken)}&width=${encodeURIComponent(rdpWidth)}&height=${encodeURIComponent(rdpHeight)}&dpi=${encodeURIComponent(calculatedDpi)}`; // 使用 calculatedDpi
 
             console.log(`WebSocket: RDP Proxy for ${ws.username} attempting to connect to ${rdpTargetUrl}`);
 
