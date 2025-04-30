@@ -1,22 +1,20 @@
 ![banner.png](https://lsky.tuyu.me/i/2025/04/30/681209e053db7.png)
-
-<h3><div align="center">星枢终端 | Nexus Terminal</div>
-
 ---
 
 <div align="center">
 
 [![Docker](https://img.shields.io/badge/-Docker-2496ED?style=flat-square&logo=docker&logoColor=white)][docker-url] [![License: GPL-3.0](https://img.shields.io/badge/License-GPL%203.0-4CAF50?style=flat-square)](https://github.com/Heavrnl/nexus-terminal/blob/main/LICENSE)
+<br>
+[中文](./README.md) | [English](./doc/README_EN.md)
 
 [docker-url]: https://hub.docker.com/r/heavrnl/nexus-terminal-frontend
 
 </div>
 
 
-
 ## 📖 概述
 
-**Nexus Terminal** 是一款现代化、功能丰富的 Web 端 SSH / RDP 客户端，致力于提供高度可定制的远程连接体验。
+**星枢终端（Nexus Terminal）** 是一款现代化、功能丰富的 Web 端 SSH / RDP 客户端，致力于提供高度可定制的远程连接体验。
 
 ## ✨ 功能特性
 
@@ -159,3 +157,4 @@ docker-compose up -d
 ## 📄 开源协议
 
 本项目采用 [GPL-3.0](LICENSE) 开源协议，详细信息请参阅 [LICENSE](LICENSE) 文件。
+
