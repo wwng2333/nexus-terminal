@@ -506,7 +506,7 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                 if (rdpWs.readyState === WebSocket.OPEN) {
                     // --- 添加中文日志 ---
                     const messageString = message.toString('utf-8'); // 尝试解码为 UTF-8
-                    console.log(`[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (前 100 字符): ${messageString.substring(0, 100)}`);
+                    // console.log(`[RDP 代理 C->S] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (前 100 字符): ${messageString.substring(0, 100)}`);
                     // --- 结束日志 ---
                     rdpWs.send(message);
                 } else {
@@ -520,7 +520,7 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                     // 将 RawData (可能是 Buffer) 转换为 UTF-8 字符串再发送
                     const messageString = message.toString('utf-8');
                     // --- 添加中文日志 ---
-                    console.log(`[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (前 100 字符): ${messageString.substring(0, 100)}`);
+                    // console.log(`[RDP 代理 S->C] 用户: ${ws.username}, 会话: ${ws.sessionId}, 转发消息 (前 100 字符): ${messageString.substring(0, 100)}`);
                     // --- 结束日志 ---
                     ws.send(messageString);
                 } else {
