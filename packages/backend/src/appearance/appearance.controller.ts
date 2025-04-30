@@ -3,9 +3,10 @@ import * as appearanceService from '../services/appearance.service';
 import { UpdateAppearanceDto } from '../types/appearance.types';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs'; // Keep fs for sync operations if needed, add promises for async
+import fsp from 'fs/promises'; // Use fs.promises for async file operations
 
-// --- 背景图片上传配置 ---
+// --- 背景图片上传配置 (保持不变) ---
 const backgroundStorage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadPath = path.join(__dirname, '../../uploads/backgrounds/');
@@ -14,7 +15,6 @@ const backgroundStorage = multer.diskStorage({
         cb(null, uploadPath);
     },
     filename: (req, file, cb) => {
-        // 使用时间戳和原始文件名（去除特殊字符）创建唯一文件名
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
         cb(null, uniqueSuffix + '-' + safeOriginalName);
@@ -24,7 +24,6 @@ const backgroundStorage = multer.diskStorage({
 const backgroundUpload = multer({
     storage: backgroundStorage,
     fileFilter: (req, file, cb) => {
-        // 允许常见的图片格式
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
         if (allowedTypes.includes(file.mimetype)) {
             cb(null, true);
@@ -36,9 +35,8 @@ const backgroundUpload = multer({
 });
 
 
-
 /**
- * 获取外观设置
+ * 获取外观设置 (保持不变)
  */
 export const getAppearanceSettingsController = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -50,19 +48,16 @@ export const getAppearanceSettingsController = async (req: Request, res: Respons
 };
 
 /**
- * 更新外观设置
+ * 更新外观设置 (保持不变)
  */
 export const updateAppearanceSettingsController = async (req: Request, res: Response): Promise<void> => {
     try {
         const settingsDto: UpdateAppearanceDto = req.body;
-        // 注意：背景图片通常通过单独的上传接口处理，这里只更新文本类设置
         const success = await appearanceService.updateSettings(settingsDto);
         if (success) {
-            // 获取更新后的设置并返回
             const updatedSettings = await appearanceService.getSettings();
             res.status(200).json(updatedSettings);
         } else {
-            // 理论上更新单行设置总能找到 ID=1 的行，除非数据库有问题
             res.status(500).json({ message: '更新外观设置似乎失败了' });
         }
     } catch (error: any) {
@@ -72,7 +67,7 @@ export const updateAppearanceSettingsController = async (req: Request, res: Resp
 
 
 /**
- * 上传页面背景图片
+ * 上传页面背景图片 (修改返回路径)
  */
 export const uploadPageBackgroundController = async (req: Request, res: Response): Promise<void> => {
     if (!req.file) {
@@ -80,16 +75,15 @@ export const uploadPageBackgroundController = async (req: Request, res: Response
         return;
     }
     try {
-        // 文件已由 multer 保存到 uploads/backgrounds/
-        // 返回相对于服务器根目录的文件路径，供前端使用
-        const relativePath = `/uploads/backgrounds/${req.file.filename}`;
+        // 构建新的 API 路径
+        const apiPath = `/api/v1/appearance/background/file/${req.file.filename}`;
 
-        // 更新数据库中的设置
-        await appearanceService.updateSettings({ pageBackgroundImage: relativePath });
+        // 更新数据库中的设置，保存 API 路径
+        await appearanceService.updateSettings({ pageBackgroundImage: apiPath });
 
-        res.status(200).json({ message: '页面背景上传成功', filePath: relativePath });
+        // 返回新的 API 路径给前端
+        res.status(200).json({ message: '页面背景上传成功', filePath: apiPath });
     } catch (error: any) {
-        // 如果出错，尝试删除已上传的文件
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlink(req.file.path, (err) => {
                 if (err) console.error("删除上传失败的背景文件时出错:", err);
@@ -100,7 +94,7 @@ export const uploadPageBackgroundController = async (req: Request, res: Response
 };
 
 /**
- * 上传终端背景图片
+ * 上传终端背景图片 (修改返回路径)
  */
 export const uploadTerminalBackgroundController = async (req: Request, res: Response): Promise<void> => {
      if (!req.file) {
@@ -108,9 +102,14 @@ export const uploadTerminalBackgroundController = async (req: Request, res: Resp
         return;
     }
     try {
-        const relativePath = `/uploads/backgrounds/${req.file.filename}`;
-        await appearanceService.updateSettings({ terminalBackgroundImage: relativePath });
-        res.status(200).json({ message: '终端背景上传成功', filePath: relativePath });
+        // 构建新的 API 路径
+        const apiPath = `/api/v1/appearance/background/file/${req.file.filename}`;
+
+        // 更新数据库中的设置，保存 API 路径
+        await appearanceService.updateSettings({ terminalBackgroundImage: apiPath });
+
+        // 返回新的 API 路径给前端
+        res.status(200).json({ message: '终端背景上传成功', filePath: apiPath });
     } catch (error: any) {
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlink(req.file.path, (err) => {
@@ -121,11 +120,54 @@ export const uploadTerminalBackgroundController = async (req: Request, res: Resp
     }
 };
 
-// 导出 multer 中间件以便在路由中使用
+/**
+ * 新增：获取背景图片文件
+ */
+export const getBackgroundFileController = async (req: Request, res: Response): Promise<void> => {
+    const filename = req.params.filename;
+
+    // 基本安全检查，防止路径遍历等
+    if (!filename || typeof filename !== 'string' || filename.includes('..') || filename.includes('/')) {
+        res.status(400).json({ message: '无效的文件名' });
+        return;
+    }
+
+    try {
+        // 构建文件的绝对路径 (基于 multer 的保存位置)
+        const absolutePath = path.join(__dirname, '../../uploads/backgrounds/', filename);
+
+        // 检查文件是否存在且可读
+        await fsp.access(absolutePath, fs.constants.R_OK);
+
+        // 发送文件
+        res.sendFile(absolutePath, (err) => {
+             if (err) {
+                console.error(`[AppearanceController] 发送文件时出错 (${absolutePath}):`, err);
+                // 避免在已发送响应头后再次发送
+                if (!res.headersSent) {
+                     res.status(500).json({ message: '发送文件时出错' });
+                }
+             }
+        });
+
+    } catch (error: any) {
+        if (error.code === 'ENOENT') {
+            console.warn(`[AppearanceController] 请求的背景文件未找到: ${filename}`);
+            res.status(404).json({ message: '文件未找到' });
+        } else {
+            console.error(`[AppearanceController] 获取背景文件时出错 (${filename}):`, error);
+            res.status(500).json({ message: '获取背景文件时出错', error: error.message });
+        }
+    }
+};
+
+
+// 导出 multer 中间件以便在路由中使用 (保持不变)
 export const uploadPageBackgroundMiddleware = backgroundUpload.single('pageBackgroundFile');
 export const uploadTerminalBackgroundMiddleware = backgroundUpload.single('terminalBackgroundFile');
+
 /**
- * 移除页面背景图片
+ * 移除页面背景图片 (保持不变，Service 层会处理路径解析)
  */
 export const removePageBackgroundController = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -137,7 +179,7 @@ export const removePageBackgroundController = async (req: Request, res: Response
 };
 
 /**
- * 移除终端背景图片
+ * 移除终端背景图片 (保持不变，Service 层会处理路径解析)
  */
 export const removeTerminalBackgroundController = async (req: Request, res: Response): Promise<void> => {
     try {

@@ -27,6 +27,9 @@ router.post(
     appearanceController.uploadTerminalBackgroundController
 );
 
+// 新增：GET /api/v1/appearance/background/file/:filename - 获取背景图片文件
+router.get('/background/file/:filename', appearanceController.getBackgroundFileController);
+
 // DELETE /api/v1/appearance/background/page - 删除页面背景图片
 router.delete('/background/page', appearanceController.removePageBackgroundController);
 

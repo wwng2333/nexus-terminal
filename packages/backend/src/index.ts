@@ -184,7 +184,7 @@ const uploadsPath = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsPath)) { // 确保 uploads 目录存在
     fs.mkdirSync(uploadsPath, { recursive: true });
 }
-app.use('/uploads', express.static(uploadsPath));
+// app.use('/uploads', express.static(uploadsPath)); // 不再需要，文件通过 API 提供
 
 
 // 扩展 Express Request 类型
