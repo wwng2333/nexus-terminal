@@ -43,28 +43,23 @@
 
 |                            终端界面（Light）                            |
 |:-------------------------------------------------------------:|
-| ![image](https://i.111666.best/image/9BEiHGtlIBrCY2wMDeon7X.png) |
+| ![workspace_light.png](https://lsky.tuyu.me/i/2025/04/30/68120a8dd0489.png) |
 
 ---
 
 |                            终端界面（Darker）                            |
 |:-------------------------------------------------------------:|
-| ![image](https://i.111666.best/image/8wdW1ffDRR5TcsHrCeHusc.png) |
+| ![workspace_darker.png](https://lsky.tuyu.me/i/2025/04/30/68120aa275a76.png) |
 
 ---
 
 
-<!-- |                        终端界面（Light）                        |                        终端界面（Darker）                        |
-|:-------------------------------------------------------------:|:-------------------------------------------------------------:|
-| ![image](https://i.111666.best/image/9BEiHGtlIBrCY2wMDeon7X.png) | ![image](https://i.111666.best/image/8wdW1ffDRR5TcsHrCeHusc.png) |
-
---- -->
 
 
 
 |                          样式设置                            |                          布局设置                            |                          设置面板                            |
 |:-------------------------------------------------------------:|:-------------------------------------------------------------:|:-------------------------------------------------------------:|
-| ![image](https://i.111666.best/image/P1RxdXJhY0Q6G6VUm6H5Ws.png) | ![image](https://i.111666.best/image/PLd79JcWkH3WNuSZBuUQHC.png) | ![image](https://i.111666.best/image/ZpLbvsUdrf5IIaEHsBJ2Of.png) |
+| ![ui.png](https://lsky.tuyu.me/i/2025/04/30/68120acb7a6fb.png) | ![layout.png](https://lsky.tuyu.me/i/2025/04/30/68120ac6d6a51.png) | ![settings.png](https://lsky.tuyu.me/i/2025/04/30/68120ac76bcb8.png) |
 
 
 
