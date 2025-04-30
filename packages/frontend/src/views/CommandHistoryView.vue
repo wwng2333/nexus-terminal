@@ -131,16 +131,11 @@ const scrollToSelected = async (index: number) => { // Accept index as argument
   const selectedItem = listElement.children[index] as HTMLLIElement;
 
   if (selectedItem) {
-    const listRect = listElement.getBoundingClientRect();
-    const itemRect = selectedItem.getBoundingClientRect();
-
-    if (itemRect.top < listRect.top) {
-      // Item is above the visible area
-      listElement.scrollTop -= listRect.top - itemRect.top;
-    } else if (itemRect.bottom > listRect.bottom) {
-      // Item is below the visible area
-      listElement.scrollTop += itemRect.bottom - listRect.bottom;
-    }
+    // 使用 scrollIntoView 使元素可见，滚动最小距离
+    selectedItem.scrollIntoView({
+      behavior: 'smooth', // 可以使用 'auto' 来实现即时滚动
+      block: 'nearest',
+    });
   }
 };
 
