@@ -663,6 +663,17 @@
       },
       "error": {
         "saveFailed": "Failed to save sync target."
+      },
+      "timezone": {
+        "title": "Timezone Settings",
+        "selectLabel": "Select Timezone:",
+        "description": "Timestamps in notifications will be formatted according to this timezone.",
+        "success": {
+          "saved": "Timezone setting saved successfully."
+        },
+        "error": {
+          "saveFailed": "Failed to save timezone setting."
+        }
       }
     }
   },
@@ -907,7 +918,8 @@
     "confirmClose": "You have unsaved changes. Are you sure you want to close?",
     "shortcutPlaceholder": "e.g., Alt+K",
     "shortcutSettings": "Shortcut Settings",
-    "noInputsAvailable": "No configurable inputs available"
+    "noInputsAvailable": "No configurable inputs available",
+    "altSwitchHint": "Hint: Press the Alt key to quickly switch focus between configured input sources."
   },
   "dockerManager": {
     "loading": "Loading Docker Containers...",

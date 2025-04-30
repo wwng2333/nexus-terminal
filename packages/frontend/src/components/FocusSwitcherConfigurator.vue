@@ -213,6 +213,10 @@ const localAvailableInputs = computed(() => {
       </header>
 
       <div class="flex-grow p-6 flex flex-col gap-6 bg-background overflow-y-auto">
+<!-- Alt Switch Hint -->
+        <p class="text-sm text-text-secondary italic mb-4">
+          {{ t('focusSwitcher.altSwitchHint', '提示：按下 Alt 键可在配置的输入源之间快速切换焦点。') }}
+        </p>
         <!-- Top Row: Available & Configured -->
         <div class="flex gap-6 flex-shrink-0 min-h-[300px]">
           <!-- Available Inputs -->
@@ -285,7 +289,7 @@ const localAvailableInputs = computed(() => {
                 type="text"
                 v-model="localItemConfigs[input.id].shortcut"
                 class="shortcut-input w-24 px-2 py-1 border border-border rounded bg-background text-foreground text-xs text-center flex-shrink-0 placeholder-text-alt italic"
-                :placeholder="t('focusSwitcher.shortcutPlaceholder')"
+                :placeholder="t('focusSwitcher.shortcutPlaceholder', '例如 Alt+K')"
                 @keydown.prevent="captureShortcut($event, localItemConfigs[input.id])"
               />
             </div>

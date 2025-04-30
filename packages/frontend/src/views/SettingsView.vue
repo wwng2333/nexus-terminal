@@ -440,10 +440,10 @@
               <hr class="border-border/50"> <!-- Separator -->
               <!-- Timezone Setting -->
               <div class="settings-section-content">
-                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.timezone.title', '时区设置') }}</h3>
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.timezone.title') }}</h3>
                  <form @submit.prevent="handleUpdateTimezone" class="space-y-4">
                    <div>
-                     <label for="timezoneSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.timezone.selectLabel', '选择时区') }}</label>
+                     <label for="timezoneSelect" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.timezone.selectLabel') }}</label>
                      <select id="timezoneSelect" v-model="selectedTimezone"
                              class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none bg-no-repeat bg-right pr-8"
                              style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.75rem center; background-size: 16px 12px;">
@@ -451,7 +451,7 @@
                          {{ tz }}
                        </option>
                      </select>
-                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.timezone.description', '通知中的时间戳将根据此时区进行格式化。') }}</small>
+                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.timezone.description') }}</small>
                    </div>
                    <div class="flex items-center justify-between">
                       <button type="submit"
@@ -877,11 +877,11 @@ const handleUpdateTimezone = async () => {
     timezoneSuccess.value = false;
     try {
         await settingsStore.updateSetting('timezone', selectedTimezone.value);
-        timezoneMessage.value = t('settings.timezone.success.saved', '时区设置已保存'); // 需要添加翻译
+        timezoneMessage.value = t('settings.timezone.success.saved');
         timezoneSuccess.value = true;
     } catch (error: any) {
         console.error('更新时区设置失败:', error);
-        timezoneMessage.value = error.message || t('settings.timezone.error.saveFailed', '保存时区设置失败'); // 需要添加翻译
+        timezoneMessage.value = error.message || t('settings.timezone.error.saveFailed');
         timezoneSuccess.value = false;
     } finally {
         timezoneLoading.value = false;
