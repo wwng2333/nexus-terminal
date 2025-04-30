@@ -1,4 +1,4 @@
-![img](packages/frontend/src/assets/banner.png)
+![banner.png](https://lsky.tuyu.me/i/2025/04/30/681209e053db7.png)
 
 <h3><div align="center">星枢终端 | Nexus Terminal</div>
 
