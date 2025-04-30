@@ -396,7 +396,7 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
             extWs.isAlive = false;
             extWs.ping(() => {});
         });
-    }, 60000); // 增加到 60 秒心跳间隔
+    }, 5000); // 增加到 60 秒心跳间隔
 
     // --- WebSocket 升级处理 (认证) ---
     server.on('upgrade', (request: Request, socket, head) => {
