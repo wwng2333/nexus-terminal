@@ -259,7 +259,8 @@
       "cdToTerminal": "将终端目录切换到当前路径",
       "copy": "复制",
       "cut": "剪切",
-      "paste": "粘贴"
+      "paste": "粘贴",
+      "openEditor": "打开编辑器"
     },
     "headers": {
       "type": "类型",

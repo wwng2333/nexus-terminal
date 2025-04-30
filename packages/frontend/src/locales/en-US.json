@@ -259,7 +259,8 @@
       "cdToTerminal": "Change terminal directory to current path",
       "copy": "Copy",
       "cut": "Cut",
-      "paste": "Paste"
+      "paste": "Paste",
+      "openEditor": "Open Editor"
     },
     "headers": {
       "type": "Type",

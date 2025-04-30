@@ -244,6 +244,7 @@
             "newFolder": "新しいフォルダー",
             "parentDirectory": "上位ディレクトリ",
             "paste": "貼り付け",
+            "openEditor": "エディターを開く",
             "refresh": "更新",
             "rename": "名前を変更",
             "save": "保存",

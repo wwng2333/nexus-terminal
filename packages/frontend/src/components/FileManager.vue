@@ -5,11 +5,11 @@ import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia'; 
 import { createSftpActionsManager, type WebSocketDependencies } from '../composables/useSftpActions';
 import { useFileUploader } from '../composables/useFileUploader';
-import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; 
+import { useFileEditorStore, type FileInfo } from '../stores/fileEditor.store'; // 确保已导入
 import { useSessionStore } from '../stores/session.store';
-import { useSettingsStore } from '../stores/settings.store'; 
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; 
-import { useFileManagerContextMenu, type ClipboardState } from '../composables/file-manager/useFileManagerContextMenu'; 
+import { useSettingsStore } from '../stores/settings.store';
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store';
+import { useFileManagerContextMenu, type ClipboardState } from '../composables/file-manager/useFileManagerContextMenu';
 import { useFileManagerSelection } from '../composables/file-manager/useFileManagerSelection'; 
 import { useFileManagerDragAndDrop } from '../composables/file-manager/useFileManagerDragAndDrop'; 
 import { useFileManagerKeyboardNavigation } from '../composables/file-manager/useFileManagerKeyboardNavigation'; 
@@ -93,7 +93,7 @@ const {
 );
 
 // 实例化其他 Stores
-const fileEditorStore = useFileEditorStore(); // 用于共享模式
+const fileEditorStore = useFileEditorStore(); // 实例化 File Editor Store
 // const sessionStore = useSessionStore(); // 已在上面实例化
 const settingsStore = useSettingsStore(); // +++ 实例化 Settings Store +++
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
@@ -103,6 +103,7 @@ const {
   shareFileEditorTabsBoolean,
   fileManagerRowSizeMultiplierNumber, // +++ 获取行大小 getter +++
   fileManagerColWidthsObject, // +++ 获取列宽 getter +++
+  showPopupFileEditorBoolean, // +++ 获取弹窗设置状态 +++
 } = storeToRefs(settingsStore); // 使用 storeToRefs 保持响应性
 
 
@@ -1096,6 +1097,16 @@ const sendCdCommandToTerminal = () => {
 };
 
 
+// --- 新增：打开弹窗编辑器的方法 ---
+const openPopupEditor = () => {
+  if (!props.sessionId) {
+    console.error('[FileManager] Cannot open popup editor: Missing session ID.');
+    // 可以添加 UI 通知
+    return;
+  }
+  console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering popup editor without specific file.`);
+  fileEditorStore.triggerPopup('', props.sessionId); // 修复：使用空字符串触发空编辑器
+};
 // --- 行大小调整逻辑 ---
 const handleWheel = (event: WheelEvent) => {
     if (event.ctrlKey) {
@@ -1145,6 +1156,18 @@ const focusSearchInput = (): boolean => {
 };
 defineExpose({ focusSearchInput, startPathEdit });
 
+// --- 新增：处理“打开编辑器”按钮点击 ---
+const handleOpenEditorClick = () => {
+  if (!props.sessionId) {
+    console.error(`[FileManager ${props.instanceId}] Cannot open editor: Missing session ID.`);
+    // TODO: Show error notification to user
+    return;
+  }
+  console.log(`[FileManager ${props.sessionId}-${props.instanceId}] Triggering popup editor directly.`);
+  // 暂时使用 triggerPopup，传递空字符串表示空编辑器
+  // 后续可能需要 fileEditorStore.triggerEmptyPopup(props.sessionId);
+  fileEditorStore.triggerPopup('', props.sessionId); // 修复：传递空字符串而不是 null
+};
 </script>
 
 <template>
@@ -1243,6 +1266,18 @@ defineExpose({ focusSearchInput, startPathEdit });
        <!-- Main Actions Bar -->
        <div class="flex items-center gap-2 flex-shrink-0">
             <input type="file" ref="fileInputRef" @change="handleFileSelected" multiple class="hidden" />
+            <!-- 新增：打开编辑器按钮 -->
+            <button
+              v-if="showPopupFileEditorBoolean"
+              @click="openPopupEditor"
+              :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
+              :title="t('fileManager.actions.openEditor', 'Open Popup Editor')"
+              class="flex items-center gap-1 px-2.5 py-1 bg-background border border-border rounded text-foreground text-xs transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-header hover:enabled:border-primary hover:enabled:text-primary"
+            >
+              <i class="far fa-edit text-sm"></i> <!-- 使用编辑图标 -->
+              <span>{{ t('fileManager.actions.openEditor', 'Open Editor') }}</span> <!-- 添加 i18n key -->
+            </button>
+            <!-- 上传按钮 -->
             <button
               @click="triggerFileUpload"
               :disabled="!currentSftpManager || !props.wsDeps.isConnected.value"
