@@ -35,6 +35,21 @@ watch(selectedKeyId, (newVal) => {
     }
 });
 
+// Watch for changes in the keys list itself
+watch(keys, (newKeys) => {
+ // If a key ID is selected (from props/v-model)
+ if (selectedKeyId.value !== null) {
+   // Check if that ID still exists in the newly loaded/updated list
+   const keyExists = newKeys.some(key => key.id === selectedKeyId.value);
+   if (!keyExists) {
+     // If the selected key ID is no longer valid (e.g., deleted), reset the selection
+     console.warn(`[SshKeySelector] Selected key ID ${selectedKeyId.value} not found in updated list. Resetting.`);
+     selectedKeyId.value = null; // This will trigger the watcher above to emit update:modelValue
+   }
+   // If the key *does* exist, the v-model binding on <select> should handle selecting it automatically when options render.
+ }
+}, { immediate: false }); // Don't run immediately, only when keys actually change
+
 const openManagementModal = () => {
     isManagementModalVisible.value = true;
     // Refresh keys list when modal opens, in case keys were added/deleted elsewhere

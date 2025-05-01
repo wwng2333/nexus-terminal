@@ -12,6 +12,7 @@ export interface ConnectionInfo {
     auth_method: 'password' | 'key';
     proxy_id?: number | null; // 新增：关联的代理 ID (可选)
     tag_ids?: number[]; // 新增：关联的标签 ID 数组 (可选)
+    ssh_key_id?: number | null; // +++ 新增：关联的 SSH 密钥 ID (可选) +++
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;

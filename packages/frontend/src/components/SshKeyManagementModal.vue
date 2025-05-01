@@ -129,7 +129,7 @@ const cancelForm = () => {
                     <button @click="showAddForm"
                             class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
                             :disabled="isLoading">
-                        <i class="fas fa-plus mr-2"></i>{{ t('sshKeys.modal.addKey') }}
+                        <i class="fas fa-plus mr-2" style="color: white;"></i>{{ t('sshKeys.modal.addKey') }} <!-- Use inline style for white color -->
                     </button>
                 </div>
 
@@ -193,13 +193,13 @@ const cancelForm = () => {
                         <label for="key-private" class="block text-sm font-medium text-text-secondary mb-1">{{ t('sshKeys.modal.privateKey') }}</label>
                         <textarea id="key-private" v-model="formData.private_key" rows="8" required
                                   class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
-                         <small v-if="keyToEdit" class="block text-xs text-text-secondary mt-1">{{ t('sshKeys.modal.keyUpdateNote') }}</small>
+                         <!-- <small v-if="keyToEdit" class="block text-xs text-text-secondary mt-1">{{ t('sshKeys.modal.keyUpdateNote') }}</small> -->
                     </div>
                      <div>
                         <label for="key-passphrase" class="block text-sm font-medium text-text-secondary mb-1">{{ t('sshKeys.modal.passphrase') }} ({{ t('connections.form.optional') }})</label>
                         <input type="password" id="key-passphrase" v-model="formData.passphrase" autocomplete="new-password"
                                class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
-                         <small v-if="keyToEdit" class="block text-xs text-text-secondary mt-1">{{ t('sshKeys.modal.passphraseUpdateNote') }}</small>
+                         <!-- <small v-if="keyToEdit" class="block text-xs text-text-secondary mt-1">{{ t('sshKeys.modal.passphraseUpdateNote') }}</small> -->
                     </div>
 
                      <!-- Form Error -->

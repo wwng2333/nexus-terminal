@@ -16,14 +16,15 @@ interface ConnectionBase {
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;
+    ssh_key_id?: number | null; // +++ Add ssh_key_id here as well +++
 }
 
-// ConnectionWithTagsRow implicitly includes 'type' via ConnectionBase
+// ConnectionWithTagsRow implicitly includes 'type' and 'ssh_key_id' via ConnectionBase
 interface ConnectionWithTagsRow extends ConnectionBase {
     tag_ids_str: string | null;
 }
 
-// ConnectionWithTags implicitly includes 'type' via ConnectionBase
+// ConnectionWithTags implicitly includes 'type' and 'ssh_key_id' via ConnectionBase
 export interface ConnectionWithTags extends ConnectionBase {
     tag_ids: number[];
 }
@@ -60,7 +61,7 @@ interface FullConnectionDbRow extends FullConnectionData {
 export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]> => {
     const sql = `
         SELECT
-            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id,
+            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.ssh_key_id, -- +++ Select ssh_key_id +++
             c.created_at, c.updated_at, c.last_connected_at,
             GROUP_CONCAT(ct.tag_id) as tag_ids_str
          FROM connections c

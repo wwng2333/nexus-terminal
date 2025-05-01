@@ -85,18 +85,29 @@ watch(() => props.connectionToEdit, (newVal) => {
         formData.username = newVal.username;
         formData.auth_method = newVal.auth_method;
         formData.proxy_id = newVal.proxy_id ?? null;
-        formData.tag_ids = newVal.tag_ids ? [...newVal.tag_ids] : []; // 填充 tag_ids (深拷贝)
-        // 清空敏感字段
-        formData.password = '';
-        formData.private_key = '';
-        formData.passphrase = '';
-    } else {
-        // 添加模式：重置表单
-        Object.assign(formData, initialFormData);
+       formData.tag_ids = newVal.tag_ids ? [...newVal.tag_ids] : []; // 填充 tag_ids (深拷贝)
+
+       // +++ 填充 selected_ssh_key_id (如果认证方式是 key) +++
+       if (newVal.auth_method === 'key') {
+           formData.selected_ssh_key_id = newVal.ssh_key_id ?? null;
+       } else {
+           formData.selected_ssh_key_id = null; // 清空，以防之前是 key
+       }
+
+       // 清空敏感字段 (密码和直接输入的密钥)
+       formData.password = '';
+       formData.private_key = ''; // 即使是 key 认证，编辑时也不显示旧的直接输入密钥
+       formData.passphrase = ''; // 同上
+
+   } else {
+       // 添加模式：重置表单
+       Object.assign(formData, initialFormData);
+       formData.tag_ids = []; // 确保 tag_ids 也被重置为空数组
+       formData.selected_ssh_key_id = null; // 确保添加模式下也重置
     }
 }, { immediate: true });
 
-// 组件挂载时获取代理和标签列表
+// 组件挂载时获取代理、标签和 SSH 密钥列表
 onMounted(() => {
     proxiesStore.fetchProxies();
     tagsStore.fetchTags(); // 获取标签列表
@@ -434,9 +445,9 @@ const testButtonText = computed(() => {
 
               <!-- Direct Key Input Removed -->
                <!-- Note for selected key -->
-               <div v-if="isEditMode && formData.auth_method === 'key' && formData.selected_ssh_key_id">
+               <!-- <div v-if="isEditMode && formData.auth_method === 'key' && formData.selected_ssh_key_id">
                     <small class="block text-xs text-text-secondary">{{ t('connections.form.keyUpdateNoteSelected') }}</small>
-               </div>
+               </div> -->
             </div>
           </template>
 
