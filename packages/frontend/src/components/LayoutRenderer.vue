@@ -509,7 +509,7 @@ onMounted(() => {
                         @find-next="emit('find-next')"
                         @find-previous="emit('find-previous')"
                         @close-search="emit('close-search')"
-                        @clear-terminal="() => emit('clear-terminal')" <!-- --- 移除日志 --- -->
+                        @clear-terminal="() => emit('clear-terminal')"
                         class="flex-grow overflow-auto"
                     />
                   </pane>
