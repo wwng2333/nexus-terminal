@@ -101,7 +101,9 @@ location / {
 
 
 
-为 docker 配置IPv6, 在`/etc/docker/daemon.json`加入以下内容
+为 docker 配置IPv6（可选，如果你不打算连接ipv6的服务器可以不配置）
+
+在`/etc/docker/daemon.json`加入以下内容
 ```json
 {
   "ipv6": true,
