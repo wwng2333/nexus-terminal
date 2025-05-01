@@ -400,11 +400,26 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
 
     // --- WebSocket 升级处理 (认证) ---
     server.on('upgrade', (request: Request, socket, head) => {
+        // --- 添加详细日志：检查传入的请求头和 request.ip ---
+        console.log('[WebSocket Upgrade] Received upgrade request.');
+        console.log('[WebSocket Upgrade] Request Headers:', JSON.stringify(request.headers, null, 2));
+        console.log(`[WebSocket Upgrade] Initial request.ip value: ${request.ip}`); // Express 尝试解析的 IP
+        console.log(`[WebSocket Upgrade] X-Real-IP Header: ${request.headers['x-real-ip']}`);
+        console.log(`[WebSocket Upgrade] X-Forwarded-For Header: ${request.headers['x-forwarded-for']}`);
+        // --- 结束添加日志 ---
+
         const parsedUrl = url.parse(request.url || '', true); // Parse URL and query string
         const pathname = parsedUrl.pathname;
-        const ipAddress = request.ip; // Get IP address early
+        // const ipAddress = request.ip; // Get IP address early - Let's re-evaluate this later
 
-        console.log(`WebSocket: 升级请求来自 IP: ${ipAddress}, Path: ${pathname}`);
+        // --- 修改：尝试从头部获取 IP ---
+        const potentialIp = request.headers['x-forwarded-for'] || request.headers['x-real-ip'] || request.socket.remoteAddress || request.ip;
+        const ipAddress = Array.isArray(potentialIp) ? potentialIp[0] : potentialIp; // 取 X-Forwarded-For 的第一个 IP
+        console.log(`[WebSocket Upgrade] Determined IP Address: ${ipAddress}`);
+        // --- 结束修改 ---
+
+
+        console.log(`WebSocket: 升级请求来自 IP: ${ipAddress}, Path: ${pathname}`); // 使用新获取的 ipAddress
 
         // @ts-ignore Express-session 类型问题
         sessionParser(request, {} as any, () => {
@@ -636,8 +651,9 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
 
                         console.log(`WebSocket: 用户 ${ws.username} 请求连接到数据库 ID: ${dbConnectionId}`);
                         ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在处理连接请求...' }));
-                        // 从传递过来的 request 对象获取 IP 地址 (在 catch 块中也需要访问)
-                        const clientIp = (request as any).clientIpAddress || 'unknown';
+                        // 从传递过来的 request 对象获取 IP 地址 (在 catch 块中也需要访问) - 使用 upgrade 阶段确定的 ipAddress
+                        const clientIp = (request as any).clientIpAddress || 'unknown'; // clientIpAddress 在 upgrade 阶段被设置
+                        console.log(`[SSH Connect] Using IP from upgrade handler: ${clientIp}`); // 添加日志确认
 
                         try {
                             // --- 手动编排 SSH 连接流程 ---
