@@ -24,9 +24,13 @@ const { connections, isLoading: isLoadingConnections } = storeToRefs(connections
 const { logs: auditLogs, isLoading: isLoadingLogs, totalLogs } = storeToRefs(auditLogStore);
 // Removed refs from settings store
 
-// Local state for sorting
-const localSortBy = ref<SortField>('last_connected_at');
-const localSortOrder = ref<SortOrder>('desc');
+// Local state for sorting with localStorage persistence
+const LS_SORT_BY_KEY = 'dashboard_connections_sort_by';
+const LS_SORT_ORDER_KEY = 'dashboard_connections_sort_order';
+
+// Initialize with localStorage values or defaults
+const localSortBy = ref<SortField>(localStorage.getItem(LS_SORT_BY_KEY) as SortField || 'last_connected_at');
+const localSortOrder = ref<SortOrder>(localStorage.getItem(LS_SORT_ORDER_KEY) as SortOrder || 'desc');
 
 const maxRecentLogs = 5;
 
@@ -83,6 +87,8 @@ const recentAuditLogs = computed(() => {
 });
 
 onMounted(async () => {
+  // Load saved sort preferences from localStorage (already done during ref initialization)
+
   if (connections.value.length === 0) {
     try {
       await connectionsStore.fetchConnections();
@@ -113,7 +119,14 @@ const toggleSortOrder = () => {
 
 const isAscending = computed(() => localSortOrder.value === 'asc'); // Use local state
 
-// Removed watch for saving preferences
+// Watch for changes in local sort state and save to localStorage
+watch(localSortBy, (newValue) => {
+  localStorage.setItem(LS_SORT_BY_KEY, newValue);
+});
+
+watch(localSortOrder, (newValue) => {
+  localStorage.setItem(LS_SORT_ORDER_KEY, newValue);
+});
 
 const dateFnsLocales: Record<string, Locale> = {
   'en-US': enUS,
