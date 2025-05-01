@@ -40,8 +40,18 @@ const definedMigrations: Migration[] = [
             -- 但如果表是新创建的（通过 schema.ts），则外键会生效。
             -- 这里我们尝试添加列并定义引用，对于新数据库是安全的。
             -- 对于已存在的旧数据库，可能需要更复杂的迁移（重命名旧表，创建新表，复制数据）。
-            -- 为简化起见，我们先执行添加列的操作。
-            ALTER TABLE connections ADD COLUMN ssh_key_id INTEGER NULL REFERENCES ssh_keys(id) ON DELETE SET NULL;
+            -- 为避免重复添加列错误，我们先检查列是否存在。
+            -- 使用 PRAGMA table_info 检查列是否存在
+            -- 如果列不存在，则添加列
+            INSERT OR IGNORE INTO sqlite_master (type, name, tbl_name, rootpage, sql)
+            VALUES ('trigger', 'check_and_add_ssh_key_id', 'connections', 0, '
+                BEGIN
+                    SELECT name FROM pragma_table_info(''connections'') WHERE name = ''ssh_key_id'';
+                    IF NOT FOUND THEN
+                        ALTER TABLE connections ADD COLUMN ssh_key_id INTEGER NULL REFERENCES ssh_keys(id) ON DELETE SET NULL;
+                    END IF;
+                END;
+            ');
 
             -- 可选：如果旧的 connections 表没有将 private_key/passphrase 设为 NULL，可以在此更新
             -- UPDATE connections SET encrypted_private_key = NULL WHERE encrypted_private_key = ''; -- 示例
