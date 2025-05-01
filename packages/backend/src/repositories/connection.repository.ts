@@ -87,7 +87,7 @@ export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]
 export const findConnectionByIdWithTags = async (id: number): Promise<ConnectionWithTags | null> => {
     const sql = `
         SELECT
-            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id,
+            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.ssh_key_id, -- +++ Select ssh_key_id +++
             c.created_at, c.updated_at, c.last_connected_at,
             GROUP_CONCAT(ct.tag_id) as tag_ids_str
          FROM connections c
@@ -144,14 +144,15 @@ export const findFullConnectionById = async (id: number): Promise<FullConnection
 export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'>): Promise<number> => {
     const now = Math.floor(Date.now() / 1000);
     const sql = `
-        INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // Add type column and placeholder
+        INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, ssh_key_id, created_at, updated_at) -- +++ Add ssh_key_id column +++
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // +++ Add placeholder for ssh_key_id +++
     const params = [
         data.name ?? null,
         data.type, // Add type parameter
         data.host, data.port, data.username, data.auth_method,
         data.encrypted_password ?? null, data.encrypted_private_key ?? null, data.encrypted_passphrase ?? null,
         data.proxy_id ?? null,
+        data.ssh_key_id ?? null, // +++ Add ssh_key_id parameter +++
         now, now
     ];
     try {
