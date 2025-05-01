@@ -99,6 +99,22 @@ location / {
 }
 ```
 
+
+
+为 docker 配置IPv6, 在`/etc/docker/daemon.json`加入以下内容
+```json
+{
+  "ipv6": true,
+  "fixed-cidr-v6": "fd00::/80",
+  "ip6tables": true,
+  "experimental": true
+}
+```
+重启docker服务
+```
+sudo systemctl restart docker
+```
+
 ### 2️⃣ 启动服务
 
 ```bash
