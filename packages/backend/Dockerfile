@@ -9,6 +9,9 @@ COPY package.json package-lock.json* ./
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
 
+# 复制所有 packages 目录的内容，以便 npm ci 能够访问所有工作区
+COPY packages ./packages
+
 RUN npm ci
 
 COPY packages/backend/src ./packages/backend/src
