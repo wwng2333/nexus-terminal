@@ -60,13 +60,13 @@ export const useSshKeysStore = defineStore('sshKeys', () => {
             sshKeys.value.push(response.data.key);
             // Sort keys by name
             sshKeys.value.sort((a, b) => a.name.localeCompare(b.name));
-            uiNotificationsStore.addNotification({ message: response.data.message || 'SSH 密钥添加成功。', type: 'success' });
+            uiNotificationsStore.showSuccess(response.data.message || 'SSH 密钥添加成功。'); // 使用便捷方法，默认 3 秒超时
             return true;
         } catch (err: any) {
             console.error('Failed to add SSH key:', err);
             error.value = err.response?.data?.message || err.message || '添加 SSH 密钥失败。';
              // Ensure error.value is not null before passing
-            uiNotificationsStore.addNotification({ message: error.value ?? '未知错误', type: 'error' });
+            uiNotificationsStore.showError(error.value ?? '未知错误'); // 使用便捷方法，默认 5 秒超时
             return false;
         } finally {
             isLoading.value = false;
