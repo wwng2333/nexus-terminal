@@ -143,8 +143,8 @@ export const testConnection = async (req: Request, res: Response): Promise<void>
  */
 export const testUnsavedConnection = async (req: Request, res: Response): Promise<void> => {
     try {
-        // 从请求体中提取连接信息
-        const { host, port, username, auth_method, password, private_key, passphrase, proxy_id } = req.body;
+        // 从请求体中提取连接信息 (添加 ssh_key_id)
+        const { host, port, username, auth_method, password, private_key, passphrase, proxy_id, ssh_key_id } = req.body;
 
         // 基本验证
         if (!host || !port || !username || !auth_method) {
@@ -156,10 +156,15 @@ export const testUnsavedConnection = async (req: Request, res: Response): Promis
             res.status(400).json({ success: false, message: '密码认证方式需要提供 password 字段 (可以为空字符串)。' });
             return;
         }
-        // 密钥认证时，private_key 必须存在且不为空
-        if (auth_method === 'key' && !private_key) {
-            res.status(400).json({ success: false, message: '密钥认证方式需要提供 private_key。' });
+        // 密钥认证时，必须提供 ssh_key_id 或 private_key
+        if (auth_method === 'key' && !ssh_key_id && !private_key) {
+            res.status(400).json({ success: false, message: '密钥认证方式需要提供 ssh_key_id 或 private_key。' });
             return;
+        }
+        // 如果同时提供了 ssh_key_id 和 private_key，优先使用 ssh_key_id (或者可以报错，这里选择优先)
+        if (auth_method === 'key' && ssh_key_id && private_key) {
+             console.warn('[testUnsavedConnection] 同时提供了 ssh_key_id 和 private_key，将优先使用 ssh_key_id。');
+             // 不需要额外操作，后续逻辑会处理
         }
 
         // 构建传递给服务层的连接配置对象
@@ -170,8 +175,9 @@ export const testUnsavedConnection = async (req: Request, res: Response): Promis
             username,
             auth_method,
             password, // 传递原始密码
-            private_key, // 传递原始私钥
-            passphrase, // 传递原始密码短语
+            private_key: ssh_key_id ? undefined : private_key, // 如果有 ssh_key_id，则不传递 private_key
+            passphrase: ssh_key_id ? undefined : passphrase,   // 如果有 ssh_key_id，则不传递 passphrase
+            ssh_key_id: ssh_key_id ? parseInt(ssh_key_id, 10) : null, // 传递 ssh_key_id (确保是数字或 null)
             proxy_id: proxy_id ? parseInt(proxy_id, 10) : null // 确保 proxy_id 是数字或 null
         };
 
@@ -182,6 +188,11 @@ export const testUnsavedConnection = async (req: Request, res: Response): Promis
         }
         if (proxy_id && isNaN(connectionConfig.proxy_id as number)) {
              res.status(400).json({ success: false, message: '代理 ID 必须是有效的数字。' });
+             return;
+        }
+        // 验证 ssh_key_id (如果提供了)
+        if (ssh_key_id && isNaN(connectionConfig.ssh_key_id as number)) {
+             res.status(400).json({ success: false, message: 'SSH 密钥 ID 必须是有效的数字。' });
              return;
         }
 
