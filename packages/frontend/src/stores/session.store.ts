@@ -198,18 +198,10 @@ export const useSessionStore = defineStore('session', () => {
     // 根据当前页面协议动态生成 WebSocket URL，并移除硬编码的端口
     // 假设 WebSocket 服务与 Web 服务在同一主机和端口上提供（通过反向代理）
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // 移除端口 :3001，依赖反向代理或同源策略
-    // 如果 WebSocket 有特定路径 (例如 /ws)，需要在这里添加
-    // --- 修改：根据环境确定 WebSocket 主机 ---
-    let wsHost = window.location.hostname;
-    if (window.location.hostname === 'localhost') {
-        wsHost = 'localhost:3001'; // 本地调试时硬编码
-        console.log('[SessionStore openNewSession] Using hardcoded localhost:3001 for WebSocket connection.');
-    } else {
-        console.log(`[SessionStore openNewSession] Using hostname: ${wsHost}`);
-    }
-    // --- 结束修改 ---
-    const wsUrl = `${protocol}//${wsHost}/ws/`; // 使用 wsHost 并添加 /ws/ 路径
+    // 使用 window.location.host，它包含主机名和端口（如果非默认）
+    const wsHostAndPort = window.location.host;
+    // 假设 WebSocket 路径固定为 /ws/
+    const wsUrl = `${protocol}//${wsHostAndPort}/ws/`;
     console.log(`[SessionStore] Generated WebSocket URL: ${wsUrl}`); // 添加日志记录生成的 URL
     wsManager.connect(wsUrl);
     console.log(`[SessionStore] 已为会话 ${newSessionId} 启动 WebSocket 连接。`);
@@ -398,19 +390,14 @@ export const useSessionStore = defineStore('session', () => {
             // 满足最高优先级：重连当前活动会话
             console.log(`[SessionStore] 活动会话 ${activeSessionId.value} 已断开或出错，尝试重连...`);
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            let wsHost = window.location.hostname;
-            if (window.location.hostname === 'localhost') {
-                wsHost = 'localhost:3001';
-                console.log('[SessionStore handleConnectRequest] Using hardcoded localhost:3001 for WebSocket reconnect.');
-            } else {
-                console.log(`[SessionStore handleConnectRequest] Using hostname: ${wsHost}`);
-            }
-            const wsUrl = `${protocol}//${wsHost}/ws/`;
+            // 使用 window.location.host
+            const wsHostAndPort = window.location.host;
+            const wsUrl = `${protocol}//${wsHostAndPort}/ws/`;
             console.log(`[SessionStore handleConnectRequest] Generated WebSocket URL for reconnect: ${wsUrl}`);
             currentActiveSession.wsManager.connect(wsUrl);
             // 重连后，确保激活该会话（如果它不是活动会话）并导航
             activateSession(activeSessionId.value); // 确保激活
-            router.push({ name: 'Workspace' }); // +++ 添加跳转 +++
+            router.push({ name: 'Workspace' });
           }
         }
       }
