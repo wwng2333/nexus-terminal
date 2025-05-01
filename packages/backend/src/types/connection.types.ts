@@ -28,7 +28,8 @@ export interface CreateConnectionInput {
     auth_method: 'password' | 'key';
     password?: string; 
     private_key?: string; 
-    passphrase?: string; 
+    passphrase?: string;
+    ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_id?: number | null;
     tag_ids?: number[];
 }
@@ -43,7 +44,8 @@ export interface UpdateConnectionInput {
     auth_method?: 'password' | 'key';
     password?: string;
     private_key?: string;
-    passphrase?: string; 
+    passphrase?: string;
+    ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_id?: number | null;
     tag_ids?: number[];
 }
@@ -60,6 +62,7 @@ export interface FullConnectionData {
     encrypted_password: string | null;
     encrypted_private_key: string | null;
     encrypted_passphrase: string | null;
+    ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_id: number | null;
     created_at: number;
     updated_at: number;

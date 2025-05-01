@@ -85,10 +85,23 @@ CREATE TABLE IF NOT EXISTS connections (
     encrypted_private_key TEXT NULL,
     encrypted_passphrase TEXT NULL,
     proxy_id INTEGER NULL,
+    ssh_key_id INTEGER NULL, -- 新增 ssh_key_id 列
     created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     last_connected_at INTEGER NULL,
-    FOREIGN KEY (proxy_id) REFERENCES proxies(id) ON DELETE SET NULL
+    FOREIGN KEY (proxy_id) REFERENCES proxies(id) ON DELETE SET NULL,
+    FOREIGN KEY (ssh_key_id) REFERENCES ssh_keys(id) ON DELETE SET NULL -- 新增外键约束
+);
+`;
+
+export const createSshKeysTableSQL = `
+CREATE TABLE IF NOT EXISTS ssh_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    encrypted_private_key TEXT NOT NULL,
+    encrypted_passphrase TEXT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
 );
 `;
 

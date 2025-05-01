@@ -20,6 +20,7 @@ import commandHistoryRoutes from './command-history/command-history.routes';
 import quickCommandsRoutes from './quick-commands/quick-commands.routes';
 import terminalThemeRoutes from './terminal-themes/terminal-theme.routes';
 import appearanceRoutes from './appearance/appearance.routes';
+import sshKeysRouter from './ssh_keys/ssh_keys.routes'; // +++ Import SSH Key routes +++
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware';
 
@@ -259,6 +260,7 @@ const startServer = () => {
     app.use('/api/v1/quick-commands', quickCommandsRoutes);
     app.use('/api/v1/terminal-themes', terminalThemeRoutes);
     app.use('/api/v1/appearance', appearanceRoutes);
+    app.use('/api/v1/ssh-keys', sshKeysRouter); // +++ Register SSH Key routes +++
 
     // 状态检查接口
     app.get('/api/v1/status', (req: Request, res: Response) => {

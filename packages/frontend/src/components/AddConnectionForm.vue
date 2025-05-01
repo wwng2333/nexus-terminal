@@ -6,7 +6,9 @@ import apiClient from '../utils/apiClient';
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
 import { useProxiesStore } from '../stores/proxies.store'; 
 import { useTagsStore } from '../stores/tags.store';
+import { useSshKeysStore } from '../stores/sshKeys.store'; // +++ Import SSH Key store +++
 import TagInput from './TagInput.vue';
+import SshKeySelector from './SshKeySelector.vue'; // +++ Import SSH Key Selector +++
 
 // 定义组件发出的事件
 const emit = defineEmits(['close', 'connection-added', 'connection-updated']);
@@ -33,8 +35,9 @@ const initialFormData = {
   username: '',
   auth_method: 'password' as 'password' | 'key', // SSH specific
   password: '',
-  private_key: '', // SSH specific
-  passphrase: '', // SSH specific
+  private_key: '', // SSH specific (for direct input)
+  passphrase: '', // SSH specific (for direct input)
+  selected_ssh_key_id: null as number | null, // +++ Add field for selected key ID +++
   proxy_id: null as number | null,
   tag_ids: [] as number[], // 新增 tag_ids 字段
   // Add RDP specific fields later if needed, e.g., domain
@@ -138,8 +141,9 @@ const handleSubmit = async () => {
               formError.value = t('connections.form.errorPasswordRequired');
               return;
           }
-          if (formData.auth_method === 'key' && !formData.private_key) {
-              formError.value = t('connections.form.errorPrivateKeyRequired');
+          // 当认证方式为 key 时，必须选择一个已保存的密钥
+          if (formData.auth_method === 'key' && !formData.selected_ssh_key_id) {
+              formError.value = t('connections.form.errorSshKeyRequired'); // 需要添加新的翻译键
               return;
           }
       }
@@ -153,14 +157,16 @@ const handleSubmit = async () => {
           }
           // 如果原始就是密码，编辑时密码可以不填（表示不修改）
       }
-      // 3. 编辑模式下，如果切换到密钥认证，则私钥必填
-      else if (isEditMode.value && formData.auth_method === 'key' && !formData.private_key) {
-           // 检查原始连接的认证方式，如果原始不是密钥，则切换时必须提供私钥
+      // 3. 编辑模式下，如果切换到密钥认证，必须选择一个密钥
+      else if (isEditMode.value && formData.auth_method === 'key' && !formData.selected_ssh_key_id) {
+           // 检查原始连接的认证方式，如果原始不是密钥，则切换时必须选择一个密钥
            if (props.connectionToEdit?.auth_method !== 'key') {
-               formError.value = t('connections.form.errorPrivateKeyRequiredOnSwitch');
+               formError.value = t('connections.form.errorSshKeyRequiredOnSwitch'); // 需要添加新的翻译键
                return;
            }
-           // 如果原始就是密钥，编辑时私钥可以不填（表示不修改）
+           // 如果原始就是密钥，编辑时可以不选择新的密钥（表示不修改关联的密钥）
+           // 但如果用户清除了选择，则需要提示
+           // 注意：当前逻辑下，如果 selected_ssh_key_id 为 null，则会触发此验证
       }
   // Use uppercase for comparison
   } else if (formData.type === 'RDP') {
@@ -203,16 +209,21 @@ const handleSubmit = async () => {
               // 或者不发送 password 字段表示不修改
           }
       } else if (formData.auth_method === 'key') {
-          // SSH 密钥处理
-          if (formData.private_key) {
-              dataToSend.private_key = formData.private_key;
+          // +++ SSH 密钥处理 (只处理 selected_ssh_key_id) +++
+          if (formData.selected_ssh_key_id) {
+              // 如果选择了已保存的密钥，只发送 ID
+              dataToSend.ssh_key_id = formData.selected_ssh_key_id;
+          } else if (isEditMode.value && props.connectionToEdit?.auth_method === 'key') {
+              // 编辑模式下，如果原始是密钥认证且未选择新密钥，则不发送 ssh_key_id (表示不更改)
+              // 如果原始不是密钥认证，切换到密钥时必须选择一个 (已在验证逻辑中处理)
+          } else {
+               // 添加模式下，如果 auth_method 是 key 但没有选择 key，验证逻辑会阻止提交
+               // 因此这里不需要特殊处理，可以安全地将 ssh_key_id 设为 null 或不设置
+               dataToSend.ssh_key_id = null; // 或者 delete dataToSend.ssh_key_id;
           }
-          // SSH 密码短语处理
-          if (formData.passphrase) {
-              dataToSend.passphrase = formData.passphrase;
-          } else if (isEditMode.value && formData.passphrase === '') {
-              // dataToSend.passphrase = null; // 发送 null 表示清空
-          }
+          // 确保不发送直接输入的密钥信息
+          delete dataToSend.private_key;
+          delete dataToSend.passphrase;
       }
   // Use uppercase for comparison
   } else if (formData.type === 'RDP') {
@@ -273,9 +284,11 @@ const handleTestConnection = async () => {
           username: formData.username,
           auth_method: formData.auth_method,
           password: formData.auth_method === 'password' ? formData.password : undefined,
-          private_key: formData.auth_method === 'key' ? formData.private_key : undefined,
-          passphrase: formData.auth_method === 'key' ? formData.passphrase : undefined,
+          // private_key: formData.auth_method === 'key' ? formData.private_key : undefined, // Removed
+          // passphrase: formData.auth_method === 'key' ? formData.passphrase : undefined, // Removed
           proxy_id: formData.proxy_id || null,
+          // +++ Add ssh_key_id for testing +++
+          ssh_key_id: formData.auth_method === 'key' ? formData.selected_ssh_key_id : undefined,
       };
 
       // 仅在添加模式下进行前端凭证验证
@@ -286,10 +299,11 @@ const handleTestConnection = async () => {
       // 在添加模式下，密码或密钥必须提供
       if (dataToSend.auth_method === 'password' && !formData.password) { // 检查 formData 而不是 dataToSend.password
          throw new Error(t('connections.form.errorPasswordRequired')); // 复用表单提交的翻译键
-      }
-      if (dataToSend.auth_method === 'key' && !formData.private_key) { // 检查 formData 而不是 dataToSend.private_key
-         throw new Error(t('connections.form.errorPrivateKeyRequired')); // 复用表单提交的翻译键
-      }
+     }
+     // +++ Check selected key for testing +++
+     if (dataToSend.auth_method === 'key' && !dataToSend.ssh_key_id) {
+        throw new Error(t('connections.form.errorSshKeyRequired')); // 使用新的翻译键
+     }
 
       // 调用测试未保存连接的 API
       response = await apiClient.post('/connections/test-unsaved', dataToSend);
@@ -409,19 +423,17 @@ const testButtonText = computed(() => {
             </div>
 
             <div v-if="formData.auth_method === 'key'" class="space-y-4">
+              <!-- +++ SSH Key Selector +++ -->
               <div>
-                <label for="conn-private-key" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.privateKey') }}</label>
-                <textarea id="conn-private-key" v-model="formData.private_key" rows="4" :required="formData.auth_method === 'key' && !isEditMode"
-                          class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono text-sm"></textarea>
+                  <label class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.sshKey') }}</label>
+                  <SshKeySelector v-model="formData.selected_ssh_key_id" />
               </div>
-              <div>
-                <label for="conn-passphrase" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.passphrase') }} ({{ t('connections.form.optional') }})</label>
-                <input type="password" id="conn-passphrase" v-model="formData.passphrase" autocomplete="new-password"
-                       class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary" />
-              </div>
-              <div v-if="isEditMode && formData.auth_method === 'key'">
-                <small class="block text-xs text-text-secondary">{{ t('connections.form.keyUpdateNote') }}</small>
-              </div>
+
+              <!-- Direct Key Input Removed -->
+               <!-- Note for selected key -->
+               <div v-if="isEditMode && formData.auth_method === 'key' && formData.selected_ssh_key_id">
+                    <small class="block text-xs text-text-secondary">{{ t('connections.form.keyUpdateNoteSelected') }}</small>
+               </div>
             </div>
           </template>
 

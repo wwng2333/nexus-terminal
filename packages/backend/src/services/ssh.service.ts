@@ -5,6 +5,7 @@ import net from 'net';
 import * as ConnectionRepository from '../repositories/connection.repository';
 import * as ProxyRepository from '../repositories/proxy.repository';
 import { decrypt } from '../utils/crypto';
+import * as SshKeyService from './ssh_key.service'; // +++ Import SshKeyService +++
 
 const CONNECT_TIMEOUT = 20000; // 连接超时时间 (毫秒)
 const TEST_TIMEOUT = 15000; // 测试连接超时时间 (毫秒)
@@ -56,11 +57,40 @@ export const getConnectionDetails = async (connectionId: number): Promise<Decryp
             port: rawConnInfo.port ?? (() => { throw new Error(`Connection ID ${connectionId} has null port.`); })(),
             username: rawConnInfo.username ?? (() => { throw new Error(`Connection ID ${connectionId} has null username.`); })(),
             auth_method: rawConnInfo.auth_method ?? (() => { throw new Error(`Connection ID ${connectionId} has null auth_method.`); })(),
-            password: (rawConnInfo.auth_method === 'password' && rawConnInfo.encrypted_password) ? decrypt(rawConnInfo.encrypted_password) : undefined,
-            privateKey: (rawConnInfo.auth_method === 'key' && rawConnInfo.encrypted_private_key) ? decrypt(rawConnInfo.encrypted_private_key) : undefined,
-            passphrase: (rawConnInfo.auth_method === 'key' && rawConnInfo.encrypted_passphrase) ? decrypt(rawConnInfo.encrypted_passphrase) : undefined,
+            // Initialize credentials
+            password: undefined,
+            privateKey: undefined,
+            passphrase: undefined,
             proxy: null,
         };
+
+        // Decrypt password if method is password
+        if (fullConnInfo.auth_method === 'password' && rawConnInfo.encrypted_password) {
+            fullConnInfo.password = decrypt(rawConnInfo.encrypted_password);
+        }
+        // Handle key auth: prioritize ssh_key_id, then direct key
+        else if (fullConnInfo.auth_method === 'key') {
+            // +++ Use rawConnInfo.ssh_key_id instead of undefined sshKeyId +++
+            if (rawConnInfo.ssh_key_id) {
+                console.log(`SshService: Connection ${connectionId} uses stored SSH key ID: ${rawConnInfo.ssh_key_id}. Fetching key...`);
+                const storedKeyDetails = await SshKeyService.getDecryptedSshKeyById(rawConnInfo.ssh_key_id); // Use imported SshKeyService
+                if (!storedKeyDetails) {
+                    console.error(`SshService: Error: Connection ${connectionId} references non-existent SSH key ID ${rawConnInfo.ssh_key_id}`);
+                    throw new Error(`关联的 SSH 密钥 (ID: ${rawConnInfo.ssh_key_id}) 未找到。`);
+                }
+                fullConnInfo.privateKey = storedKeyDetails.privateKey;
+                fullConnInfo.passphrase = storedKeyDetails.passphrase;
+                console.log(`SshService: Successfully fetched and decrypted stored SSH key ${rawConnInfo.ssh_key_id} for connection ${connectionId}.`);
+            } else if (rawConnInfo.encrypted_private_key) {
+                // Decrypt direct key only if ssh_key_id is not present
+                fullConnInfo.privateKey = decrypt(rawConnInfo.encrypted_private_key);
+                if (rawConnInfo.encrypted_passphrase) {
+                    fullConnInfo.passphrase = decrypt(rawConnInfo.encrypted_passphrase);
+                }
+            } else {
+                 console.warn(`SshService: Connection ${connectionId} uses key auth but has neither ssh_key_id nor encrypted_private_key.`);
+            }
+        }
 
         if (rawConnInfo.proxy_db_id) {
              // Add null checks for required proxy fields inside the if block
@@ -307,14 +337,16 @@ export const testConnection = async (connectionId: number): Promise<{ latency: n
  * @returns Promise<{ latency: number }> - 如果连接成功则 resolve 包含延迟的对象，否则 reject
  * @throws Error 如果连接失败或配置错误
  */
+// Ensure ssh_key_id is part of the input type definition
 export const testUnsavedConnection = async (connectionConfig: {
     host: string;
     port: number;
     username: string;
     auth_method: 'password' | 'key';
     password?: string;
-    private_key?: string; // 注意这里是 private_key
+    private_key?: string; // Keep this for direct input
     passphrase?: string;
+    ssh_key_id?: number | null; // Ensure this is present
     proxy_id?: number | null;
 }): Promise<{ latency: number }> => {
     console.log(`SshService: 测试未保存的连接到 ${connectionConfig.host}:${connectionConfig.port}...`);
@@ -329,12 +361,32 @@ export const testUnsavedConnection = async (connectionConfig: {
             port: connectionConfig.port,
             username: connectionConfig.username,
             auth_method: connectionConfig.auth_method,
-            // 直接使用传入的凭证，因为它们是未加密的
-            password: connectionConfig.password,
-            privateKey: connectionConfig.private_key, // 映射 private_key
-            passphrase: connectionConfig.passphrase,
+            // Initialize credentials, will be populated based on input
+            password: undefined,
+            privateKey: undefined,
+            passphrase: undefined,
             proxy: null, // 稍后填充
         };
+
+        // Populate credentials based on auth method and ssh_key_id presence
+        if (tempConnDetails.auth_method === 'password') {
+            tempConnDetails.password = connectionConfig.password;
+        } else { // auth_method is 'key'
+            if (connectionConfig.ssh_key_id) {
+                // Fetch and decrypt stored key if ssh_key_id is provided
+                console.log(`SshService: Testing unsaved connection using stored SSH key ID: ${connectionConfig.ssh_key_id}...`);
+                const storedKeyDetails = await SshKeyService.getDecryptedSshKeyById(connectionConfig.ssh_key_id); // Use imported SshKeyService
+                if (!storedKeyDetails) {
+                    throw new Error(`选择的 SSH 密钥 (ID: ${connectionConfig.ssh_key_id}) 未找到。`);
+                }
+                tempConnDetails.privateKey = storedKeyDetails.privateKey;
+                tempConnDetails.passphrase = storedKeyDetails.passphrase;
+            } else {
+                // Use direct key input if ssh_key_id is not provided
+                tempConnDetails.privateKey = connectionConfig.private_key; // Use private_key from input
+                tempConnDetails.passphrase = connectionConfig.passphrase;
+            }
+        }
 
         // 2. 如果提供了 proxy_id，获取并解密代理信息
         if (connectionConfig.proxy_id) {

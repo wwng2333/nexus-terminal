@@ -1,6 +1,7 @@
 import * as ConnectionRepository from '../repositories/connection.repository';
 import { encrypt, decrypt } from '../utils/crypto';
-import { AuditLogService } from '../services/audit.service';
+import { AuditLogService } from './audit.service';
+import * as SshKeyService from './ssh_key.service'; // +++ Import SshKeyService +++
 import {
     ConnectionBase,
     ConnectionWithTags,
@@ -36,6 +37,9 @@ export const getConnectionById = async (id: number): Promise<ConnectionWithTags 
  * 创建新连接
  */
 export const createConnection = async (input: CreateConnectionInput): Promise<ConnectionWithTags> => {
+    // +++ Define a local type alias for clarity, including ssh_key_id +++
+    type ConnectionDataForRepo = Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'>;
+
     console.log('[Service:createConnection] Received input:', JSON.stringify(input, null, 2)); // Log input
     // 1. 验证输入 (包含 type)
     // Convert type to uppercase for validation and consistency
@@ -54,8 +58,12 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
         if (input.auth_method === 'password' && !input.password) {
             throw new Error('SSH 密码认证方式需要提供 password。');
         }
-        if (input.auth_method === 'key' && !input.private_key) {
-            throw new Error('SSH 密钥认证方式需要提供 private_key。');
+        // If using ssh_key_id, private_key is not required in the input
+        if (input.auth_method === 'key' && !input.ssh_key_id && !input.private_key) {
+            throw new Error('SSH 密钥认证方式需要提供 private_key 或选择一个已保存的密钥 (ssh_key_id)。');
+        }
+        if (input.auth_method === 'key' && input.ssh_key_id && input.private_key) {
+            throw new Error('不能同时提供 private_key 和 ssh_key_id。');
         }
     } else if (connectionType === 'RDP') {
         if (!input.password) {
@@ -64,10 +72,11 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
         // For RDP, we'll ignore auth_method, private_key, passphrase from input if provided
     }
 
-    // 2. 加密凭证 (根据 type)
+    // 2. 处理凭证和 ssh_key_id (根据 type)
     let encryptedPassword = null;
     let encryptedPrivateKey = null;
     let encryptedPassphrase = null;
+    let sshKeyIdToSave: number | null = null; // +++ Variable for ssh_key_id +++
     // Default to 'password' for DB compatibility, especially for RDP
     let authMethodForDb: 'password' | 'key' = 'password';
 
@@ -75,10 +84,28 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
         authMethodForDb = input.auth_method!; // Already validated above
         if (input.auth_method === 'password') {
             encryptedPassword = encrypt(input.password!);
-        } else { // key
-            encryptedPrivateKey = encrypt(input.private_key!);
-            if (input.passphrase) {
-                encryptedPassphrase = encrypt(input.passphrase);
+            sshKeyIdToSave = null; // Password auth cannot use ssh_key_id
+        } else { // auth_method is 'key'
+            if (input.ssh_key_id) {
+                // Validate the provided ssh_key_id
+                const keyExists = await SshKeyService.getSshKeyDbRowById(input.ssh_key_id);
+                if (!keyExists) {
+                    throw new Error(`提供的 SSH 密钥 ID ${input.ssh_key_id} 无效或不存在。`);
+                }
+                sshKeyIdToSave = input.ssh_key_id;
+                // When using ssh_key_id, connection's own key fields should be null
+                encryptedPrivateKey = null;
+                encryptedPassphrase = null;
+            } else if (input.private_key) {
+                // Encrypt the provided private key and passphrase
+                encryptedPrivateKey = encrypt(input.private_key!);
+                if (input.passphrase) {
+                    encryptedPassphrase = encrypt(input.passphrase);
+                }
+                sshKeyIdToSave = null; // Ensure ssh_key_id is null if providing key directly
+            } else {
+                 // This case should be caught by validation above, but as a safeguard:
+                 throw new Error('SSH 密钥认证方式内部错误：未提供 private_key 或 ssh_key_id。');
             }
         }
     } else { // RDP (connectionType is 'RDP')
@@ -91,23 +118,30 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
 
     // 3. 准备仓库数据
     const defaultPort = input.type === 'RDP' ? 3389 : 22;
-    // Explicitly type the object being passed to the repository
-    const connectionData: Omit<ConnectionRepository.FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'> = {
+    // +++ Explicitly type connectionData using the local alias +++
+    const connectionData: ConnectionDataForRepo = {
         name: input.name || '',
-        type: connectionType, // Use the validated uppercase type
+        type: connectionType,
         host: input.host,
         port: input.port ?? defaultPort, // Use type-specific default port
         username: input.username,
         auth_method: authMethodForDb, // Use determined auth method
         encrypted_password: encryptedPassword,
-        encrypted_private_key: encryptedPrivateKey, // Will be null for RDP
-        encrypted_passphrase: encryptedPassphrase, // Will be null for RDP
+        encrypted_private_key: encryptedPrivateKey, // Null if using ssh_key_id or RDP
+        encrypted_passphrase: encryptedPassphrase, // Null if using ssh_key_id or RDP
+        ssh_key_id: sshKeyIdToSave, // +++ Add ssh_key_id +++
         proxy_id: input.proxy_id ?? null,
     };
-    console.log('[Service:createConnection] Data to be saved:', JSON.stringify(connectionData, null, 2)); // Log data before saving
+    // Remove ssh_key_id property if it's null before logging/saving if repository expects exact type match without optional nulls
+    const finalConnectionData = { ...connectionData };
+    if (finalConnectionData.ssh_key_id === null) {
+        delete (finalConnectionData as any).ssh_key_id; // Adjust based on repository function signature if needed
+    }
+    console.log('[Service:createConnection] Data to be saved:', JSON.stringify(finalConnectionData, null, 2)); // Log data before saving
 
     // 4. 在仓库中创建连接记录
-    const newConnectionId = await ConnectionRepository.createConnection(connectionData);
+    // Pass the potentially modified finalConnectionData
+    const newConnectionId = await ConnectionRepository.createConnection(finalConnectionData as Omit<ConnectionRepository.FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'>);
 
     // 5. 处理标签
     const tagIds = input.tag_ids?.filter(id => typeof id === 'number' && id > 0) ?? [];
@@ -139,8 +173,8 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
     }
 
     // 2. 准备更新数据
-    // Explicitly type dataToUpdate to match the repository's expected input
-    const dataToUpdate: Partial<Omit<ConnectionRepository.FullConnectionData, 'id' | 'created_at' | 'last_connected_at' | 'tag_ids'>> = {};
+    // Explicitly type dataToUpdate to match the repository's expected input, including ssh_key_id
+    const dataToUpdate: Partial<Omit<ConnectionRepository.FullConnectionData & { ssh_key_id?: number | null }, 'id' | 'created_at' | 'last_connected_at' | 'tag_ids'>> = {};
     let needsCredentialUpdate = false;
     // Determine the final type, converting input type to uppercase if provided
     const targetType = input.type?.toUpperCase() as 'SSH' | 'RDP' | undefined || currentFullConnection.type;
@@ -153,6 +187,8 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
     if (input.port !== undefined) dataToUpdate.port = input.port;
     if (input.username !== undefined) dataToUpdate.username = input.username;
     if (input.proxy_id !== undefined) dataToUpdate.proxy_id = input.proxy_id;
+    // Handle ssh_key_id update (can be set to null or a new ID)
+    if (input.ssh_key_id !== undefined) dataToUpdate.ssh_key_id = input.ssh_key_id;
 
     // 处理认证方法更改或凭证更新 (根据 targetType)
     // Use the validated targetType for logic
@@ -177,31 +213,67 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
                  dataToUpdate.encrypted_password = input.password ? encrypt(input.password) : null;
                  needsCredentialUpdate = true;
             }
-            // When switching to password, clear key fields
+            // When switching to password, clear key fields and ssh_key_id
             if (finalAuthMethod !== currentAuthMethod) {
                 dataToUpdate.encrypted_private_key = null;
                 dataToUpdate.encrypted_passphrase = null;
+                dataToUpdate.ssh_key_id = null; // Clear ssh_key_id when switching to password
             }
         } else { // finalAuthMethod is 'key'
-            let keyUpdated = false;
-            // If switching to key or updating key
-            if (input.private_key !== undefined) {
-                 if (!input.private_key && finalAuthMethod !== currentAuthMethod) {
-                     // Switching to key requires a private key
-                     throw new Error('切换到密钥认证时需要提供 private_key。');
-                 }
-                 // Encrypt if key is not empty, otherwise set to null (to clear)
-                 dataToUpdate.encrypted_private_key = input.private_key ? encrypt(input.private_key) : null;
-                 needsCredentialUpdate = true;
-                 keyUpdated = true;
-            }
-            // Update passphrase only if key was updated OR passphrase itself was provided
-            if (keyUpdated || input.passphrase !== undefined) {
-                 // Encrypt if passphrase is not empty, otherwise set to null (to clear)
+            // Handle ssh_key_id selection or direct key input
+            if (input.ssh_key_id !== undefined) {
+                // User selected a stored key
+                if (input.ssh_key_id === null) {
+                    // User explicitly wants to clear the stored key association
+                    dataToUpdate.ssh_key_id = null;
+                    // If clearing ssh_key_id, we might need a direct key, but validation should handle this?
+                    // Or assume clearing means switching back to direct key input (which might be empty)
+                    // Let's assume clearing ssh_key_id means we expect a direct key or nothing
+                    if (input.private_key === undefined) {
+                        // If no direct key provided when clearing ssh_key_id, clear connection's key fields
+                        dataToUpdate.encrypted_private_key = null;
+                        dataToUpdate.encrypted_passphrase = null;
+                    } else {
+                        // Encrypt the direct key provided alongside clearing ssh_key_id
+                        dataToUpdate.encrypted_private_key = input.private_key ? encrypt(input.private_key) : null;
+                        dataToUpdate.encrypted_passphrase = input.passphrase ? encrypt(input.passphrase) : null;
+                    }
+                } else {
+                    // Validate the provided ssh_key_id
+                    const keyExists = await SshKeyService.getSshKeyDbRowById(input.ssh_key_id);
+                    if (!keyExists) {
+                        throw new Error(`提供的 SSH 密钥 ID ${input.ssh_key_id} 无效或不存在。`);
+                    }
+                    dataToUpdate.ssh_key_id = input.ssh_key_id;
+                    // Clear direct key fields when selecting a stored key
+                    dataToUpdate.encrypted_private_key = null;
+                    dataToUpdate.encrypted_passphrase = null;
+                }
+                needsCredentialUpdate = true; // Changing key source is a credential update
+            } else if (input.private_key !== undefined) {
+                // User provided a direct key
+                if (!input.private_key && finalAuthMethod !== currentAuthMethod) {
+                    // Switching to key requires a private key if not using ssh_key_id
+                    throw new Error('切换到密钥认证时需要提供 private_key 或选择一个已保存的密钥。');
+                }
+                // Encrypt if key is not empty, otherwise set to null (to clear)
+                dataToUpdate.encrypted_private_key = input.private_key ? encrypt(input.private_key) : null;
+                // Update passphrase only if direct key was provided OR passphrase itself was provided
+                if (input.passphrase !== undefined) {
+                    dataToUpdate.encrypted_passphrase = input.passphrase ? encrypt(input.passphrase) : null;
+                } else if (input.private_key) {
+                    // If only private_key is provided, clear passphrase
+                    dataToUpdate.encrypted_passphrase = null;
+                }
+                dataToUpdate.ssh_key_id = null; // Clear ssh_key_id when providing direct key
+                needsCredentialUpdate = true;
+            } else if (input.passphrase !== undefined && !input.ssh_key_id && currentFullConnection.encrypted_private_key) {
+                 // Only passphrase provided, and not using ssh_key_id, and a direct key already exists
                  dataToUpdate.encrypted_passphrase = input.passphrase ? encrypt(input.passphrase) : null;
-                 needsCredentialUpdate = true; // Consider passphrase change a credential update
+                 needsCredentialUpdate = true;
             }
-             // When switching to key, clear password field
+
+            // When switching to key, clear password field
             if (finalAuthMethod !== currentAuthMethod) {
                 dataToUpdate.encrypted_password = null;
             }
@@ -218,6 +290,7 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
             dataToUpdate.auth_method = 'password'; // RDP uses password auth method in DB
             dataToUpdate.encrypted_private_key = null;
             dataToUpdate.encrypted_passphrase = null;
+            dataToUpdate.ssh_key_id = null; // RDP cannot use ssh_key_id
         }
     }
 
@@ -279,8 +352,7 @@ export const deleteConnection = async (id: number): Promise<boolean> => {
 export const getConnectionWithDecryptedCredentials = async (
     id: number
 ): Promise<{ connection: ConnectionWithTags; decryptedPassword?: string; decryptedPrivateKey?: string; decryptedPassphrase?: string } | null> => {
-    // 1. 获取完整的连接数据（包含加密字段）
-    // Assuming findFullConnectionById exists and returns FullConnectionDbRow or null
+    // 1. 获取完整的连接数据（包含加密字段和可能的 ssh_key_id）
     const fullConnectionDbRow = await ConnectionRepository.findFullConnectionById(id);
     if (!fullConnectionDbRow) {
         console.log(`[Service:getConnWithDecrypt] Connection not found for ID: ${id}`);
@@ -291,11 +363,11 @@ export const getConnectionWithDecryptedCredentials = async (
     const fullConnection: FullConnectionData = {
         ...fullConnectionDbRow,
         encrypted_password: fullConnectionDbRow.encrypted_password ?? null,
-        encrypted_private_key: fullConnectionDbRow.encrypted_private_key ?? null,
-        encrypted_passphrase: fullConnectionDbRow.encrypted_passphrase ?? null,
+        encrypted_private_key: fullConnectionDbRow.encrypted_private_key ?? null, // May be null if using ssh_key_id
+        encrypted_passphrase: fullConnectionDbRow.encrypted_passphrase ?? null, // May be null if using ssh_key_id
+        ssh_key_id: fullConnectionDbRow.ssh_key_id ?? null, // +++ Include ssh_key_id +++
         // Ensure other fields match FullConnectionData if necessary
-        // (Assuming FullConnectionDbRow includes all fields of FullConnectionData)
-    };
+    } as FullConnectionData & { ssh_key_id: number | null }; // Type assertion
 
     // 2. 获取带标签的连接数据（用于返回给调用者）
     const connectionWithTags: ConnectionWithTags | null = await ConnectionRepository.findConnectionByIdWithTags(id);
@@ -318,15 +390,31 @@ export const getConnectionWithDecryptedCredentials = async (
         }
         // Decrypt key and passphrase if method is 'key'
         else if (fullConnection.auth_method === 'key') {
-            if (fullConnection.encrypted_private_key) {
+            if (fullConnection.ssh_key_id) {
+                // +++ If using ssh_key_id, fetch and decrypt the stored key +++
+                console.log(`[Service:getConnWithDecrypt] Connection ${id} uses stored SSH key ID: ${fullConnection.ssh_key_id}. Fetching key...`);
+                const storedKeyDetails = await SshKeyService.getDecryptedSshKeyById(fullConnection.ssh_key_id);
+                if (!storedKeyDetails) {
+                    // This indicates an inconsistency, as the ssh_key_id should be valid
+                    console.error(`[Service:getConnWithDecrypt] Error: Connection ${id} references non-existent SSH key ID ${fullConnection.ssh_key_id}`);
+                    throw new Error(`关联的 SSH 密钥 (ID: ${fullConnection.ssh_key_id}) 未找到。`);
+                }
+                decryptedPrivateKey = storedKeyDetails.privateKey;
+                decryptedPassphrase = storedKeyDetails.passphrase;
+                console.log(`[Service:getConnWithDecrypt] Successfully fetched and decrypted stored SSH key ${fullConnection.ssh_key_id} for connection ${id}.`);
+            } else if (fullConnection.encrypted_private_key) {
+                // Decrypt the key stored directly in the connection record
                 decryptedPrivateKey = decrypt(fullConnection.encrypted_private_key);
-            }
-            // Only decrypt passphrase if it exists
-            if (fullConnection.encrypted_passphrase) {
-                decryptedPassphrase = decrypt(fullConnection.encrypted_passphrase);
+                // Only decrypt passphrase if it exists alongside the direct key
+                if (fullConnection.encrypted_passphrase) {
+                    decryptedPassphrase = decrypt(fullConnection.encrypted_passphrase);
+                }
+            } else {
+                 console.warn(`[Service:getConnWithDecrypt] Connection ${id} uses key auth but has neither ssh_key_id nor encrypted_private_key.`);
+                 // No key available to decrypt
             }
         }
-    } catch (error) {
+    } catch (error: any) { // Catch decryption or key fetching errors
         console.error(`[Service:getConnWithDecrypt] Failed to decrypt credentials for connection ID ${id}:`, error);
         // Decide how to handle decryption errors. Throw? Return null password?
         // For now, we'll log and continue, returning undefined credentials.

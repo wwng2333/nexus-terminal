@@ -3,7 +3,7 @@ import sqlite3, { OPEN_READWRITE, OPEN_CREATE } from 'sqlite3';
 import path from 'path';
 import fs from 'fs';
 import { tableDefinitions } from './schema.registry';
-
+import { runMigrations } from './migrations'; // +++ Import runMigrations +++
 
 const dbDir = path.join(__dirname, '..', '..', 'data');
 const dbFilename = 'nexus-terminal.db';
@@ -103,7 +103,11 @@ export const getDbInstance = (): Promise<sqlite3.Database> => {
         
                 try {
 
+                    // 运行初始表创建
                     await runDatabaseInitializations(db);
+                    // +++ 运行数据库迁移 +++
+                    await runMigrations(db);
+                    console.log('[数据库] 初始化和迁移完成。'); // 添加日志确认
                     resolve(db);
                 } catch (initError) {
                     console.error('[数据库] 连接后初始化失败，正在关闭连接...');

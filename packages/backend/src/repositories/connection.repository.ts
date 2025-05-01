@@ -39,7 +39,9 @@ export interface FullConnectionData extends ConnectionBase {
 
 
 // FullConnectionDbRow implicitly includes 'type' via FullConnectionData
+// Also add ssh_key_id here as it's part of the connection record itself
 interface FullConnectionDbRow extends FullConnectionData {
+    ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_db_id: number | null;
     proxy_name: string | null;
     proxy_type: string | null;

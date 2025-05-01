@@ -166,7 +166,11 @@
       "sectionAuth": "认证信息",
       "sectionAdvanced": "高级选项",
       "testConnection": "测试连接",
-      "testing": "测试中..."
+      "testing": "测试中...",
+      "sshKey": "SSH 密钥",
+      "privateKeyDirect": "私钥内容",
+      "keyUpdateNoteDirect": "编辑时将私钥和密码短语留空以保留现有密钥。",
+      "keyUpdateNoteSelected": "编辑时选择其他密钥或使用直接输入来更改密钥。"
     },
     "test": {
       "success": "连接测试成功！",
@@ -984,5 +988,35 @@
   },
   "terminalTabBar": {
     "selectServerTitle": "选择要连接的服务器"
+  },
+  "sshKeys": {
+    "selector": {
+      "selectPlaceholder": "选择一个 SSH 密钥...",
+      "useDirectInput": "或直接输入密钥内容",
+      "manageKeysTitle": "管理 SSH 密钥",
+      "loadingKeys": "正在加载密钥..."
+    },
+    "modal": {
+      "title": "SSH 密钥管理",
+      "addKey": "添加密钥",
+      "keyName": "密钥名称",
+      "actions": "操作",
+      "loading": "加载中...",
+      "noKeys": "没有找到 SSH 密钥。请添加一个。",
+      "close": "关闭",
+      "addTitle": "添加新 SSH 密钥",
+      "editTitle": "编辑 SSH 密钥",
+      "privateKey": "私钥内容",
+      "passphrase": "私钥密码",
+      "cancel": "取消",
+      "saveChanges": "保存更改",
+      "edit": "编辑",
+      "delete": "删除",
+      "errorFetchDetails": "获取密钥详情失败",
+      "errorRequiredFields": "密钥名称和私钥内容不能为空。",
+      "confirmDelete": "确定要删除密钥 \"{name}\" 吗？此操作不可撤销。",
+      "keyUpdateNote": "将私钥留空以保留现有密钥。密码短语始终需要重新输入（如果需要）。",
+      "passphraseUpdateNote": "留空表示不修改或移除密码短语。输入新密码短语以更新。"
+    }
   }
 }

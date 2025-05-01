@@ -166,7 +166,11 @@
       "sectionAuth": "Authentication",
       "sectionAdvanced": "Advanced Options",
       "testConnection": "Test Connection",
-      "testing": "Testing..."
+      "testing": "Testing...",
+      "sshKey": "SSH Key",
+      "privateKeyDirect": "Private Key Content",
+      "keyUpdateNoteDirect": "Leave private key and passphrase blank to keep the existing key when editing.",
+      "keyUpdateNoteSelected": "Select another key or use direct input to change the key when editing."
     },
     "test": {
       "success": "Connection test successful!",
@@ -981,5 +985,35 @@
   },
   "terminalTabBar": {
     "selectServerTitle": "Select server to connect"
+  },
+  "sshKeys": {
+    "selector": {
+      "selectPlaceholder": "Select an SSH key...",
+      "useDirectInput": "Or input key content directly",
+      "manageKeysTitle": "Manage SSH Keys",
+      "loadingKeys": "Loading keys..."
+    },
+    "modal": {
+      "title": "SSH Key Management",
+      "addKey": "Add Key",
+      "keyName": "Key Name",
+      "actions": "Actions",
+      "loading": "Loading...",
+      "noKeys": "No SSH keys found. Please add one.",
+      "close": "Close",
+      "addTitle": "Add New SSH Key",
+      "editTitle": "Edit SSH Key",
+      "privateKey": "Private Key Content",
+      "passphrase": "Passphrase",
+      "cancel": "Cancel",
+      "saveChanges": "Save Changes",
+      "edit": "Edit",
+      "delete": "Delete",
+      "errorFetchDetails": "Failed to fetch key details",
+      "errorRequiredFields": "Key name and private key content cannot be empty.",
+      "confirmDelete": "Are you sure you want to delete the key \"{name}\"? This cannot be undone.",
+      "keyUpdateNote": "Leave private key blank to keep the existing key. Passphrase always needs re-entry if required.",
+      "passphraseUpdateNote": "Leave blank to keep or remove the passphrase. Enter a new passphrase to update."
+    }
   }
 }
