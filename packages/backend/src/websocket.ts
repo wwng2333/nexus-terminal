@@ -412,9 +412,28 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
         const pathname = parsedUrl.pathname;
         // const ipAddress = request.ip; // Get IP address early - Let's re-evaluate this later
 
-        // --- 修改：尝试从头部获取 IP ---
-        const potentialIp = request.headers['x-forwarded-for'] || request.headers['x-real-ip'] || request.socket.remoteAddress || request.ip;
-        const ipAddress = Array.isArray(potentialIp) ? potentialIp[0] : potentialIp; // 取 X-Forwarded-For 的第一个 IP
+        // --- 修改：尝试从头部获取 IP，并处理 X-Forwarded-For 列表 ---
+        let ipAddress: string | undefined;
+        const xForwardedFor = request.headers['x-forwarded-for'];
+        const xRealIp = request.headers['x-real-ip'];
+
+        if (xForwardedFor) {
+            // 如果 X-Forwarded-For 存在，取列表中的第一个 IP
+            const ips = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor.split(',')[0];
+            ipAddress = ips?.trim();
+            console.log(`[WebSocket Upgrade] Using first IP from X-Forwarded-For: ${ipAddress}`);
+        } else if (xRealIp) {
+            // 否则，尝试 X-Real-IP
+            ipAddress = Array.isArray(xRealIp) ? xRealIp[0] : xRealIp.trim();
+            console.log(`[WebSocket Upgrade] Using IP from X-Real-IP: ${ipAddress}`);
+        } else {
+            // 最后回退到 socket.remoteAddress 或 request.ip
+            ipAddress = request.socket.remoteAddress || request.ip;
+            console.log(`[WebSocket Upgrade] Using fallback IP: ${ipAddress}`);
+        }
+
+        // 确保 ipAddress 不是 undefined 或空字符串，否则设为 'unknown'
+        ipAddress = ipAddress || 'unknown';
         console.log(`[WebSocket Upgrade] Determined IP Address: ${ipAddress}`);
         // --- 结束修改 ---
 
