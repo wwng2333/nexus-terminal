@@ -29,7 +29,7 @@
 *   Audit logs for comprehensive recording of user behavior and system changes
 *   Lightweight Node.js-based backend with low resource consumption
 *   Built-in heartbeat keep-alive mechanism to ensure stable connections
-
+*   Focus Switcher: Allows switching between input components on the page, supporting customizable switching order and hotkeys.
 
 ## 📸 Screenshots
 
