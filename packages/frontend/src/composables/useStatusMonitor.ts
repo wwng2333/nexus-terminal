@@ -2,6 +2,7 @@ import { ref, readonly, watch, type Ref, ComputedRef } from 'vue'; // 修正导�
 // import { useWebSocketConnection } from './useWebSocketConnection'; // 移除全局导入
 import type { ServerStatus } from '../types/server.types';
 import type { WebSocketMessage, MessagePayload } from '../types/websocket.types';
+import { useLayoutStore } from '../stores/layout.store';
 
 // 定义与 WebSocket 相关的依赖接口
 export interface StatusMonitorDependencies {
@@ -84,9 +85,15 @@ export function createStatusMonitorManager(sessionId: string, wsDeps: StatusMoni
     watch(isConnected, (newValue, oldValue) => {
         console.log(`[会话 ${sessionId}][状态监控模块] 连接状态变化: ${oldValue} -> ${newValue}`);
         if (newValue) {
-            registerStatusHandlers();
-            // 连接成功后，可以考虑请求一次初始状态（如果后端支持）
-            // sendMessage({ type: 'status:get', sessionId });
+            // 只有当状态监视器在布局中时才注册处理器
+            const layoutStore = useLayoutStore();
+            if (layoutStore.usedPanes.has('statusMonitor')) {
+                registerStatusHandlers();
+                // 连接成功后，可以考虑请求一次初始状态（如果后端支持）
+                // sendMessage({ type: 'status:update', sessionId });
+            } else {
+                console.log(`[会话 ${sessionId}][状态监控模块] 状态监视器不在布局中，跳过注册处理器。`);
+            }
         } else {
             unregisterAllStatusHandlers();
             // 连接断开时清除状态

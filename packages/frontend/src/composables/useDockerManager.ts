@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n';
 import { useSettingsStore } from '../stores/settings.store';
 import { storeToRefs } from 'pinia';
 import type { WebSocketMessage, MessagePayload } from '../types/websocket.types';
+import { useLayoutStore } from '../stores/layout.store';
 
 // --- Interfaces (Copied from DockerManager.vue) ---
 interface PortInfo {
@@ -253,15 +254,21 @@ export function createDockerManager(sessionId: string, wsDeps: DockerManagerDepe
     watch(isConnected, (newIsConnected, oldIsConnected) => {
         console.log(`[DockerManager ${sessionId}] Connection status changed: ${oldIsConnected} -> ${newIsConnected}`);
         if (newIsConnected) {
-            // Connection established
-            setupWsListeners();
-            requestDockerStatus(); // Fetch initial status
+            // 只有当Docker管理器在布局中时才设置监听器和定时器
+            const layoutStore = useLayoutStore();
+            if (layoutStore.usedPanes.has('dockerManager')) {
+                // Connection established
+                setupWsListeners();
+                requestDockerStatus(); // Fetch initial status
 
-            // Start refresh interval (consider if backend pushes updates reliably)
-            if (!refreshInterval) {
-                // Keep a safety interval
-                refreshInterval = setInterval(requestDockerStatus, 15000); // Check every 15s
-                console.log(`[DockerManager ${sessionId}] Main refresh interval started (15s).`);
+                // Start refresh interval (consider if backend pushes updates reliably)
+                if (!refreshInterval) {
+                    // Keep a safety interval
+                    refreshInterval = setInterval(requestDockerStatus, 15000); // Check every 15s
+                    console.log(`[DockerManager ${sessionId}] Main refresh interval started (15s).`);
+                }
+            } else {
+                console.log(`[DockerManager ${sessionId}] Docker管理器不在布局中，跳过设置监听器和定时器。`);
             }
         } else {
             // Connection lost
@@ -283,11 +290,17 @@ export function createDockerManager(sessionId: string, wsDeps: DockerManagerDepe
     // This handles cases where the manager is created after the WS connection is live.
     if (isConnected.value) {
         console.log(`[DockerManager ${sessionId}] Initial setup: Already connected.`);
-        setupWsListeners();
-        requestDockerStatus();
-        if (!refreshInterval) {
-             refreshInterval = setInterval(requestDockerStatus, 15000);
-             console.log(`[DockerManager ${sessionId}] Initial setup: Main refresh interval started (15s).`);
+        // 只有当Docker管理器在布局中时才设置监听器和定时器
+        const layoutStore = useLayoutStore();
+        if (layoutStore.usedPanes.has('dockerManager')) {
+            setupWsListeners();
+            requestDockerStatus();
+            if (!refreshInterval) {
+                 refreshInterval = setInterval(requestDockerStatus, 15000);
+                 console.log(`[DockerManager ${sessionId}] Initial setup: Main refresh interval started (15s).`);
+            }
+        } else {
+            console.log(`[DockerManager ${sessionId}] Docker管理器不在布局中，跳过初始设置。`);
         }
     } else {
          console.log(`[DockerManager ${sessionId}] Initial setup: Not connected yet.`);
