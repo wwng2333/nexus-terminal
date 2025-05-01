@@ -25,6 +25,8 @@ const tagsStore = useTagsStore(); // 获取标签 store 实例
 const { isLoading: isConnLoading, error: connStoreError } = storeToRefs(connectionsStore);
 const { proxies, isLoading: isProxyLoading, error: proxyStoreError } = storeToRefs(proxiesStore); // 获取代理列表和状态
 const { tags, isLoading: isTagLoading, error: tagStoreError } = storeToRefs(tagsStore); // 获取标签列表和状态
+const sshKeysStore = useSshKeysStore(); // +++ Get SSH Key store instance +++
+const { isLoading: isSshKeyLoading, error: sshKeyStoreError } = storeToRefs(sshKeysStore); // +++ Get SSH Key store state +++
 
 // 表单数据模型
 const initialFormData = {
@@ -46,8 +48,8 @@ const formData = reactive({ ...initialFormData });
 
 const formError = ref<string | null>(null); // 表单级别的错误信息
 // 合并所有 store 的加载和错误状态
-const isLoading = computed(() => isConnLoading.value || isProxyLoading.value || isTagLoading.value);
-const storeError = computed(() => connStoreError.value || proxyStoreError.value || tagStoreError.value);
+const isLoading = computed(() => isConnLoading.value || isProxyLoading.value || isTagLoading.value || isSshKeyLoading.value); // +++ Include SSH Key loading +++
+const storeError = computed(() => connStoreError.value || proxyStoreError.value || tagStoreError.value || sshKeyStoreError.value); // +++ Include SSH Key error +++
 
 // 测试连接状态
 const testStatus = ref<'idle' | 'testing' | 'success' | 'error'>('idle');
@@ -98,6 +100,7 @@ watch(() => props.connectionToEdit, (newVal) => {
 onMounted(() => {
     proxiesStore.fetchProxies();
     tagsStore.fetchTags(); // 获取标签列表
+    sshKeysStore.fetchSshKeys(); // +++ Fetch SSH keys +++
 });
 
 // 监听连接类型变化，动态调整默认端口
