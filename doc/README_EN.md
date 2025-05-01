@@ -88,6 +88,20 @@ location / {
 }
 ```
 
+To configure IPv6 for Docker, add the following content to `/etc/docker/daemon.json`:
+```json
+{
+  "ipv6": true,
+  "fixed-cidr-v6": "fd00::/80",
+  "ip6tables": true,
+  "experimental": true
+}
+```
+Then restart the Docker service:
+```
+sudo systemctl restart docker
+```
+
 ### 2️⃣ Start the Service
 
 ```bash
