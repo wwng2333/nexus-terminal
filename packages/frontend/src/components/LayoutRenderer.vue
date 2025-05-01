@@ -64,9 +64,10 @@ const emit = defineEmits({
   'find-next': null, // ()
   'find-previous': null, // ()
   'close-search': null, // ()
+  'clear-terminal': null, // () +++ 添加 clear-terminal 事件 +++
   // --- 移除 RDP 事件 ---
 });
-
+ 
 // --- Setup ---
 const layoutStore = useLayoutStore();
 const sessionStore = useSessionStore();
@@ -214,6 +215,7 @@ const componentProps = computed(() => {
          onFindNext: () => emit('find-next'),
          onFindPrevious: () => emit('find-previous'),
          onCloseSearch: () => emit('close-search'),
+         onClearTerminal: () => emit('clear-terminal'), // --- 移除日志 ---
        };
     case 'connections':
        // WorkspaceConnectionList 需要转发 connect-request 等事件
@@ -507,6 +509,7 @@ onMounted(() => {
                         @find-next="emit('find-next')"
                         @find-previous="emit('find-previous')"
                         @close-search="emit('close-search')"
+                        @clear-terminal="() => emit('clear-terminal')" <!-- --- 移除日志 --- -->
                         class="flex-grow overflow-auto"
                     />
                   </pane>

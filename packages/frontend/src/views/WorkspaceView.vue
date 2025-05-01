@@ -292,7 +292,24 @@ const handleCloseSearch = () => {
      console.warn(`[WorkspaceView] Cannot clear search, no active session manager.`);
   }
 };
-
+ 
+// +++ 新增：处理清空终端事件 +++
+const handleClearTerminal = () => {
+  const currentSession = activeSession.value;
+  if (!currentSession) {
+    console.warn('[WorkspaceView] Cannot clear terminal, no active session.');
+    return;
+  }
+  const terminalManager = currentSession.terminalManager as (SshTerminalInstance | undefined);
+  // 调用 Terminal.vue 组件暴露的 clear 方法
+  if (terminalManager && terminalManager.terminalInstance?.value && typeof terminalManager.terminalInstance.value.clear === 'function') {
+    console.log(`[WorkspaceView] Clearing terminal for active session ${currentSession.sessionId}`);
+    terminalManager.terminalInstance.value.clear();
+  } else {
+    console.warn(`[WorkspaceView] Cannot clear terminal for session ${currentSession.sessionId}, terminal manager, instance, or clear method not available.`);
+  }
+};
+ 
 // Removed computed properties for search results, will pass manager directly
 // --- 编辑器操作处理 (用于 FileEditorContainer) ---
 const handleCloseEditorTab = (tabId: string) => {
@@ -415,6 +432,7 @@ const handleCloseEditorTab = (tabId: string) => {
         @find-next="handleFindNext"
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
+        @clear-terminal="handleClearTerminal"
       ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
       <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
         {{ t('layout.loading', '加载布局中...') }}

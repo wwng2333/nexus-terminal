@@ -399,9 +399,14 @@ const clearSearch = () => {
   searchAddon?.clearDecorations();
 };
 
-defineExpose({ write, findNext, findPrevious, clearSearch });
+// +++ 添加 clear 方法 +++
+const clear = () => {
+  terminal?.clear();
+};
 
-
+defineExpose({ write, findNext, findPrevious, clearSearch, clear }); // 暴露 clear 方法
+ 
+ 
 // --- 应用终端背景 ---
 const applyTerminalBackground = () => {
     if (terminalRef.value) {

@@ -7,9 +7,9 @@ import { useSettingsStore } from '../stores/settings.store';
 import { useQuickCommandsStore } from '../stores/quickCommands.store'; 
 import { useCommandHistoryStore } from '../stores/commandHistory.store'; 
 
-const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search']); 
+const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search', 'clear-terminal']); // 添加 clear-terminal 事件
 const { t } = useI18n();
-const focusSwitcherStore = useFocusSwitcherStore(); 
+const focusSwitcherStore = useFocusSwitcherStore();
 const settingsStore = useSettingsStore(); 
 const quickCommandsStore = useQuickCommandsStore(); 
 const commandHistoryStore = useCommandHistoryStore(); 
@@ -223,6 +223,14 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex items-center px-2 py-1.5 bg-background gap-2"> <!-- Removed border-t and border-border/50 -->
     <div class="flex-grow flex items-center bg-transparent relative gap-2"> <!-- Adjusted gap -->
+      <!-- Clear Terminal Button -->
+      <button
+        @click="emit('clear-terminal')"
+        class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+        :title="t('commandInputBar.clearTerminal', '清空终端')"
+      >
+        <i class="fas fa-eraser text-base"></i>
+      </button>
       <!-- Focus Switcher Config Button -->
       <button
         @click="focusSwitcherStore.toggleConfigurator(true)"
