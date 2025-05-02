@@ -1,14 +1,18 @@
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
 
 
-COPY package.json package-lock.json* ./
+# Copy root package files
+COPY package.json package-lock.json ./
 
-COPY packages/frontend/package.json ./packages/frontend/
+# Copy workspace package.json files to ensure npm ci works correctly in monorepo
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/rdp/package.json ./packages/rdp/
 
-RUN npm ci
+# Install dependencies (using install instead of ci for potential armv7 compatibility issues)
+RUN npm install
 
 
 COPY packages/frontend/src ./packages/frontend/src

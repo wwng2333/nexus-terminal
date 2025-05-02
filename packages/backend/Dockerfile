@@ -1,16 +1,18 @@
-FROM node:20-alpine AS builder
+FROM node:20 AS builder
 
 WORKDIR /app
 
 
-COPY package.json package-lock.json* ./
+# Copy root package files including the lock file
+COPY package.json package-lock.json ./
 
-
+# Copy workspace package.json files to ensure npm ci works correctly in monorepo
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
+COPY packages/rdp/package.json ./packages/rdp/
 
-
-RUN npm ci
+# Install dependencies (using install instead of ci for potential armv7/alpine compatibility issues)
+RUN npm install
 
 COPY packages/backend/src ./packages/backend/src
 COPY packages/backend/tsconfig.json ./packages/backend/
@@ -21,7 +23,8 @@ RUN npm run build --workspace=@nexus-terminal/backend
 FROM node:20-alpine
 
 
-RUN apk add --no-cache --virtual .build-deps python3 make g++
+# Install build dependencies including setuptools for node-gyp
+RUN apk add --no-cache --virtual .build-deps python3 py3-setuptools make g++
 
 WORKDIR /app
 

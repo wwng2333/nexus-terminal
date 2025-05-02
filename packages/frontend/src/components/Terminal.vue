@@ -4,7 +4,7 @@ import { Terminal, ITerminalAddon, IDisposable } from 'xterm';
 import { useAppearanceStore } from '../stores/appearance.store'; 
 import { useSettingsStore } from '../stores/settings.store'; 
 import { storeToRefs } from 'pinia'; 
-import { FitAddon } from 'xterm-addon-fit';
+import { FitAddon } from '@xterm/addon-fit'; // Updated import path
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { SearchAddon, type ISearchOptions } from '@xterm/addon-search'; 
 import 'xterm/css/xterm.css'; 
