@@ -232,7 +232,7 @@ export function createSftpActionsManager(
         console.log(`[SFTP ${instanceSessionId}] ${forceRefresh ? '强制' : ''}加载目录: ${path}`); // 日志改为中文，并标明是否强制
         isLoading.value = true;
         // error.value = null; // 不再需要
-        currentPathRef.value = path; // 更新外部 ref
+        // currentPathRef.value = path; // <-- 移除此行，延迟更新
         const requestId = generateRequestId();
         loadingRequestId.value = requestId; // 记录当前加载请求 ID
         sendMessage({ type: 'sftp:readdir', requestId: requestId, payload: { path } });
@@ -536,6 +536,10 @@ export function createSftpActionsManager(
         targetNode.children = mergedChildren;
         targetNode.childrenLoaded = true;
         console.log(`[SFTP ${instanceSessionId}] File tree node ${path}'s children updated after merge.`);
+
+        // *** 在成功加载并更新树之后，才更新当前路径 ***
+        currentPathRef.value = path;
+        console.log(`[SFTP ${instanceSessionId}] currentPathRef updated to ${path} after successful readdir.`);
 
         // 重置加载状态，因为这是匹配的响应
         isLoading.value = false;
