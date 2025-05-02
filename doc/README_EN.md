@@ -88,7 +88,9 @@ location / {
 }
 ```
 
-To configure IPv6 for Docker, add the following content to `/etc/docker/daemon.json`:
+Configure IPv6 for Docker (optional — you can skip this if you don't use IPv6 to connect to the server).
+
+Add the following content to `/etc/docker/daemon.json`:
 ```json
 {
   "ipv6": true,
@@ -143,11 +145,13 @@ Here are some implicit practical features.
 ### General Operations
 
 1.  **Zoom**: In the terminal, file manager, and text editor components, you can use `Ctrl + Mouse Wheel` to zoom.
+2. **Sidebar**: The expanded sidebar can have its width adjusted by dragging.
 
 ## ⚠️ Notes
 
 1.  **Dual File Managers**: You can add two file manager components in the layout (experimental feature, may be unstable).
 2.  **Multiple Text Editors**: The functionality to add multiple text editors in the same layout has not yet been implemented.
+3. ARM64 users, please use the [docker-compose.yml](https://github.com/Heavrnl/nexus-terminal/blob/main/doc/arm/docker-compose.yml) provided here. Since Apache Guacamole does not provide an ARM architecture image for `guacd`, the RDP feature has been disabled, and the related image will no longer be pulled for the time being.
 
 
 ## ☕ Donate

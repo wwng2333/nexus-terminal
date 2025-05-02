@@ -76,7 +76,7 @@
 ```bash
 mkdir ./nexus-terminal && cd ./nexus-terminal
 ```
-下载仓库的 [**docker-compose.yml**](https://raw.githubusercontent.com/Heavrnl/nexus-terminal/refs/heads/main/docker-compose.yml) 和  [**.env**](https://raw.githubusercontent.com/Heavrnl/nexus-terminal/refs/heads/main/.env) 到目录下
+下载仓库的 [**docker-compose.yml**](https://raw.githubusercontent.com/Heavrnl/nexus-terminal/refs/heads/main/docker-compose.yml) 和  [**.env**](https://raw.githubusercontent.com/Heavrnl/nexus-terminal/refs/heads/main/.env) 到目录下(arm64 用户请查看下方的注意事项)
 
 ```bash
 wget https://raw.githubusercontent.com/Heavrnl/nexus-terminal/refs/heads/main/docker-compose.yml -O docker-compose.yml && wget https://raw.githubusercontent.com/Heavrnl/nexus-terminal/refs/heads/main/.env -O .env
@@ -157,11 +157,15 @@ docker-compose up -d
 ### 通用操作
 
 1.  **缩放**：在终端、文件管理器和文本编辑器组件中，可以使用 `Ctrl + 鼠标滚轮` 进行缩放。
+2.  **侧栏**：展开的侧栏可以通过拖拽调节宽度。
 
 ## ⚠️ 注意事项
 
 1.  **双文件管理器**：可以在布局中添加两个文件管理器组件（实验性功能，可能存在不稳定情况）。
 2.  **多文本编辑器**：在同一布局中添加多个文本编辑器的功能尚未实现。
+3. ARM64 用户请使用此处的 [docker-compose.yml](https://github.com/Heavrnl/nexus-terminal/blob/main/doc/arm/docker-compose.yml)。由于 Apache Guacamole 未提供 guacd 的 ARM 架构镜像，所以禁用 RDP 功能，相关镜像暂时不再拉取。
+
+
 
 
 ## ☕ 捐赠
