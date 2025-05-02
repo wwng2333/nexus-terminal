@@ -151,6 +151,7 @@ Here are some implicit practical features.
 
 1.  **Dual File Managers**: You can add two file manager components in the layout (experimental feature, may be unstable).
 2.  **Multiple Text Editors**: The functionality to add multiple text editors in the same layout has not yet been implemented.
+3. ARM64 users, please use the [docker-compose.yml](https://github.com/Heavrnl/nexus-terminal/blob/main/doc/arm/docker-compose.yml) provided here. Since Apache Guacamole does not provide an ARM architecture image for `guacd`, the RDP feature has been disabled, and the related image will no longer be pulled for the time being.
 
 
 ## ☕ Donate
