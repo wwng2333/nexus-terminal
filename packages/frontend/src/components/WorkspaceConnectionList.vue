@@ -37,8 +37,30 @@ const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextTargetConnection = ref<ConnectionInfo | null>(null);
 
-// 分组展开状态
-const expandedGroups = ref<Record<string, boolean>>({}); // 使用 Record<string, boolean>
+// +++ 本地存储键名 +++
+const EXPANDED_GROUPS_STORAGE_KEY = 'workspaceConnectionListExpandedGroups';
+
+// +++ 加载初始分组展开状态 +++
+const loadInitialExpandedGroups = (): Record<string, boolean> => {
+  try {
+    const storedState = localStorage.getItem(EXPANDED_GROUPS_STORAGE_KEY);
+    if (storedState) {
+      const parsedState = JSON.parse(storedState);
+      // 简单验证一下是否是对象
+      if (typeof parsedState === 'object' && parsedState !== null) {
+        return parsedState;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load or parse expanded groups state from localStorage:', e);
+    localStorage.removeItem(EXPANDED_GROUPS_STORAGE_KEY); // 清除无效状态
+  }
+  // 默认返回空对象，让 computed 属性处理默认展开
+  return {};
+};
+
+// 分组展开状态 - 从 localStorage 初始化
+const expandedGroups = ref<Record<string, boolean>>(loadInitialExpandedGroups());
 
 // --- 移除 RDP 模态框状态 ---
 // const showRdpModal = ref(false);
@@ -96,8 +118,9 @@ const filteredAndGroupedConnections = computed(() => {
           const groupName = tag.name;
           if (!groups[groupName]) {
             groups[groupName] = [];
+            // +++ 如果状态未定义，则明确设为 true (展开) +++
             if (expandedGroups.value[groupName] === undefined) {
-               expandedGroups.value[groupName] = true; // 默认展开
+               expandedGroups.value[groupName] = true;
             }
           }
           // 避免重复添加（如果一个连接有多个标签）
@@ -130,32 +153,42 @@ const filteredAndGroupedConnections = computed(() => {
 
   if (untagged.length > 0) {
       const untaggedGroupName = t('workspaceConnectionList.untagged');
+      // +++ 如果状态未定义，则明确设为 true (展开) +++
       if (expandedGroups.value[untaggedGroupName] === undefined) {
-          expandedGroups.value[untaggedGroupName] = true; // 默认展开
+          expandedGroups.value[untaggedGroupName] = true;
       }
       result.push({ groupName: untaggedGroupName, connections: untagged });
   }
 
   return result;
   });
+
+  // +++ 监听分组状态变化并保存到 localStorage +++
+  watch(expandedGroups, (newState) => {
+    try {
+      localStorage.setItem(EXPANDED_GROUPS_STORAGE_KEY, JSON.stringify(newState));
+    } catch (e) {
+      console.error('Failed to save expanded groups state to localStorage:', e);
+    }
+  }, { deep: true });
   
   // 监听搜索词变化，重置高亮索引
   watch(searchTerm, () => {
     highlightedIndex.value = -1;
   });
   
-  // 监听分组展开状态变化，重置高亮索引
+  // 监听分组展开状态变化，重置高亮索引 (这个 watch 保留，用于重置高亮)
   watch(expandedGroups, () => {
       highlightedIndex.value = -1;
   }, { deep: true });
   
-  
   // 切换分组展开/折叠
-const toggleGroup = (groupName: string) => {
-  expandedGroups.value[groupName] = !expandedGroups.value[groupName];
-};
-
-// 处理单击连接 (左键/Enter) - 使用 session store 处理连接请求
+  const toggleGroup = (groupName: string) => {
+    // 状态现在总是 boolean，直接切换
+    expandedGroups.value[groupName] = !expandedGroups.value[groupName];
+  };
+  
+  // 处理单击连接 (左键/Enter) - 使用 session store 处理连接请求
 const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent) => {
   if (event instanceof MouseEvent && event.button !== 0) {
     console.log(`[WkspConnList] DEBUG: handleConnect called with non-left click (button: ${event.button}). Ignoring.`);
