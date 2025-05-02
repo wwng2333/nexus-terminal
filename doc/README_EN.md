@@ -88,7 +88,9 @@ location / {
 }
 ```
 
-To configure IPv6 for Docker, add the following content to `/etc/docker/daemon.json`:
+Configure IPv6 for Docker (optional — you can skip this if you don't use IPv6 to connect to the server).
+
+Add the following content to `/etc/docker/daemon.json`:
 ```json
 {
   "ipv6": true,
