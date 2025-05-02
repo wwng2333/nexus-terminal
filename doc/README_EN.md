@@ -143,6 +143,7 @@ Here are some implicit practical features.
 ### General Operations
 
 1.  **Zoom**: In the terminal, file manager, and text editor components, you can use `Ctrl + Mouse Wheel` to zoom.
+2. **Sidebar**: The expanded sidebar can have its width adjusted by dragging.
 
 ## ⚠️ Notes
 
