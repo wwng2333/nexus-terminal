@@ -73,6 +73,8 @@ export interface SessionState {
   // --- 新增：独立编辑器状态 ---
   editorTabs: Ref<FileTab[]>; // 编辑器标签页列表
   activeEditorTabId: Ref<string | null>; // 当前活动的编辑器标签页 ID
+  // --- 新增：命令输入框内容 ---
+  commandInputContent: Ref<string>; // 当前会话的命令输入框内容
 }
 
 // 为标签栏定义包含状态的类型
@@ -185,6 +187,8 @@ export const useSessionStore = defineStore('session', () => {
         // --- 初始化编辑器状态 ---
         editorTabs: ref([]), // 初始化为空数组
         activeEditorTabId: ref(null), // 初始化为 null
+        // --- 初始化命令输入框内容 ---
+        commandInputContent: ref(''), // 初始化为空字符串
     };
 
     // 3. 添加到 Map 并激活 (需要创建 Map 的新实例以触发 shallowRef 更新)
@@ -652,6 +656,18 @@ export const useSessionStore = defineStore('session', () => {
     rdpConnectionInfo.value = null; // 清除连接信息
   };
 
+  /**
+   * 更新指定会话的命令输入框内容
+   */
+  const updateSessionCommandInput = (sessionId: string, content: string) => {
+    const session = sessions.value.get(sessionId);
+    if (session) {
+      session.commandInputContent.value = content;
+    } else {
+      console.warn(`[SessionStore] 尝试更新不存在的会话 ${sessionId} 的命令输入内容`);
+    }
+  };
+
 
   return {
     // State
@@ -681,5 +697,7 @@ export const useSessionStore = defineStore('session', () => {
     // --- RDP Modal Actions ---
     openRdpModal,           // 导出打开 RDP 模态框 Action
     closeRdpModal,          // 导出关闭 RDP 模态框 Action
+    // --- 命令输入框 Action ---
+    updateSessionCommandInput, // 导出更新命令输入 Action
   };
 });

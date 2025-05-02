@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed } from 'vue'; 
+import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia'; 
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; 
-import { useSettingsStore } from '../stores/settings.store'; 
-import { useQuickCommandsStore } from '../stores/quickCommands.store'; 
-import { useCommandHistoryStore } from '../stores/commandHistory.store'; 
+import { storeToRefs } from 'pinia';
+import { useSessionStore } from '../stores/session.store'; // +++ 导入 Session Store +++
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store';
+import { useSettingsStore } from '../stores/settings.store';
+import { useQuickCommandsStore } from '../stores/quickCommands.store';
+import { useCommandHistoryStore } from '../stores/commandHistory.store';
 
 const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search', 'clear-terminal']); // 添加 clear-terminal 事件
 const { t } = useI18n();
 const focusSwitcherStore = useFocusSwitcherStore();
-const settingsStore = useSettingsStore(); 
-const quickCommandsStore = useQuickCommandsStore(); 
-const commandHistoryStore = useCommandHistoryStore(); 
+const settingsStore = useSettingsStore();
+const quickCommandsStore = useQuickCommandsStore();
+const commandHistoryStore = useCommandHistoryStore();
+const sessionStore = useSessionStore(); // +++ 初始化 Session Store +++
 
 // Get reactive setting from store
 const { commandInputSyncTarget } = storeToRefs(settingsStore);
@@ -22,23 +24,44 @@ const { resetSelection: resetQuickCommandsSelection } = quickCommandsStore;
 // Get reactive state and actions from command history store
 const { selectedIndex: historySelectedIndex, filteredHistory: historyFiltered } = storeToRefs(commandHistoryStore);
 const { resetSelection: resetHistorySelection } = commandHistoryStore;
+// +++ Get active session ID from session store +++
+const { activeSessionId } = storeToRefs(sessionStore);
+const { updateSessionCommandInput } = sessionStore;
 
 // Props definition is now empty as search results are no longer handled here
 const props = defineProps<{
   // No props defined here currently
 }>();
-const commandInput = ref('');
+// --- 移除本地 commandInput ref ---
+// const commandInput = ref('');
 const isSearching = ref(false);
 const searchTerm = ref('');
 // *** 移除本地的搜索结果 ref ***
 // const searchResultCount = ref(0);
 // const currentSearchResultIndex = ref(0);
 
+// +++ 计算属性，用于获取和设置当前活动会话的命令输入 +++
+const currentSessionCommandInput = computed({
+  get: () => {
+    if (!activeSessionId.value) return '';
+    const session = sessionStore.sessions.get(activeSessionId.value);
+    return session ? session.commandInputContent.value : '';
+  },
+  set: (newValue) => {
+    if (activeSessionId.value) {
+      updateSessionCommandInput(activeSessionId.value, newValue);
+    }
+  }
+});
+
 const sendCommand = () => {
-  const command = commandInput.value;
+  const command = currentSessionCommandInput.value; // 使用计算属性获取值
   console.log(`[CommandInputBar] Sending command: ${command || '<Enter>'} `);
   emit('send-command', command);
-  commandInput.value = '';
+  // 清空 store 中的值
+  if (activeSessionId.value) {
+    updateSessionCommandInput(activeSessionId.value, '');
+  }
 };
 
 const toggleSearch = () => {
@@ -72,8 +95,8 @@ watch(searchTerm, (newValue) => {
   }
 });
 
-// NEW: Watch commandInput and sync searchTerm based on settings
-watch(commandInput, (newValue) => {
+// NEW: Watch currentSessionCommandInput and sync searchTerm based on settings
+watch(currentSessionCommandInput, (newValue) => { // 监听计算属性
   const target = commandInputSyncTarget.value;
   if (target === 'quickCommands') {
     quickCommandsStore.setSearchTerm(newValue);
@@ -138,9 +161,12 @@ const handleCommandInputKeydown = (event: KeyboardEvent) => {
       event.preventDefault();
       console.log(`[CommandInputBar] Alt+Enter detected. Sending selected command: ${selectedCommand}`);
       emit('send-command', selectedCommand + '\n');
-      commandInput.value = ''; // Clear input after sending selected command
+      // 清空 store 中的值
+      if (activeSessionId.value) {
+        updateSessionCommandInput(activeSessionId.value, '');
+      }
     }
-  } else if (event.ctrlKey && event.key === 'c' && commandInput.value === '') {
+  } else if (event.ctrlKey && event.key === 'c' && currentSessionCommandInput.value === '') { // 检查计算属性的值
     // Handle Ctrl+C when input is empty
     event.preventDefault();
     console.log('[CommandInputBar] Ctrl+C detected with empty input. Sending SIGINT.');
@@ -242,7 +268,7 @@ onBeforeUnmount(() => {
       <!-- Command Input -->
       <input
         type="text"
-        v-model="commandInput"
+        v-model="currentSessionCommandInput"
         :placeholder="t('commandInputBar.placeholder')"
         class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
         :class="{ 'basis-3/4': isSearching, 'basis-full': !isSearching }"
