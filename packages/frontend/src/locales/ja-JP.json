@@ -93,14 +93,17 @@
             "delete": "削除",
             "edit": "編集",
             "test": "テスト",
-            "testing": "テスト中..."
-        },
-        "addConnection": "新しい接続を追加",
-        "addFirstConnection": "最初の接続を追加",
+            "testing": "テスト中...",
+            "clone": "クローン"
+          },
+          "addConnection": "新しい接続を追加",
+          "addFirstConnection": "最初の接続を追加",
         "errors": {
-            "deleteFailed": "接続の削除に失敗しました: {error}"
-        },
-        "form": {
+            "deleteFailed": "接続の削除に失敗しました: {error}",
+            "createFailed": "接続の追加に失敗しました: {error}",
+            "cloneFailed": "接続のクローン作成に失敗しました: {error}"
+          },
+          "form": {
             "adding": "追加中...",
             "authMethod": "認証方法:",
             "authMethodKey": "SSHキー",

@@ -432,3 +432,71 @@ export const getConnectionWithDecryptedCredentials = async (
 };
 // 注意：testConnection、importConnections、exportConnections 逻辑
 // 将分别移至 SshService 和 ImportExportService。
+
+
+/**
+ * 克隆连接
+ * @param originalId 要克隆的原始连接 ID
+ * @param newName 新连接的名称
+ * @returns 克隆后的新连接信息（包含标签）
+ */
+export const cloneConnection = async (originalId: number, newName: string): Promise<ConnectionWithTags> => {
+    // 1. 检查新名称是否已存在
+    const existingByName = await ConnectionRepository.findConnectionByName(newName);
+    if (existingByName) {
+        throw new Error(`名称为 "${newName}" 的连接已存在。`);
+    }
+
+    // 2. 获取原始连接的完整数据（包括加密字段和 ssh_key_id）
+    const originalFullConnection = await ConnectionRepository.findFullConnectionById(originalId);
+    if (!originalFullConnection) {
+        throw new Error(`ID 为 ${originalId} 的原始连接未找到。`);
+    }
+
+    // 3. 准备新连接的数据
+    // 使用 Omit 来排除不需要的字段，并确保类型正确
+    const dataForNewConnection: Omit<ConnectionRepository.FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'> = {
+        name: newName,
+        type: originalFullConnection.type,
+        host: originalFullConnection.host,
+        port: originalFullConnection.port,
+        username: originalFullConnection.username,
+        auth_method: originalFullConnection.auth_method,
+        encrypted_password: originalFullConnection.encrypted_password ?? null,
+        encrypted_private_key: originalFullConnection.encrypted_private_key ?? null,
+        encrypted_passphrase: originalFullConnection.encrypted_passphrase ?? null,
+        ssh_key_id: originalFullConnection.ssh_key_id ?? null, // 保留原始的 ssh_key_id
+        proxy_id: originalFullConnection.proxy_id ?? null,
+        // 移除不存在的 RDP 字段复制
+        // ...(originalFullConnection.rdp_security && { rdp_security: originalFullConnection.rdp_security }),
+        // ...(originalFullConnection.rdp_ignore_cert !== undefined && { rdp_ignore_cert: originalFullConnection.rdp_ignore_cert }),
+    };
+
+    // 4. 创建新连接记录
+    const newConnectionId = await ConnectionRepository.createConnection(dataForNewConnection);
+
+    // 5. 复制原始连接的标签
+    const originalTags = await ConnectionRepository.findConnectionTags(originalId);
+    if (originalTags.length > 0) {
+        const tagIds = originalTags.map(tag => tag.id);
+        await ConnectionRepository.updateConnectionTags(newConnectionId, tagIds);
+    }
+
+    // 6. 记录审计操作
+    const clonedConnection = await getConnectionById(newConnectionId);
+    if (!clonedConnection) {
+        console.error(`[Audit Log Error] Failed to retrieve connection ${newConnectionId} after cloning from ${originalId}.`);
+        throw new Error('克隆连接后无法检索到该连接。');
+    }
+    // 使用 CONNECTION_CREATED 事件，但添加额外信息表明是克隆操作
+    auditLogService.logAction('CONNECTION_CREATED', {
+        connectionId: clonedConnection.id,
+        type: clonedConnection.type,
+        name: clonedConnection.name,
+        host: clonedConnection.host,
+        clonedFromId: originalId // 添加克隆来源信息
+    });
+
+    // 7. 返回新创建的带标签的连接
+    return clonedConnection;
+};

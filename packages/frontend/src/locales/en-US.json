@@ -126,7 +126,8 @@
       "edit": "Edit",
       "delete": "Delete",
       "test": "Test",
-      "testing": "Testing..."
+      "testing": "Testing...",
+      "clone": "Clone"
     },
     "form": {
       "title": "Add New Connection",
@@ -186,7 +187,9 @@
       "confirmDelete": "Are you sure you want to delete the connection \"{name}\"? This cannot be undone."
     },
     "errors": {
-      "deleteFailed": "Failed to delete connection: {error}"
+      "deleteFailed": "Failed to delete connection: {error}",
+      "createFailed": "Failed to add connection: {error}",
+      "cloneFailed": "Failed to clone connection: {error}"
     },
     "status": {
       "never": "Never"

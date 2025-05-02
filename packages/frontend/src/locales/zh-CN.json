@@ -126,7 +126,8 @@
       "edit": "编辑",
       "delete": "删除",
       "test": "测试",
-      "testing": "测试中..."
+      "testing": "测试中...",
+      "clone": "克隆"
     },
     "form": {
       "title": "添加新连接",
@@ -186,7 +187,9 @@
       "confirmDelete": "确定要删除连接 \"{name}\" 吗？此操作不可撤销。"
     },
     "errors": {
-      "deleteFailed": "删除连接失败: {error}"
+      "deleteFailed": "删除连接失败: {error}",
+      "createFailed": "添加连接失败: {error}",
+      "cloneFailed": "克隆连接失败: {error}"
     },
     "status": {
       "never": "从未"

@@ -207,5 +207,31 @@ export const useConnectionsStore = defineStore('connections', {
                 // this.isLoading = false;
             }
         },
+
+        // 新增：克隆连接 Action (调用后端克隆接口)
+        async cloneConnection(originalId: number, newName: string): Promise<boolean> {
+            this.isLoading = true; // 可以考虑为克隆操作设置单独的加载状态
+            this.error = null;
+            try {
+                // 调用后端的克隆接口，例如 POST /connections/:id/clone
+                // 请求体可以包含新名称等信息
+                // 假设后端接口需要 { name: newName } 作为请求体
+                await apiClient.post(`/connections/${originalId}/clone`, { name: newName });
+
+                // 克隆成功后，清除缓存并重新获取列表以显示新连接
+                localStorage.removeItem('connectionsCache');
+                await this.fetchConnections(); // 重新获取以保证数据一致性
+                return true; // 表示成功
+            } catch (err: any) {
+                console.error(`克隆连接 ${originalId} 失败:`, err);
+                this.error = err.response?.data?.message || err.message || `克隆连接时发生未知错误。`;
+                if (err.response?.status === 401) {
+                    console.warn('未授权，需要登录才能克隆连接。');
+                }
+                return false; // 表示失败
+            } finally {
+                this.isLoading = false;
+            }
+        },
     },
 });

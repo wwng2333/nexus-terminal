@@ -210,7 +210,7 @@ const closeContextMenu = () => {
 };
 
 // 处理右键菜单操作
-const handleMenuAction = (action: 'add' | 'edit' | 'delete') => {
+const handleMenuAction = (action: 'add' | 'edit' | 'delete' | 'clone') => { // 添加 'clone' 类型
   const conn = contextTargetConnection.value;
   closeContextMenu(); // 先关闭菜单
 
@@ -227,6 +227,30 @@ const handleMenuAction = (action: 'add' | 'edit' | 'delete') => {
         connectionsStore.deleteConnection(conn.id);
         // 注意：删除后列表会自动更新，因为 store 是响应式的
       }
+    } else if (action === 'clone') {
+        // 调用 store 中的 cloneConnection 方法
+        // 需要先生成新名称
+        const allConnections = connectionsStore.connections;
+        let newName = `${conn.name} (1)`;
+        let counter = 1;
+        const baseName = conn.name;
+        const escapedBaseName = baseName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`^${escapedBaseName} \\((\\d+)\\)$`);
+
+        while (allConnections.some(c => c.name === newName)) {
+            counter++;
+            newName = `${baseName} (${counter})`;
+        }
+        if (counter === 1 && allConnections.some(c => c.name === baseName)) {
+           // 处理原始名称已存在的情况
+        }
+
+        connectionsStore.cloneConnection(conn.id, newName)
+          .catch(error => {
+              // 可以在这里处理克隆失败的特定 UI 反馈，如果需要的话
+              console.error("Cloning failed in component:", error);
+              // alert(t('connections.errors.cloneFailed', { error: connectionsStore.error || '未知错误' })); // store 中已有错误处理
+          });
     }
   }
 };
@@ -423,6 +447,10 @@ const scrollToHighlighted = async () => {
         <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-primary/10 hover:text-primary text-sm transition-colors duration-150 rounded-md mx-1" @click="handleMenuAction('edit')">
             <i class="fas fa-edit mr-3 w-4 text-center text-text-secondary group-hover:text-primary"></i>
             <span>{{ t('connections.actions.edit') }}</span>
+        </li>
+        <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-foreground hover:bg-primary/10 hover:text-primary text-sm transition-colors duration-150 rounded-md mx-1" @click="handleMenuAction('clone')">
+            <i class="fas fa-clone mr-3 w-4 text-center text-text-secondary group-hover:text-primary"></i>
+            <span>{{ t('connections.actions.clone') }}</span>
         </li>
         <li v-if="contextTargetConnection" class="group px-4 py-1.5 cursor-pointer flex items-center text-error hover:bg-error/10 text-sm transition-colors duration-150 rounded-md mx-1" @click="handleMenuAction('delete')">
             <i class="fas fa-trash-alt mr-3 w-4 text-center text-error/80 group-hover:text-error"></i>

@@ -379,3 +379,36 @@ export const getRdpSessionToken = async (req: Request, res: Response): Promise<v
         res.status(statusCode).json({ message });
     }
 };
+
+/**
+ * 克隆连接 (POST /api/v1/connections/:id/clone)
+ */
+export const cloneConnection = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const originalConnectionId = parseInt(req.params.id, 10);
+        const { name: newName } = req.body; // 从请求体获取新名称
+
+        if (isNaN(originalConnectionId)) {
+            res.status(400).json({ message: '无效的原始连接 ID。' });
+            return;
+        }
+        if (!newName || typeof newName !== 'string') {
+            res.status(400).json({ message: '需要提供有效的字符串类型的新连接名称 (name)。' });
+            return;
+        }
+
+        const clonedConnection = await ConnectionService.cloneConnection(originalConnectionId, newName);
+
+        res.status(201).json({ message: '连接克隆成功。', connection: clonedConnection });
+
+    } catch (error: any) {
+        console.error(`Controller: 克隆连接 ${req.params.id} 时发生错误:`, error);
+        if (error.message.includes('未找到')) {
+             res.status(404).json({ message: error.message });
+        } else if (error.message.includes('名称已存在')) {
+             res.status(409).json({ message: error.message }); // 409 Conflict for duplicate name
+        } else {
+             res.status(500).json({ message: error.message || '克隆连接时发生内部服务器错误。' });
+        }
+    }
+};

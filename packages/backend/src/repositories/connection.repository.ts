@@ -135,10 +135,25 @@ export const findFullConnectionById = async (id: number): Promise<FullConnection
         throw new Error('获取连接详细信息失败');
      }
  };
-
-
-/**
- * 创建新连接 (不处理标签)
+ 
+ /**
+  * 根据名称查找连接 (用于检查名称是否重复)
+  */
+ export const findConnectionByName = async (name: string): Promise<ConnectionBase | null> => {
+     const sql = `SELECT id, name, type, host, port, username, auth_method, proxy_id, ssh_key_id, created_at, updated_at, last_connected_at FROM connections WHERE name = ?`;
+     try {
+         const db = await getDbInstance();
+         const row = await getDbRow<ConnectionBase>(db, sql, [name]);
+         return row || null;
+     } catch (err: any) {
+         console.error(`Repository: 查询连接名称 "${name}" 时出错:`, err.message);
+         throw new Error('查找连接名称失败');
+     }
+ };
+ 
+ 
+ /**
+  * 创建新连接 (不处理标签)
  */
 // Update input type to reflect FullConnectionData now has 'type'
 export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'>): Promise<number> => {
@@ -273,6 +288,27 @@ export const updateConnectionTags = async (connectionId: number, tagIds: number[
             console.error(`Repository: 回滚连接 ${connectionId} 的标签更新事务失败:`, rollbackErr.message);
         }
         throw new Error('处理标签关联失败');
+    }
+};
+
+/**
+ * 查找指定连接的所有标签
+ * @param connectionId 连接 ID
+ * @returns 标签对象数组 { id: number, name: string }[]
+ */
+export const findConnectionTags = async (connectionId: number): Promise<{ id: number, name: string }[]> => {
+    const sql = `
+        SELECT t.id, t.name
+        FROM tags t
+        JOIN connection_tags ct ON t.id = ct.tag_id
+        WHERE ct.connection_id = ?`;
+    try {
+        const db = await getDbInstance();
+        const rows = await allDb<{ id: number, name: string }>(db, sql, [connectionId]);
+        return rows;
+    } catch (err: any) {
+        console.error(`Repository: 查询连接 ${connectionId} 的标签时出错:`, err.message);
+        throw new Error('获取连接标签失败');
     }
 };
 

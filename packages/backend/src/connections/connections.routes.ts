@@ -11,7 +11,8 @@ import {
     testUnsavedConnection,
     exportConnections,
     importConnections,
-    getRdpSessionToken // Import the new controller function
+    getRdpSessionToken, // Import the new controller function
+    cloneConnection // +++ Import the clone controller function +++
 } from './connections.controller';
 
 const router = Router();
@@ -79,5 +80,8 @@ router.post('/test-unsaved', testUnsavedConnection);
 
 // POST /api/v1/connections/:id/rdp-session - Get RDP session token via backend
 router.post('/:id/rdp-session', getRdpSessionToken);
+
+// +++ POST /api/v1/connections/:id/clone - 克隆连接 +++
+router.post('/:id/clone', cloneConnection);
 
 export default router;
