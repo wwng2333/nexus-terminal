@@ -164,8 +164,7 @@ docker-compose up -d
 1.  **双文件管理器**：可以在布局中添加两个文件管理器组件（实验性功能，可能存在不稳定情况）。
 2.  **多文本编辑器**：在同一布局中添加多个文本编辑器的功能尚未实现。
 3. ARM 用户请使用此处的 [docker-compose.yml](https://github.com/Heavrnl/nexus-terminal/blob/main/doc/arm/docker-compose.yml)。由于 Apache Guacamole 未提供 guacd 的 ARM 架构镜像，所以禁用 RDP 功能，相关镜像暂时不再拉取。
-
-
+4. 由于本人手头没有arm机器，所以没有实际测试，运行中可能会有意想不到的bug
 
 
 ## ☕ 捐赠
