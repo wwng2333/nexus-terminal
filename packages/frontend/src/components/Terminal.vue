@@ -306,6 +306,46 @@ onMounted(() => {
     if (terminal) {
         terminal.focus();
     }
+
+    // --- 添加 Ctrl+Shift+C/V 复制粘贴 ---
+    if (terminal && terminal.textarea) { // 确保 terminal 和 textarea 存在
+        terminal.textarea.addEventListener('keydown', async (event: KeyboardEvent) => {
+            // Ctrl+Shift+C for Copy
+            if (event.ctrlKey && event.shiftKey && event.code === 'KeyC') {
+                event.preventDefault(); // 阻止默认行为 (例如浏览器开发者工具)
+                event.stopPropagation(); // 阻止事件冒泡
+                const selection = terminal?.getSelection();
+                if (selection) {
+                    try {
+                        await navigator.clipboard.writeText(selection);
+                        console.log('[Terminal] Copied via Ctrl+Shift+C:', selection);
+                    } catch (err) {
+                        console.error('[Terminal] Failed to copy via Ctrl+Shift+C:', err);
+                        // 可以考虑添加 UI 提示
+                    }
+                }
+            }
+            // Ctrl+Shift+V for Paste
+            else if (event.ctrlKey && event.shiftKey && event.code === 'KeyV') {
+                event.preventDefault();
+                event.stopPropagation();
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                        // 将粘贴的文本发送到后端，模拟用户输入
+                        emit('data', text);
+                        console.log('[Terminal] Pasted via Ctrl+Shift+V');
+                    }
+                } catch (err) {
+                    console.error('[Terminal] Failed to paste via Ctrl+Shift+V:', err);
+                    // 检查权限问题，例如 navigator.clipboard.readText 需要用户授权或安全上下文
+                    // 可以考虑添加 UI 提示
+                }
+            }
+        });
+    }
+    // --- 结束添加复制粘贴 ---
+
     // 重新添加鼠标滚轮缩放功能
     if (terminalRef.value) {
       terminalRef.value.addEventListener('wheel', (event: WheelEvent) => {
