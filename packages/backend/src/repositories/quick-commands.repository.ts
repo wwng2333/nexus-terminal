@@ -1,6 +1,6 @@
 import { getDbInstance, runDb, getDb as getDbRow, allDb } from '../database/connection';
 
-// 定义快捷指令的接口
+// 定义基础快捷指令接口
 export interface QuickCommand {
     id: number;
     name: string | null; // 名称可选
@@ -10,7 +10,16 @@ export interface QuickCommand {
     updated_at: number; // Unix 时间戳 (秒)
 }
 
-type DbQuickCommandRow = QuickCommand;
+// 定义包含标签 ID 的接口
+export interface QuickCommandWithTags extends QuickCommand {
+    tagIds: number[];
+}
+
+// 用于从数据库获取带 tag_ids_str 的行
+interface DbQuickCommandWithTagsRow extends QuickCommand {
+    tag_ids_str: string | null;
+}
+
 
 /**
  * 添加一条新的快捷指令
@@ -70,22 +79,34 @@ export const deleteQuickCommand = async (id: number): Promise<boolean> => {
 };
 
 /**
- * 获取所有快捷指令
+ * 获取所有快捷指令及其关联的标签 ID
  * @param sortBy - 排序字段 ('name' 或 'usage_count')
- * @returns 返回包含所有快捷指令条目的数组
+ * @returns 返回包含所有快捷指令条目及标签 ID 的数组
  */
-export const getAllQuickCommands = async (sortBy: 'name' | 'usage_count' = 'name'): Promise<QuickCommand[]> => {
-    let orderByClause = 'ORDER BY name ASC'; // 默认按名称升序
+export const getAllQuickCommands = async (sortBy: 'name' | 'usage_count' = 'name'): Promise<QuickCommandWithTags[]> => {
+    let orderByClause = 'ORDER BY qc.name ASC'; // 默认按名称升序
     if (sortBy === 'usage_count') {
-        orderByClause = 'ORDER BY usage_count DESC, name ASC'; // 按使用频率降序，同频率按名称升序
+        orderByClause = 'ORDER BY qc.usage_count DESC, qc.name ASC'; // 按使用频率降序，同频率按名称升序
     }
-    const sql = `SELECT id, name, command, usage_count, created_at, updated_at FROM quick_commands ${orderByClause}`;
+    // 使用 LEFT JOIN 连接关联表，并使用 GROUP_CONCAT 获取标签 ID 字符串
+    const sql = `
+        SELECT
+            qc.id, qc.name, qc.command, qc.usage_count, qc.created_at, qc.updated_at,
+            GROUP_CONCAT(qta.tag_id) as tag_ids_str
+         FROM quick_commands qc
+         LEFT JOIN quick_command_tag_associations qta ON qc.id = qta.quick_command_id
+         GROUP BY qc.id
+         ${orderByClause}`;
     try {
         const db = await getDbInstance();
-        const rows = await allDb<DbQuickCommandRow>(db, sql);
-        return rows;
+        const rows = await allDb<DbQuickCommandWithTagsRow>(db, sql);
+        // 将 tag_ids_str 解析为数字数组
+        return rows.map(row => ({
+            ...row,
+            tagIds: row.tag_ids_str ? row.tag_ids_str.split(',').map(Number).filter(id => !isNaN(id)) : []
+        }));
     } catch (err: any) {
-        console.error('获取快捷指令时出错:', err.message);
+        console.error('获取快捷指令（带标签）时出错:', err.message);
         throw new Error('无法获取快捷指令');
     }
 };
@@ -108,18 +129,34 @@ export const incrementUsageCount = async (id: number): Promise<boolean> => {
 };
 
 /**
- * 根据 ID 查找快捷指令 (用于编辑前获取数据)
+ * 根据 ID 查找快捷指令及其关联的标签 ID
  * @param id - 要查找的记录 ID
- * @returns 返回找到的快捷指令条目，如果未找到则返回 undefined
+ * @returns 返回找到的快捷指令条目及标签 ID，如果未找到则返回 undefined
  */
-export const findQuickCommandById = async (id: number): Promise<QuickCommand | undefined> => {
-    const sql = `SELECT id, name, command, usage_count, created_at, updated_at FROM quick_commands WHERE id = ?`;
+export const findQuickCommandById = async (id: number): Promise<QuickCommandWithTags | undefined> => {
+    // 使用 LEFT JOIN 连接关联表，并使用 GROUP_CONCAT 获取标签 ID 字符串
+    const sql = `
+        SELECT
+            qc.id, qc.name, qc.command, qc.usage_count, qc.created_at, qc.updated_at,
+            GROUP_CONCAT(qta.tag_id) as tag_ids_str
+         FROM quick_commands qc
+         LEFT JOIN quick_command_tag_associations qta ON qc.id = qta.quick_command_id
+         WHERE qc.id = ?
+         GROUP BY qc.id`;
     try {
         const db = await getDbInstance();
-        const row = await getDbRow<DbQuickCommandRow>(db, sql, [id]);
-        return row;
+        const row = await getDbRow<DbQuickCommandWithTagsRow>(db, sql, [id]);
+        if (row && typeof row.id !== 'undefined') {
+            // 将 tag_ids_str 解析为数字数组
+            return {
+                ...row,
+                tagIds: row.tag_ids_str ? row.tag_ids_str.split(',').map(Number).filter(id => !isNaN(id)) : []
+            };
+        } else {
+            return undefined;
+        }
     } catch (err: any) {
-        console.error('查找快捷指令时出错:', err.message);
+        console.error('查找快捷指令（带标签）时出错:', err.message);
         throw new Error('无法查找快捷指令');
     }
 };

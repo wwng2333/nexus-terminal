@@ -275,6 +275,35 @@ const handleSubmit = async () => {
   }
 };
 
+// --- Tag Creation/Deletion Handling ---
+const handleCreateTag = async (tagName: string) => {
+    console.log(`[ConnForm] Received create-tag event for: ${tagName}`); // +++ 添加日志 +++
+    if (!tagName || tagName.trim().length === 0) return;
+    console.log(`[ConnForm] Calling tagsStore.addTag...`); // +++ 添加日志 +++
+    const newTag = await tagsStore.addTag(tagName.trim()); // Use the correct store
+    if (newTag && !formData.tag_ids.includes(newTag.id)) {
+        console.log(`[ConnForm] New tag created (ID: ${newTag.id}), adding to selection.`); // +++ 添加日志 +++
+        // Add the new tag's ID to the selected list
+        formData.tag_ids.push(newTag.id);
+    }
+};
+
+const handleDeleteTag = async (tagId: number) => {
+    const tagToDelete = tags.value.find(t => t.id === tagId);
+    if (!tagToDelete) return;
+
+    if (confirm(t('tags.prompts.confirmDelete', { name: tagToDelete.name }))) {
+        const success = await tagsStore.deleteTag(tagId); // Use the correct store
+        if (success) {
+            // TagInput's modelValue will update automatically via watch
+            // No need to manually remove from formData.tag_ids here
+        } else {
+            // Optional: Show error notification if deletion fails
+            alert(t('tags.errorDelete', { error: tagsStore.error || '未知错误' }));
+        }
+    }
+};
+
 // 处理测试连接
 const handleTestConnection = async () => {
   testStatus.value = 'testing';
@@ -487,9 +516,19 @@ const testButtonText = computed(() => {
 
            <div>
              <label class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.tags') }} ({{ t('connections.form.optional') }})</label>
-             <TagInput v-model="formData.tag_ids" />
+             <TagInput
+                 v-model="formData.tag_ids"
+                 :available-tags="tags"
+                 :allow-create="true"
+                 :allow-delete="true"
+                 @create-tag="handleCreateTag"
+                 @delete-tag="handleDeleteTag"
+                 :placeholder="t('tags.inputPlaceholder', '添加或选择标签...')"
+             />
+             <div v-if="isTagLoading" class="mt-1 text-xs text-text-secondary">{{ t('tags.loading') }}</div>
+             <div v-if="tagStoreError" class="mt-1 text-xs text-error">{{ t('tags.error', { error: tagStoreError }) }}</div>
            </div>
-        </div>
+         </div>
 
         <!-- Error message -->
         <div v-if="formError || storeError" class="text-error bg-error/10 border border-error/30 rounded-md p-3 text-sm text-center font-medium">

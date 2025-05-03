@@ -152,6 +152,30 @@ CREATE TABLE IF NOT EXISTS quick_commands (
 );
 `;
 
+// --- Quick Command Tags ---
+
+export const createQuickCommandTagsTableSQL = `
+CREATE TABLE IF NOT EXISTS quick_command_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+`;
+
+export const createQuickCommandTagAssociationsTableSQL = `
+CREATE TABLE IF NOT EXISTS quick_command_tag_associations (
+    quick_command_id INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    PRIMARY KEY (quick_command_id, tag_id),
+    FOREIGN KEY (quick_command_id) REFERENCES quick_commands(id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES quick_command_tags(id) ON DELETE CASCADE
+);
+`;
+
+// --- End Quick Command Tags ---
+
+
 // 从 database.ts 移动过来的，保持一致性
 export const createTerminalThemesTableSQL = `
 CREATE TABLE IF NOT EXISTS terminal_themes (

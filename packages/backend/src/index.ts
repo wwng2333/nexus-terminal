@@ -21,6 +21,7 @@ import quickCommandsRoutes from './quick-commands/quick-commands.routes';
 import terminalThemeRoutes from './terminal-themes/terminal-theme.routes';
 import appearanceRoutes from './appearance/appearance.routes';
 import sshKeysRouter from './ssh_keys/ssh_keys.routes'; // +++ Import SSH Key routes +++
+import quickCommandTagRoutes from './quick-command-tags/quick-command-tag.routes'; // +++ Import Quick Command Tag routes +++
 import { initializeWebSocket } from './websocket';
 import { ipWhitelistMiddleware } from './auth/ipWhitelist.middleware';
 
@@ -261,7 +262,8 @@ const startServer = () => {
     app.use('/api/v1/terminal-themes', terminalThemeRoutes);
     app.use('/api/v1/appearance', appearanceRoutes);
     app.use('/api/v1/ssh-keys', sshKeysRouter); // +++ Register SSH Key routes +++
-
+    app.use('/api/v1/quick-command-tags', quickCommandTagRoutes); // +++ Register Quick Command Tag routes +++
+    
     // 状态检查接口
     app.get('/api/v1/status', (req: Request, res: Response) => {
       res.json({ status: '后端服务运行中！' });

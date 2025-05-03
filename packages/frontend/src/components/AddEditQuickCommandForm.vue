@@ -25,6 +25,23 @@
           ></textarea>
           <small v-if="commandError" class="text-error text-xs mt-1 block">{{ commandError }}</small>
         </div>
+        <!-- +++ Tag Input Section +++ -->
+        <div>
+           <label for="qc-tags" class="block mb-1.5 text-sm font-medium text-text-secondary">{{ t('quickCommands.form.tags', '标签:') }}</label>
+           <TagInput
+               id="qc-tags"
+               v-model="formData.tagIds"
+               :available-tags="quickCommandTagsStore.tags"
+               :placeholder="t('quickCommands.form.tagsPlaceholder', '添加或选择标签...')"
+               @create-tag="handleCreateTag"
+               :allow-create="true"
+               :allow-delete="true"
+               @delete-tag="handleDeleteTag"
+               class="w-full"
+           />
+           <!-- Add styling/classes as needed for TagInput -->
+        </div>
+        <!-- +++ End Tag Input Section +++ -->
         <div class="flex justify-end mt-8 pt-4 border-t border-border/50">
           <!-- Secondary/Cancel Button -->
           <button type="button" @click="closeForm" class="py-2 px-5 rounded-lg text-sm font-medium transition-colors duration-150 bg-background border border-border/50 text-text-secondary hover:bg-border hover:text-foreground mr-3">{{ t('common.cancel', '取消') }}</button>
@@ -42,22 +59,26 @@
 import { ref, reactive, computed, watch, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useQuickCommandsStore, type QuickCommandFE } from '../stores/quickCommands.store';
+import { useQuickCommandTagsStore } from '../stores/quickCommandTags.store'; // +++ Import new tag store +++
+import TagInput from './TagInput.vue'; // +++ Import TagInput component (assuming it exists) +++
 
 const props = defineProps<{
-  commandToEdit?: QuickCommandFE | null; // 接收要编辑的指令对象
+    commandToEdit?: QuickCommandFE | null; // 接收要编辑的指令对象 (should include tagIds)
 }>();
 
 const emit = defineEmits(['close']);
 
 const { t } = useI18n();
 const quickCommandsStore = useQuickCommandsStore();
+const quickCommandTagsStore = useQuickCommandTagsStore(); // +++ Instantiate tag store +++
 const isSubmitting = ref(false);
 
 const isEditing = computed(() => !!props.commandToEdit);
 
 const formData = reactive({
-  name: '',
-  command: '',
+    name: '',
+    command: '',
+    tagIds: [] as number[], // +++ Add tagIds +++
 });
 
 const commandError = ref<string | null>(null);
@@ -76,8 +97,53 @@ onMounted(() => {
   if (isEditing.value && props.commandToEdit) {
     formData.name = props.commandToEdit.name ?? '';
     formData.command = props.commandToEdit.command;
+    // Initialize tagIds if editing
+    formData.tagIds = props.commandToEdit.tagIds ? [...props.commandToEdit.tagIds] : [];
   }
+  // Fetch tags if not already loaded (optional, might be better in parent)
+  // if (quickCommandTagsStore.tags.length === 0) {
+  //   quickCommandTagsStore.fetchTags();
+  // }
 });
+
+// --- Tag Creation Handling ---
+// Assuming TagInput emits 'create-tag' with the tag name
+const handleCreateTag = async (tagName: string) => {
+    console.log(`[QuickCmdForm] Received create-tag event for: ${tagName}`); // +++ 添加日志 +++
+    if (!tagName || tagName.trim().length === 0) return;
+    console.log(`[QuickCmdForm] Calling quickCommandTagsStore.addTag...`); // +++ 添加日志 +++
+    const newTag = await quickCommandTagsStore.addTag(tagName.trim());
+    if (newTag && !formData.tagIds.includes(newTag.id)) {
+        console.log(`[QuickCmdForm] New tag created (ID: ${newTag.id}), adding to selection.`); // +++ 添加日志 +++
+        // Add the new tag's ID to the selected list
+        formData.tagIds.push(newTag.id);
+    }
+};
+
+// --- Tag Deletion Handling ---
+const handleDeleteTag = async (tagId: number) => {
+    console.log(`[QuickCmdForm] Received delete-tag event for ID: ${tagId}`); // +++ 添加日志 +++
+    const tagToDelete = quickCommandTagsStore.tags.find(t => t.id === tagId);
+    if (!tagToDelete) return;
+
+    if (confirm(t('tags.prompts.confirmDelete', { name: tagToDelete.name }))) {
+        console.log(`[QuickCmdForm] Calling quickCommandTagsStore.deleteTag...`); // +++ 添加日志 +++
+        const success = await quickCommandTagsStore.deleteTag(tagId);
+        if (success) {
+            // If deletion is successful, TagInput's availableTags will update,
+            // and the tag should disappear from the input.
+            // We also need to remove it from the local formData.tagIds if it was selected.
+            const index = formData.tagIds.indexOf(tagId);
+            if (index > -1) {
+                 console.log(`[QuickCmdForm] Removing deleted tag ID ${tagId} from selection.`); // +++ 添加日志 +++
+                 formData.tagIds.splice(index, 1);
+            }
+        } else {
+            // Optional: Show error notification if deletion fails
+             alert(t('tags.errorDelete', { error: quickCommandTagsStore.error || '未知错误' }));
+        }
+    }
+};
 
 const handleSubmit = async () => {
   if (commandError.value) return; // 如果校验失败则不提交
@@ -89,9 +155,11 @@ const handleSubmit = async () => {
   const finalName = formData.name.trim().length > 0 ? formData.name.trim() : null;
 
   if (isEditing.value && props.commandToEdit) {
-    success = await quickCommandsStore.updateQuickCommand(props.commandToEdit.id, finalName, formData.command.trim());
+    // Pass tagIds to update action
+    success = await quickCommandsStore.updateQuickCommand(props.commandToEdit.id, finalName, formData.command.trim(), formData.tagIds);
   } else {
-    success = await quickCommandsStore.addQuickCommand(finalName, formData.command.trim());
+    // Pass tagIds to add action
+    success = await quickCommandsStore.addQuickCommand(finalName, formData.command.trim(), formData.tagIds);
   }
 
   isSubmitting.value = false;

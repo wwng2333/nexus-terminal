@@ -909,7 +909,13 @@
       "command": "指令:",
       "commandPlaceholder": "例如：ls -alh /home/user",
       "errorCommandRequired": "指令内容不能为空",
-      "add": "添加"
+      "add": "添加",
+      "tags": "标签:",
+      "tagsPlaceholder": "选择或创建标签..."
+    },
+    "untagged": "未标记",
+    "tags": {
+      "clickToEditTag": "点击编辑标签名称"
     }
   },
   "setup": {

@@ -1,23 +1,39 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue';
-import { storeToRefs } from 'pinia';
+// import { storeToRefs } from 'pinia'; // No longer needed directly
 import { useI18n } from 'vue-i18n';
-import { useTagsStore, TagInfo } from '../stores/tags.store';
+// import { useTagsStore, TagInfo } from '../stores/tags.store'; // REMOVE dependency on specific store
+
+// Define a generic tag structure for the prop
+interface GenericTag {
+  id: number;
+  name: string;
+}
 
 const props = defineProps<{
-  modelValue: number[]; // 接收选中的 tag_ids
+    modelValue: number[]; // 接收选中的 tag_ids
+    availableTags?: GenericTag[]; // Optional: The list of tags to choose from/display
+    placeholder?: string; // Optional: Placeholder for the input
+    allowCreate?: boolean; // Optional: Allow creating new tags via Enter (default true)
+    allowDelete?: boolean; // Optional: Allow showing the global delete button (default true)
 }>();
 
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'create-tag', 'delete-tag']);
 
 const { t } = useI18n();
-const tagsStore = useTagsStore();
-const { tags, isLoading, error } = storeToRefs(tagsStore);
+// const tagsStore = useTagsStore(); // REMOVE
+// const { tags, isLoading, error } = storeToRefs(tagsStore); // REMOVE
 
 const inputValue = ref(''); // 输入框的值
 const inputRef = ref<HTMLInputElement | null>(null); // 输入框引用
 const showSuggestions = ref(false); // 是否显示建议列表
 const selectedTagIds = ref<number[]>([]); // 本地维护选中的 tag_ids
+
+// Default values for props
+const availableTags = computed(() => props.availableTags ?? []);
+const placeholder = computed(() => props.placeholder ?? t('tags.inputPlaceholder', '添加或选择标签...'));
+const allowCreate = computed(() => props.allowCreate !== false); // Default true
+const allowDelete = computed(() => props.allowDelete !== false); // Default true
 
 // 监听 props.modelValue 的变化，同步到本地 selectedTagIds
 watch(() => props.modelValue, (newVal) => {
@@ -37,66 +53,59 @@ watch(selectedTagIds, (newVal) => {
 
 
 // 计算属性：所有标签的 Map，方便通过 ID 查找
+// Use availableTags prop for the map
 const tagsMap = computed(() => {
-  const map = new Map<number, TagInfo>();
-  tags.value.forEach(tag => map.set(tag.id, tag));
-  return map;
+    const map = new Map<number, GenericTag>();
+    availableTags.value.forEach(tag => map.set(tag.id, tag));
+    return map;
 });
 
 // 计算属性：已选中的标签对象
 const selectedTags = computed(() => {
   // 确保先从 map 中查找，再过滤掉未找到的 (可能标签已被删除)
   return selectedTagIds.value
-    .map(id => tagsMap.value.get(id))
-    .filter((tag): tag is TagInfo => tag !== undefined);
+    .map(id => tagsMap.value.get(id)) // Get from the map based on prop
+    .filter((tag): tag is GenericTag => tag !== undefined);
 });
 
-// 计算属性：过滤后的建议列表
+// 计算属性：过滤后的建议列表 (based on availableTags)
 const suggestions = computed(() => {
   if (!showSuggestions.value) { // 仅在需要显示时计算
     return [];
   }
-  let result: TagInfo[];
-  // 如果输入框为空，显示所有未选中的标签
+  let result: GenericTag[]; // Use GenericTag type
+  // Use availableTags from prop
+  const currentAvailableTags = availableTags.value;
+  // 如果输入框为空，显示所有未选中的可用标签
   if (!inputValue.value) {
-    result = tags.value.filter(tag => !selectedTagIds.value.includes(tag.id));
+      result = currentAvailableTags.filter(tag => !selectedTagIds.value.includes(tag.id));
   } else {
-    const lowerCaseInput = inputValue.value.toLowerCase();
-    result = tags.value.filter(tag =>
-      tag.name.toLowerCase().includes(lowerCaseInput) &&
-      !selectedTagIds.value.includes(tag.id) // 排除已选中的
-    );
+      const lowerCaseInput = inputValue.value.toLowerCase();
+      result = currentAvailableTags.filter(tag =>
+          tag.name.toLowerCase().includes(lowerCaseInput) &&
+          !selectedTagIds.value.includes(tag.id) // 排除已选中的
+      );
   }
   return result;
 });
 
-// 处理输入框聚焦
-const handleFocus = async () => {
-  showSuggestions.value = false; // 在异步操作前显式设置为 false
-  // 1. 首先获取最新的标签
-  await tagsStore.fetchTags();
+// 处理输入框聚焦 (不再 fetch, 仅根据现有 availableTags 判断是否显示)
+const handleFocus = () => {
+    // 计算建议 (不依赖 showSuggestions ref)
+    let potentialSuggestions: GenericTag[];
+    const currentInput = inputValue.value;
+    const currentAvailableTags = availableTags.value.filter(tag => !selectedTagIds.value.includes(tag.id));
 
-  // 2. 基于更新后的标签列表和当前输入值，计算出实际可以显示的建议标签
-  //    (这部分逻辑与 computed 'suggestions' 类似，但不依赖 showSuggestions.value)
-  let potentialSuggestions: TagInfo[];
-  const currentInput = inputValue.value; // 获取当前输入框的值
-  // 过滤掉已选中的标签
-  const availableTags = tags.value.filter(tag => !selectedTagIds.value.includes(tag.id));
-
-  if (!currentInput) {
-    // 如果输入框为空，所有未选中的标签都是潜在建议
-    potentialSuggestions = availableTags;
-  } else {
-    // 如果输入框有值，则根据输入值过滤可用标签
-    const lowerCaseInput = currentInput.toLowerCase();
-    potentialSuggestions = availableTags.filter(tag =>
-      tag.name.toLowerCase().includes(lowerCaseInput)
-    );
-  }
-
-  // 3. 只有当确实存在潜在建议时，才显示建议列表
-  const shouldShow = potentialSuggestions.length > 0;
-  showSuggestions.value = shouldShow; // 最终状态由计算结果决定
+    if (!currentInput) {
+        potentialSuggestions = currentAvailableTags;
+    } else {
+        const lowerCaseInput = currentInput.toLowerCase();
+        potentialSuggestions = currentAvailableTags.filter(tag =>
+            tag.name.toLowerCase().includes(lowerCaseInput)
+        );
+    }
+    // 只有当确实存在潜在建议时，才显示建议列表
+    showSuggestions.value = potentialSuggestions.length > 0;
 };
 
 // 处理输入框失焦
@@ -111,23 +120,18 @@ const handleKeyDown = async (event: KeyboardEvent) => {
     event.preventDefault(); // 阻止表单提交等默认行为
     const trimmedInput = inputValue.value.trim();
     const lowerCaseInput = trimmedInput.toLowerCase();
-    const existingTag = tags.value.find(tag => tag.name.toLowerCase() === lowerCaseInput);
+    // Check against availableTags prop
+    const existingTag = availableTags.value.find(tag => tag.name.toLowerCase() === lowerCaseInput);
 
     if (existingTag && !selectedTagIds.value.includes(existingTag.id)) {
-      // 如果是现有标签且未选中，则选中它
-      selectTag(existingTag);
-    } else if (!existingTag) {
-      // 如果是新标签，则创建并选中
-      const success = await tagsStore.addTag(trimmedInput);
-      if (success) {
-        // addTag 内部会 fetchTags, store 会更新
-        // 需要等待 DOM 更新和 store 更新完成
-        await nextTick(); // 等待 store 更新
-        const newTag = tags.value.find(tag => tag.name === trimmedInput); // 再次查找确保获取到 ID
-        if (newTag) {
-          selectTag(newTag);
-        }
-      }
+        // 如果是现有标签且未选中，则选中它
+        selectTag(existingTag);
+    } else if (!existingTag && allowCreate.value) { // Only create if allowed and not existing
+        // 如果是新标签，则 emit 事件让父组件处理创建
+        console.log(`[TagInput] Emitting create-tag for: ${trimmedInput}`); // +++ 添加日志 +++
+        emit('create-tag', trimmedInput);
+        // 父组件负责创建、更新 availableTags prop，然后 TagInput 会响应式更新
+        // 父组件也负责将新创建的 tag ID 添加到 modelValue
     }
     inputValue.value = ''; // 清空输入框
     showSuggestions.value = false; // 创建或选择后隐藏建议
@@ -137,12 +141,11 @@ const handleKeyDown = async (event: KeyboardEvent) => {
   }
 };
 
-// 选中一个标签 (来自建议列表或 Enter 创建)
-const selectTag = (tag: TagInfo) => {
-  if (!selectedTagIds.value.includes(tag.id)) {
-    // 使用 .push() 来触发 watch
-    const updatedIds = [...selectedTagIds.value, tag.id];
-    selectedTagIds.value = updatedIds;
+// 选中一个标签 (来自建议列表或 Enter 匹配)
+const selectTag = (tag: GenericTag) => {
+    if (!selectedTagIds.value.includes(tag.id)) {
+        // 使用 .push() 来触发 watch -> emit update:modelValue
+        selectedTagIds.value = [...selectedTagIds.value, tag.id];
   }
   inputValue.value = ''; // 清空输入框
   showSuggestions.value = false; // 选择后隐藏建议
@@ -150,27 +153,22 @@ const selectTag = (tag: TagInfo) => {
 };
 
 // 仅从本地选择中移除一个标签 (点击选中标签的 'x' 或 Backspace)
-const removeTagLocally = (tagToRemove: TagInfo) => {
-  selectedTagIds.value = selectedTagIds.value.filter(id => id !== tagToRemove.id);
+const removeTagLocally = (tagToRemove: GenericTag) => {
+    // This will trigger the watch and emit update:modelValue
+    selectedTagIds.value = selectedTagIds.value.filter(id => id !== tagToRemove.id);
 };
 
-// 处理全局删除标签 (点击标签上的 'x' 图标) - 这是全局删除
-const handleDeleteTagGlobally = async (tagToDelete: TagInfo) => {
-    // 弹出确认框，防止误删
-    if (confirm(t('tags.prompts.confirmDelete', { name: tagToDelete.name }))) {
-        const success = await tagsStore.deleteTag(tagToDelete.id);
-        if (success) {
-            // deleteTag 内部会 fetchTags, store 会更新
-            // selectedTagIds 会因为 watch props.modelValue 而自动更新 (如果父组件也更新了)
-            // 或者手动从 selectedTagIds 中移除 (更保险)
-            removeTagLocally(tagToDelete);
-            // 可选：显示成功提示
-        } else {
-            // 可选：显示错误提示
-            alert(t('tags.errorDelete', { error: tagsStore.error || '未知错误' }));
-        }
-    }
-};
+// 处理全局删除标签 (点击标签上的 'x' 图标) - Emit event
+const handleDeleteTagGlobally = (tagToDelete: GenericTag) => {
+    console.log(`[TagInput] handleDeleteTagGlobally called for tag ID: ${tagToDelete.id}, Name: ${tagToDelete.name}`); // +++ 添加日志 +++
+    // Emit event for parent to handle deletion confirmation and API call
+    console.log(`[TagInput] Emitting delete-tag with ID: ${tagToDelete.id}`); // +++ 添加日志 +++
+    emit('delete-tag', tagToDelete.id);
+    // Parent should handle confirmation, call store action, and update modelValue/availableTags
+    // We might still want to remove it locally immediately for better UX,
+    // but relying on parent updating modelValue is cleaner.
+    // removeTagLocally(tagToDelete); // Optional: remove locally immediately
+}; // Remove the extra closing brace here if it exists, ensure function closes correctly
 
 </script>
 
@@ -186,13 +184,15 @@ const handleDeleteTagGlobally = async (tagToDelete: TagInfo) => {
               @click.stop="removeTagLocally(tag)"
               :title="t('tags.removeSelection')"
             >&times;</button>
+            <!-- Only show delete button if allowDelete is true -->
             <button
-              type="button"
-              class="ml-1 p-0 bg-transparent border-none cursor-pointer text-text-alt hover:text-error text-xs leading-none"
-              @click.stop="handleDeleteTagGlobally(tag)"
-              :title="t('tags.deleteTagGlobally')"
+                v-if="allowDelete"
+                type="button"
+                class="ml-1 p-0 bg-transparent border-none cursor-pointer text-text-alt hover:text-error text-xs leading-none"
+                @click.stop="handleDeleteTagGlobally(tag)"
+                :title="t('tags.deleteTagGlobally')"
             >
-              <i class="fas fa-trash-alt"></i>
+                <i class="fas fa-trash-alt"></i>
             </button>
           </span>
        </div>
@@ -217,9 +217,10 @@ const handleDeleteTagGlobally = async (tagToDelete: TagInfo) => {
       >
         {{ suggestion.name }}
       </li>
-    </ul>
-    <div v-if="isLoading" class="absolute bottom-[-1.5em] left-0 text-xs text-text-secondary mt-1">{{ t('tags.loading') }}</div>
-    <div v-if="error" class="absolute bottom-[-1.5em] left-0 text-xs text-error mt-1">{{ t('tags.error', { error: error }) }}</div>
+  </ul>
+  <!-- Remove isLoading and error display as they are no longer managed here -->
+  <!-- <div v-if="isLoading" ...></div> -->
+  <!-- <div v-if="error" ...></div> -->
   </div>
 </template>
 

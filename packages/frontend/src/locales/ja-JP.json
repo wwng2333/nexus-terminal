@@ -492,6 +492,8 @@
         "empty": "クイックコマンドはありません。'+'ボタンをクリックして作成してください！",
         "form": {
             "add": "追加",
+            "tags": "タグ:",
+            "tagsPlaceholder": "タグを選択または作成...",
             "command": "コマンド:",
             "commandPlaceholder": "例：ls -alh /home/user",
             "errorCommandRequired": "コマンドは空にできません",
@@ -499,6 +501,10 @@
             "namePlaceholder": "オプション。素早く認識するために使用",
             "titleAdd": "クイックコマンドの追加",
             "titleEdit": "クイックコマンドの編集"
+        },
+        "untagged": "タグなし",
+        "tags": {
+            "clickToEditTag": "クリックしてタグ名を編集"
         },
         "searchPlaceholder": "名前またはコマンドを検索...",
         "sortByName": "名前",

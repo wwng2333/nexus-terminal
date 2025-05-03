@@ -906,7 +906,13 @@
       "command": "Command:",
       "commandPlaceholder": "e.g., ls -alh /home/user",
       "errorCommandRequired": "Command cannot be empty",
-      "add": "Add"
+      "add": "Add",
+      "tags": "Tags:",
+      "tagsPlaceholder": "Select or create tags..."
+    },
+    "untagged": "Untagged",
+    "tags": {
+      "clickToEditTag": "Click to edit tag name"
     }
   },
   "setup": {

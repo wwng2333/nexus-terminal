@@ -118,11 +118,27 @@ const filteredAndGroupedConnections = computed(() => {
   const tagMap = new Map(tags.value.map(tag => [tag.id, tag]));
   const lowerSearchTerm = searchTerm.value.toLowerCase();
 
-  // 1. 过滤连接
+  // 1. 过滤连接 (New logic: filter by connection name, host, OR tag name)
   const filteredConnections = connections.value.filter(conn => {
-    const nameMatch = conn.name && conn.name.toLowerCase().includes(lowerSearchTerm);
-    const hostMatch = conn.host.toLowerCase().includes(lowerSearchTerm);
-    return nameMatch || hostMatch;
+    // Check connection name
+    if (conn.name && conn.name.toLowerCase().includes(lowerSearchTerm)) {
+        return true;
+    }
+    // Check connection host
+    if (conn.host.toLowerCase().includes(lowerSearchTerm)) {
+        return true;
+    }
+    // Check associated tag names
+    if (conn.tag_ids && conn.tag_ids.length > 0) {
+        for (const tagId of conn.tag_ids) {
+            const tag = tagMap.get(tagId); // Use the existing tagMap
+            if (tag && tag.name.toLowerCase().includes(lowerSearchTerm)) {
+                return true; // Match found in tag name
+            }
+        }
+    }
+    // No match found
+    return false;
   });
 
   // 2. 分组过滤后的连接

@@ -73,8 +73,41 @@ const definedMigrations: Migration[] = [
             -- UPDATE connections SET encrypted_passphrase = NULL WHERE encrypted_passphrase = ''; -- 示例
         `
     },
+    // --- Quick Command Tags Migrations ---
+    {
+        id: 2,
+        name: 'Create quick_command_tags table',
+        check: async (db: Database): Promise<boolean> => {
+            const tableAlreadyExists = await tableExists(db, 'quick_command_tags');
+            return !tableAlreadyExists; // Only run if the table does NOT exist
+        },
+        sql: `
+            CREATE TABLE IF NOT EXISTS quick_command_tags (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+                updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+            );
+        `
+    },
+    {
+        id: 3,
+        name: 'Create quick_command_tag_associations table',
+        check: async (db: Database): Promise<boolean> => {
+            const tableAlreadyExists = await tableExists(db, 'quick_command_tag_associations');
+            return !tableAlreadyExists; // Only run if the table does NOT exist
+        },
+        sql: `
+            CREATE TABLE IF NOT EXISTS quick_command_tag_associations (
+                quick_command_id INTEGER NOT NULL,
+                tag_id INTEGER NOT NULL,
+                PRIMARY KEY (quick_command_id, tag_id),
+                FOREIGN KEY (quick_command_id) REFERENCES quick_commands(id) ON DELETE CASCADE,
+                FOREIGN KEY (tag_id) REFERENCES quick_command_tags(id) ON DELETE CASCADE
+            );
+        `
+    }
     // --- 未来可以添加更多迁移 ---
-    // { id: 2, name: '...', sql: '...' },
 ];
 
 /**
