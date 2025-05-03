@@ -851,7 +851,8 @@
     "closeSearch": "Close terminal search",
     "findPrevious": "Find previous",
     "findNext": "Find next",
-    "configureFocusSwitch": "Configure Focus Switcher"
+    "configureFocusSwitch": "Configure Focus Switcher",
+    "clearTerminal": "Clear Terminal"
   },
   "layout": {
     "loading": "Loading...",

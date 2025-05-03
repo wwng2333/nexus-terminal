@@ -59,7 +59,8 @@
         "findPrevious": "前を検索",
         "openSearch": "ターミナル検索を開く",
         "placeholder": "ここにコマンドを入力して Enter キーを押すと、ターミナルに送信されます...",
-        "searchPlaceholder": "ターミナル内で検索..."
+        "searchPlaceholder": "ターミナル内で検索...",
+        "clearTerminal": "ターミナルをクリア"
     },
     "common": {
         "all": "すべて",
@@ -581,7 +582,8 @@
         "category": {
             "appearance": "外観設定",
             "security": "セキュリティ設定",
-            "system": "システム設定"
+            "system": "システム設定",
+            "about": "バージョン情報"
         },
         "changePassword": {
             "confirmPassword": "新しいパスワードを再入力:",
@@ -848,6 +850,18 @@
                 "sidebarPersistentSaved": "サイドバーの設定を保存しました。"
             },
             "title": "ワークスペースとターミナル"
+        },
+        "about": {
+            "version": "バージョン",
+            "checkingUpdate": "更新を確認中...",
+            "latestVersion": "最新バージョンです",
+            "updateAvailable": "新しいバージョン {version} が利用可能です！",
+            "error": {
+                "checkFailed": "更新の確認に失敗しました",
+                "checkFailedShort": "確認失敗",
+                "noReleases": "リリースバージョンが見つかりません",
+                "rateLimit": "GitHub API レート制限。後でもう一度お試しください"
+            }
         }
     },
     "setup": {
