@@ -169,7 +169,7 @@ const toggleButtonTitle = computed(() => {
                          session.status === 'connected' ? 'bg-green-500' :
                          session.status === 'connecting' ? 'bg-yellow-500 animate-pulse' :
                          session.status === 'disconnected' ? 'bg-red-500' : 'bg-gray-400']"></span>
-          <span class="truncate text-sm">{{ session.connectionName }}</span>
+          <span class="truncate text-sm" style="transform: translateY(-1px);">{{ session.connectionName }}</span>
           <button class="ml-2 p-0.5 rounded-full text-text-secondary hover:bg-border hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                   :class="{'text-foreground hover:bg-header': session.sessionId === activeSessionId}"
                   @click="closeSession($event, session.sessionId)" title="关闭标签页">
