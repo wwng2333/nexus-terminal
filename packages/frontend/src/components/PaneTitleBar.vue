@@ -20,7 +20,6 @@ const layoutStore = useLayoutStore();
 // --- Methods ---
 const closePane = () => {
   console.log(`[PaneTitleBar] Requesting to close pane: ${props.paneName}`);
-  // layoutStore.setPaneVisibility(props.paneName, false);
 };
 </script>
 
@@ -28,7 +27,7 @@ const closePane = () => {
   <div class="pane-title-bar">
     <span class="title">{{ title }}</span>
     <button class="close-button" @click="closePane" :title="`关闭 ${title}`">
-      &times; <!-- 使用 HTML 实体 '×' -->
+      &times;
     </button>
   </div>
 </template>
