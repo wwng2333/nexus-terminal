@@ -689,7 +689,16 @@
       }
     },
     "about": {
-      "version": "Version"
+      "version": "Version",
+      "checkingUpdate": "Checking for update...",
+      "latestVersion": "Up to date",
+      "updateAvailable": "Update available: {version}!",
+      "error": {
+        "checkFailed": "Failed to check for updates",
+        "checkFailedShort": "Check failed",
+        "noReleases": "No releases found",
+        "rateLimit": "GitHub API rate limit exceeded, please try again later"
+      }
     }
   },
 "notificationController": {
