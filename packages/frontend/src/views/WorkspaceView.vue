@@ -2,19 +2,23 @@
 import { onMounted, onBeforeUnmount, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
-import { useLayoutStore } from '../stores/layout.store'; 
-import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store'; 
+import { useBreakpoints, breakpointsTailwind } from '@vueuse/core'; // +++ 引入 useBreakpoints +++
+import { useLayoutStore } from '../stores/layout.store';
+import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
 import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
 import LayoutRenderer from '../components/LayoutRenderer.vue';
 import LayoutConfigurator from '../components/LayoutConfigurator.vue';
-import RemoteDesktopModal from '../components/RemoteDesktopModal.vue'; 
+import RemoteDesktopModal from '../components/RemoteDesktopModal.vue';
+import Terminal from '../components/Terminal.vue'; // +++ 引入 Terminal 组件 +++
+import CommandInputBar from '../components/CommandInputBar.vue'; // +++ 引入 CommandInputBar 组件 +++
+import VirtualKeyboard from '../components/VirtualKeyboard.vue'; // +++ 引入 VirtualKeyboard 组件 +++
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store';
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
-import type { Terminal } from 'xterm'; 
-import type { ISearchOptions } from '@xterm/addon-search'; 
+import type { Terminal as XtermTerminal } from 'xterm'; // --- 重命名避免冲突 ---
+import type { ISearchOptions } from '@xterm/addon-search';
 
 // --- Setup ---
 const { t } = useI18n();
@@ -25,6 +29,8 @@ const layoutStore = useLayoutStore();
 const commandHistoryStore = useCommandHistoryStore();
 const connectionsStore = useConnectionsStore(); 
 const { isHeaderVisible } = storeToRefs(layoutStore);
+const breakpoints = useBreakpoints(breakpointsTailwind); // +++ 初始化 Breakpoints +++
+const isMobile = breakpoints.smaller('md'); // +++ 定义 isMobile (小于 md 断点) +++
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession, isRdpModalOpen, rdpConnectionInfo } = storeToRefs(sessionStore); // 使用 storeToRefs 获取 RDP 状态
@@ -59,6 +65,7 @@ const showLayoutConfigurator = ref(false); // 控制布局配置器可见性
 
 // --- 搜索状态 ---
 const currentSearchTerm = ref(''); // 当前搜索的关键词
+const mobileTerminalRef = ref<InstanceType<typeof Terminal> | null>(null); // +++ 添加 mobileTerminalRef +++
 
 // --- 新增：处理全局键盘事件 ---
 const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -224,7 +231,7 @@ onBeforeUnmount(() => {
  // 处理终端就绪 (用于 Terminal)
  // 注意：LayoutRenderer 内部的 Terminal 组件需要 emit('terminal-ready', payload)
  // *** 修正：更新 payload 类型以包含 searchAddon ***
- const handleTerminalReady = (payload: { sessionId: string; terminal: Terminal; searchAddon: any | null }) => { // 使用 any 避免导入 SearchAddon 类型
+ const handleTerminalReady = (payload: { sessionId: string; terminal: XtermTerminal; searchAddon: any | null }) => { // --- 使用重命名的 XtermTerminal ---
     console.log(`[工作区视图 ${payload.sessionId}] 收到 terminal-ready 事件。Payload:`, payload); // *** 添加 Payload 日志 ***
     // *** 检查 payload 中 searchAddon 是否存在 ***
     if (payload && payload.searchAddon) {
@@ -237,7 +244,7 @@ onBeforeUnmount(() => {
 };
 
 // --- 搜索事件处理 ---
-const handleSearch = (term: string) => {
+const handleSearch = (term: string) => { // +++ 修改 +++
   currentSearchTerm.value = term;
   if (!term) {
     // 如果搜索词为空，清除搜索
@@ -246,52 +253,90 @@ const handleSearch = (term: string) => {
   }
   console.log(`[WorkspaceView] Received search event: "${term}"`);
   // 默认向前搜索
-  handleFindNext();
+  // 触发 findNext
+  handleFindNext(); // 保持调用 findNext，内部会处理 isMobile
 };
 
-const handleFindNext = () => {
-  const manager = activeSession.value?.terminalManager;
-  if (manager && currentSearchTerm.value) {
-    console.log(`[WorkspaceView] Calling findNext for term: "${currentSearchTerm.value}"`);
-    const found = manager.searchNext(currentSearchTerm.value, { incremental: true });
-    console.log(`[WorkspaceView] findNext returned: ${found}`); // 打印返回值
-    if (!found) {
-      console.log(`[WorkspaceView] findNext: No more results for "${currentSearchTerm.value}"`);
-      // 可以添加 UI 提示，例如短暂高亮搜索框
+const handleFindNext = () => { // +++ 修改 +++
+  if (isMobile.value) {
+    if (mobileTerminalRef.value && currentSearchTerm.value) {
+      console.log(`[WorkspaceView Mobile] Calling findNext for term: "${currentSearchTerm.value}"`);
+      const found = mobileTerminalRef.value.findNext(currentSearchTerm.value, { incremental: true });
+      console.log(`[WorkspaceView Mobile] findNext returned: ${found}`);
+      if (!found) {
+        console.log(`[WorkspaceView Mobile] findNext: No more results for "${currentSearchTerm.value}"`);
+      }
+    } else {
+      console.warn(`[WorkspaceView Mobile] Cannot findNext, no mobile terminal ref or search term.`);
     }
   } else {
-     console.warn(`[WorkspaceView] Cannot findNext, no active session manager or search term.`);
+    // --- 桌面端逻辑 ---
+    const manager = activeSession.value?.terminalManager;
+    if (manager && currentSearchTerm.value) {
+      console.log(`[WorkspaceView Desktop] Calling findNext for term: "${currentSearchTerm.value}"`);
+      const found = manager.searchNext(currentSearchTerm.value, { incremental: true });
+      console.log(`[WorkspaceView Desktop] findNext returned: ${found}`);
+      if (!found) {
+        console.log(`[WorkspaceView Desktop] findNext: No more results for "${currentSearchTerm.value}"`);
+      }
+    } else {
+       console.warn(`[WorkspaceView Desktop] Cannot findNext, no active session manager or search term.`);
+    }
   }
 };
 
-const handleFindPrevious = () => {
-  const manager = activeSession.value?.terminalManager;
-  if (manager && currentSearchTerm.value) {
-     console.log(`[WorkspaceView] Calling findPrevious for term: "${currentSearchTerm.value}"`);
-    const found = manager.searchPrevious(currentSearchTerm.value, { incremental: true });
-    console.log(`[WorkspaceView] findPrevious returned: ${found}`); // 打印返回值
-     if (!found) {
-      console.log(`[WorkspaceView] findPrevious: No previous results for "${currentSearchTerm.value}"`);
-      // 可以添加 UI 提示
+const handleFindPrevious = () => { // +++ 修改 +++
+  if (isMobile.value) {
+    if (mobileTerminalRef.value && currentSearchTerm.value) {
+      console.log(`[WorkspaceView Mobile] Calling findPrevious for term: "${currentSearchTerm.value}"`);
+      const found = mobileTerminalRef.value.findPrevious(currentSearchTerm.value, { incremental: true });
+      console.log(`[WorkspaceView Mobile] findPrevious returned: ${found}`);
+      if (!found) {
+        console.log(`[WorkspaceView Mobile] findPrevious: No previous results for "${currentSearchTerm.value}"`);
+      }
+    } else {
+      console.warn(`[WorkspaceView Mobile] Cannot findPrevious, no mobile terminal ref or search term.`);
     }
   } else {
-     console.warn(`[WorkspaceView] Cannot findPrevious, no active session manager or search term.`);
+    // --- 桌面端逻辑 ---
+    const manager = activeSession.value?.terminalManager;
+    if (manager && currentSearchTerm.value) {
+       console.log(`[WorkspaceView Desktop] Calling findPrevious for term: "${currentSearchTerm.value}"`);
+      const found = manager.searchPrevious(currentSearchTerm.value, { incremental: true });
+      console.log(`[WorkspaceView Desktop] findPrevious returned: ${found}`);
+       if (!found) {
+        console.log(`[WorkspaceView Desktop] findPrevious: No previous results for "${currentSearchTerm.value}"`);
+      }
+    } else {
+       console.warn(`[WorkspaceView Desktop] Cannot findPrevious, no active session manager or search term.`);
+    }
   }
 };
 
-const handleCloseSearch = () => {
+const handleCloseSearch = () => { // +++ 修改 +++
   console.log(`[WorkspaceView] Received close-search event.`);
   currentSearchTerm.value = ''; // 清空搜索词
-  const manager = activeSession.value?.terminalManager;
-  if (manager) {
-    manager.clearTerminalSearch();
+  if (isMobile.value) {
+    if (mobileTerminalRef.value) {
+      mobileTerminalRef.value.clearSearch();
+      console.log(`[WorkspaceView Mobile] Search cleared.`);
+    } else {
+      console.warn(`[WorkspaceView Mobile] Cannot clear search, no mobile terminal ref.`);
+    }
   } else {
-     console.warn(`[WorkspaceView] Cannot clear search, no active session manager.`);
+    // --- 桌面端逻辑 ---
+    const manager = activeSession.value?.terminalManager;
+    if (manager) {
+      manager.clearTerminalSearch();
+      console.log(`[WorkspaceView Desktop] Search cleared.`);
+    } else {
+       console.warn(`[WorkspaceView Desktop] Cannot clear search, no active session manager.`);
+    }
   }
 };
 
 // +++ 新增：处理清空终端事件 +++
-const handleClearTerminal = () => {
+const handleClearTerminal = () => { // +++ 修改 +++
   const currentSession = activeSession.value;
   if (!currentSession) {
     console.warn('[WorkspaceView] Cannot clear terminal, no active session.');
@@ -299,11 +344,21 @@ const handleClearTerminal = () => {
   }
   const terminalManager = currentSession.terminalManager as (SshTerminalInstance | undefined);
   // 调用 Terminal.vue 组件暴露的 clear 方法
-  if (terminalManager && terminalManager.terminalInstance?.value && typeof terminalManager.terminalInstance.value.clear === 'function') {
-    console.log(`[WorkspaceView] Clearing terminal for active session ${currentSession.sessionId}`);
-    terminalManager.terminalInstance.value.clear();
+  if (isMobile.value) {
+    if (mobileTerminalRef.value) {
+      mobileTerminalRef.value.clear();
+      console.log(`[WorkspaceView Mobile] Terminal cleared.`);
+    } else {
+      console.warn(`[WorkspaceView Mobile] Cannot clear terminal, no mobile terminal ref.`);
+    }
   } else {
-    console.warn(`[WorkspaceView] Cannot clear terminal for session ${currentSession.sessionId}, terminal manager, instance, or clear method not available.`);
+    // --- 桌面端逻辑 ---
+    if (terminalManager && terminalManager.terminalInstance?.value && typeof terminalManager.terminalInstance.value.clear === 'function') {
+      console.log(`[WorkspaceView Desktop] Clearing terminal for active session ${currentSession.sessionId}`);
+      terminalManager.terminalInstance.value.clear();
+    } else {
+      console.warn(`[WorkspaceView Desktop] Cannot clear terminal for session ${currentSession.sessionId}, terminal manager, instance, or clear method not available.`);
+    }
   }
 };
 
@@ -402,6 +457,24 @@ const handleCloseEditorTab = (tabId: string) => {
     sessionStore.handleOpenNewSession(id);
  };
 
+// +++ 新增：处理虚拟键盘按键事件 +++
+const handleVirtualKeyPress = (keySequence: string) => {
+ const currentSession = activeSession.value;
+ if (!currentSession) {
+   console.warn('[WorkspaceView] Cannot send virtual key, no active session.');
+   return;
+ }
+ // 在移动端模式下，我们假设 terminalManager 总是存在的（如果会话活动）
+ // 并且直接发送数据，因为虚拟键盘通常用于发送控制字符或特殊序列
+ const terminalManager = currentSession.terminalManager as (SshTerminalInstance | undefined);
+ if (terminalManager && typeof terminalManager.sendData === 'function') {
+   console.log(`[WorkspaceView Mobile] Sending virtual key sequence: ${JSON.stringify(keySequence)}`);
+   terminalManager.sendData(keySequence);
+ } else {
+   console.warn(`[WorkspaceView Mobile] Cannot send virtual key for session ${currentSession.sessionId}, terminal manager or sendData method not available.`);
+ }
+};
+
 // RDP 事件处理方法已被移除
 
  // --- 标签页关闭操作处理 ---
@@ -459,12 +532,13 @@ const handleCloseEditorTab = (tabId: string) => {
 </script>
 
 <template>
-  <!-- *** 确保动态 class 绑定存在 *** -->
-  <div :class="['workspace-view', { 'with-header': isHeaderVisible }]">
-    <!-- TerminalTabBar 始终渲染 -->
+  <!-- *** 动态 class 绑定，添加 is-mobile 类 *** -->
+  <div :class="['workspace-view', { 'with-header': isHeaderVisible, 'is-mobile': isMobile }]">
+    <!-- TerminalTabBar 始终渲染, 传递 isMobile 状态 -->
     <TerminalTabBar
         :sessions="sessionTabsWithStatus"
         :active-session-id="activeSessionId"
+        :is-mobile="isMobile"
         @activate-session="sessionStore.activateSession"
         @close-session="sessionStore.closeSession"
         @open-layout-configurator="handleOpenLayoutConfigurator"
@@ -475,44 +549,80 @@ const handleCloseEditorTab = (tabId: string) => {
         @close-sessions-to-left="handleCloseSessionsToLeft"
     />
 
-    <!-- 移除 :class 绑定 -->
-    <div class="main-content-area">
-      <LayoutRenderer
-        v-if="layoutTree"
-        :is-root-renderer="true"
-        :layout-node="layoutTree"
-        :active-session-id="activeSessionId"
-        class="layout-renderer-wrapper"
-        :editor-tabs="editorTabs"
-        :active-editor-tab-id="activeEditorTabId"
+    <!-- --- 桌面端布局 --- -->
+    <template v-if="!isMobile">
+      <div class="main-content-area">
+        <LayoutRenderer
+          v-if="layoutTree"
+          :is-root-renderer="true"
+          :layout-node="layoutTree"
+          :active-session-id="activeSessionId"
+          class="layout-renderer-wrapper"
+          :editor-tabs="editorTabs"
+          :active-editor-tab-id="activeEditorTabId"
+          @send-command="handleSendCommand"
+          @terminal-input="handleTerminalInput"
+          @terminal-resize="handleTerminalResize"
+          @terminal-ready="handleTerminalReady"
+          @close-editor-tab="handleCloseEditorTab"
+          @activate-editor-tab="handleActivateEditorTab"
+          @update-editor-content="handleUpdateEditorContent"
+          @save-editor-tab="handleSaveEditorTab"
+          @connect-request="handleConnectRequest"
+          @open-new-session="handleOpenNewSession"
+          @request-add-connection="handleRequestAddConnection"
+          @request-edit-connection="handleRequestEditConnection"
+          @search="handleSearch"
+          @find-next="handleFindNext"
+          @find-previous="handleFindPrevious"
+          @close-search="handleCloseSearch"
+          @clear-terminal="handleClearTerminal"
+          @change-encoding="handleChangeEncoding"
+          @close-other-tabs="handleCloseOtherEditorTabs"
+          @close-tabs-to-right="handleCloseEditorTabsToRight"
+          @close-tabs-to-left="handleCloseEditorTabsToLeft"
+        ></LayoutRenderer>
+        <div v-else class="pane-placeholder">
+          {{ t('layout.loading', '加载布局中...') }}
+        </div>
+      </div>
+    </template>
+
+    <!-- --- 移动端布局 --- -->
+    <template v-else>
+      <div class="mobile-content-area">
+        <Terminal
+          v-if="activeSessionId"
+          ref="mobileTerminalRef"
+          :session-id="activeSessionId"
+          :is-active="true"
+          class="mobile-terminal"
+          @data="(data) => handleTerminalInput({ sessionId: activeSessionId!, data })"
+          @resize="(dims) => handleTerminalResize({ sessionId: activeSessionId!, dims })"
+          @ready="(payload) => handleTerminalReady({ ...payload, sessionId: activeSessionId! })"
+        />
+        <div v-else class="pane-placeholder">
+          {{ t('workspace.noActiveSession', '没有活动的会话') }}
+        </div>
+      </div>
+      <CommandInputBar
+        class="mobile-command-bar"
+        :is-mobile="isMobile"
         @send-command="handleSendCommand"
-        @terminal-input="handleTerminalInput"
-        @terminal-resize="handleTerminalResize"
-        @terminal-ready="handleTerminalReady"
-        @close-editor-tab="handleCloseEditorTab"
-        @activate-editor-tab="handleActivateEditorTab"
-        @update-editor-content="handleUpdateEditorContent"
-        @save-editor-tab="handleSaveEditorTab"
-        @connect-request="handleConnectRequest"
-        @open-new-session="handleOpenNewSession"
-        @request-add-connection="handleRequestAddConnection"
-        @request-edit-connection="handleRequestEditConnection"
         @search="handleSearch"
         @find-next="handleFindNext"
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
         @clear-terminal="handleClearTerminal"
-        @change-encoding="handleChangeEncoding"
-        @close-other-tabs="handleCloseOtherEditorTabs"
-        @close-tabs-to-right="handleCloseEditorTabsToRight"
-        @close-tabs-to-left="handleCloseEditorTabsToLeft"
-      ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
-      <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
-        {{ t('layout.loading', '加载布局中...') }}
-      </div>
-    </div>
+      />
+      <!-- +++ 添加虚拟键盘，监听事件 +++ -->
+      <VirtualKeyboard
+        class="mobile-virtual-keyboard"
+        @send-key="handleVirtualKeyPress"
+      />
+    </template>
 
-    <!-- Modals should be outside the main content flow -->
+    <!-- Modals 保持不变，应在布局之外 -->
     <AddConnectionFormComponent
       v-if="showAddEditForm"
       :connection-to-edit="connectionToEdit"
@@ -526,13 +636,12 @@ const handleCloseEditorTab = (tabId: string) => {
       @close="handleCloseLayoutConfigurator"
     />
 
-    <!-- RDP Modal (使用 Store 状态控制) -->
     <RemoteDesktopModal
       v-if="isRdpModalOpen"
       :connection="rdpConnectionInfo"
       @close="sessionStore.closeRdpModal()"
     />
-  </div> <!-- End of root element -->
+  </div>
 </template>
 
 <style scoped>
@@ -582,6 +691,50 @@ const handleCloseEditorTab = (tabId: string) => {
     padding: var(--base-padding); /* Use base padding variable */
 }
 
-/* 移除旧的、不再需要的特定面板样式，因为渲染由 LayoutRenderer 处理 */
+
+/* --- Mobile Layout Styles --- */
+.workspace-view.is-mobile {
+  /* Ensure flex column layout */
+  display: flex; /* Uncommented */
+  flex-direction: column; /* Uncommented */
+  /* Height is already handled by .workspace-view and .with-header */
+}
+
+.workspace-view.is-mobile .main-content-area {
+  /* Hide the desktop content area in mobile view */
+  display: none;
+}
+
+.mobile-content-area {
+  display: flex; /* Use flex for the terminal container */
+  flex-direction: column; /* Stack elements vertically if needed */
+  flex-grow: 1; /* Allow this area to take up remaining space */
+  overflow: hidden; /* Prevent overflow */
+  position: relative; /* Needed for potential absolute positioning inside */
+  /* Remove desktop margins/borders */
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.mobile-terminal {
+  flex-grow: 1; /* Terminal takes all available space in mobile-content-area */
+  width: 100%;
+  overflow: hidden;
+}
+
+.mobile-command-bar {
+  flex-shrink: 0; /* Prevent command bar from shrinking */
+  /* Add specific styles if needed, e.g., border-top */
+  border-top: 1px solid var(--border-color, #ccc);
+}
+
+.mobile-virtual-keyboard {
+  flex-shrink: 0; /* 防止虚拟键盘缩小 */
+  /* 可以添加更多样式，例如背景色、边框等 */
+}
+
+/* Ensure modals are still displayed correctly (they are outside the main flow) */
+
 
 </style>

@@ -7,6 +7,7 @@ import { useFocusSwitcherStore } from '../stores/focusSwitcher.store';
 import { useSettingsStore } from '../stores/settings.store';
 import { useQuickCommandsStore } from '../stores/quickCommands.store';
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
+import QuickCommandsModal from './QuickCommandsModal.vue'; // +++ Import the modal component +++
 
 const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search', 'clear-terminal']); // 添加 clear-terminal 事件
 const { t } = useI18n();
@@ -31,11 +32,14 @@ const { updateSessionCommandInput } = sessionStore;
 // Props definition is now empty as search results are no longer handled here
 const props = defineProps<{
   // No props defined here currently
+  // +++ Add isMobile prop +++
+  isMobile?: boolean;
 }>();
 // --- 移除本地 commandInput ref ---
 // const commandInput = ref('');
 const isSearching = ref(false);
 const searchTerm = ref('');
+const showQuickCommands = ref(false); // +++ Add state for modal visibility +++
 // *** 移除本地的搜索结果 ref ***
 // const searchResultCount = ref(0);
 // const currentSearchResultIndex = ref(0);
@@ -244,11 +248,27 @@ onBeforeUnmount(() => {
     unregisterTerminalSearchFocus();
   }
 });
+
+// +++ Functions to control the quick commands modal +++
+const openQuickCommandsModal = () => {
+  showQuickCommands.value = true;
+};
+
+const closeQuickCommandsModal = () => {
+  showQuickCommands.value = false;
+};
+
+// +++ Handler for command execution from the modal +++
+const handleQuickCommandExecute = (command: string) => {
+  console.log(`[CommandInputBar] Executing quick command: ${command}`);
+  emit('send-command', command); // Emit the command to the parent
+  closeQuickCommandsModal(); // Close the modal after selection
+};
 </script>
 
 <template>
-  <div class="flex items-center px-2 py-1.5 bg-background gap-2"> <!-- Removed border-t and border-border/50 -->
-    <div class="flex-grow flex items-center bg-transparent relative gap-2"> <!-- Adjusted gap -->
+  <div class="flex items-center px-2 py-1.5 bg-background gap-2">
+    <div class="flex-grow flex items-center bg-transparent relative gap-2">
       <!-- Clear Terminal Button -->
       <button
         @click="emit('clear-terminal')"
@@ -257,34 +277,46 @@ onBeforeUnmount(() => {
       >
         <i class="fas fa-eraser text-base"></i>
       </button>
-      <!-- Focus Switcher Config Button -->
+       <!-- +++ Quick Commands Button (Mobile only) +++ -->
+       <button
+        v-if="props.isMobile"
+        @click="openQuickCommandsModal"
+        class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+        :title="t('quickCommands.title', '快捷指令')"
+      >
+        <i class="fas fa-bolt text-base"></i>
+      </button>
+      <!-- Focus Switcher Config Button (Hide on mobile) -->
       <button
+        v-if="!props.isMobile"
         @click="focusSwitcherStore.toggleConfigurator(true)"
         class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
         :title="t('commandInputBar.configureFocusSwitch', '配置焦点切换')"
       >
         <i class="fas fa-keyboard text-base"></i> <!-- Removed text-primary -->
       </button>
-      <!-- Command Input -->
+      <!-- Command Input (Hide on mobile when searching) -->
       <input
+        v-if="!props.isMobile || !isSearching"
         type="text"
         v-model="currentSessionCommandInput"
         :placeholder="t('commandInputBar.placeholder')"
         class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
-        :class="{ 'basis-3/4': isSearching, 'basis-full': !isSearching }"
+        :class="{ 'basis-3/4': !props.isMobile && isSearching, 'basis-full': !isSearching }" 
         ref="commandInputRef"
         data-focus-id="commandInput"
         @keydown="handleCommandInputKeydown"
         @blur="handleCommandInputBlur"
       />
 
-      <!-- Search Input (Conditional rendering with v-show for transition) -->
+      <!-- Search Input (Show when searching, adjust width on mobile) -->
       <input
-        v-show="isSearching"
+        v-if="isSearching"
         type="text"
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
-        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out basis-1/4"
+        class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
+        :class="{ 'basis-1/4': !props.isMobile, 'basis-full': props.isMobile }"
         data-focus-id="terminalSearch"
         @keydown.enter.prevent="findNext"
         @keydown.shift.enter.prevent="findPrevious"
@@ -304,7 +336,8 @@ onBeforeUnmount(() => {
           <i v-else class="fas fa-times text-base"></i>
         </button>
 
-        <template v-if="isSearching">
+        <!-- Search navigation buttons (Hide on mobile when searching) -->
+        <template v-if="isSearching && !props.isMobile"> <!-- +++ Add !props.isMobile condition +++ -->
           <button
             @click="findPrevious"
             class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
@@ -320,10 +353,17 @@ onBeforeUnmount(() => {
             <i class="fas fa-arrow-down text-base"></i>
           </button>
         </template>
+        <!-- Note: On mobile, when searching, only the close button (inside toggleSearch button logic) will be effectively visible in this control group -->
       </div>
     </div>
 
   </div>
+  <!-- +++ Quick Commands Modal Instance +++ -->
+  <QuickCommandsModal
+    :is-visible="showQuickCommands"
+    @close="closeQuickCommandsModal"
+    @execute-command="handleQuickCommandExecute"
+  />
 </template>
 
 <style scoped>

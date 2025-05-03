@@ -29,6 +29,11 @@ const props = defineProps({
     required: false,
     default: null,
   },
+  // +++ 添加 isMobile prop +++
+  isMobile: {
+    type: Boolean,
+    default: false,
+  },
 });
 
 // 定义事件 (使用对象语法修复类型)
@@ -259,7 +264,10 @@ const toggleButtonTitle = computed(() => {
 </script>
 
 <template>
-  <div class="flex bg-header border border-border rounded-t-md mx-2 mt-2 overflow-hidden h-10">
+  <!-- +++ 使用 :class 绑定来条件化样式 +++ -->
+  <div :class="['flex bg-header border border-border overflow-hidden h-10',
+               { 'rounded-t-md mx-2 mt-2': !isMobile } // 只在非移动端应用这些类
+              ]">
     <div class="flex items-center overflow-x-auto flex-shrink min-w-0">
       <ul class="flex list-none p-0 m-0 h-full flex-shrink-0">
         <li
@@ -302,7 +310,8 @@ const toggleButtonTitle = computed(() => {
         >
           <i :class="[eyeIconClass, 'text-sm']"></i>
         </button>
-        <button class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150"
+        <!-- +++ 使用 v-if 隐藏移动端的布局按钮 +++ -->
+        <button v-if="!isMobile" class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150"
                 @click="openLayoutConfigurator" :title="t('layout.configure', '配置布局')">
           <i class="fas fa-th-large text-sm"></i>
         </button>
