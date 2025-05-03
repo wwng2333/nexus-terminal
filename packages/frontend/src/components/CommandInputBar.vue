@@ -19,7 +19,7 @@ const sessionStore = useSessionStore(); // +++ 初始化 Session Store +++
 // Get reactive setting from store
 const { commandInputSyncTarget } = storeToRefs(settingsStore);
 // Get reactive state and actions from quick commands store
-const { selectedIndex: quickCommandsSelectedIndex, filteredAndSortedCommands: quickCommandsFiltered } = storeToRefs(quickCommandsStore);
+const { selectedIndex: quickCommandsSelectedIndex, flatVisibleCommands: quickCommandsFiltered } = storeToRefs(quickCommandsStore);
 const { resetSelection: resetQuickCommandsSelection } = quickCommandsStore;
 // Get reactive state and actions from command history store
 const { selectedIndex: historySelectedIndex, filteredHistory: historyFiltered } = storeToRefs(commandHistoryStore);
