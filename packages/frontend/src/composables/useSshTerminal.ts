@@ -216,9 +216,9 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         // --------------------
 
         if (terminalInstance.value) {
-            console.log(`[会话 ${sessionId}][SSH前端] 终端实例存在，尝试写入...`);
+            // console.log(`[会话 ${sessionId}][SSH前端] 终端实例存在，尝试写入...`);
             terminalInstance.value.write(outputData);
-            console.log(`[会话 ${sessionId}][SSH前端] 写入完成。`);
+            // console.log(`[会话 ${sessionId}][SSH前端] 写入完成。`);
         } else {
             // 如果终端还没准备好，先缓冲输出
             console.log(`[会话 ${sessionId}][SSH前端] 终端实例不存在，缓冲数据...`);
