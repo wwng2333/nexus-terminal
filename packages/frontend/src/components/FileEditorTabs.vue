@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { PropType } from 'vue';
+import { ref, computed, type PropType, onBeforeUnmount } from 'vue'; // + ref, computed, onBeforeUnmount
 import { useI18n } from 'vue-i18n';
 import type { FileTab } from '../stores/fileEditor.store';
+import TabBarContextMenu from './TabBarContextMenu.vue'; // + Import context menu
 
-defineProps({
+const props = defineProps({
   tabs: {
     type: Array as PropType<FileTab[]>,
     required: true,
@@ -17,9 +18,19 @@ defineProps({
 const emit = defineEmits<{
   (e: 'activate-tab', tabId: string): void;
   (e: 'close-tab', tabId: string): void;
+  // + 新增右键菜单事件
+  (e: 'close-other-tabs', tabId: string): void;
+  (e: 'close-tabs-to-right', tabId: string): void;
+  (e: 'close-tabs-to-left', tabId: string): void;
 }>();
 
 const { t } = useI18n();
+
+// +++ 右键菜单状态 +++
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextTargetTabId = ref<string | null>(null); // Keep for logic inside this component if needed elsewhere
+const menuTargetId = ref<string | null>(null); // + Ref specifically for passing to the menu prop
 
 const handleActivate = (tabId: string) => {
   emit('activate-tab', tabId);
@@ -29,6 +40,94 @@ const handleClose = (event: MouseEvent, tabId: string) => {
   event.stopPropagation(); // 防止触发 activateTab
   emit('close-tab', tabId);
 };
+
+// +++ 右键菜单方法 +++
+const showContextMenu = (event: MouseEvent, tabId: string) => {
+  event.preventDefault();
+  event.stopPropagation();
+  console.log(`[FileTabs] showContextMenu called with tabId: ${tabId}`); // ++ Log the received tabId
+  contextTargetTabId.value = tabId; // Still set the original ref if needed elsewhere
+  menuTargetId.value = tabId; // + Set the dedicated ref for the prop
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuVisible.value = true;
+  // 添加全局监听器以关闭菜单
+  document.addEventListener('click', closeContextMenuOnClickOutside, { capture: true, once: true });
+};
+
+const closeContextMenu = () => {
+  contextMenuVisible.value = false;
+  contextTargetTabId.value = null; // Clear original ref if needed
+  // menuTargetId.value = null; // -- REMOVE THIS LINE -- Let the value persist until next show
+  // 移除监听器（如果它仍然存在）
+  document.removeEventListener('click', closeContextMenuOnClickOutside, { capture: true });
+};
+
+// 用于全局点击监听器的函数
+const closeContextMenuOnClickOutside = (event: MouseEvent) => {
+    closeContextMenu();
+};
+
+// + Update function signature to receive payload
+const handleContextMenuAction = (payload: { action: string; targetId: string | number | null }) => {
+  const { action, targetId } = payload;
+  console.log(`[FileTabs] handleContextMenuAction received payload:`, JSON.stringify(payload)); // + Log received payload
+  // const targetId = contextTargetTabId.value; // No longer needed
+  if (!targetId || typeof targetId !== 'string') { // Ensure targetId is a string (tab ID)
+      console.warn('[FileTabs] handleContextMenuAction called but targetId is null or not a string.');
+      return;
+  }
+
+  console.log(`[FileTabs] Context menu action '${action}' requested for tab ID: ${targetId}`); // Keep original log
+
+  switch (action) {
+    case 'close':
+      emit('close-tab', targetId);
+      break;
+    case 'close-others':
+      emit('close-other-tabs', targetId);
+      break;
+    case 'close-right':
+      emit('close-tabs-to-right', targetId);
+      break;
+    case 'close-left':
+      emit('close-tabs-to-left', targetId);
+      break;
+    default:
+      console.warn(`[FileTabs] Unknown context menu action: ${action}`);
+  }
+};
+
+// 计算右键菜单项
+const contextMenuItems = computed(() => {
+  const items = [];
+  const targetId = contextTargetTabId.value;
+  if (!targetId) return [];
+
+  const currentIndex = props.tabs.findIndex(t => t.id === targetId);
+  const totalTabs = props.tabs.length;
+
+  items.push({ label: 'tabs.contextMenu.close', action: 'close' });
+
+  if (totalTabs > 1) {
+    items.push({ label: 'tabs.contextMenu.closeOthers', action: 'close-others' });
+  }
+
+  if (currentIndex < totalTabs - 1) {
+    items.push({ label: 'tabs.contextMenu.closeRight', action: 'close-right' });
+  }
+
+  if (currentIndex > 0) {
+    items.push({ label: 'tabs.contextMenu.closeLeft', action: 'close-left' });
+  }
+
+  return items;
+});
+
+// +++ 组件卸载前移除全局监听器 +++
+onBeforeUnmount(() => {
+    document.removeEventListener('click', closeContextMenuOnClickOutside, { capture: true });
+});
+
 </script>
 
 <template>
@@ -36,9 +135,11 @@ const handleClose = (event: MouseEvent, tabId: string) => {
     <div
       v-for="tab in tabs"
       :key="tab.id"
+      :data-tab-id-debug="tab.id"
       class="tab-item"
       :class="{ active: tab.id === activeTabId }"
       @click="handleActivate(tab.id)"
+      @contextmenu.prevent="(event) => { console.log(`[FileTabs Template Debug] Context menu for tab.id: ${tab.id}`); showContextMenu(event, tab.id); }"
       :title="tab.filePath"
     >
       <span class="tab-filename">{{ tab.filename }}</span>
@@ -54,6 +155,15 @@ const handleClose = (event: MouseEvent, tabId: string) => {
     <div v-if="tabs.length === 0" class="no-tabs-placeholder">
       <!-- 可以留空或添加提示 -->
     </div>
+    <!-- +++ Context Menu Instance +++ -->
+    <TabBarContextMenu
+      :visible="contextMenuVisible"
+      :position="contextMenuPosition"
+      :items="contextMenuItems"
+      :target-id="menuTargetId"
+      @menu-action="handleContextMenuAction"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
 

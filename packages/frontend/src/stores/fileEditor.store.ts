@@ -413,8 +413,61 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
          // setEditorVisibility('closed'); // 移除：容器可见性由外部控制
      };
 
-    // 设置当前激活的标签页
-    const setActiveTab = (tabId: string) => {
+   // +++ 新增：关闭其他标签页 +++
+   const closeOtherTabs = (targetTabId: string) => {
+       console.log(`[文件编辑器 Store] closeOtherTabs: Action called. Current keys in tabs map:`, Array.from(tabs.value.keys())); // ++ Log current keys at start
+       if (!tabs.value.has(targetTabId)) {
+           console.warn(`[文件编辑器 Store] closeOtherTabs: 目标 ID ${targetTabId} 在 Map 中不存在。`); // Updated warning
+           return;
+       }
+       console.log(`[文件编辑器 Store] closeOtherTabs: 开始关闭除 ${targetTabId} 之外的所有标签页...`);
+       const tabsToClose = Array.from(tabs.value.keys()).filter(id => id !== targetTabId);
+       console.log(`[文件编辑器 Store] closeOtherTabs: 将要关闭的标签页 IDs:`, tabsToClose); // + Log IDs to close
+       tabsToClose.forEach(id => {
+           console.log(`[文件编辑器 Store] closeOtherTabs: 正在调用 closeTab 关闭 ${id}`); // + Log loop iteration
+           closeTab(id);
+       });
+   };
+
+   // +++ 新增：关闭右侧标签页 +++
+   const closeTabsToTheRight = (targetTabId: string) => {
+       const tabsArray = Array.from(tabs.value.values());
+       const targetIndex = tabsArray.findIndex(tab => tab.id === targetTabId);
+       console.log(`[文件编辑器 Store] closeTabsToTheRight: Action called. Current keys in tabs map:`, Array.from(tabs.value.keys())); // ++ Log current keys at start
+       if (targetIndex === -1) {
+            console.warn(`[文件编辑器 Store] closeTabsToTheRight: 目标 ID ${targetTabId} 未找到索引。`);
+           return;
+       }
+       console.log(`[文件编辑器 Store] closeTabsToTheRight: 开始关闭 ${targetTabId} (索引 ${targetIndex}) 右侧的所有标签页...`);
+       const tabsToClose = tabsArray.slice(targetIndex + 1).map(tab => tab.id);
+        console.log(`[文件编辑器 Store] closeTabsToTheRight: 将要关闭的标签页 IDs:`, tabsToClose); // + Log IDs to close
+       tabsToClose.forEach(id => {
+           console.log(`[文件编辑器 Store] closeTabsToTheRight: 正在调用 closeTab 关闭 ${id}`); // + Log loop iteration
+           closeTab(id);
+       });
+   };
+
+   // +++ 新增：关闭左侧标签页 +++
+   const closeTabsToTheLeft = (targetTabId: string) => {
+       const tabsArray = Array.from(tabs.value.values());
+       const targetIndex = tabsArray.findIndex(tab => tab.id === targetTabId);
+        console.log(`[文件编辑器 Store] closeTabsToTheLeft: Action called. Current keys in tabs map:`, Array.from(tabs.value.keys())); // ++ Log current keys at start
+        if (targetIndex === -1) {
+           console.warn(`[文件编辑器 Store] closeTabsToTheLeft: 目标 ID ${targetTabId} 未找到索引。`);
+           return;
+       }
+       console.log(`[文件编辑器 Store] closeTabsToTheLeft: 开始关闭 ${targetTabId} (索引 ${targetIndex}) 左侧的所有标签页...`);
+       const tabsToClose = tabsArray.slice(0, targetIndex).map(tab => tab.id);
+       console.log(`[文件编辑器 Store] closeTabsToTheLeft: 将要关闭的标签页 IDs:`, tabsToClose); // + Log IDs to close
+       tabsToClose.forEach(id => {
+           console.log(`[文件编辑器 Store] closeTabsToTheLeft: 正在调用 closeTab 关闭 ${id}`); // + Log loop iteration
+           closeTab(id);
+       });
+   };
+
+
+   // 设置当前激活的标签页
+   const setActiveTab = (tabId: string) => {
         if (tabs.value.has(tabId)) {
             activeTabId.value = tabId;
             console.log(`[文件编辑器 Store] 激活标签页: ${tabId}`);
@@ -556,6 +609,9 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         openFile,
         saveFile,
         closeTab,
+        closeOtherTabs, // +++ 暴露新 action +++
+        closeTabsToTheRight, // +++ 暴露新 action +++
+        closeTabsToTheLeft, // +++ 暴露新 action +++
         closeAllTabs,
         setActiveTab,
         updateFileContent, // 暴露新的更新方法

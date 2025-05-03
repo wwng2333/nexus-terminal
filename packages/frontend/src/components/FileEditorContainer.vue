@@ -34,6 +34,10 @@ const emit = defineEmits<{
   (e: 'request-save', tabId: string): void; // 发送保存请求，携带 tabId
   (e: 'update:content', payload: { tabId: string; content: string }): void; // 用于 v-model 同步
   (e: 'change-encoding', payload: { tabId: string; encoding: string }): void; // +++ 新增：编码更改事件 +++
+  // +++ 新增：传递右键菜单关闭事件 +++
+  (e: 'close-other-tabs', tabId: string): void;
+  (e: 'close-tabs-to-right', tabId: string): void;
+  (e: 'close-tabs-to-left', tabId: string): void;
 }>();
 
 
@@ -228,8 +232,11 @@ const handleKeyDown = (event: KeyboardEvent) => {
       <FileEditorTabs
         :tabs="orderedTabs"
         :active-tab-id="props.activeTabId"
-        @activate-tab="(tabId: string) => emit('activate-tab', tabId)" 
-        @close-tab="(tabId: string) => emit('close-tab', tabId)" 
+        @activate-tab="(tabId: string) => emit('activate-tab', tabId)"
+        @close-tab="(tabId: string) => emit('close-tab', tabId)"
+        @close-other-tabs="(tabId: string) => emit('close-other-tabs', tabId)"
+        @close-tabs-to-right="(tabId: string) => emit('close-tabs-to-right', tabId)"
+        @close-tabs-to-left="(tabId: string) => emit('close-tabs-to-left', tabId)"
       />
 
       <!-- 2. 编辑器头部 (显示当前激活标签信息) -->

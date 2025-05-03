@@ -495,7 +495,7 @@ export const useSessionStore = defineStore('session', () => {
       // 创建新标签页 (使用简化后的 FileTab 接口)
       // --- 修复：初始化 rawContentBase64 ---
       const newTab: FileTab = {
-        id: generateSessionId(), // 使用独立 ID
+        id: `${sessionId}:${fileInfo.fullPath}`, // <-- 修复：使用 sessionId:filePath 作为 ID
         sessionId: sessionId,
         filePath: fileInfo.fullPath,
         filename: fileInfo.name,
@@ -633,6 +633,45 @@ export const useSessionStore = defineStore('session', () => {
     } else {
       console.warn(`[SessionStore] 尝试激活会话 ${sessionId} 中不存在的标签页 ID: ${tabId}`);
     }
+  };
+
+  // +++ 新增：关闭指定会话中的其他编辑器标签页 +++
+  const closeOtherTabsInSession = (sessionId: string, targetTabId: string) => {
+    const session = sessions.value.get(sessionId);
+    if (!session) return;
+    const targetIndex = session.editorTabs.value.findIndex(tab => tab.id === targetTabId);
+    if (targetIndex === -1) return;
+    console.log(`[SessionStore ${sessionId}] 关闭除 ${targetTabId} 之外的所有标签页...`);
+    const tabsToClose = session.editorTabs.value
+        .filter(tab => tab.id !== targetTabId)
+        .map(tab => tab.id);
+    tabsToClose.forEach(id => closeEditorTabInSession(sessionId, id)); // 复用单个关闭逻辑
+  };
+
+  // +++ 新增：关闭指定会话中右侧的编辑器标签页 +++
+  const closeTabsToTheRightInSession = (sessionId: string, targetTabId: string) => {
+      const session = sessions.value.get(sessionId);
+      if (!session) return;
+      const targetIndex = session.editorTabs.value.findIndex(tab => tab.id === targetTabId);
+      if (targetIndex === -1) return;
+      console.log(`[SessionStore ${sessionId}] 关闭 ${targetTabId} 右侧的所有标签页...`);
+      const tabsToClose = session.editorTabs.value
+          .slice(targetIndex + 1)
+          .map(tab => tab.id);
+      tabsToClose.forEach(id => closeEditorTabInSession(sessionId, id));
+  };
+
+  // +++ 新增：关闭指定会话中左侧的编辑器标签页 +++
+  const closeTabsToTheLeftInSession = (sessionId: string, targetTabId: string) => {
+      const session = sessions.value.get(sessionId);
+      if (!session) return;
+      const targetIndex = session.editorTabs.value.findIndex(tab => tab.id === targetTabId);
+      if (targetIndex === -1) return;
+      console.log(`[SessionStore ${sessionId}] 关闭 ${targetTabId} 左侧的所有标签页...`);
+      const tabsToClose = session.editorTabs.value
+          .slice(0, targetIndex)
+          .map(tab => tab.id);
+      tabsToClose.forEach(id => closeEditorTabInSession(sessionId, id));
   };
 
 
@@ -812,6 +851,9 @@ export const useSessionStore = defineStore('session', () => {
     updateFileContentInSession, // 导出更新内容 Action
     saveFileInSession,          // 导出保存文件 Action
     changeEncodingInSession,    // 导出更改编码 Action
+    closeOtherTabsInSession,    // +++ 导出新 action +++
+    closeTabsToTheRightInSession, // +++ 导出新 action +++
+    closeTabsToTheLeftInSession,  // +++ 导出新 action +++
     // --- RDP Modal Actions ---
     openRdpModal,           // 导出打开 RDP 模态框 Action
     closeRdpModal,          // 导出关闭 RDP 模态框 Action

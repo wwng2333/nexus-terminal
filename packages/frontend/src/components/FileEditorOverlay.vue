@@ -23,7 +23,7 @@ const {
     popupTrigger,
     popupFileInfo, // 包含 sessionId 和 filePath
     activeTabId: globalActiveTabIdRef, // 获取全局 activeTabId
-    tabs: globalTabsRef, // 获取全局 tabs Map
+    // tabs: globalTabsRef, // 不再使用 storeToRefs 获取 tabs
 } = storeToRefs(fileEditorStore);
 
 // 设置 Store (用于判断模式)
@@ -32,18 +32,26 @@ const { showPopupFileEditorBoolean, shareFileEditorTabsBoolean } = storeToRefs(s
 // --- 从 Store 获取方法 ---
 // 全局 Store Actions (用于共享模式)
 const {
-    saveFile: saveGlobalFile,
-    closeTab: closeGlobalTab,
-    setActiveTab: setGlobalActiveTab,
-    updateFileContent: updateGlobalFileContent,
+   saveFile: saveGlobalFile,
+   closeTab: closeGlobalTab,
+   setActiveTab: setGlobalActiveTab,
+   updateFileContent: updateGlobalFileContent,
+   // + 添加右键菜单操作 actions
+   closeOtherTabs, // 修正：移除 Global 后缀
+   closeTabsToTheRight, // 修正：移除 Global 后缀
+   closeTabsToTheLeft, // 修正：移除 Global 后缀
 } = fileEditorStore;
 
 // 会话 Store Actions (用于非共享模式)
 const {
-    saveFileInSession,
-    closeEditorTabInSession,
-    setActiveEditorTabInSession,
-    updateFileContentInSession,
+   saveFileInSession,
+   closeEditorTabInSession,
+   setActiveEditorTabInSession,
+   updateFileContentInSession,
+   // + 添加右键菜单操作 actions
+   closeOtherTabsInSession,
+   closeTabsToTheRightInSession,
+   closeTabsToTheLeftInSession,
 } = sessionStore;
 
 // --- 移除本地文件状态 ---
@@ -89,10 +97,12 @@ const currentSession = computed(() => {
 
 // 获取当前模式下的标签页列表
 const orderedTabs = computed(() => {
+    // 直接访问 store.tabs
     if (shareFileEditorTabsBoolean.value) {
-        return Array.from(globalTabsRef.value.values()); // 全局 Store
+        return Array.from(fileEditorStore.tabs.values()); // 直接访问 store
     } else {
-        return currentSession.value?.editorTabs.value ?? []; // 会话 Store
+        // 非共享模式保持不变，因为它依赖 sessionStore
+        return currentSession.value?.editorTabs.value ?? [];
     }
 });
 
@@ -110,10 +120,11 @@ const activeTab = computed((): FileTab | null => {
     const currentId = activeTabId.value;
     if (!currentId) return null;
 
+    // 直接访问 store.tabs
     if (shareFileEditorTabsBoolean.value) {
-        return globalTabsRef.value.get(currentId) ?? null; // 全局 Store
+        return fileEditorStore.tabs.get(currentId) ?? null; // 直接访问 store
     } else {
-        // 在会话的 editorTabs 数组中查找
+        // 非共享模式保持不变
         return currentSession.value?.editorTabs.value.find(tab => tab.id === currentId) ?? null;
     }
 });
@@ -197,6 +208,48 @@ const handleCloseTab = (tabId: string) => {
     }
 };
 
+// +++ 处理右键菜单事件 +++
+const handleCloseOtherTabs = (targetTabId: string) => {
+    console.log(`[FileEditorOverlay] handleCloseOtherTabs called for target: ${targetTabId}`); // Add log
+    if (shareFileEditorTabsBoolean.value) {
+        closeOtherTabs(targetTabId); // 修正：调用正确的 action 名称
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            closeOtherTabsInSession(sessionId, targetTabId); // 会话 Store
+        } else {
+            console.error("[FileEditorOverlay] 无法关闭其他标签页：非共享模式下缺少 sessionId。");
+        }
+    }
+};
+
+const handleCloseRightTabs = (targetTabId: string) => {
+    console.log(`[FileEditorOverlay] handleCloseRightTabs called for target: ${targetTabId}`); // Add log
+    if (shareFileEditorTabsBoolean.value) {
+        closeTabsToTheRight(targetTabId); // 修正：调用正确的 action 名称
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            closeTabsToTheRightInSession(sessionId, targetTabId); // 会话 Store
+        } else {
+            console.error("[FileEditorOverlay] 无法关闭右侧标签页：非共享模式下缺少 sessionId。");
+        }
+    }
+};
+
+const handleCloseLeftTabs = (targetTabId: string) => {
+    console.log(`[FileEditorOverlay] handleCloseLeftTabs called for target: ${targetTabId}`); // Add log
+    if (shareFileEditorTabsBoolean.value) {
+        closeTabsToTheLeft(targetTabId); // 修正：调用正确的 action 名称
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            closeTabsToTheLeftInSession(sessionId, targetTabId); // 会话 Store
+        } else {
+            console.error("[FileEditorOverlay] 无法关闭左侧标签页：非共享模式下缺少 sessionId。");
+        }
+    }
+};
 
 // 关闭弹窗 (保持不变)
 const handleCloseContainer = () => {
@@ -291,6 +344,9 @@ onBeforeUnmount(() => {
         :active-tab-id="activeTabId"
         @activate-tab="handleActivateTab"
         @close-tab="handleCloseTab"
+        @close-other-tabs="handleCloseOtherTabs"
+        @close-tabs-to-right="handleCloseRightTabs"
+        @close-tabs-to-left="handleCloseLeftTabs"
       />
 
       <!-- 编辑器头部 (使用动态计算属性) -->

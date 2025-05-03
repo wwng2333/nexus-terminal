@@ -66,9 +66,13 @@ const emit = defineEmits({
   'close-search': null, // ()
   'clear-terminal': null, // () +++ 添加 clear-terminal 事件 +++
   'change-encoding': null, // +++ 添加 change-encoding 事件 +++
+  // +++ 添加文件编辑器标签页关闭事件 +++
+  'close-other-tabs': null, // (tabId: string)
+  'close-tabs-to-right': null, // (tabId: string)
+  'close-tabs-to-left': null, // (tabId: string)
   // --- 移除 RDP 事件 ---
 });
- 
+
 // --- Setup ---
 const layoutStore = useLayoutStore();
 const sessionStore = useSessionStore();
@@ -206,6 +210,10 @@ const componentProps = computed(() => {
         onRequestSave: (tabId: string) => emit('saveEditorTab', tabId),
         // +++ 添加：转发 change-encoding 事件 +++
         onChangeEncoding: (payload: { tabId: string; encoding: string }) => emit('change-encoding', payload),
+        // +++ 添加：转发其他关闭事件 +++
+        onCloseOtherTabs: (tabId: string) => emit('close-other-tabs', tabId),
+        onCloseTabsToRight: (tabId: string) => emit('close-tabs-to-right', tabId),
+        onCloseTabsToLeft: (tabId: string) => emit('close-tabs-to-left', tabId),
       };
     case 'commandBar':
        // CommandInputBar 需要转发 send-command 事件
@@ -514,6 +522,9 @@ onMounted(() => {
                         @close-search="emit('close-search')"
                         @clear-terminal="() => emit('clear-terminal')"
                         @change-encoding="emit('change-encoding', $event)"
+                        @close-other-tabs="emit('close-other-tabs', $event)"
+                        @close-tabs-to-right="emit('close-tabs-to-right', $event)"
+                        @close-tabs-to-left="emit('close-tabs-to-left', $event)"
                         class="flex-grow overflow-auto"
                     />
                   </pane>

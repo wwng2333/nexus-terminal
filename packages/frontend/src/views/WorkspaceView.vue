@@ -12,7 +12,7 @@ import LayoutConfigurator from '../components/LayoutConfigurator.vue'; // *** �
 import RemoteDesktopModal from '../components/RemoteDesktopModal.vue'; // +++ 导入 RDP 模态框 +++
 import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 session store
 import { useSettingsStore } from '../stores/settings.store';
-import { useFileEditorStore } from '../stores/fileEditor.store';
+import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store'; // + Import FileTab type
 // import { useLayoutStore } from '../stores/layout.store'; // 重复导入，移除
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
 // import type { ConnectionInfo } from '../stores/connections.store'; // 重复导入，移除
@@ -37,7 +37,7 @@ const { layoutTree } = storeToRefs(layoutStore); // 只获取布局树
 
 // --- 计算属性 (用于动态绑定编辑器 Props) ---
 // 这些计算属性现在需要传递给 LayoutRenderer
-const editorTabs = computed(() => {
+const editorTabs = computed((): FileTab[] => { // Ensure return type is FileTab[]
   if (shareFileEditorTabsBoolean.value) {
     return globalEditorTabs.value;
   } else {
@@ -292,7 +292,7 @@ const handleCloseSearch = () => {
      console.warn(`[WorkspaceView] Cannot clear search, no active session manager.`);
   }
 };
- 
+
 // +++ 新增：处理清空终端事件 +++
 const handleClearTerminal = () => {
   const currentSession = activeSession.value;
@@ -309,7 +309,7 @@ const handleClearTerminal = () => {
     console.warn(`[WorkspaceView] Cannot clear terminal for session ${currentSession.sessionId}, terminal manager, instance, or clear method not available.`);
   }
 };
- 
+
 // Removed computed properties for search results, will pass manager directly
 // --- 编辑器操作处理 (用于 FileEditorContainer) ---
 const handleCloseEditorTab = (tabId: string) => {
@@ -407,6 +407,58 @@ const handleCloseEditorTab = (tabId: string) => {
 
 // RDP 事件处理方法已被移除
 
+ // --- 标签页关闭操作处理 ---
+
+ const handleCloseOtherSessions = (targetSessionId: string) => {
+   const sessionsToClose = sessionTabsWithStatus.value
+     .filter(tab => tab.sessionId !== targetSessionId)
+     .map(tab => tab.sessionId);
+   sessionsToClose.forEach(id => sessionStore.closeSession(id));
+ };
+
+ const handleCloseSessionsToRight = (targetSessionId: string) => {
+   const targetIndex = sessionTabsWithStatus.value.findIndex(tab => tab.sessionId === targetSessionId);
+   if (targetIndex === -1) return;
+   const sessionsToClose = sessionTabsWithStatus.value
+     .slice(targetIndex + 1)
+     .map(tab => tab.sessionId);
+   sessionsToClose.forEach(id => sessionStore.closeSession(id));
+ };
+
+ const handleCloseSessionsToLeft = (targetSessionId: string) => {
+   const targetIndex = sessionTabsWithStatus.value.findIndex(tab => tab.sessionId === targetSessionId);
+   if (targetIndex === -1) return;
+   const sessionsToClose = sessionTabsWithStatus.value
+     .slice(0, targetIndex)
+     .map(tab => tab.sessionId);
+   sessionsToClose.forEach(id => sessionStore.closeSession(id));
+ };
+
+ const handleCloseOtherEditorTabs = (targetTabId: string) => {
+   const tabsToClose = editorTabs.value
+     .filter(tab => tab.id !== targetTabId)
+     .map(tab => tab.id);
+   tabsToClose.forEach(id => handleCloseEditorTab(id)); // Reuse existing close logic
+ };
+
+ const handleCloseEditorTabsToRight = (targetTabId: string) => {
+   const targetIndex = editorTabs.value.findIndex(tab => tab.id === targetTabId);
+   if (targetIndex === -1) return;
+   const tabsToClose = editorTabs.value
+     .slice(targetIndex + 1)
+     .map(tab => tab.id);
+   tabsToClose.forEach(id => handleCloseEditorTab(id));
+ };
+
+ const handleCloseEditorTabsToLeft = (targetTabId: string) => {
+   const targetIndex = editorTabs.value.findIndex(tab => tab.id === targetTabId);
+   if (targetIndex === -1) return;
+   const tabsToClose = editorTabs.value
+     .slice(0, targetIndex)
+     .map(tab => tab.id);
+   tabsToClose.forEach(id => handleCloseEditorTab(id));
+ };
+
 </script>
 
 <template>
@@ -421,6 +473,9 @@ const handleCloseEditorTab = (tabId: string) => {
         @open-layout-configurator="handleOpenLayoutConfigurator"
         @request-add-connection-from-popup="handleRequestAddConnection"
         @request-edit-connection-from-popup="handleRequestEditConnection"
+        @close-other-sessions="handleCloseOtherSessions"
+        @close-sessions-to-right="handleCloseSessionsToRight"
+        @close-sessions-to-left="handleCloseSessionsToLeft"
     />
 
     <!-- 移除 :class 绑定 -->
@@ -450,7 +505,10 @@ const handleCloseEditorTab = (tabId: string) => {
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
         @clear-terminal="handleClearTerminal"
-        @change-encoding="handleChangeEncoding" 
+        @change-encoding="handleChangeEncoding"
+        @close-other-tabs="handleCloseOtherEditorTabs"
+        @close-tabs-to-right="handleCloseEditorTabsToRight"
+        @close-tabs-to-left="handleCloseEditorTabsToLeft"
       ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
       <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
         {{ t('layout.loading', '加载布局中...') }}

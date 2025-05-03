@@ -1016,6 +1016,14 @@
   "terminalTabBar": {
     "selectServerTitle": "Select server to connect"
   },
+  "tabs": {
+    "contextMenu": {
+      "close": "Close Tab",
+      "closeOthers": "Close Other Tabs",
+      "closeRight": "Close Tabs to the Right",
+      "closeLeft": "Close Tabs to the Left"
+    }
+  },
   "sshKeys": {
     "selector": {
       "selectPlaceholder": "Select an SSH key...",

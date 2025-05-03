@@ -1,44 +1,49 @@
 <script setup lang="ts">
-import { ref, computed, PropType, onMounted, watch } from 'vue';
-import { useI18n } from 'vue-i18n'; 
+import { ref, computed, PropType, onMounted, onBeforeUnmount, watch } from 'vue'; // + onBeforeUnmount
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { storeToRefs } from 'pinia'; 
+import { storeToRefs } from 'pinia';
 import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue';
+import TabBarContextMenu from './TabBarContextMenu.vue'; // + Import context menu
 import { useSessionStore } from '../stores/session.store';
 import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
 import { useLayoutStore, type PaneName } from '../stores/layout.store';
 
-import type { SessionTabInfoWithStatus } from '../stores/session.store'; 
-
+import type { SessionTabInfoWithStatus } from '../stores/session.store';
 
 
 const { t } = useI18n(); // 初始化 i18n
 const layoutStore = useLayoutStore(); // 初始化布局 store
-const connectionsStore = useConnectionsStore(); 
+const connectionsStore = useConnectionsStore();
 const { isHeaderVisible } = storeToRefs(layoutStore); // 从 layout store 获取主导航栏可见状态
 const route = useRoute(); // 获取路由实例
 
 // 定义 Props
 const props = defineProps({
   sessions: {
-    type: Array as PropType<SessionTabInfoWithStatus[]>, 
+    type: Array as PropType<SessionTabInfoWithStatus[]>,
     required: true,
   },
   activeSessionId: {
-    type: String as PropType<string | null>, 
-    required: false, 
-    default: null,  
+    type: String as PropType<string | null>,
+    required: false,
+    default: null,
   },
 });
 
-// 定义事件
-const emit = defineEmits([
-  'activate-session',
-  'close-session',
-  'open-layout-configurator',
-  'request-add-connection-from-popup', 
-  'request-edit-connection-from-popup'  
-]);
+// 定义事件 (使用对象语法修复类型)
+const emit = defineEmits<{
+  (e: 'activate-session', sessionId: string): void;
+  (e: 'close-session', sessionId: string): void;
+  (e: 'open-layout-configurator'): void;
+  (e: 'request-add-connection-from-popup'): void;
+  (e: 'request-edit-connection-from-popup', connection: any): void; // 保持 any 或使用 ConnectionInfo
+  // + 新增右键菜单事件
+  (e: 'close-other-sessions', sessionId: string): void;
+  (e: 'close-sessions-to-right', sessionId: string): void;
+  (e: 'close-sessions-to-left', sessionId: string): void;
+}>();
+
 
 const activateSession = (sessionId: string) => {
   if (sessionId !== props.activeSessionId) {
@@ -54,6 +59,12 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
 // --- 本地状态 ---
 const sessionStore = useSessionStore(); // Session store 保持不变
 const showConnectionListPopup = ref(false); // 连接列表弹出状态
+
+// +++ 右键菜单状态 +++
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextTargetSessionId = ref<string | null>(null); // Keep for logic inside this component if needed elsewhere
+const menuTargetId = ref<string | null>(null); // + Ref specifically for passing to the menu prop
 
 const togglePopup = () => {
   showConnectionListPopup.value = !showConnectionListPopup.value;
@@ -98,6 +109,94 @@ const handleRequestEditFromPopup = (connection: any) => { // 假设 WorkspaceCon
 // --- 移除 handleRequestRdpFromPopup 方法 ---
 // const handleRequestRdpFromPopup = (connection: ConnectionInfo) => { ... };
 
+// +++ 右键菜单方法 +++
+const showContextMenu = (event: MouseEvent, sessionId: string) => {
+  event.preventDefault();
+  event.stopPropagation();
+  contextTargetSessionId.value = sessionId; // Still set the original ref if needed elsewhere
+  menuTargetId.value = sessionId; // + Set the dedicated ref for the prop
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuVisible.value = true;
+  // 添加全局监听器以关闭菜单
+  document.addEventListener('click', closeContextMenuOnClickOutside, { capture: true, once: true });
+};
+
+const closeContextMenu = () => {
+  contextMenuVisible.value = false;
+  contextTargetSessionId.value = null; // Clear original ref if needed
+  // menuTargetId.value = null; // -- REMOVE THIS LINE -- Let the value persist until next show
+  // 移除监听器（如果它仍然存在）
+  document.removeEventListener('click', closeContextMenuOnClickOutside, { capture: true });
+};
+
+// 用于全局点击监听器的函数
+const closeContextMenuOnClickOutside = (event: MouseEvent) => {
+    // 检查点击是否发生在菜单内部，如果是，则不关闭
+    // 这个检查在 TabBarContextMenu 组件内部通过 @click.stop 完成了
+    // 所以这里可以直接关闭
+    closeContextMenu();
+};
+
+
+// + Update function signature to receive payload
+const handleContextMenuAction = (payload: { action: string; targetId: string | number | null }) => {
+  const { action, targetId } = payload;
+  console.log(`[TabBar] handleContextMenuAction received payload:`, JSON.stringify(payload)); // + Log received payload
+  // const targetId = contextTargetSessionId.value; // No longer needed
+  if (!targetId || typeof targetId !== 'string') { // Ensure targetId is a string (session ID)
+      console.warn('[TabBar] handleContextMenuAction called but targetId is null or not a string.');
+      return;
+  }
+
+  console.log(`[TabBar] Context menu action '${action}' requested for session ID: ${targetId}`); // Keep original log
+
+  switch (action) {
+    case 'close':
+      emit('close-session', targetId);
+      break;
+    case 'close-others':
+      emit('close-other-sessions', targetId);
+      break;
+    case 'close-right':
+      emit('close-sessions-to-right', targetId);
+      break;
+    case 'close-left':
+      // 注意：关闭左侧通常不包括当前标签本身
+      emit('close-sessions-to-left', targetId);
+      break;
+    default:
+      console.warn(`[TabBar] Unknown context menu action: ${action}`);
+  }
+  // closeContextMenu(); // TabBarContextMenu 内部点击后会触发 close 事件
+};
+
+// 计算右键菜单项
+const contextMenuItems = computed(() => {
+  const items = [];
+  const targetId = contextTargetSessionId.value;
+  if (!targetId) return [];
+
+  const currentIndex = props.sessions.findIndex(s => s.sessionId === targetId);
+  const totalTabs = props.sessions.length;
+
+  items.push({ label: 'tabs.contextMenu.close', action: 'close' }); // 使用 i18n key
+
+  if (totalTabs > 1) {
+    items.push({ label: 'tabs.contextMenu.closeOthers', action: 'close-others' });
+  }
+
+  if (currentIndex < totalTabs - 1) {
+    items.push({ label: 'tabs.contextMenu.closeRight', action: 'close-right' });
+  }
+
+  if (currentIndex > 0) {
+    items.push({ label: 'tabs.contextMenu.closeLeft', action: 'close-left' });
+  }
+
+  return items;
+});
+
+
 // 新增：处理打开布局配置器的事件
 const openLayoutConfigurator = () => {
   console.log('[TabBar] Emitting open-layout-configurator event');
@@ -124,6 +223,13 @@ onMounted(() => {
      console.log('[TabBar] Mounted on /workspace route. Header toggle button is now active.');
   }
 });
+
+// +++ 组件卸载前移除全局监听器 +++
+// onBeforeUnmount is imported now
+onBeforeUnmount(() => {
+    document.removeEventListener('click', closeContextMenuOnClickOutside, { capture: true });
+});
+
 
 // 切换主导航栏可见性 (只在 workspace 路由下生效)
 const toggleHeader = () => {
@@ -153,7 +259,7 @@ const toggleButtonTitle = computed(() => {
 </script>
 
 <template>
-  <div class="flex bg-header border border-border rounded-t-md mx-2 mt-2 overflow-hidden h-10"> 
+  <div class="flex bg-header border border-border rounded-t-md mx-2 mt-2 overflow-hidden h-10">
     <div class="flex items-center overflow-x-auto flex-shrink min-w-0">
       <ul class="flex list-none p-0 m-0 h-full flex-shrink-0">
         <li
@@ -162,6 +268,7 @@ const toggleButtonTitle = computed(() => {
           :class="['flex items-center px-3 h-full cursor-pointer border-r border-border transition-colors duration-150 relative group',
                    session.sessionId === activeSessionId ? 'bg-background text-foreground' : 'bg-header text-text-secondary hover:bg-border']"
           @click="activateSession(session.sessionId)"
+          @contextmenu.prevent="showContextMenu($event, session.sessionId)"
           :title="session.connectionName"
         >
           <!-- Status dot -->
@@ -220,7 +327,14 @@ const toggleButtonTitle = computed(() => {
         </div>
       </div>
     </div>
+    <!-- +++ Context Menu Instance (Ensure it's present) +++ -->
+    <TabBarContextMenu
+      :visible="contextMenuVisible"
+      :position="contextMenuPosition"
+      :items="contextMenuItems"
+      :target-id="menuTargetId"
+      @menu-action="handleContextMenuAction"
+      @close="closeContextMenu"
+    />
   </div>
 </template>
-
-
