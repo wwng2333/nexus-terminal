@@ -216,7 +216,7 @@ export function createSftpActionsManager(
 
         if (!isSftpReady.value) {
             // 使用通知 store 显示错误
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             isLoading.value = false;
             // 移除对只读 computed 属性的赋值
             // fileList.value = [];
@@ -240,7 +240,7 @@ export function createSftpActionsManager(
 
     const createDirectory = (newDirName: string) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试创建目录 ${newDirName} 但 SFTP 未就绪。`); // 日志改为中文
             return;
         }
@@ -251,7 +251,7 @@ export function createSftpActionsManager(
 
     const createFile = (newFileName: string) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试创建文件 ${newFileName} 但 SFTP 未就绪。`); // 日志改为中文
             return;
         }
@@ -266,7 +266,7 @@ export function createSftpActionsManager(
 
     const deleteItems = (items: FileListItem[]) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试删除项目但 SFTP 未就绪。`); // 日志改为中文
             return;
         }
@@ -281,7 +281,7 @@ export function createSftpActionsManager(
 
     const renameItem = (item: FileListItem, newName: string) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试重命名项目 ${item.filename} 但 SFTP 未就绪。`); // 日志改为中文
             return;
         }
@@ -297,7 +297,7 @@ export function createSftpActionsManager(
 
     const changePermissions = (item: FileListItem, mode: number) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 }); // 使用 uiNotificationsStore
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试修改 ${item.filename} 的权限但 SFTP 未就绪。`); // 日志改为中文
             return;
         }
@@ -312,7 +312,7 @@ export function createSftpActionsManager(
             if (!isSftpReady.value) {
                 const errMsg = t('fileManager.errors.sftpNotReady');
                 console.warn(`[SFTP ${instanceSessionId}] 尝试读取文件 ${path} 但 SFTP 未就绪。`); // 日志改为中文
-                uiNotificationsStore.showError(errMsg, { timeout: 5000 }); // 使用 uiNotificationsStore
+                uiNotificationsStore.showError(errMsg);
                 return reject(new Error(errMsg));
             }
             const requestId = generateRequestId();
@@ -323,7 +323,7 @@ export function createSftpActionsManager(
                 unregisterSuccess?.();
                 unregisterError?.();
                 const errMsg = t('fileManager.errors.readFileTimeout');
-                uiNotificationsStore.showError(errMsg, { timeout: 5000 }); // 使用 uiNotificationsStore
+                uiNotificationsStore.showError(errMsg);
                 reject(new Error(errMsg));
             }, 20000); // 20 秒超时
 
@@ -346,7 +346,7 @@ export function createSftpActionsManager(
                     unregisterSuccess?.();
                     unregisterError?.();
                     const errorMsg = errorPayload || t('fileManager.errors.readFileFailed'); // 使用 i18n
-                    uiNotificationsStore.showError(`${t('fileManager.errors.readFileError')}: ${errorMsg}`, { timeout: 5000 }); // 使用 uiNotificationsStore
+                    uiNotificationsStore.showError(`${t('fileManager.errors.readFileError')}: ${errorMsg}`);
                     reject(new Error(errorMsg));
                 }
             });
@@ -360,7 +360,7 @@ export function createSftpActionsManager(
             if (!isSftpReady.value) {
                  const errMsg = t('fileManager.errors.sftpNotReady');
                  console.warn(`[SFTP ${instanceSessionId}] 尝试写入文件 ${path} 但 SFTP 未就绪。`); // 日志改为中文
-                 uiNotificationsStore.showError(errMsg, { timeout: 5000 }); // 使用 uiNotificationsStore
+                 uiNotificationsStore.showError(errMsg);
                 return reject(new Error(errMsg));
             }
             const requestId = generateRequestId();
@@ -372,7 +372,7 @@ export function createSftpActionsManager(
                 unregisterSuccess?.();
                 unregisterError?.();
                 const errMsg = t('fileManager.errors.saveTimeout');
-                uiNotificationsStore.showError(errMsg, { timeout: 5000 }); // 使用 uiNotificationsStore
+                uiNotificationsStore.showError(errMsg);
                 reject(new Error(errMsg));
             }, 20000); // 20 秒超时
 
@@ -393,7 +393,7 @@ export function createSftpActionsManager(
                     unregisterSuccess?.();
                     unregisterError?.();
                     const errorMsg = errorPayload || t('fileManager.errors.saveFailed'); // 使用 i18n
-                    uiNotificationsStore.showError(errorMsg, { timeout: 5000 }); // 使用 uiNotificationsStore
+                    uiNotificationsStore.showError(errorMsg);
                     reject(new Error(errorMsg));
                 }
             });
@@ -409,7 +409,7 @@ export function createSftpActionsManager(
     // +++ 新增：复制项目 +++
     const copyItems = (sourcePaths: string[], destinationDir: string) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 });
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试复制项目但 SFTP 未就绪。`);
             return;
         }
@@ -427,7 +427,7 @@ export function createSftpActionsManager(
     // +++ 新增：移动项目 +++
     const moveItems = (sourcePaths: string[], destinationDir: string) => {
         if (!isSftpReady.value) {
-            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'), { timeout: 5000 });
+            uiNotificationsStore.showError(t('fileManager.errors.sftpNotReady'));
             console.warn(`[SFTP ${instanceSessionId}] 尝试移动项目但 SFTP 未就绪。`);
             return;
         }
@@ -560,7 +560,7 @@ export function createSftpActionsManager(
 
         console.error(`[SFTP ${instanceSessionId}] 加载目录 ${errorPath} 出错:`, errorPayload); // 日志改为中文
         // error.value = errorPayload; // 使用通知
-        uiNotificationsStore.showError(`${t('fileManager.errors.loadDirectoryFailed')}: ${errorPayload}`, { timeout: 5000 }); // 使用 uiNotificationsStore, 添加 i18n key
+        uiNotificationsStore.showError(`${t('fileManager.errors.loadDirectoryFailed')}: ${errorPayload}`);, 添加 i18n key
 
         // 重置加载状态，因为这是匹配的响应
         isLoading.value = false;
@@ -786,7 +786,7 @@ export function createSftpActionsManager(
         const newItems = copyPayload.items;
 
         console.log(`[SFTP ${instanceSessionId}] 复制成功到: ${destinationDir}`);
-        uiNotificationsStore.showSuccess(t('fileManager.notifications.copySuccess'), { timeout: 3000 }); // 添加成功通知
+        uiNotificationsStore.showSuccess(t('fileManager.notifications.copySuccess')); // 添加成功通知
 
         // 更新文件树
         const destNode = findNodeByPath(fileTree, destinationDir);
@@ -825,7 +825,7 @@ export function createSftpActionsManager(
         const newItems = movePayload.items;
 
         console.log(`[SFTP ${instanceSessionId}] 移动成功到: ${destinationDir}`);
-        uiNotificationsStore.showSuccess(t('fileManager.notifications.moveSuccess'), { timeout: 3000 }); // 添加成功通知
+        uiNotificationsStore.showSuccess(t('fileManager.notifications.moveSuccess')); // 添加成功通知
 
         // 1. 从旧位置移除
         sourcePaths.forEach(oldPath => {
@@ -922,7 +922,7 @@ export function createSftpActionsManager(
         };
         const prefix = actionTypeMap[message.type] || t('fileManager.errors.generic');
         // error.value = `${prefix}: ${errorPayload}`; // 使用通知
-        uiNotificationsStore.showError(`${prefix}: ${errorPayload}`, { timeout: 5000 }); // 使用 uiNotificationsStore
+        uiNotificationsStore.showError(`${prefix}: ${errorPayload}`);
     };
 
     // --- Register Handlers & Store Unregister Callbacks ---
