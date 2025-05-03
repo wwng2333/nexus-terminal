@@ -17,17 +17,16 @@ export const useUiNotificationsStore = defineStore('uiNotifications', () => {
    * 添加一个新通知
    * @param notification - 通知对象 (至少包含 type 和 message)
    */
-  const addNotification = (notification: Omit<UINotification, 'id'>) => {
+  const addNotification = (notification: Omit<UINotification, 'id'> & { timeout?: number }) => { // Ensure timeout is part of the input type for clarity
     const id = nextId++;
-    const newNotification: UINotification = { ...notification, id };
+    // Force a 3-second timeout for all notifications
+    const newNotification: UINotification = { ...notification, id, timeout: 3000 };
     notifications.value.push(newNotification);
 
-    // 如果设置了超时，则在超时后自动移除通知
-    if (notification.timeout) {
-      setTimeout(() => {
-        removeNotification(id);
-      }, notification.timeout);
-    }
+    // Always set timeout to remove the notification after 3 seconds
+    setTimeout(() => {
+      removeNotification(id);
+    }, 3000); // Use fixed 3000ms timeout
   };
 
   /**
@@ -39,20 +38,20 @@ export const useUiNotificationsStore = defineStore('uiNotifications', () => {
   };
 
   // 便捷方法
-  const showError = (message: string, options: { timeout?: number } = {}) => {
-    addNotification({ type: 'error', message, timeout: options.timeout ?? 5000 }); // 默认 5 秒超时
+  const showError = (message: string) => { // Removed options
+    addNotification({ type: 'error', message }); // Timeout is handled by addNotification
   };
 
-  const showSuccess = (message: string, options: { timeout?: number } = {}) => {
-    addNotification({ type: 'success', message, timeout: options.timeout ?? 3000 }); // 默认 3 秒超时
+  const showSuccess = (message: string) => { // Removed options
+    addNotification({ type: 'success', message }); // Timeout is handled by addNotification
   };
 
-  const showInfo = (message: string, options: { timeout?: number } = {}) => {
-    addNotification({ type: 'info', message, timeout: options.timeout ?? 3000 });
+  const showInfo = (message: string) => { // Removed options
+    addNotification({ type: 'info', message }); // Timeout is handled by addNotification
   };
 
-  const showWarning = (message: string, options: { timeout?: number } = {}) => {
-    addNotification({ type: 'warning', message, timeout: options.timeout ?? 5000 });
+  const showWarning = (message: string) => { // Removed options
+    addNotification({ type: 'warning', message }); // Timeout is handled by addNotification
   };
 
 

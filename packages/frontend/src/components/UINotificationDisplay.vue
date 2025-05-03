@@ -35,19 +35,19 @@ const getContainerClass = (type: string) => {
         v-for="notification in notifications"
         :key="notification.id"
         :class="[
-          'flex items-center p-3 mb-2 rounded shadow-md min-w-[250px] max-w-[400px] opacity-95 text-white',
+          'flex items-center p-3 mb-2 rounded shadow-md min-w-[250px] max-w-[400px] opacity-95 text-white', 
           {
             'bg-green-600': notification.type === 'success',
             'bg-red-600': notification.type === 'error',
             'bg-blue-600': notification.type === 'info',
-            'bg-yellow-500 text-gray-800': notification.type === 'warning', // Warning text color adjusted
+            'bg-yellow-500 text-gray-800': notification.type === 'warning',
           }
         ]"
       >
-        <i :class="['mr-3 text-lg', getIconClass(notification.type)]"></i>
+        <i :class="['mr-3 text-lg relative top-px', getIconClass(notification.type)]"style="color: white !important;"></i>
         <span class="flex-grow break-words text-sm">{{ notification.message }}</span>
         <button
-          class="ml-4 p-1 bg-transparent border-none text-current opacity-70 hover:opacity-100 cursor-pointer text-lg leading-none"
+          class="ml-4 p-1 bg-transparent border-none text-white opacity-70 hover:opacity-100 cursor-pointer text-lg leading-none"
           @click="notificationsStore.removeNotification(notification.id)"
         >
           &times;
