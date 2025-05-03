@@ -37,8 +37,11 @@ export type AuditLogActionType =
 
 
   // SSH Actions (via WebSocket)
+  //   - SSH_CONNECT_SUCCESS: { userId?: number, username?: string, connectionId: number, connectionName: string, sessionId: string, ip?: string }
   | 'SSH_CONNECT_SUCCESS'
+  //   - SSH_CONNECT_FAILURE: { userId?: number, username?: string, connectionId: number, connectionName?: string, ip?: string, reason: string }
   | 'SSH_CONNECT_FAILURE'
+  //   - SSH_SHELL_FAILURE:   { userId?: number, username?: string, connectionId: number, connectionName?: string, sessionId: string, ip?: string, reason: string }
   | 'SSH_SHELL_FAILURE'
 
   // System/Error

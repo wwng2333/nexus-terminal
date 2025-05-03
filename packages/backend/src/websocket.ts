@@ -32,6 +32,7 @@ export interface ClientState { // 导出以便 Service 可以导入
     sshClient: Client;
     sshShellStream?: ClientChannel;
     dbConnectionId: number;
+connectionName?: string; // 添加连接名称字段
     sftp?: SFTPWrapper; // 添加 sftp 实例 (由 SftpService 管理)
     statusIntervalId?: NodeJS.Timeout; // 添加状态轮询 ID (由 StatusMonitorService 管理)
     dockerStatusIntervalId?: NodeJS.Timeout; // NEW: Docker 状态轮询 ID
@@ -661,12 +662,13 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                         // 从传递过来的 request 对象获取 IP 地址 (在 catch 块中也需要访问) - 使用 upgrade 阶段确定的 ipAddress
                         const clientIp = (request as any).clientIpAddress || 'unknown'; // clientIpAddress 在 upgrade 阶段被设置
                         console.log(`[SSH Connect] Using IP from upgrade handler: ${clientIp}`); // 添加日志确认
+let connInfo: SshService.DecryptedConnectionDetails | null = null; // 将 connInfo 移到 try 外部
 
                         try {
                             // --- 手动编排 SSH 连接流程 ---
                             // 1. 获取连接信息
                             ws.send(JSON.stringify({ type: 'ssh:status', payload: '正在获取连接信息...' }));
-                            const connInfo = await SshService.getConnectionDetails(dbConnectionId);
+                            connInfo = await SshService.getConnectionDetails(dbConnectionId); // 在 try 内部赋值
 
                             // 2. 建立 SSH 连接
                             ws.send(JSON.stringify({ type: 'ssh:status', payload: `正在连接到 ${connInfo.host}...` }));
@@ -680,6 +682,7 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                 ws: ws,
                                 sshClient: sshClient,
                                 dbConnectionId: dbConnectionId,
+                                connectionName: connInfo!.name, // 填充 connectionName (non-null assertion)
                                 ipAddress: clientIp, // 存储 IP 地址
                                 isShellReady: false, // 初始化 Shell 状态为未就绪
                             };
@@ -697,6 +700,7 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                         console.error(`SSH: 会话 ${newSessionId} 打开 Shell 失败:`, err);
                                         // 记录审计日志：打开 Shell 失败
                                         auditLogService.logAction('SSH_SHELL_FAILURE', {
+connectionName: newState.connectionName, // 添加连接名称
                                             userId: ws.userId,
                                             username: ws.username,
                                             connectionId: dbConnectionId,
@@ -759,7 +763,8 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                                         username: ws.username,
                                         connectionId: dbConnectionId,
                                         sessionId: newSessionId,
-                                        ip: newState.ipAddress
+                                        ip: newState.ipAddress,
+                                        connectionName: connInfo!.name, // 添加连接名称 (non-null assertion)
                                     });
                                     notificationService.sendNotification('SSH_CONNECT_SUCCESS', { // 添加通知调用
                                         userId: ws.userId,
@@ -866,10 +871,12 @@ export const initializeWebSocket = async (server: http.Server, sessionParser: Re
                         } catch (connectError: any) {
                             console.error(`WebSocket: 用户 ${ws.username} (IP: ${clientIp}) 连接到数据库 ID ${dbConnectionId} 失败:`, connectError);
                             // 记录审计日志：SSH 连接失败
+
                             auditLogService.logAction('SSH_CONNECT_FAILURE', {
                                 userId: ws.userId,
                                 username: ws.username,
                                 connectionId: dbConnectionId,
+connectionName: connInfo?.name || 'Unknown', // 添加连接名称 (使用可选链)
                                 ip: clientIp,
                                 reason: connectError.message
                             });
