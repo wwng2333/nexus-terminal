@@ -560,7 +560,7 @@ export function createSftpActionsManager(
 
         console.error(`[SFTP ${instanceSessionId}] 加载目录 ${errorPath} 出错:`, errorPayload); // 日志改为中文
         // error.value = errorPayload; // 使用通知
-        uiNotificationsStore.showError(`${t('fileManager.errors.loadDirectoryFailed')}: ${errorPayload}`);, 添加 i18n key
+        uiNotificationsStore.showError(`${t('fileManager.errors.loadDirectoryFailed')}: ${errorPayload}`);
 
         // 重置加载状态，因为这是匹配的响应
         isLoading.value = false;
