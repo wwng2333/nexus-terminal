@@ -236,6 +236,21 @@ export function createSshTerminalManager(sessionId: string, wsDeps: SshTerminalD
         isSshConnected.value = true; // 更新状态
         // 连接成功后聚焦终端
         terminalInstance.value?.focus();
+
+        if (terminalInstance.value) {
+            const currentDimensions = { cols: terminalInstance.value.cols, rows: terminalInstance.value.rows };
+            // 检查尺寸是否有效
+            if (currentDimensions.cols > 0 && currentDimensions.rows > 0) {
+                console.log(`[会话 ${sessionId}][SSH终端模块] SSH 连接成功，主动发送初始尺寸:`, currentDimensions);
+                sendMessage({ type: 'ssh:resize', sessionId, payload: currentDimensions });
+            } else {
+                console.warn(`[会话 ${sessionId}][SSH终端模块] SSH 连接成功，但获取到的初始尺寸无效，跳过发送 resize:`, currentDimensions);
+            }
+        } else {
+             console.warn(`[会话 ${sessionId}][SSH终端模块] SSH 连接成功，但 terminalInstance 不可用，无法发送初始 resize。`);
+        }
+
+
         // 清空可能存在的旧缓冲（虽然理论上此时应该已经 ready 了）
         if (terminalOutputBuffer.value.length > 0) {
              console.warn(`[会话 ${sessionId}][SSH终端模块] SSH 连接时仍有缓冲数据，正在写入...`);
