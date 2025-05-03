@@ -1,33 +1,30 @@
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { storeToRefs } from 'pinia'; // 导入 storeToRefs
-import { useLayoutStore } from '../stores/layout.store'; // *** 重新导入 layoutStore ***
-import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store'; // +++ 导入 connectionsStore +++
-// 移除不再直接使用的组件导入
+import { storeToRefs } from 'pinia';
+import { useLayoutStore } from '../stores/layout.store'; 
+import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store'; 
 import AddConnectionFormComponent from '../components/AddConnectionForm.vue';
 import TerminalTabBar from '../components/TerminalTabBar.vue';
-import LayoutRenderer from '../components/LayoutRenderer.vue'; // *** 导入布局渲染器 ***
-import LayoutConfigurator from '../components/LayoutConfigurator.vue'; // *** 导入布局配置器 ***
-import RemoteDesktopModal from '../components/RemoteDesktopModal.vue'; // +++ 导入 RDP 模态框 +++
-import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store'; // 导入 session store
+import LayoutRenderer from '../components/LayoutRenderer.vue';
+import LayoutConfigurator from '../components/LayoutConfigurator.vue';
+import RemoteDesktopModal from '../components/RemoteDesktopModal.vue'; 
+import { useSessionStore, type SessionTabInfoWithStatus, type SshTerminalInstance } from '../stores/session.store';
 import { useSettingsStore } from '../stores/settings.store';
-import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store'; // + Import FileTab type
-// import { useLayoutStore } from '../stores/layout.store'; // 重复导入，移除
+import { useFileEditorStore, type FileTab } from '../stores/fileEditor.store';
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
-// import type { ConnectionInfo } from '../stores/connections.store'; // 重复导入，移除
-import type { Terminal } from 'xterm'; // *** 导入 Terminal 类型 ***
-import type { ISearchOptions } from '@xterm/addon-search'; // *** 导入搜索选项类型 ***
+import type { Terminal } from 'xterm'; 
+import type { ISearchOptions } from '@xterm/addon-search'; 
 
 // --- Setup ---
 const { t } = useI18n();
-const sessionStore = useSessionStore(); // 获取 session store 实例
+const sessionStore = useSessionStore(); 
 const settingsStore = useSettingsStore();
 const fileEditorStore = useFileEditorStore();
-const layoutStore = useLayoutStore(); // *** 确保 layoutStore 实例存在 ***
+const layoutStore = useLayoutStore();
 const commandHistoryStore = useCommandHistoryStore();
-const connectionsStore = useConnectionsStore(); // +++ 获取 connectionsStore 实例 +++
-const { isHeaderVisible } = storeToRefs(layoutStore); // *** 获取 isHeaderVisible 状态 ***
+const connectionsStore = useConnectionsStore(); 
+const { isHeaderVisible } = storeToRefs(layoutStore);
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession, isRdpModalOpen, rdpConnectionInfo } = storeToRefs(sessionStore); // 使用 storeToRefs 获取 RDP 状态
