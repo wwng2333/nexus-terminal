@@ -26,88 +26,123 @@
       </div>
       <!-- List Area -->
       <div class="flex-grow overflow-y-auto p-2">
-        <!-- Loading State (Show if loading and no groups are ready yet) -->
-        <div v-if="isLoading && filteredAndGroupedCommands.length === 0" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
+        <!-- Loading State -->
+        <div v-if="isLoading && quickCommandsStore.quickCommandsList.length === 0" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
             <i class="fas fa-spinner fa-spin text-xl mb-2"></i>
             <p>{{ t('common.loading', '加载中...') }}</p>
         </div>
-        <!-- Empty State (Show if not loading and no groups exist) -->
-        <div v-else-if="!isLoading && filteredAndGroupedCommands.length === 0" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
+        <!-- Empty State (No commands at all) -->
+        <div v-else-if="!isLoading && quickCommandsStore.quickCommandsList.length === 0" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
             <i class="fas fa-bolt text-xl mb-2"></i>
             <p class="mb-3">{{ $t('quickCommands.empty', '没有快捷指令。') }}</p>
             <button @click="openAddForm" class="px-4 py-2 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
              {{ $t('quickCommands.addFirst', '创建第一个快捷指令') }}
            </button>
        </div>
-       <!-- Grouped Command List -->
+        <!-- No Results State (Commands exist, but filter yields no results) -->
+        <div v-else-if="!isLoading && ((showQuickCommandTagsBoolean && filteredAndGroupedCommands.length === 0) || (!showQuickCommandTagsBoolean && flatFilteredCommands.length === 0)) && searchTerm" class="p-6 text-center text-text-secondary text-sm flex flex-col items-center justify-center h-full">
+            <i class="fas fa-search text-xl mb-2"></i>
+            <p>{{ t('quickCommands.noResults', '没有找到匹配的指令') }} "{{ searchTerm }}"</p>
+        </div>
+
+       <!-- Command List (Grouped or Flat) -->
        <div v-else class="list-none p-0 m-0" ref="commandListContainerRef"> <!-- Changed ref name -->
-           <div v-for="groupData in filteredAndGroupedCommands" :key="groupData.groupName" class="mb-1 last:mb-0">
-               <!-- Group Header -->
-               <!-- Group Header - Modified for inline editing -->
-               <div
-                   class="group px-3 py-2 font-semibold flex items-center text-foreground rounded-md hover:bg-header/80 transition-colors duration-150"
-                   :class="{ 'cursor-pointer': editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) }"
-                   @click="editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) ? toggleGroup(groupData.groupName) : null"
-               >
-                   <i
-                       :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out', {'transform rotate-0': !expandedGroups[groupData.groupName]}]"
-                       @click.stop="toggleGroup(groupData.groupName)"
-                       class="cursor-pointer flex-shrink-0"
-                   ></i>
-                   <!-- Editing State -->
-                   <input
-                       v-if="editingTagId === (groupData.tagId === null ? 'untagged' : groupData.tagId)"
-                       :key="groupData.tagId === null ? 'untagged-input' : `tag-input-${groupData.tagId}`"
-                       :ref="(el) => setTagInputRef(el, groupData.tagId === null ? 'untagged' : groupData.tagId)"
-                       type="text"
-                       v-model="editedTagName"
-                       class="text-sm bg-input border border-primary rounded px-1 py-0 w-full"
-                       @blur="finishEditingTag"
-                       @keydown.enter.prevent="finishEditingTag"
-                       @keydown.esc.prevent="cancelEditingTag"
-                       @click.stop
-                   />
-                   <!-- Display State -->
-                   <span
-                       v-else
-                       class="text-sm inline-block overflow-hidden text-ellipsis whitespace-nowrap"
-                       :class="{ 'cursor-pointer hover:underline': true }"
-                       :title="t('quickCommands.tags.clickToEditTag', '点击编辑标签')"
-                       @click.stop="startEditingTag(groupData.tagId, groupData.groupName)"
-                   >
-                       {{ groupData.groupName }}
-                   </span>
-                   <!-- Optional: Add count? -->
-                   <!-- <span v-if="editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId)" class="ml-auto text-xs text-text-secondary pl-2">({{ groupData.commands.length }})</span> -->
-               </div>
-               <!-- Command Items List (only show if expanded) -->
-               <ul v-show="quickCommandsStore.expandedGroups[groupData.groupName]" class="list-none p-0 m-0 pl-3">
-                   <li
-                       v-for="(cmd) in groupData.commands"
-                       :key="cmd.id"
-                       :data-command-id="cmd.id"
-                       class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
-                       :class="{ 'bg-primary/20 font-medium': isCommandSelected(cmd.id) }"
-                       @click="executeCommand(cmd)"
-                   >
-                       <!-- Command Info (Structure remains the same) -->
-                       <div class="flex flex-col overflow-hidden mr-2 flex-grow">
-                           <span v-if="cmd.name" class="font-medium text-sm truncate mb-0.5 text-foreground">{{ cmd.name }}</span>
-                           <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-text-secondary': true }">{{ cmd.command }}</span>
-                       </div>
-                       <!-- Actions (Structure remains the same) -->
-                       <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
-                           <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2 text-text-secondary" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
-                           <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('common.edit', '编辑')">
-                               <i class="fas fa-edit text-sm"></i>
-                           </button>
-                           <button @click.stop="confirmDelete(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-error" :title="$t('common.delete', '删除')">
-                               <i class="fas fa-times text-sm"></i>
-                           </button>
-                       </div>
-                   </li>
-               </ul>
-           </div>
+            <!-- Grouped View -->
+            <div v-if="showQuickCommandTagsBoolean">
+                <div v-for="groupData in filteredAndGroupedCommands" :key="groupData.groupName" class="mb-1 last:mb-0">
+                    <!-- Group Header - Modified for inline editing -->
+                    <div
+                        class="group px-3 py-2 font-semibold flex items-center text-foreground rounded-md hover:bg-header/80 transition-colors duration-150"
+                        :class="{ 'cursor-pointer': editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) }"
+                        @click="editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) ? toggleGroup(groupData.groupName) : null"
+                    >
+                        <i
+                            :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out', {'transform rotate-0': !expandedGroups[groupData.groupName]}]"
+                            @click.stop="toggleGroup(groupData.groupName)"
+                            class="cursor-pointer flex-shrink-0"
+                        ></i>
+                        <!-- Editing State -->
+                        <input
+                            v-if="editingTagId === (groupData.tagId === null ? 'untagged' : groupData.tagId)"
+                            :key="groupData.tagId === null ? 'untagged-input' : `tag-input-${groupData.tagId}`"
+                            :ref="(el) => setTagInputRef(el, groupData.tagId === null ? 'untagged' : groupData.tagId)"
+                            type="text"
+                            v-model="editedTagName"
+                            class="text-sm bg-input border border-primary rounded px-1 py-0 w-full"
+                            @blur="finishEditingTag"
+                            @keydown.enter.prevent="finishEditingTag"
+                            @keydown.esc.prevent="cancelEditingTag"
+                            @click.stop
+                        />
+                        <!-- Display State -->
+                        <span
+                            v-else
+                            class="text-sm inline-block overflow-hidden text-ellipsis whitespace-nowrap"
+                            :class="{ 'cursor-pointer hover:underline': true }"
+                            :title="t('quickCommands.tags.clickToEditTag', '点击编辑标签')"
+                            @click.stop="startEditingTag(groupData.tagId, groupData.groupName)"
+                        >
+                            {{ groupData.groupName }}
+                        </span>
+                        <!-- Optional: Add count? -->
+                        <!-- <span v-if="editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId)" class="ml-auto text-xs text-text-secondary pl-2">({{ groupData.commands.length }})</span> -->
+                    </div>
+                    <!-- Command Items List (only show if expanded) -->
+                    <ul v-show="quickCommandsStore.expandedGroups[groupData.groupName]" class="list-none p-0 m-0 pl-3">
+                        <li
+                            v-for="(cmd) in groupData.commands"
+                            :key="cmd.id"
+                            :data-command-id="cmd.id"
+                            class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
+                            :class="{ 'bg-primary/20 font-medium': isCommandSelected(cmd.id) }"
+                            @click="executeCommand(cmd)"
+                        >
+                            <!-- Command Info (Structure remains the same) -->
+                            <div class="flex flex-col overflow-hidden mr-2 flex-grow">
+                                <span v-if="cmd.name" class="font-medium text-sm truncate mb-0.5 text-foreground">{{ cmd.name }}</span>
+                                <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-text-secondary': true }">{{ cmd.command }}</span>
+                            </div>
+                            <!-- Actions (Structure remains the same) -->
+                            <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                                <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2 text-text-secondary" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
+                                <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('common.edit', '编辑')">
+                                    <i class="fas fa-edit text-sm"></i>
+                                </button>
+                                <button @click.stop="confirmDelete(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-error" :title="$t('common.delete', '删除')">
+                                    <i class="fas fa-times text-sm"></i>
+                                </button>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <!-- Flat View -->
+            <ul v-else class="list-none p-0 m-0">
+                <li
+                    v-for="(cmd) in flatFilteredCommands"
+                    :key="cmd.id"
+                    :data-command-id="cmd.id"
+                    class="group flex justify-between items-center px-3 py-2.5 mb-1 cursor-pointer rounded-md hover:bg-primary/10 transition-colors duration-150"
+                    :class="{ 'bg-primary/20 font-medium': isCommandSelected(cmd.id) }"
+                    @click="executeCommand(cmd)"
+                >
+                    <!-- Command Info -->
+                    <div class="flex flex-col overflow-hidden mr-2 flex-grow">
+                        <span v-if="cmd.name" class="font-medium text-sm truncate mb-0.5 text-foreground">{{ cmd.name }}</span>
+                        <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-text-secondary': true }">{{ cmd.command }}</span>
+                    </div>
+                    <!-- Actions -->
+                    <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                        <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2 text-text-secondary" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
+                        <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('common.edit', '编辑')">
+                            <i class="fas fa-edit text-sm"></i>
+                        </button>
+                        <button @click.stop="confirmDelete(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-error" :title="$t('common.delete', '删除')">
+                            <i class="fas fa-times text-sm"></i>
+                        </button>
+                    </div>
+                </li>
+            </ul>
        </div>
       </div>
     </div>
@@ -130,12 +165,14 @@ import { useUiNotificationsStore } from '../stores/uiNotifications.store';
 import { useI18n } from 'vue-i18n';
 import AddEditQuickCommandForm from '../components/AddEditQuickCommandForm.vue'; // 导入表单组件
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
+import { useSettingsStore } from '../stores/settings.store'; // 新增：导入设置 store
 
 const quickCommandsStore = useQuickCommandsStore();
 const quickCommandTagsStore = useQuickCommandTagsStore(); // +++ Instantiate the new tag store +++
 const uiNotificationsStore = useUiNotificationsStore(); // 如果需要显示通知
 const { t } = useI18n();
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
+const settingsStore = useSettingsStore(); // 新增：实例化设置 store
 
 const hoveredItemId = ref<number | null>(null);
 const isFormVisible = ref(false);
@@ -159,9 +196,17 @@ const isLoading = computed(() => quickCommandsStore.isLoading);
 // selectedIndex now refers to the index within the flatVisibleCommands list
 // Also get expandedGroups reactively for the template
 const { selectedIndex: storeSelectedIndex, flatVisibleCommands, expandedGroups } = storeToRefs(quickCommandsStore);
+const { showQuickCommandTagsBoolean } = storeToRefs(settingsStore); // 新增：获取设置项
+
+// 新增：计算属性，仅过滤和排序，不分组
+const flatFilteredCommands = computed(() => {
+    // 直接使用 store 中的 flatVisibleCommands，因为它已经处理了过滤和排序
+    return quickCommandsStore.flatVisibleCommands;
+});
 
 // --- Helper function for selection check ---
 const isCommandSelected = (commandId: number): boolean => {
+    // 使用 store 的 flatVisibleCommands 和 storeSelectedIndex
     if (storeSelectedIndex.value < 0 || !flatVisibleCommands.value[storeSelectedIndex.value]) {
         return false;
     }
@@ -181,7 +226,17 @@ onMounted(async () => { // Make onMounted async
     await quickCommandsStore.fetchQuickCommands();
     // Also fetch the quick command tags using the correct store instance
     await quickCommandTagsStore.fetchTags();
+    // +++ 注册自定义聚焦动作 +++
+    unregisterFocus = focusSwitcherStore.registerFocusAction('quickCommandsSearch', focusSearchInput);
 });
+
+onBeforeUnmount(() => {
+  // +++ 调用保存的注销函数 +++
+  if (unregisterFocus) {
+    unregisterFocus();
+  }
+});
+
 
 // +++ Watcher to focus input when editing starts +++
 watch(editingTagId, async (newId) => {
@@ -197,18 +252,11 @@ watch(editingTagId, async (newId) => {
     }
 });
 
+// 新增：监听显示模式变化，重置选择
+watch(showQuickCommandTagsBoolean, () => {
+    quickCommandsStore.resetSelection();
+});
 
-// +++ 注册/注销自定义聚焦动作 +++
-onMounted(() => {
-  // +++ 保存返回的注销函数 +++
-  unregisterFocus = focusSwitcherStore.registerFocusAction('quickCommandsSearch', focusSearchInput);
-});
-onBeforeUnmount(() => {
-  // +++ 调用保存的注销函数 +++
-  if (unregisterFocus) {
-    unregisterFocus();
-  }
-});
 
 // --- 事件处理 ---
 
@@ -221,12 +269,13 @@ const updateSearchTerm = (event: Event) => {
 // +++ 重构滚动逻辑 +++
 const scrollToSelected = async (index: number) => {
     await nextTick(); // 等待 DOM 更新
+    // 使用 store 的 flatVisibleCommands
     if (index < 0 || !commandListContainerRef.value || !flatVisibleCommands.value[index]) return;
 
     const selectedCommandId = flatVisibleCommands.value[index].id;
     const listContainer = commandListContainerRef.value;
 
-    // Find the element using the data attribute
+    // Find the element using the data attribute (works for both views)
     const selectedElement = listContainer.querySelector(`li[data-command-id="${selectedCommandId}"]`) as HTMLLIElement;
 
     if (selectedElement) {
@@ -244,9 +293,9 @@ watch(storeSelectedIndex, (newIndex) => {
   scrollToSelected(newIndex);
 });
 
-// Keyboard navigation now operates on the flat visible list
+// Keyboard navigation now operates on the flat visible list from the store
 const handleSearchInputKeydown = (event: KeyboardEvent) => {
-    // Use flatVisibleCommands for navigation logic
+    // 使用 store 的 flatVisibleCommands
     const commands = flatVisibleCommands.value;
     if (!commands.length) return;
 
@@ -263,6 +312,7 @@ const handleSearchInputKeydown = (event: KeyboardEvent) => {
       break;
     case 'Enter':
       event.preventDefault();
+      // 使用 store 的 storeSelectedIndex
       if (storeSelectedIndex.value >= 0 && storeSelectedIndex.value < commands.length) {
         executeCommand(commands[storeSelectedIndex.value]);
       }
@@ -294,6 +344,7 @@ const toggleGroup = (groupName: string) => {
     // After toggling, selection might become invalid if the selected item is now hidden
     // Reset selection or check if the selected item is still visible
     nextTick(() => { // Wait for DOM update potentially caused by v-show
+         // 使用 store 的 flatVisibleCommands 和 storeSelectedIndex
          const selectedCmdId = storeSelectedIndex.value >= 0 && flatVisibleCommands.value[storeSelectedIndex.value]
              ? flatVisibleCommands.value[storeSelectedIndex.value].id
              : null;
@@ -476,4 +527,3 @@ const cancelEditingTag = () => {
 };
 
 </script>
-

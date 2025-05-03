@@ -625,7 +625,13 @@
       },
       "error": {
         "sidebarPersistentSaveFailed": "保存侧边栏设置失败。"
-      }
+      },
+      "showConnectionTagsTitle": "显示连接标签",
+      "showConnectionTagsLabel": "在连接列表中显示标签",
+      "showConnectionTagsDescription": "关闭后将隐藏连接列表中的标签，并从搜索中排除标签。",
+      "showQuickCommandTagsTitle": "显示快捷指令标签",
+      "showQuickCommandTagsLabel": "在快捷指令列表中显示标签",
+      "showQuickCommandTagsDescription": "关闭后将隐藏快捷指令列表中的标签，并从搜索中排除标签。"
     },
     "ipBlacklist": {
       "title": "IP 黑名单管理",

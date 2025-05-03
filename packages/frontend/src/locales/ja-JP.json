@@ -857,7 +857,13 @@
             "success": {
                 "sidebarPersistentSaved": "サイドバーの設定を保存しました。"
             },
-            "title": "ワークスペースとターミナル"
+            "title": "ワークスペースとターミナル",
+            "showConnectionTagsTitle": "接続タグを表示",
+            "showConnectionTagsLabel": "接続リストにタグを表示",
+            "showConnectionTagsDescription": "無効にすると、接続リストのタグが非表示になり、検索から除外されます。",
+            "showQuickCommandTagsTitle": "クイックコマンドタグを表示",
+            "showQuickCommandTagsLabel": "クイックコマンドリストにタグを表示",
+            "showQuickCommandTagsDescription": "無効にすると、クイックコマンドリストのタグが非表示になり、検索から除外されます。"
         },
         "about": {
             "version": "バージョン",

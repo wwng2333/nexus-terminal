@@ -31,6 +31,8 @@ const AUTO_COPY_ON_SELECT_KEY = 'autoCopyOnSelect'; // 终端选中自动复制�
 const STATUS_MONITOR_INTERVAL_SECONDS_KEY = 'statusMonitorIntervalSeconds'; // 状态监控间隔设置键
 const DEFAULT_STATUS_MONITOR_INTERVAL_SECONDS = 3; // 默认状态监控间隔
 const IP_BLACKLIST_ENABLED_KEY = 'ipBlacklistEnabled'; // IP 黑名单启用设置键
+const SHOW_CONNECTION_TAGS_KEY = 'showConnectionTags'; // 连接标签显示设置键
+const SHOW_QUICK_COMMAND_TAGS_KEY = 'showQuickCommandTags'; // 快捷指令标签显示设置键
 
 export const settingsService = {
   /**
@@ -479,6 +481,60 @@ export const settingsService = {
      // Directly call the specific repository function with the full, validated config
      await setCaptchaConfigInRepo(configToSave);
      console.log('[SettingsService] CAPTCHA config successfully set.');
+ }, // <-- Add comma here
+
+ // --- Show Connection Tags ---
+ async getShowConnectionTags(): Promise<boolean> {
+   console.log(`[Service] Attempting to get setting for key: ${SHOW_CONNECTION_TAGS_KEY}`);
+   try {
+     const valueStr = await settingsRepository.getSetting(SHOW_CONNECTION_TAGS_KEY);
+     console.log(`[Service] Raw value from repository for ${SHOW_CONNECTION_TAGS_KEY}:`, valueStr);
+     // 默认显示，所以只有当值为 'false' 时才返回 false
+     return valueStr !== 'false';
+   } catch (error) {
+     console.error(`[Service] Error getting show connection tags setting (key: ${SHOW_CONNECTION_TAGS_KEY}):`, error);
+     return true; // 默认返回 true
+   }
+ }, // *** 确保这里有逗号 ***
+
+ async setShowConnectionTags(enabled: boolean): Promise<void> {
+   console.log(`[Service] setShowConnectionTags called with: ${enabled}`);
+   try {
+     const valueStr = String(enabled);
+     console.log(`[Service] Attempting to save setting. Key: ${SHOW_CONNECTION_TAGS_KEY}, Value: ${valueStr}`);
+     await settingsRepository.setSetting(SHOW_CONNECTION_TAGS_KEY, valueStr);
+     console.log(`[Service] Successfully saved setting for key: ${SHOW_CONNECTION_TAGS_KEY}`);
+   } catch (error) {
+     console.error(`[Service] Error calling settingsRepository.setSetting for key ${SHOW_CONNECTION_TAGS_KEY}:`, error);
+     throw new Error('Failed to save show connection tags setting.');
+   }
+ }, // *** 确保这里有逗号 ***
+
+ // --- Show Quick Command Tags ---
+ async getShowQuickCommandTags(): Promise<boolean> {
+   console.log(`[Service] Attempting to get setting for key: ${SHOW_QUICK_COMMAND_TAGS_KEY}`);
+   try {
+     const valueStr = await settingsRepository.getSetting(SHOW_QUICK_COMMAND_TAGS_KEY);
+     console.log(`[Service] Raw value from repository for ${SHOW_QUICK_COMMAND_TAGS_KEY}:`, valueStr);
+     // 默认显示，所以只有当值为 'false' 时才返回 false
+     return valueStr !== 'false';
+   } catch (error) {
+     console.error(`[Service] Error getting show quick command tags setting (key: ${SHOW_QUICK_COMMAND_TAGS_KEY}):`, error);
+     return true; // 默认返回 true
+   }
+ }, // *** 确保这里有逗号 ***
+
+ async setShowQuickCommandTags(enabled: boolean): Promise<void> {
+   console.log(`[Service] setShowQuickCommandTags called with: ${enabled}`);
+   try {
+     const valueStr = String(enabled);
+     console.log(`[Service] Attempting to save setting. Key: ${SHOW_QUICK_COMMAND_TAGS_KEY}, Value: ${valueStr}`);
+     await settingsRepository.setSetting(SHOW_QUICK_COMMAND_TAGS_KEY, valueStr);
+     console.log(`[Service] Successfully saved setting for key: ${SHOW_QUICK_COMMAND_TAGS_KEY}`);
+   } catch (error) {
+     console.error(`[Service] Error calling settingsRepository.setSetting for key ${SHOW_QUICK_COMMAND_TAGS_KEY}:`, error);
+     throw new Error('Failed to save show quick command tags setting.');
+   }
  } // <-- No comma after the last method
 
 }; // <-- End of settingsService object definition

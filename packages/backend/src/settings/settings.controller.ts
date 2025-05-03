@@ -417,6 +417,86 @@ async setCaptchaConfig(req: Request, res: Response): Promise<void> {
              res.status(500).json({ message: '设置 CAPTCHA 配置失败', error: error.message });
         }
     }
-} 
+}, // <-- Add comma here
+
+ // --- Show Connection Tags ---
+ async getShowConnectionTags(req: Request, res: Response): Promise<void> {
+   try {
+     console.log('[控制器] 收到获取“显示连接标签”设置的请求。');
+     const isEnabled = await settingsService.getShowConnectionTags();
+     console.log(`[控制器] 向客户端发送“显示连接标签”设置: ${isEnabled}`);
+     res.json({ enabled: isEnabled });
+   } catch (error: any) {
+     console.error('[控制器] 获取“显示连接标签”设置时出错:', error);
+     res.status(500).json({ message: '获取“显示连接标签”设置失败', error: error.message });
+   }
+ }, // *** 确保这里有逗号 ***
+
+ async setShowConnectionTags(req: Request, res: Response): Promise<void> {
+   console.log('[控制器] 收到设置“显示连接标签”设置的请求。');
+   try {
+     const { enabled } = req.body;
+     console.log('[控制器] 请求体 enabled:', enabled);
+
+     if (typeof enabled !== 'boolean') {
+       console.warn('[控制器] 收到无效的 enabled 格式:', enabled);
+       res.status(400).json({ message: '无效的请求体，"enabled" 必须是一个布尔值' });
+       return;
+     }
+
+     console.log('[控制器] 调用 settingsService.setShowConnectionTags...');
+     await settingsService.setShowConnectionTags(enabled);
+     console.log('[控制器] settingsService.setShowConnectionTags 成功完成。');
+
+     auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys: ['showConnectionTags'] });
+     notificationService.sendNotification('SETTINGS_UPDATED', { updatedKeys: ['showConnectionTags'] });
+
+     console.log('[控制器] 发送成功响应。');
+     res.status(200).json({ message: '“显示连接标签”设置已成功更新' });
+   } catch (error: any) {
+     console.error('[控制器] 设置“显示连接标签”时出错:', error);
+     res.status(500).json({ message: '设置“显示连接标签”失败', error: error.message });
+   }
+ }, // *** 确保这里有逗号 ***
+
+ // --- Show Quick Command Tags ---
+ async getShowQuickCommandTags(req: Request, res: Response): Promise<void> {
+   try {
+     console.log('[控制器] 收到获取“显示快捷指令标签”设置的请求。');
+     const isEnabled = await settingsService.getShowQuickCommandTags();
+     console.log(`[控制器] 向客户端发送“显示快捷指令标签”设置: ${isEnabled}`);
+     res.json({ enabled: isEnabled });
+   } catch (error: any) {
+     console.error('[控制器] 获取“显示快捷指令标签”设置时出错:', error);
+     res.status(500).json({ message: '获取“显示快捷指令标签”设置失败', error: error.message });
+   }
+ }, // *** 确保这里有逗号 ***
+
+ async setShowQuickCommandTags(req: Request, res: Response): Promise<void> {
+   console.log('[控制器] 收到设置“显示快捷指令标签”设置的请求。');
+   try {
+     const { enabled } = req.body;
+     console.log('[控制器] 请求体 enabled:', enabled);
+
+     if (typeof enabled !== 'boolean') {
+       console.warn('[控制器] 收到无效的 enabled 格式:', enabled);
+       res.status(400).json({ message: '无效的请求体，"enabled" 必须是一个布尔值' });
+       return;
+     }
+
+     console.log('[控制器] 调用 settingsService.setShowQuickCommandTags...');
+     await settingsService.setShowQuickCommandTags(enabled);
+     console.log('[控制器] settingsService.setShowQuickCommandTags 成功完成。');
+
+     auditLogService.logAction('SETTINGS_UPDATED', { updatedKeys: ['showQuickCommandTags'] });
+     notificationService.sendNotification('SETTINGS_UPDATED', { updatedKeys: ['showQuickCommandTags'] });
+
+     console.log('[控制器] 发送成功响应。');
+     res.status(200).json({ message: '“显示快捷指令标签”设置已成功更新' });
+   } catch (error: any) {
+     console.error('[控制器] 设置“显示快捷指令标签”时出错:', error);
+     res.status(500).json({ message: '设置“显示快捷指令标签”失败', error: error.message });
+   }
+ } // <-- No comma after the last method
 
 };

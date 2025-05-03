@@ -625,7 +625,13 @@
       },
       "error": {
         "sidebarPersistentSaveFailed": "Failed to save sidebar setting."
-      }
+      },
+      "showConnectionTagsTitle": "Show Connection Tags",
+      "showConnectionTagsLabel": "Show tags in connection list",
+      "showConnectionTagsDescription": "Disable to hide tags in the connection list and exclude them from search.",
+      "showQuickCommandTagsTitle": "Show Quick Command Tags",
+      "showQuickCommandTagsLabel": "Show tags in quick command list",
+      "showQuickCommandTagsDescription": "Disable to hide tags in the quick command list and exclude them from search."
     },
     "ipBlacklist": {
       "title": "IP Blacklist Management",

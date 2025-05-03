@@ -53,6 +53,18 @@ router.get('/sidebar', settingsController.getSidebarConfig);
 // PUT /api/v1/settings/sidebar - 更新侧栏配置
 router.put('/sidebar', settingsController.setSidebarConfig);
 
+// +++ 新增：显示连接标签路由 +++
+// GET /api/v1/settings/show-connection-tags - 获取设置
+router.get('/show-connection-tags', settingsController.getShowConnectionTags);
+// PUT /api/v1/settings/show-connection-tags - 更新设置
+router.put('/show-connection-tags', settingsController.setShowConnectionTags);
+
+// +++ 新增：显示快捷指令标签路由 +++
+// GET /api/v1/settings/show-quick-command-tags - 获取设置
+router.get('/show-quick-command-tags', settingsController.getShowQuickCommandTags);
+// PUT /api/v1/settings/show-quick-command-tags - 更新设置
+router.put('/show-quick-command-tags', settingsController.setShowQuickCommandTags);
+
 
 export default router;
 

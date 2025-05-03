@@ -9,6 +9,7 @@ import { useTagsStore, TagInfo } from '../stores/tags.store'; // 确保 TagInfo 
 import { useSessionStore } from '../stores/session.store';
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store';
 import { useUiNotificationsStore } from '../stores/uiNotifications.store'; // +++ 修正导入大小写 +++
+import { useSettingsStore } from '../stores/settings.store'; // 新增：导入设置 store
 
 // 定义事件
 const emit = defineEmits([
@@ -26,9 +27,11 @@ const tagsStore = useTagsStore();
 const sessionStore = useSessionStore(); // 获取 session store 实例
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
 const uiNotificationsStore = useUiNotificationsStore(); // +++ 修正实例化大小写 +++
+const settingsStore = useSettingsStore(); // 新增：实例化设置 store
 
 const { connections, isLoading: connectionsLoading, error: connectionsError } = storeToRefs(connectionsStore);
 const { tags, isLoading: tagsLoading, error: tagsError } = storeToRefs(tagsStore);
+const { showConnectionTagsBoolean } = storeToRefs(settingsStore); // 新增：获取设置项
 
 // 搜索词
 const searchTerm = ref('');
@@ -73,16 +76,24 @@ const highlightedIndex = ref(-1); // -1 表示没有高亮项
 const listAreaRef = ref<HTMLElement | null>(null); // 列表容器的 ref
 
 // 计算属性：扁平化的、当前可见的连接列表（用于键盘导航）
+// 注意：这个 flatVisibleConnections 依赖于 filteredAndGroupedConnections 和 expandedGroups
+// 当 showConnectionTagsBoolean 为 false 时，它不会被直接使用，但键盘导航逻辑依赖它
 const flatVisibleConnections = computed(() => {
   const flatList: ConnectionInfo[] = [];
-  filteredAndGroupedConnections.value.forEach(group => {
-    // 只添加展开分组中的连接
-    if (expandedGroups.value[group.groupName]) {
-      flatList.push(...group.connections);
-    }
-  });
+  // 如果显示标签，则只包含展开分组的连接
+  if (showConnectionTagsBoolean.value) {
+      filteredAndGroupedConnections.value.forEach(group => {
+        if (expandedGroups.value[group.groupName]) {
+          flatList.push(...group.connections);
+        }
+      });
+  } else {
+      // 如果不显示标签，则包含所有过滤后的连接
+      flatList.push(...flatFilteredConnections.value); // 使用下面定义的 flatFilteredConnections
+  }
   return flatList;
 });
+
 
 // 计算属性：当前高亮连接的 ID
 const highlightedConnectionId = computed(() => {
@@ -110,8 +121,7 @@ const setTagInputRef = (el: any, id: string | number) => {
   }
 };
 
-// 计算属性：过滤并按标签分组连接
-// 需要修改 filteredAndGroupedConnections，使其包含 tagId
+// 计算属性：过滤并按标签分组连接 (仅在 showConnectionTagsBoolean 为 true 时使用)
 const filteredAndGroupedConnections = computed(() => {
   const groups: Record<string, { connections: ConnectionInfo[], tagId: number | null }> = {}; // 修改：添加 tagId
   const untagged: ConnectionInfo[] = [];
@@ -128,7 +138,7 @@ const filteredAndGroupedConnections = computed(() => {
     if (conn.host.toLowerCase().includes(lowerSearchTerm)) {
         return true;
     }
-    // Check associated tag names
+    // Check associated tag names (Always check tags for filtering, regardless of display setting)
     if (conn.tag_ids && conn.tag_ids.length > 0) {
         for (const tagId of conn.tag_ids) {
             const tag = tagMap.get(tagId); // Use the existing tagMap
@@ -151,21 +161,27 @@ const filteredAndGroupedConnections = computed(() => {
           const groupName = tag.name;
           if (!groups[groupName]) {
             groups[groupName] = { connections: [], tagId: tag.id }; // 修改：存储 tagId
+            // Initialize expanded state only if not already set
             if (expandedGroups.value[groupName] === undefined) {
-               expandedGroups.value[groupName] = true;
+               expandedGroups.value[groupName] = true; // Default to expanded
             }
           }
+          // Avoid duplicates if a connection has multiple tags matching the search
           if (!groups[groupName].connections.some(c => c.id === conn.id)) {
               groups[groupName].connections.push(conn);
           }
           tagged = true;
         }
       });
-      if (!tagged) {
+      // If none of the tags were found in the tagMap (e.g., stale data), treat as untagged
+      if (!tagged && !untagged.some(c => c.id === conn.id)) {
           untagged.push(conn);
       }
     } else {
-      untagged.push(conn);
+      // Ensure untagged connections are not duplicated
+      if (!untagged.some(c => c.id === conn.id)) {
+          untagged.push(conn);
+      }
     }
   });
 
@@ -185,8 +201,9 @@ const filteredAndGroupedConnections = computed(() => {
 
   if (untagged.length > 0) {
       const untaggedGroupName = t('workspaceConnectionList.untagged');
+      // Initialize expanded state only if not already set
       if (expandedGroups.value[untaggedGroupName] === undefined) {
-          expandedGroups.value[untaggedGroupName] = true;
+          expandedGroups.value[untaggedGroupName] = true; // Default to expanded
       }
       // 未标记的分组没有 tagId
       result.push({ groupName: untaggedGroupName, connections: untagged, tagId: null });
@@ -195,24 +212,65 @@ const filteredAndGroupedConnections = computed(() => {
   return result;
 });
 
+// 新增：计算属性，仅过滤，不分组 (用于 showConnectionTagsBoolean 为 false 时)
+const flatFilteredConnections = computed(() => {
+  const lowerSearchTerm = searchTerm.value.toLowerCase();
+  const tagMap = new Map(tags.value.map(tag => [tag.id, tag.name])); // 创建 tagMap 用于搜索
+
+  const filtered = connections.value.filter(conn => {
+    // Check connection name
+    if (conn.name && conn.name.toLowerCase().includes(lowerSearchTerm)) {
+        return true;
+    }
+    // Check connection host
+    if (conn.host.toLowerCase().includes(lowerSearchTerm)) {
+        return true;
+    }
+    // Check associated tag names (Always check tags for filtering)
+    if (conn.tag_ids && conn.tag_ids.length > 0) {
+        for (const tagId of conn.tag_ids) {
+            const tagName = tagMap.get(tagId);
+            if (tagName && tagName.toLowerCase().includes(lowerSearchTerm)) {
+                return true; // Match found in tag name
+            }
+        }
+    }
+    // No match found
+    return false;
+  });
+
+  // Sort the flat list
+  return filtered.sort((a, b) => (a.name || a.host).localeCompare(b.name || b.host));
+});
+
+
   // +++ 监听分组状态变化并保存到 localStorage +++
   watch(expandedGroups, (newState) => {
-    try {
-      localStorage.setItem(EXPANDED_GROUPS_STORAGE_KEY, JSON.stringify(newState));
-    } catch (e) {
-      console.error('Failed to save expanded groups state to localStorage:', e);
+    // Only save if tags are shown
+    if (showConnectionTagsBoolean.value) {
+        try {
+          localStorage.setItem(EXPANDED_GROUPS_STORAGE_KEY, JSON.stringify(newState));
+        } catch (e) {
+          console.error('Failed to save expanded groups state to localStorage:', e);
+        }
     }
   }, { deep: true });
-  
+
   // 监听搜索词变化，重置高亮索引
   watch(searchTerm, () => {
     highlightedIndex.value = -1;
   });
-  
+
   // 监听分组展开状态变化，重置高亮索引 (这个 watch 保留，用于重置高亮)
   watch(expandedGroups, () => {
       highlightedIndex.value = -1;
   }, { deep: true });
+
+  // 监听显示模式变化，重置高亮索引
+  watch(showConnectionTagsBoolean, () => {
+      highlightedIndex.value = -1;
+  });
+
   // +++ 监听编辑状态，自动聚焦输入框 +++
   watch(editingTagId, async (newId) => {
     if (newId !== null) {
@@ -226,13 +284,13 @@ const filteredAndGroupedConnections = computed(() => {
       }
     }
   });
-  
+
   // 切换分组展开/折叠
   const toggleGroup = (groupName: string) => {
     // 状态现在总是 boolean，直接切换
     expandedGroups.value[groupName] = !expandedGroups.value[groupName];
   };
-  
+
   // 处理单击连接 (左键/Enter) - 使用 session store 处理连接请求
 const handleConnect = (connectionId: number, event?: MouseEvent | KeyboardEvent) => {
   if (event instanceof MouseEvent && event.button !== 0) {
@@ -364,6 +422,8 @@ onMounted(() => {
   unregisterFocusAction = focusSwitcherStore.registerFocusAction('connectionListSearch', focusSearchInput);
   connectionsStore.fetchConnections(); // 移到 onMounted
   tagsStore.fetchTags(); // 移到 onMounted
+  // Load initial expanded state after fetching tags/connections
+  expandedGroups.value = loadInitialExpandedGroups();
 });
 
 onBeforeUnmount(() => {
@@ -390,7 +450,7 @@ defineExpose({ focusSearchInput });
 // --- 键盘导航和确认 ---
 
 const handleKeyDown = (event: KeyboardEvent) => {
-  const list = flatVisibleConnections.value;
+  const list = flatVisibleConnections.value; // Always navigate the potentially flat list
   if (!list.length) return;
 
   switch (event.key) {
@@ -418,7 +478,8 @@ const scrollToHighlighted = async () => {
   await nextTick(); // 等待 DOM 更新
   if (!listAreaRef.value || highlightedConnectionId.value === null) return;
 
-  const highlightedElement = listAreaRef.value.querySelector(`.connection-item[data-conn-id="${highlightedConnectionId.value}"]`);
+  // Query selector needs to work for both grouped and flat lists
+  const highlightedElement = listAreaRef.value.querySelector(`li[data-conn-id="${highlightedConnectionId.value}"]`);
   if (highlightedElement) {
     highlightedElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
@@ -547,7 +608,7 @@ const cancelEditingTag = () => {
           @blur="handleBlur"
         />
         <button
-          class="ml-2 w-8 h-8 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 flex-shrink-0 flex items-center justify-center" 
+          class="ml-2 w-8 h-8 bg-primary text-white border-none rounded-lg text-sm font-semibold cursor-pointer shadow-md transition-colors duration-200 ease-in-out hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:bg-gray-400 disabled:cursor-not-allowed disabled:opacity-70 flex-shrink-0 flex items-center justify-center"
           @click="handleMenuAction('add')"
           :title="t('connections.addConnection')"
         >
@@ -558,7 +619,8 @@ const cancelEditingTag = () => {
       <!-- Connection List Area -->
       <div class="flex-grow overflow-y-auto p-2" ref="listAreaRef">
         <!-- No Results / No Connections State -->
-        <div v-if="filteredAndGroupedConnections.length === 0 && connections.length > 0" class="p-6 text-center text-text-secondary">
+        <!-- 修改 v-if 条件，考虑两种模式，并且仅在有搜索词时显示 "No Results" -->
+        <div v-if="((showConnectionTagsBoolean && filteredAndGroupedConnections.length === 0) || (!showConnectionTagsBoolean && flatFilteredConnections.length === 0)) && connections.length > 0 && searchTerm" class="p-6 text-center text-text-secondary">
            <i class="fas fa-search text-xl mb-2"></i>
            <p>{{ t('workspaceConnectionList.noResults') }} "{{ searchTerm }}"</p>
         </div>
@@ -573,11 +635,13 @@ const cancelEditingTag = () => {
            </button>
         </div>
 
-        <!-- Groups and Connections -->
+        <!-- Groups and Connections (Conditional Rendering) -->
         <div v-else>
-          <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="mb-1 last:mb-0">
-            <!-- Group Header -->
-            <div
+          <!-- Grouped View -->
+          <div v-if="showConnectionTagsBoolean">
+            <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="mb-1 last:mb-0">
+              <!-- Group Header -->
+              <div
               class="group px-3 py-2 font-semibold flex items-center text-foreground rounded-md hover:bg-header/80 transition-colors duration-150"
               :class="{ 'cursor-pointer': editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) }"
               @click="editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) ? toggleGroup(groupData.groupName) : null"
@@ -632,7 +696,26 @@ const cancelEditingTag = () => {
                  </span>
                </li>
             </ul>
+            </div>
           </div>
+          <!-- Flat View -->
+          <ul v-else class="list-none p-0 m-0">
+              <li
+                v-for="conn in flatFilteredConnections"
+                :key="conn.id"
+                class="group my-0.5 py-2 pr-3 pl-4 cursor-pointer flex items-center rounded-md whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-primary/10 transition-colors duration-150"
+                :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }"
+                :data-conn-id="conn.id"
+                @click.left="handleConnect(conn.id)"
+                @click.right.prevent
+                @contextmenu.prevent="showContextMenu($event, conn)"
+              >
+                <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary', { 'text-white': conn.id === highlightedConnectionId }]"></i>
+                <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
+                  {{ conn.name || conn.host }}
+                </span>
+              </li>
+          </ul>
         </div>
       </div>
     </div>

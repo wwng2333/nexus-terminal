@@ -53,6 +53,8 @@ interface SettingsState {
   ipBlacklistEnabled?: string;
   dashboardSortBy?: SortField;
   dashboardSortOrder?: SortOrder;
+  showConnectionTags?: string; // 'true' or 'false'
+  showQuickCommandTags?: string; // 'true' or 'false'
   [key: string]: string | undefined;
 }
 
@@ -82,8 +84,23 @@ export const useSettingsStore = defineStore('settings', () => {
 
     try {
       console.log('[SettingsStore] 加载通用设置...');
-      const response = await apiClient.get<Record<string, string>>('/settings'); // 使用 apiClient
-      settings.value = response.data; // Store fetched general settings
+      // Fetch all settings, including the new ones
+      const [
+        generalSettingsResponse,
+        showConnectionTagsResponse,
+        showQuickCommandTagsResponse
+      ] = await Promise.all([
+        apiClient.get<Record<string, string>>('/settings'),
+        apiClient.get<{ enabled: boolean }>('/settings/show-connection-tags'),
+        apiClient.get<{ enabled: boolean }>('/settings/show-quick-command-tags')
+      ]);
+
+      settings.value = generalSettingsResponse.data; // Store fetched general settings
+
+      // Store the specific boolean settings
+      settings.value.showConnectionTags = String(showConnectionTagsResponse.data.enabled);
+      settings.value.showQuickCommandTags = String(showQuickCommandTagsResponse.data.enabled);
+
       // --- 更详细的日志 ---
       console.log('[SettingsStore] Fetched settings from backend:', JSON.stringify(settings.value));
 
@@ -238,6 +255,15 @@ export const useSettingsStore = defineStore('settings', () => {
           settings.value.dashboardSortOrder = 'desc';
       }
 
+      // NEW: Tag visibility defaults
+      if (settings.value.showConnectionTags === undefined) {
+          settings.value.showConnectionTags = 'true'; // 默认显示
+      }
+      if (settings.value.showQuickCommandTags === undefined) {
+          settings.value.showQuickCommandTags = 'true'; // 默认显示
+      }
+
+
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
@@ -299,10 +325,11 @@ export const useSettingsStore = defineStore('settings', () => {
 
   /**
    * Updates a single general setting value both locally and on the backend.
+   * Uses specific endpoints for boolean settings where available.
    * @param key The setting key to update.
-   * @param value The new value for the setting.
+   * @param value The new value for the setting (string for general, boolean for specific).
    */
-  async function updateSetting(key: keyof SettingsState, value: string) {
+  async function updateSetting(key: keyof SettingsState, value: string | boolean) {
     // 移除外观相关的键检查
     const allowedKeys: Array<keyof SettingsState> = [
         'language', 'ipWhitelist', 'maxLoginAttempts', 'loginBanDuration',
@@ -319,26 +346,48 @@ export const useSettingsStore = defineStore('settings', () => {
         'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
         'ipBlacklistEnabled',
         'dashboardSortBy',
-        'dashboardSortOrder'
+        'dashboardSortOrder',
+        'showConnectionTags', // NEW
+        'showQuickCommandTags' // NEW
       ];
       if (!allowedKeys.includes(key)) {
           console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
         throw new Error(`不允许更新设置项 '${key}'`);
     }
 
+    // Use specific endpoints for boolean settings
+    const booleanEndpoints: Partial<Record<keyof SettingsState, string>> = {
+        showConnectionTags: '/settings/show-connection-tags',
+        showQuickCommandTags: '/settings/show-quick-command-tags',
+        autoCopyOnSelect: '/settings/auto-copy-on-select',
+        // Add other boolean settings with specific endpoints here if needed
+    };
+
     try {
-      console.log(`[SettingsStore] Attempting to update setting - Key: ${key}, Value: ${value}`); // +++ Add log +++
-      // 注意：后端 controller 现在会过滤，但前端也做一层检查更好
-      const payload = { [key]: value };
-      console.log('[SettingsStore] Sending PUT request to /settings with payload:', payload); // +++ Add log +++
-      await apiClient.put('/settings', payload); // 使用 apiClient
-      console.log(`[SettingsStore] Successfully updated setting via API - Key: ${key}`); // +++ Add log +++
-      // Update store state *after* successful API call
-      settings.value = { ...settings.value, [key]: value };
+        let apiPromise: Promise<any>;
+        const endpoint = booleanEndpoints[key];
+
+        if (endpoint && typeof value === 'boolean') {
+            console.log(`[SettingsStore] Attempting to update boolean setting via specific endpoint - Key: ${key}, Value: ${value}, Endpoint: ${endpoint}`);
+            apiPromise = apiClient.put(endpoint, { enabled: value });
+        } else if (typeof value === 'string') {
+            console.log(`[SettingsStore] Attempting to update general setting - Key: ${key}, Value: ${value}`);
+            const payload = { [key]: value };
+            console.log('[SettingsStore] Sending PUT request to /settings with payload:', payload);
+            apiPromise = apiClient.put('/settings', payload);
+        } else {
+            throw new Error(`Invalid value type for setting '${key}': expected boolean for specific endpoint or string for general.`);
+        }
+
+        await apiPromise;
+        console.log(`[SettingsStore] Successfully updated setting via API - Key: ${key}`);
+
+        // Update store state *after* successful API call
+        settings.value = { ...settings.value, [key]: String(value) }; // Store as string internally
 
       // If updating language, check if it's valid and update i18n
-      if (key === 'language' && availableLocales.includes(value)) {
-        console.log(`[SettingsStore] updateSetting: Language updated to ${value}. Calling setLocale...`); // <-- 添加日志
+      if (key === 'language' && typeof value === 'string' && availableLocales.includes(value)) {
+        console.log(`[SettingsStore] updateSetting: Language updated to ${value}. Calling setLocale...`);
         setLocale(value);
       } else if (key === 'language') {
         console.warn(`[SettingsStore] updateSetting: Attempted to set invalid language '${value}'. Ignoring i18n update.`);
@@ -381,7 +430,9 @@ export const useSettingsStore = defineStore('settings', () => {
         'rdpModalHeight', // NEW: 添加 RDP 模态框高度键
         'ipBlacklistEnabled',
         'dashboardSortBy',
-        'dashboardSortOrder'
+        'dashboardSortOrder',
+        'showConnectionTags', // NEW
+        'showQuickCommandTags' // NEW
       ];
       const filteredUpdates: Partial<SettingsState> = {};
       let languageUpdate: string | undefined = undefined;
@@ -435,7 +486,8 @@ export const useSettingsStore = defineStore('settings', () => {
     const newWidths = { ...parsedSidebarPaneWidths.value, [paneName]: width };
     parsedSidebarPaneWidths.value = newWidths; // Update local reactive state first
     try {
-      await updateSetting('sidebarPaneWidths', JSON.stringify(newWidths));
+      // Use updateMultipleSettings for consistency, even for one setting
+      await updateMultipleSettings({ sidebarPaneWidths: JSON.stringify(newWidths) });
     } catch (error) {
       console.error(`[SettingsStore] Failed to save sidebarPaneWidths after updating ${paneName}:`, error);
       // Optionally revert local state or show error to user
@@ -642,6 +694,15 @@ export const useSettingsStore = defineStore('settings', () => {
   const recaptchaSiteKey = computed(() => captchaSettings.value?.recaptchaSiteKey ?? '');
   // DO NOT expose secret keys via getters
 
+  // NEW: Getters for tag visibility
+  const showConnectionTagsBoolean = computed(() => {
+      return settings.value.showConnectionTags !== 'false'; // Default to true
+  });
+  const showQuickCommandTagsBoolean = computed(() => {
+      return settings.value.showQuickCommandTags !== 'false'; // Default to true
+  });
+
+
  return {
     settings, // 只包含通用设置
     isLoading,
@@ -677,5 +738,8 @@ export const useSettingsStore = defineStore('settings', () => {
     dashboardSortBy,
     dashboardSortOrder,
     saveDashboardSortPreference,
+    // NEW: Expose tag visibility getters
+    showConnectionTagsBoolean,
+    showQuickCommandTagsBoolean,
   };
   });

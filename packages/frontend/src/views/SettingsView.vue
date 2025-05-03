@@ -444,6 +444,46 @@
                    </div>
                  </form>
               </div>
+              <hr class="border-border/50"> <!-- NEW: Separator -->
+              <!-- Show Connection Tags -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.workspace.showConnectionTagsTitle', '显示连接标签') }}</h3>
+                 <form @submit.prevent="handleUpdateShowConnectionTags" class="space-y-4">
+                     <div class="flex items-center">
+                         <input type="checkbox" id="showConnectionTags" v-model="showConnectionTagsLocal"
+                                class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer">
+                         <label for="showConnectionTags" class="text-sm text-foreground cursor-pointer select-none">{{ $t('settings.workspace.showConnectionTagsLabel', '在连接列表中显示标签') }}</label>
+                     </div>
+                     <p class="text-xs text-text-secondary mt-1">{{ $t('settings.workspace.showConnectionTagsDescription', '关闭后将隐藏连接列表中的标签，并从搜索中排除标签。') }}</p>
+                     <div class="flex items-center justify-between pt-2">
+                        <button type="submit" :disabled="showConnectionTagsLoading"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                          {{ $t('common.save') }}
+                        </button>
+                        <p v-if="showConnectionTagsMessage" :class="['text-sm', showConnectionTagsSuccess ? 'text-success' : 'text-error']">{{ showConnectionTagsMessage }}</p>
+                     </div>
+                 </form>
+              </div>
+              <hr class="border-border/50"> <!-- NEW: Separator -->
+              <!-- Show Quick Command Tags -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ $t('settings.workspace.showQuickCommandTagsTitle', '显示快捷指令标签') }}</h3>
+                 <form @submit.prevent="handleUpdateShowQuickCommandTags" class="space-y-4">
+                     <div class="flex items-center">
+                         <input type="checkbox" id="showQuickCommandTags" v-model="showQuickCommandTagsLocal"
+                                class="h-4 w-4 rounded border-border text-primary focus:ring-primary mr-2 cursor-pointer">
+                         <label for="showQuickCommandTags" class="text-sm text-foreground cursor-pointer select-none">{{ $t('settings.workspace.showQuickCommandTagsLabel', '在快捷指令列表中显示标签') }}</label>
+                     </div>
+                     <p class="text-xs text-text-secondary mt-1">{{ $t('settings.workspace.showQuickCommandTagsDescription', '关闭后将隐藏快捷指令列表中的标签，并从搜索中排除标签。') }}</p>
+                     <div class="flex items-center justify-between pt-2">
+                        <button type="submit" :disabled="showQuickCommandTagsLoading"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                          {{ $t('common.save') }}
+                        </button>
+                        <p v-if="showQuickCommandTagsMessage" :class="['text-sm', showQuickCommandTagsSuccess ? 'text-success' : 'text-error']">{{ showQuickCommandTagsMessage }}</p>
+                     </div>
+                 </form>
+              </div>
             </div>
           </div>
 
@@ -624,6 +664,8 @@ const {
     captchaSettings, // <-- Import CAPTCHA settings state
     commandInputSyncTarget, // NEW: Import command input sync target getter
     ipBlacklistEnabledBoolean, // <-- Import IP Blacklist enabled getter
+    showConnectionTagsBoolean, // NEW: Import connection tag visibility getter
+    showQuickCommandTagsBoolean, // NEW: Import quick command tag visibility getter
 } = storeToRefs(settingsStore);
 
 // Removed Passkey state import from authStore
@@ -648,6 +690,8 @@ const popupEditorEnabled = ref(true); // 本地状态，用于 v-model
 const workspaceSidebarPersistentEnabled = ref(false); // 新增：侧边栏固定设置的本地状态
 const commandInputSyncTargetLocal = ref<'none' | 'quickCommands' | 'commandHistory'>('none'); // NEW: Local state for command input sync target
 const ipBlacklistEnabled = ref(true); // <-- Local state for IP Blacklist switch
+const showConnectionTagsLocal = ref(true); // NEW: Local state for connection tags switch
+const showQuickCommandTagsLocal = ref(true); // NEW: Local state for quick command tags switch
 
 // --- Local UI feedback state ---
 const ipWhitelistLoading = ref(false);
@@ -692,6 +736,12 @@ const selectedTimezone = ref('UTC'); // 本地状态，用于时区 v-model
 const timezoneLoading = ref(false);
 const timezoneMessage = ref('');
 const timezoneSuccess = ref(false);
+const showConnectionTagsLoading = ref(false); // NEW
+const showConnectionTagsMessage = ref(''); // NEW
+const showConnectionTagsSuccess = ref(false); // NEW
+const showQuickCommandTagsLoading = ref(false); // NEW
+const showQuickCommandTagsMessage = ref(''); // NEW
+const showQuickCommandTagsSuccess = ref(false); // NEW
 // CAPTCHA Form State
 const captchaForm = reactive<UpdateCaptchaSettingsDto>({ // Use reactive for the form object
     enabled: false,
@@ -740,6 +790,8 @@ watch(settings, (newSettings, oldSettings) => {
   commandInputSyncTargetLocal.value = commandInputSyncTarget.value; // NEW: Sync command input sync target
   selectedTimezone.value = newSettings.timezone || 'UTC'; // 同步时区设置
   ipBlacklistEnabled.value = ipBlacklistEnabledBoolean.value; // <-- Sync IP Blacklist enabled state
+  showConnectionTagsLocal.value = showConnectionTagsBoolean.value; // NEW: Sync connection tags state
+  showQuickCommandTagsLocal.value = showQuickCommandTagsBoolean.value; // NEW: Sync quick command tags state
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -925,6 +977,46 @@ const handleUpdateTimezone = async () => {
         timezoneSuccess.value = false;
     } finally {
         timezoneLoading.value = false;
+    }
+};
+
+// --- Show Connection Tags setting method ---
+const handleUpdateShowConnectionTags = async () => {
+    showConnectionTagsLoading.value = true;
+    showConnectionTagsMessage.value = '';
+    showConnectionTagsSuccess.value = false;
+    try {
+        await settingsStore.updateSetting('showConnectionTags', showConnectionTagsLocal.value);
+        showConnectionTagsMessage.value = t('settings.workspace.success.showConnectionTagsSaved', '连接标签显示设置已保存'); // 需要添加翻译
+        showConnectionTagsSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新显示连接标签设置失败:', error);
+        showConnectionTagsMessage.value = error.message || t('settings.workspace.error.showConnectionTagsSaveFailed', '保存连接标签显示设置失败'); // 需要添加翻译
+        showConnectionTagsSuccess.value = false;
+        // No need to revert local state on failure with explicit save button
+    } finally {
+        showConnectionTagsLoading.value = false;
+        // Keep message visible until next save attempt
+    }
+};
+
+// --- Show Quick Command Tags setting method ---
+const handleUpdateShowQuickCommandTags = async () => {
+    showQuickCommandTagsLoading.value = true;
+    showQuickCommandTagsMessage.value = '';
+    showQuickCommandTagsSuccess.value = false;
+    try {
+        await settingsStore.updateSetting('showQuickCommandTags', showQuickCommandTagsLocal.value);
+        showQuickCommandTagsMessage.value = t('settings.workspace.success.showQuickCommandTagsSaved', '快捷指令标签显示设置已保存'); // 需要添加翻译
+        showQuickCommandTagsSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新显示快捷指令标签设置失败:', error);
+        showQuickCommandTagsMessage.value = error.message || t('settings.workspace.error.showQuickCommandTagsSaveFailed', '保存快捷指令标签显示设置失败'); // 需要添加翻译
+        showQuickCommandTagsSuccess.value = false;
+        // No need to revert local state on failure with explicit save button
+    } finally {
+        showQuickCommandTagsLoading.value = false;
+        // Keep message visible until next save attempt
     }
 };
 
