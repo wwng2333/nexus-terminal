@@ -977,9 +977,11 @@
             "confirmDelete": "\"{name}\"タグを削除しますか？この操作は元に戻せません。"
         },
         "removeSelection": "このタグの選択を解除",
-        "title": "タグ管理"
-    },
-    "terminalTabBar": {
+        "title": "タグ管理",
+        "createSuccess": "タグが正常に作成されました。",
+        "updateSuccess": "タグが正常に更新されました。"
+      },
+      "terminalTabBar": {
         "selectServerTitle": "接続するサーバーを選択"
     },
     "workspace": {
@@ -990,9 +992,12 @@
     "workspaceConnectionList": {
         "noResults": "\"{searchTerm}\"に一致する接続は見つかりませんでした。",
         "searchPlaceholder": "名前またはホストを検索...",
-        "untagged": "タグなし"
-    },
-    "sshKeys": {
+        "untagged": "タグなし",
+        "allConnectionsTaggedSuccess": "すべての接続にタグが正常に追加されました。",
+        "noConnectionsToTag": "タグ付けする接続はありません。",
+        "clickToEditTag": "クリックしてタグ名を編集"
+      },
+      "sshKeys": {
         "selector": {
             "selectPlaceholder": "SSH キーを選択...",
             "useDirectInput": "またはキーの内容を直接入力",

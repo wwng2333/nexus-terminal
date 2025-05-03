@@ -66,19 +66,20 @@ export const useTagsStore = defineStore('tags', () => {
     }
 
     // 添加新标签 (添加后清除缓存)
-    async function addTag(name: string): Promise<boolean> {
+    async function addTag(name: string): Promise<TagInfo | null> { // 修改返回类型
         isLoading.value = true;
         error.value = null;
         try {
-            const response = await apiClient.post<{ message: string, tag: TagInfo }>('/tags', { name }); // 使用 apiClient 并移除 base URL
-            // 添加成功后，清除缓存并重新获取
+            const response = await apiClient.post<{ message: string, tag: TagInfo }>('/tags', { name }); // 假设后端返回新标签信息
+            const newTag = response.data.tag;
+            // 添加成功后，清除缓存并重新获取 (fetchTags 会更新本地列表)
             localStorage.removeItem('tagsCache');
             await fetchTags(); // fetchTags 会处理获取和缓存更新
-            return true;
+            return newTag; // 返回新标签信息
         } catch (err: any) {
             console.error('Failed to add tag:', err);
             error.value = err.response?.data?.message || err.message || '添加标签失败';
-            return false;
+            return null; // 返回 null 表示失败
         } finally {
             isLoading.value = false;
         }

@@ -5,9 +5,10 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import { useConnectionsStore, ConnectionInfo } from '../stores/connections.store';
-import { useTagsStore, TagInfo } from '../stores/tags.store';
-import { useSessionStore } from '../stores/session.store'; 
-import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; 
+import { useTagsStore, TagInfo } from '../stores/tags.store'; // 确保 TagInfo 已导入
+import { useSessionStore } from '../stores/session.store';
+import { useFocusSwitcherStore } from '../stores/focusSwitcher.store';
+import { useUiNotificationsStore } from '../stores/uiNotifications.store'; // +++ 修正导入大小写 +++
 
 // 定义事件
 const emit = defineEmits([
@@ -24,6 +25,7 @@ const connectionsStore = useConnectionsStore();
 const tagsStore = useTagsStore();
 const sessionStore = useSessionStore(); // 获取 session store 实例
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
+const uiNotificationsStore = useUiNotificationsStore(); // +++ 修正实例化大小写 +++
 
 const { connections, isLoading: connectionsLoading, error: connectionsError } = storeToRefs(connectionsStore);
 const { tags, isLoading: tagsLoading, error: tagsError } = storeToRefs(tagsStore);
@@ -91,9 +93,27 @@ const highlightedConnectionId = computed(() => {
 });
 
 
+// +++ 编辑标签状态 +++
+// editingTagId: number -> 编辑现有标签, null -> 编辑 "未标记" 分组 (准备创建新标签)
+const editingTagId = ref<number | null | 'untagged'>(null); // 使用 'untagged' 字符串更清晰地区分
+const editedTagName = ref(''); // 存储 input 中的临时名称
+// const tagInputRef = ref<HTMLInputElement | null>(null); // Removed single ref
+const tagInputRefs = ref(new Map<string | number, HTMLInputElement | null>()); // Map to store refs
+
+// Function to set refs in the map
+const setTagInputRef = (el: any, id: string | number) => {
+  if (el) {
+    tagInputRefs.value.set(id, el as HTMLInputElement);
+  } else {
+    // Clean up the ref when the element is unmounted
+    tagInputRefs.value.delete(id);
+  }
+};
+
 // 计算属性：过滤并按标签分组连接
+// 需要修改 filteredAndGroupedConnections，使其包含 tagId
 const filteredAndGroupedConnections = computed(() => {
-  const groups: Record<string, ConnectionInfo[]> = {};
+  const groups: Record<string, { connections: ConnectionInfo[], tagId: number | null }> = {}; // 修改：添加 tagId
   const untagged: ConnectionInfo[] = [];
   const tagMap = new Map(tags.value.map(tag => [tag.id, tag]));
   const lowerSearchTerm = searchTerm.value.toLowerCase();
@@ -102,35 +122,29 @@ const filteredAndGroupedConnections = computed(() => {
   const filteredConnections = connections.value.filter(conn => {
     const nameMatch = conn.name && conn.name.toLowerCase().includes(lowerSearchTerm);
     const hostMatch = conn.host.toLowerCase().includes(lowerSearchTerm);
-    // 如果有 IP 地址字段，也应包含在此处
-    // const ipMatch = conn.ipAddress && conn.ipAddress.toLowerCase().includes(lowerSearchTerm);
-    return nameMatch || hostMatch; // || ipMatch;
+    return nameMatch || hostMatch;
   });
 
   // 2. 分组过滤后的连接
   filteredConnections.forEach(conn => {
     if (conn.tag_ids && conn.tag_ids.length > 0) {
-      let tagged = false; // 标记是否至少加入了一个分组
+      let tagged = false;
       conn.tag_ids.forEach(tagId => {
         const tag = tagMap.get(tagId);
-        // 确保标签存在才分组
         if (tag) {
           const groupName = tag.name;
           if (!groups[groupName]) {
-            groups[groupName] = [];
-            // +++ 如果状态未定义，则明确设为 true (展开) +++
+            groups[groupName] = { connections: [], tagId: tag.id }; // 修改：存储 tagId
             if (expandedGroups.value[groupName] === undefined) {
                expandedGroups.value[groupName] = true;
             }
           }
-          // 避免重复添加（如果一个连接有多个标签）
-          if (!groups[groupName].some(c => c.id === conn.id)) {
-              groups[groupName].push(conn);
+          if (!groups[groupName].connections.some(c => c.id === conn.id)) {
+              groups[groupName].connections.push(conn);
           }
           tagged = true;
         }
       });
-      // 如果所有标签都无效或未找到，则归入未标记
       if (!tagged) {
           untagged.push(conn);
       }
@@ -141,27 +155,29 @@ const filteredAndGroupedConnections = computed(() => {
 
   // 3. 排序和格式化输出
   for (const groupName in groups) {
-      groups[groupName].sort((a, b) => (a.name || a.host).localeCompare(b.name || b.host));
+      groups[groupName].connections.sort((a, b) => (a.name || a.host).localeCompare(b.name || b.host));
   }
   untagged.sort((a, b) => (a.name || a.host).localeCompare(b.name || b.host));
 
   const sortedGroupNames = Object.keys(groups).sort();
-  const result: { groupName: string; connections: ConnectionInfo[] }[] = sortedGroupNames.map(name => ({
+  // 修改：结果包含 tagId
+  const result: { groupName: string; connections: ConnectionInfo[]; tagId: number | null }[] = sortedGroupNames.map(name => ({
       groupName: name,
-      connections: groups[name]
+      connections: groups[name].connections,
+      tagId: groups[name].tagId // 添加 tagId
   }));
 
   if (untagged.length > 0) {
       const untaggedGroupName = t('workspaceConnectionList.untagged');
-      // +++ 如果状态未定义，则明确设为 true (展开) +++
       if (expandedGroups.value[untaggedGroupName] === undefined) {
           expandedGroups.value[untaggedGroupName] = true;
       }
-      result.push({ groupName: untaggedGroupName, connections: untagged });
+      // 未标记的分组没有 tagId
+      result.push({ groupName: untaggedGroupName, connections: untagged, tagId: null });
   }
 
   return result;
-  });
+});
 
   // +++ 监听分组状态变化并保存到 localStorage +++
   watch(expandedGroups, (newState) => {
@@ -181,6 +197,19 @@ const filteredAndGroupedConnections = computed(() => {
   watch(expandedGroups, () => {
       highlightedIndex.value = -1;
   }, { deep: true });
+  // +++ 监听编辑状态，自动聚焦输入框 +++
+  watch(editingTagId, async (newId) => {
+    if (newId !== null) {
+      await nextTick();
+      const inputRef = tagInputRefs.value.get(newId); // Get ref from map using the ID
+      if (inputRef) {
+        inputRef.focus();
+        inputRef.select();
+      } else {
+        console.error(`[WkspConnList] Watcher: Input ref for ID ${newId} not found in map after nextTick.`);
+      }
+    }
+  });
   
   // 切换分组展开/折叠
   const toggleGroup = (groupName: string) => {
@@ -378,15 +407,112 @@ const scrollToHighlighted = async () => {
     highlightedElement.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 };
+
+// +++ 启动编辑标签 (或准备创建新标签) +++
+const startEditingTag = (tagId: number | null, currentName: string) => { // Removed async
+  // 如果 tagId 是 null，表示是 "未标记" 分组
+  editingTagId.value = tagId === null ? 'untagged' : tagId;
+  editedTagName.value = tagId === null ? '' : currentName; // 未标记组开始编辑时清空输入框
+  // Focus logic moved to watcher
+};
+
+// +++ 完成编辑标签 (或创建新标签并分配) +++
+const finishEditingTag = async () => {
+  const currentEditingId = editingTagId.value;
+  const newName = editedTagName.value.trim();
+  const originalTag = typeof currentEditingId === 'number' ? tags.value.find(t => t.id === currentEditingId) : null;
+
+  // 如果新名称为空 (除非是 'untagged' 状态，否则取消编辑)
+  if (newName === '' && currentEditingId !== 'untagged') {
+      editingTagId.value = null;
+      return;
+  }
+  // 如果是 'untagged' 状态且新名称为空，也取消
+  if (newName === '' && currentEditingId === 'untagged') {
+       editingTagId.value = null;
+       return;
+   }
+
+  let operationSuccess = false; // Track if the core operation (add/update) succeeded
+
+  try {
+      if (currentEditingId === 'untagged') {
+          // --- 创建新标签并分配 ---
+          const newTag = await tagsStore.addTag(newName); // Returns TagInfo | null
+          if (newTag) {
+              operationSuccess = true; // Core tag creation succeeded
+              uiNotificationsStore.addNotification({ message: t('tags.createSuccess'), type: 'success' });
+              const untaggedGroup = filteredAndGroupedConnections.value.find(g => g.tagId === null);
+              const untaggedConnectionIds = untaggedGroup ? untaggedGroup.connections.map(c => c.id) : [];
+
+              if (untaggedConnectionIds.length > 0) {
+                  // 调用新的 action 批量添加标签
+                  const assignSuccess = await connectionsStore.addTagToConnectionsAction(untaggedConnectionIds, newTag.id);
+                  if (assignSuccess) {
+                      uiNotificationsStore.addNotification({ message: t('workspaceConnectionList.allConnectionsTaggedSuccess'), type: 'success' });
+                  }
+                  // Assign failure notification is handled within the action
+              } else {
+                   uiNotificationsStore.addNotification({ message: t('workspaceConnectionList.noConnectionsToTag'), type: 'info' });
+              }
+
+              // 更新展开状态 only if tag creation was successful
+              const untaggedGroupName = t('workspaceConnectionList.untagged');
+              if (expandedGroups.value[untaggedGroupName] !== undefined) {
+                  const currentState = expandedGroups.value[untaggedGroupName];
+                  delete expandedGroups.value[untaggedGroupName];
+                  expandedGroups.value[newName] = currentState;
+              }
+          }
+          // If newTag is null, addTag failed (e.g., name exists), notification handled by store. operationSuccess remains false.
+      } else if (typeof currentEditingId === 'number') {
+          // --- 更新现有标签 ---
+          if (!originalTag) {
+             console.error(`Tag with ID ${currentEditingId} not found for update.`);
+             // Exit edit mode in finally block
+          } else if (originalTag.name === newName) {
+              operationSuccess = true; // No change needed, consider it success for UI state
+          } else {
+              // 名称已改变，尝试更新
+              const updateResult = await tagsStore.updateTag(currentEditingId, newName); // Returns boolean
+              if (updateResult) {
+                  operationSuccess = true; // Core tag update succeeded
+                  uiNotificationsStore.addNotification({ message: t('tags.updateSuccess'), type: 'success' });
+                  // 更新展开状态 only if tag update was successful
+                  if (expandedGroups.value[originalTag.name] !== undefined) {
+                      const currentState = expandedGroups.value[originalTag.name];
+                      delete expandedGroups.value[originalTag.name];
+                      expandedGroups.value[newName] = currentState;
+                  }
+              }
+              // If updateResult is false, updateTag failed (e.g., name exists), notification handled by store. operationSuccess remains false.
+          }
+      }
+  } catch (error: any) {
+      // 捕获这两个流程中未被 store action 捕获的意外错误
+      console.error("Error during finishEditingTag:", error);
+      uiNotificationsStore.addNotification({ message: t('common.unexpectedError'), type: 'error' });
+      // operationSuccess remains false
+  } finally {
+      // 无论核心操作成功与否，最终都退出编辑模式
+      // 这样即使用户输入了重复名称，收到通知后，输入框也会消失，恢复原状
+      editingTagId.value = null;
+  }
+};
+
+// +++ 取消编辑（例如按 Esc 键） +++
+const cancelEditingTag = () => {
+  editingTagId.value = null;
+};
 </script>
 
 <template>
   <div class="h-full flex flex-col overflow-hidden bg-background text-foreground">
-    <!-- Loading State (Only show if loading AND no connections are available yet) -->
-    <div v-if="(connectionsLoading || tagsLoading) && connections.length === 0" class="flex items-center justify-center h-full text-text-secondary">
+    <!-- ... Loading/Error states ... -->
+    <div v-if="(connectionsLoading || tagsLoading) && connections.length === 0 && tags.length === 0" class="flex items-center justify-center h-full text-text-secondary">
       <i class="fas fa-spinner fa-spin mr-2"></i> {{ t('common.loading') }}
     </div>
-    <div v-else-if="connectionsError || tagsError" class="flex items-center justify-center h-full text-error px-4 text-center">
+    <div v-else-if="connectionsError || (tagsError && tags.length === 0)" class="flex items-center justify-center h-full text-error px-4 text-center">
       <i class="fas fa-exclamation-triangle mr-2"></i> {{ connectionsError || tagsError }}
     </div>
 
@@ -436,29 +562,59 @@ const scrollToHighlighted = async () => {
           <div v-for="groupData in filteredAndGroupedConnections" :key="groupData.groupName" class="mb-1 last:mb-0">
             <!-- Group Header -->
             <div
-              class="group px-3 py-2 font-semibold cursor-pointer flex items-center text-foreground rounded-md hover:bg-header/80 transition-colors duration-150"
-              @click="toggleGroup(groupData.groupName)"
+              class="group px-3 py-2 font-semibold flex items-center text-foreground rounded-md hover:bg-header/80 transition-colors duration-150"
+              :class="{ 'cursor-pointer': editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) }"
+              @click="editingTagId !== (groupData.tagId === null ? 'untagged' : groupData.tagId) ? toggleGroup(groupData.groupName) : null"
             >
-              <i :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out', {'transform rotate-0': !expandedGroups[groupData.groupName]}]"></i>
-              <span class="text-sm">{{ groupData.groupName }}</span>
+              <i
+                :class="['fas', expandedGroups[groupData.groupName] ? 'fa-chevron-down' : 'fa-chevron-right', 'mr-2 w-4 text-center text-text-secondary group-hover:text-foreground transition-transform duration-200 ease-in-out', {'transform rotate-0': !expandedGroups[groupData.groupName]}]"
+                @click.stop="toggleGroup(groupData.groupName)"
+                class="cursor-pointer flex-shrink-0"
+              ></i>
+              <!-- 编辑状态 -->
+              <input
+                v-if="editingTagId === (groupData.tagId === null ? 'untagged' : groupData.tagId)"
+                :key="groupData.tagId === null ? 'untagged-input' : `tag-input-${groupData.tagId}`"
+                :ref="(el) => setTagInputRef(el, groupData.tagId === null ? 'untagged' : groupData.tagId)"
+                type="text"
+                v-model="editedTagName"
+                class="text-sm bg-input border border-primary rounded px-1 py-0 w-full"
+                @blur="finishEditingTag"
+                @keydown.enter.prevent="finishEditingTag"
+                @keydown.esc.prevent="cancelEditingTag"
+                @click.stop
+              />
+              <!-- 显示状态 -->
+              <span
+                v-else
+                class="text-sm inline-block overflow-hidden text-ellipsis whitespace-nowrap"
+                :class="{ 'cursor-pointer hover:underline': true }"
+                :title="t('workspaceConnectionList.clickToEditTag')"
+                @click.stop="startEditingTag(groupData.tagId, groupData.groupName)"
+              >
+                {{ groupData.groupName }}
+              </span>
+              <!-- 占位符，占据剩余空间 -->
+              <div class="flex-grow min-w-0"></div>
             </div>
             <!-- Connection Items List -->
             <ul v-show="expandedGroups[groupData.groupName]" class="list-none p-0 m-0 pl-3">
-              <li
-                v-for="conn in groupData.connections"
-                :key="conn.id"
-                class="group my-0.5 py-2 pr-3 pl-4 cursor-pointer flex items-center rounded-md whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-primary/10 transition-colors duration-150"
-                :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }" 
-                :data-conn-id="conn.id"
-                @click.left="handleConnect(conn.id)"
-                @click.right.prevent
-                @contextmenu.prevent="showContextMenu($event, conn)"
-              >
-                <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary', { 'text-white': conn.id === highlightedConnectionId }]"></i>
-                <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
-                  {{ conn.name || conn.host }}
-                </span>
-              </li>
+              <!-- ... li v-for="conn in groupData.connections" ... -->
+               <li
+                 v-for="conn in groupData.connections"
+                 :key="conn.id"
+                 class="group my-0.5 py-2 pr-3 pl-4 cursor-pointer flex items-center rounded-md whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-primary/10 transition-colors duration-150"
+                 :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }"
+                 :data-conn-id="conn.id"
+                 @click.left="handleConnect(conn.id)"
+                 @click.right.prevent
+                 @contextmenu.prevent="showContextMenu($event, conn)"
+               >
+                 <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2.5 w-4 text-center text-text-secondary group-hover:text-primary', { 'text-white': conn.id === highlightedConnectionId }]"></i>
+                 <span class="overflow-hidden text-ellipsis whitespace-nowrap flex-grow text-sm" :title="conn.name || conn.host">
+                   {{ conn.name || conn.host }}
+                 </span>
+               </li>
             </ul>
           </div>
         </div>

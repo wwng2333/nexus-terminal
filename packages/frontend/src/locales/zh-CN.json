@@ -366,7 +366,9 @@
     },
     "inputPlaceholder": "输入搜索或创建标签...",
     "removeSelection": "移除此标签选择",
-    "deleteTagGlobally": "全局删除此标签"
+    "deleteTagGlobally": "全局删除此标签",
+    "createSuccess": "标签创建成功。",
+    "updateSuccess": "标签更新成功。"
   },
   "settings": {
     "title": "设置",
@@ -800,7 +802,10 @@
   "workspaceConnectionList": {
     "untagged": "未标记",
     "searchPlaceholder": "搜索名称或主机...",
-    "noResults": "未找到匹配 \"{searchTerm}\" 的连接。"
+    "noResults": "未找到匹配 \"{searchTerm}\" 的连接。",
+    "allConnectionsTaggedSuccess": "所有连接已成功添加标签。",
+    "noConnectionsToTag": "没有需要添加标签的连接。",
+    "clickToEditTag": "点击编辑标签名称"
   },
   "remoteDesktopModal": {
     "title": "远程桌面",

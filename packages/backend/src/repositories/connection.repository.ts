@@ -260,34 +260,57 @@ export const updateLastConnected = async (id: number, timestamp: number): Promis
  * @param connectionId 连接 ID
  * @param tagIds 新的标签 ID 数组 (空数组表示清除所有标签)
  */
-export const updateConnectionTags = async (connectionId: number, tagIds: number[]): Promise<void> => {
+export const updateConnectionTags = async (connectionId: number, tagIds: number[]): Promise<boolean> => { // 修改返回类型为 boolean
     const db = await getDbInstance();
+
+    // 1. 检查连接是否存在
+    try {
+        const connectionExists = await getDbRow<{ id: number }>(db, `SELECT id FROM connections WHERE id = ?`, [connectionId]);
+        if (!connectionExists) {
+            console.warn(`Repository: updateConnectionTags - Connection with ID ${connectionId} not found.`);
+            return false; // 连接不存在，返回 false
+        }
+    } catch (checkErr: any) {
+         console.error(`Repository: 检查连接 ${connectionId} 是否存在时出错:`, checkErr.message);
+         throw new Error('检查连接是否存在时失败'); // 抛出检查错误
+    }
+
+
+    // 2. 执行标签更新事务
     try {
         await runDb(db, 'BEGIN TRANSACTION');
 
-
+        // 删除旧关联
         await runDb(db, `DELETE FROM connection_tags WHERE connection_id = ?`, [connectionId]);
 
+        // 插入新关联 (如果 tagIds 不为空)
         if (tagIds.length > 0) {
             const insertSql = `INSERT INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`;
-           
-            const insertPromises = tagIds
-                .filter(tagId => typeof tagId === 'number' && tagId > 0)
-                .map(tagId => runDb(db, insertSql, [connectionId, tagId]).catch(err => {
-                    console.warn(`Repository: 更新连接 ${connectionId} 标签时，插入 tag_id ${tagId} 失败: ${err.message}`);
-                }));
+            // 过滤无效 ID
+            const validTagIds = tagIds.filter(tagId => typeof tagId === 'number' && tagId > 0);
+
+            // 使用 Promise.all 确保所有插入完成或失败
+            const insertPromises = validTagIds.map(tagId =>
+                 runDb(db, insertSql, [connectionId, tagId])
+            );
+             // 如果任何插入失败，Promise.all 会 reject，错误会被下面的 catch 捕获
             await Promise.all(insertPromises);
         }
 
         await runDb(db, 'COMMIT');
+        return true; // 事务成功提交，返回 true
     } catch (err: any) {
-        console.error(`Repository: 更新连接 ${connectionId} 的标签关联时出错:`, err.message);
+        console.error(`Repository: 更新连接 ${connectionId} 的标签关联事务出错:`, err.message);
         try {
-            await runDb(db, 'ROLLBACK'); 
+            await runDb(db, 'ROLLBACK');
+            console.log(`Repository: Transaction rolled back for connection ${connectionId} tag update.`);
         } catch (rollbackErr: any) {
             console.error(`Repository: 回滚连接 ${connectionId} 的标签更新事务失败:`, rollbackErr.message);
+            // 即使回滚失败，原始错误也更重要
         }
-        throw new Error('处理标签关联失败');
+        // 直接重新抛出原始事务错误，让上层处理
+        // SQLite 在事务中遇到错误时通常会自动回滚
+        throw err;
     }
 };
 
@@ -326,7 +349,6 @@ export const bulkInsertConnections = async (
     const results: { connectionId: number, originalData: any }[] = [];
     const now = Math.floor(Date.now() / 1000);
 
-
     for (const connData of connections) {
         const params = [
             connData.name ?? null, connData.type, connData.host, connData.port, connData.username, connData.auth_method, // Add type parameter
@@ -348,4 +370,38 @@ export const bulkInsertConnections = async (
         }
     }
     return results;
+};
+
+/**
+ * 为多个连接添加同一个标签 (使用事务)
+ * @param connectionIds 连接 ID 数组
+ * @param tagId 要添加的标签 ID
+ */
+export const addTagToMultipleConnections = async (connectionIds: number[], tagId: number): Promise<void> => {
+    if (connectionIds.length === 0 || typeof tagId !== 'number' || tagId <= 0) {
+        console.warn('[Repository] addTagToMultipleConnections called with empty connectionIds or invalid tagId.');
+        return; // 无需操作
+    }
+
+    const db = await getDbInstance();
+    try {
+        await runDb(db, 'BEGIN TRANSACTION');
+
+        const insertSql = `INSERT OR IGNORE INTO connection_tags (connection_id, tag_id) VALUES (?, ?)`;
+        // 使用 Promise.all 确保所有插入完成或失败
+        const insertPromises = connectionIds.map(connId =>
+            runDb(db, insertSql, [connId, tagId])
+        );
+        await Promise.all(insertPromises);
+
+        await runDb(db, 'COMMIT');
+    } catch (err: any) {
+        console.error(`Repository: 为多个连接添加标签 ${tagId} 时事务出错:`, err.message);
+        try {
+            await runDb(db, 'ROLLBACK');
+        } catch (rollbackErr: any) {
+            console.error(`Repository: 回滚为多个连接添加标签 ${tagId} 的事务失败:`, rollbackErr.message);
+        }
+        throw new Error(`为多个连接添加标签失败: ${err.message}`);
+    }
 };

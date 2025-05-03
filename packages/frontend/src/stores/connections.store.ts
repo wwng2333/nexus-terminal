@@ -233,5 +233,53 @@ export const useConnectionsStore = defineStore('connections', {
                 this.isLoading = false;
             }
         },
+
+        // +++ 新增：为多个连接添加一个标签 (调用新的后端 API) +++
+        async addTagToConnectionsAction(connectionIds: number[], tagId: number): Promise<boolean> {
+             if (connectionIds.length === 0) return true; // 没有连接需要更新，直接返回成功
+
+             this.isLoading = true; // 可以考虑为批量操作设置单独状态
+             this.error = null;
+             try {
+                 // 调用新的后端 API POST /connections/add-tag
+                 await apiClient.post('/connections/add-tag', {
+                     connection_ids: connectionIds,
+                     tag_id: tagId
+                 });
+
+                 // 更新成功后，清除缓存并重新获取以保证数据一致性
+                 localStorage.removeItem('connectionsCache');
+                 await this.fetchConnections();
+                 return true; // 表示成功
+             } catch (err: any) {
+                 console.error(`为连接 ${connectionIds.join(', ')} 添加标签 ${tagId} 失败:`, err);
+                 this.error = err.response?.data?.message || err.message || `为连接添加标签时发生未知错误。`;
+                  if (err.response?.status === 401) {
+                     console.warn('未授权，需要登录才能为连接添加标签。');
+                 }
+                 return false; // 表示失败
+             } finally {
+                 this.isLoading = false;
+             }
+        },
+
+        // (保留) 更新单个连接的标签 (如果仍有需要)
+        async updateConnectionTags(connectionId: number, tagIds: number[]): Promise<boolean> {
+            this.isLoading = true;
+            this.error = null;
+            try {
+                // 注意：此 API 端点可能已在后端移除或更改
+                await apiClient.put(`/connections/${connectionId}/tags`, { tag_ids: tagIds });
+                localStorage.removeItem('connectionsCache');
+                await this.fetchConnections();
+                return true;
+            } catch (err: any) {
+                console.error(`更新连接 ${connectionId} 的标签失败:`, err);
+                this.error = err.response?.data?.message || err.message || `更新连接标签时发生未知错误。`;
+                return false;
+            } finally {
+                this.isLoading = false;
+            }
+        },
     },
 });

@@ -366,7 +366,9 @@
     },
     "inputPlaceholder": "Type to search or create tags...",
     "removeSelection": "Remove this tag selection",
-    "deleteTagGlobally": "Delete this tag globally"
+    "deleteTagGlobally": "Delete this tag globally",
+    "createSuccess": "Tag created successfully.",
+    "updateSuccess": "Tag updated successfully."
   },
   "settings": {
     "title": "Settings",
@@ -797,7 +799,10 @@
   "workspaceConnectionList": {
     "untagged": "Untagged",
     "searchPlaceholder": "Search name or host...",
-    "noResults": "No connections found matching \"{searchTerm}\"."
+    "noResults": "No connections found matching \"{searchTerm}\".",
+    "allConnectionsTaggedSuccess": "All connections tagged successfully.",
+    "noConnectionsToTag": "No connections to tag.",
+    "clickToEditTag": "Click to edit tag name"
   },
 "remoteDesktopModal": {
     "title": "Remote Desktop",

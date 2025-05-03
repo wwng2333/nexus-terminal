@@ -500,3 +500,52 @@ export const cloneConnection = async (originalId: number, newName: string): Prom
     // 7. 返回新创建的带标签的连接
     return clonedConnection;
 };
+// 注意：updateConnectionTags 现在主要由 updateConnection 内部调用，
+// 或者可以保留用于单独更新单个连接标签的场景（如果需要的话）。
+// 为了解决嵌套事务问题，我们添加一个新的批量添加函数。
+
+/**
+ * 为指定的一组连接添加一个标签
+ * @param connectionIds 连接 ID 数组
+ * @param tagId 要添加的标签 ID
+ */
+export const addTagToConnections = async (connectionIds: number[], tagId: number): Promise<void> => {
+    // 1. 验证 tagId 是否有效（可选，但建议）
+    // const tagExists = await TagRepository.findTagById(tagId); // 需要导入 TagRepository
+    // if (!tagExists) {
+    //     throw new Error(`标签 ID ${tagId} 不存在。`);
+    // }
+
+    // 2. 调用仓库层批量添加标签
+    try {
+        await ConnectionRepository.addTagToMultipleConnections(connectionIds, tagId);
+
+        // 记录审计日志 (可以考虑为批量操作定义新的审计类型)
+        // TODO: 定义 'CONNECTIONS_TAG_ADDED' 审计日志类型
+        // auditLogService.logAction('CONNECTIONS_TAG_ADDED', { connectionIds, tagId });
+
+    } catch (error: any) {
+        console.error(`Service: 为连接 ${connectionIds.join(', ')} 添加标签 ${tagId} 时发生错误:`, error);
+        throw error; // 重新抛出错误
+    }
+};
+
+/**
+ * 更新指定连接的标签关联 (保留此函数用于可能的其他用途，但主要逻辑转移到 addTagToConnections)
+ * @param connectionId 连接 ID
+ * @param tagIds 新的标签 ID 数组
+ * @returns boolean 指示操作是否成功（找到连接并尝试更新）
+ */
+export const updateConnectionTags = async (connectionId: number, tagIds: number[]): Promise<boolean> => {
+    try {
+        const updated = await ConnectionRepository.updateConnectionTags(connectionId, tagIds);
+        // if (updated) {
+        //     // TODO: 定义 'CONNECTION_TAGS_UPDATED' 审计日志类型
+        //     // auditLogService.logAction('CONNECTION_TAGS_UPDATED', { connectionId, tagIds });
+        // }
+        return updated;
+    } catch (error: any) {
+        console.error(`Service: 更新连接 ${connectionId} 的标签时发生错误:`, error);
+        throw error;
+    }
+};

@@ -12,7 +12,9 @@ import {
     exportConnections,
     importConnections,
     getRdpSessionToken, // Import the new controller function
-    cloneConnection // +++ Import the clone controller function +++
+    cloneConnection, // +++ Import the clone controller function +++
+    // updateConnectionTags, // No longer directly used by primary flow
+    addTagToConnections // +++ Import the new controller function for adding tag to multiple connections +++
 } from './connections.controller';
 
 const router = Router();
@@ -83,5 +85,11 @@ router.post('/:id/rdp-session', getRdpSessionToken);
 
 // +++ POST /api/v1/connections/:id/clone - 克隆连接 +++
 router.post('/:id/clone', cloneConnection);
+
+// +++ POST /api/v1/connections/add-tag - 为多个连接添加一个标签 +++
+router.post('/add-tag', addTagToConnections);
+
+// Note: PUT /:id/tags route is removed as the primary flow uses the bulk add endpoint now.
+// It could be kept if there's a separate use case for updating a single connection's tags.
 
 export default router;
