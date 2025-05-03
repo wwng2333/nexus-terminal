@@ -70,7 +70,7 @@
                    <!-- Display State -->
                    <span
                        v-else
-                       class="text-sm inline-block overflow-hidden text-ellipsis whitespace-nowrap flex-grow"
+                       class="text-sm inline-block overflow-hidden text-ellipsis whitespace-nowrap"
                        :class="{ 'cursor-pointer hover:underline': true }"
                        :title="t('quickCommands.tags.clickToEditTag', '点击编辑标签')"
                        @click.stop="startEditingTag(groupData.tagId, groupData.groupName)"
