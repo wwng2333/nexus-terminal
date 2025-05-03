@@ -849,13 +849,17 @@
         },
         "workspace": {
             "error": {
-                "sidebarPersistentSaveFailed": "サイドバーの設定の保存に失敗しました。"
+                "sidebarPersistentSaveFailed": "サイドバーの設定の保存に失敗しました。",
+                "showConnectionTagsSaveFailed": "接続タグ表示設定の保存に失敗しました。",
+                "showQuickCommandTagsSaveFailed": "クイックコマンドタグ表示設定の保存に失敗しました。"
             },
             "sidebarPersistentDescription": "有効にすると、サイドバーの外側をクリックしてもサイドバーは自動的に折りたたまれません。",
             "sidebarPersistentLabel": "ポップアップ後にサイドバーを固定 (自動的に折りたたまない)",
             "sidebarPersistentTitle": "サイドバーの動作",
             "success": {
-                "sidebarPersistentSaved": "サイドバーの設定を保存しました。"
+                "sidebarPersistentSaved": "サイドバーの設定を保存しました。",
+                "showConnectionTagsSaved": "接続タグ表示設定を保存しました。",
+                "showQuickCommandTagsSaved": "クイックコマンドタグ表示設定を保存しました。"
             },
             "title": "ワークスペースとターミナル",
             "showConnectionTagsTitle": "接続タグを表示",

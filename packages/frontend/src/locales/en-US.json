@@ -621,10 +621,14 @@
       "sidebarPersistentLabel": "Pin sidebar when opened (prevent auto-collapse)",
       "sidebarPersistentDescription": "When enabled, clicking outside the sidebar will not automatically collapse it.",
       "success": {
-        "sidebarPersistentSaved": "Sidebar setting saved."
+        "sidebarPersistentSaved": "Sidebar setting saved.",
+        "showConnectionTagsSaved": "Connection tags visibility setting saved.",
+        "showQuickCommandTagsSaved": "Quick command tags visibility setting saved."
       },
       "error": {
-        "sidebarPersistentSaveFailed": "Failed to save sidebar setting."
+        "sidebarPersistentSaveFailed": "Failed to save sidebar setting.",
+        "showConnectionTagsSaveFailed": "Failed to save connection tags visibility setting.",
+        "showQuickCommandTagsSaveFailed": "Failed to save quick command tags visibility setting."
       },
       "showConnectionTagsTitle": "Show Connection Tags",
       "showConnectionTagsLabel": "Show tags in connection list",
