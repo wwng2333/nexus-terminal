@@ -142,10 +142,19 @@ Here are some implicit practical features.
 
 1.  **View Full Command**: When a historical command is too long and truncated, hover the mouse over the command to view the complete instruction content.
 
+### Terminal Component
+
+1. Press **Ctrl + Shift + C** to copy, and **Ctrl + Shift + V** to paste.
+
+
 ### General Operations
 
 1.  **Zoom**: In the terminal, file manager, and text editor components, you can use `Ctrl + Mouse Wheel` to zoom.
 2. **Sidebar**: The expanded sidebar can have its width adjusted by dragging.
+3. **Tab Bar**: Right-clicking on the SSH tab bar or the file manager tab bar will open a context menu with the following options: Close, Close Tabs to the Left, Close Other Tabs, and Close Tabs to the Right.
+4. **Tab Group Fold Bar**: You can directly click on the tab name in the view to rename the tab.
+
+
 
 ## ⚠️ Notes
 
