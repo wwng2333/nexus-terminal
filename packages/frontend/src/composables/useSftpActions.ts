@@ -1,5 +1,5 @@
 import { ref, readonly, reactive, computed, type Ref, type ComputedRef } from 'vue'; // 引入 reactive 和 computed
-import type { FileListItem, FileAttributes, EditorFileContent } from '../types/sftp.types'; // 修正导入为 FileAttributes
+import type { FileListItem, FileAttributes, EditorFileContent, SftpReadFileSuccessPayload, SftpReadFileRequestPayload } from '../types/sftp.types'; // +++ 添加 SftpReadFileRequestPayload 导入 +++
 import type { WebSocketMessage, MessagePayload, MessageHandler } from '../types/websocket.types';
 // 导入 UI 通知 store
 import { useUiNotificationsStore } from '../stores/uiNotifications.store'; // 更正导入
@@ -307,11 +307,12 @@ export function createSftpActionsManager(
     };
 
     // readFile 和 writeFile 仍然返回 Promise，并在内部处理自己的消息监听器注销
-    const readFile = (path: string): Promise<EditorFileContent> => {
+    // --- 修改：接受可选 encoding 参数，返回包含 content 和 encodingUsed 的 Payload ---
+    const readFile = (path: string, encoding?: string): Promise<SftpReadFileSuccessPayload> => {
         return new Promise((resolve, reject) => {
             if (!isSftpReady.value) {
                 const errMsg = t('fileManager.errors.sftpNotReady');
-                console.warn(`[SFTP ${instanceSessionId}] 尝试读取文件 ${path} 但 SFTP 未就绪。`); // 日志改为中文
+                console.warn(`[SFTP ${instanceSessionId}] 尝试读取文件 ${path} 但 SFTP 未就绪。`);
                 uiNotificationsStore.showError(errMsg);
                 return reject(new Error(errMsg));
             }
@@ -328,34 +329,40 @@ export function createSftpActionsManager(
             }, 20000); // 20 秒超时
 
             unregisterSuccess = onMessage('sftp:readfile:success', (payload: MessagePayload, message: WebSocketMessage) => {
-                // 确保 payload 是期望的类型
-                const successPayload = payload as { content: string; encoding: 'utf8' | 'base64' };
+                // +++ 修改：处理包含 rawContentBase64 和 encodingUsed 的新 payload +++
+                const successPayload = payload as SftpReadFileSuccessPayload; // Type assertion remains valid
                 if (message.requestId === requestId && message.path === path) {
                     clearTimeout(timeoutId);
                     unregisterSuccess?.();
                     unregisterError?.();
-                    resolve({ content: successPayload.content, encoding: successPayload.encoding });
+                    // Resolve with the new payload structure
+                    resolve({ rawContentBase64: successPayload.rawContentBase64, encodingUsed: successPayload.encodingUsed });
                 }
             });
 
             unregisterError = onMessage('sftp:readfile:error', (payload: MessagePayload, message: WebSocketMessage) => {
-                 // 确保 payload 是期望的类型 (string)
                  const errorPayload = payload as string;
                 if (message.requestId === requestId && message.path === path) {
                     clearTimeout(timeoutId);
                     unregisterSuccess?.();
                     unregisterError?.();
-                    const errorMsg = errorPayload || t('fileManager.errors.readFileFailed'); // 使用 i18n
+                    const errorMsg = errorPayload || t('fileManager.errors.readFileFailed');
                     uiNotificationsStore.showError(`${t('fileManager.errors.readFileError')}: ${errorMsg}`);
                     reject(new Error(errorMsg));
                 }
             });
 
-            sendMessage({ type: 'sftp:readfile', requestId: requestId, payload: { path } });
+            // --- 修改：在 payload 中包含可选的 encoding ---
+            const requestPayload: SftpReadFileRequestPayload = { path };
+            if (encoding) {
+                requestPayload.encoding = encoding;
+            }
+            sendMessage({ type: 'sftp:readfile', requestId: requestId, payload: requestPayload });
         });
     };
 
-     const writeFile = (path: string, content: string): Promise<void> => {
+     // --- 修改：接受可选 encoding 参数 ---
+     const writeFile = (path: string, content: string, encoding?: string): Promise<void> => {
         return new Promise((resolve, reject) => {
             if (!isSftpReady.value) {
                  const errMsg = t('fileManager.errors.sftpNotReady');
@@ -364,7 +371,8 @@ export function createSftpActionsManager(
                 return reject(new Error(errMsg));
             }
             const requestId = generateRequestId();
-            const encoding: 'utf8' | 'base64' = 'utf8'; // 假设总是 utf8
+            // --- 修改：使用传入的 encoding，默认为 utf8 ---
+            const finalEncoding = encoding || 'utf8';
             let unregisterSuccess: (() => void) | null = null;
             let unregisterError: (() => void) | null = null;
 
@@ -401,7 +409,8 @@ export function createSftpActionsManager(
             sendMessage({
                 type: 'sftp:writefile',
                 requestId: requestId,
-                payload: { path, content, encoding }
+                // --- 修改：在 payload 中包含最终的编码 ---
+                payload: { path, content, encoding: finalEncoding }
             });
         });
     };

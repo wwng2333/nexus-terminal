@@ -33,6 +33,7 @@ const emit = defineEmits<{
   (e: 'close-tab', tabId: string): void;
   (e: 'request-save', tabId: string): void; // 发送保存请求，携带 tabId
   (e: 'update:content', payload: { tabId: string; content: string }): void; // 用于 v-model 同步
+  (e: 'change-encoding', payload: { tabId: string; encoding: string }): void; // +++ 新增：编码更改事件 +++
 }>();
 
 
@@ -51,14 +52,7 @@ watch(activeTab, (newTab) => {
     localEditorContent.value = newTab?.content ?? '';
 }, { immediate: true });
 
-// 监听 activeTab 内容的变化 (处理异步加载完成的情况)
-watch(() => activeTab.value?.content, (newContent) => {
-    // console.log('[EditorContainer] Active tab content changed, updating local content.');
-    if (localEditorContent.value !== newContent) {
-        localEditorContent.value = newContent ?? '';
-    }
-});
-
+// 移除用于调试的 watch 函数
 // 当本地编辑器内容变化时，通知父组件 (WorkspaceView)
 watch(localEditorContent, (newContent) => {
     // console.log('[EditorContainer] Local content changed, checking if emit needed.');
@@ -82,6 +76,61 @@ const currentTabSaveError = computed(() => activeTab.value?.saveError ?? null);
 const currentTabLanguage = computed(() => activeTab.value?.language ?? 'plaintext');
 const currentTabFilePath = computed(() => activeTab.value?.filePath ?? '');
 const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false); // 用于显示修改状态
+// +++ 新增：计算当前选择的编码 +++
+const currentSelectedEncoding = computed(() => activeTab.value?.selectedEncoding ?? 'utf-8');
+
+// +++ 新增：编码选项 +++
+// 注意：这里的 value 需要与 iconv-lite 支持的标签匹配 (后端使用)
+// 扩展编码列表以包含更多常用选项
+const encodingOptions = ref([
+  // Unicode
+  { value: 'utf-8', text: 'UTF-8' },
+  { value: 'utf-16le', text: 'UTF-16 LE' },
+  { value: 'utf-16be', text: 'UTF-16 BE' },
+  // Chinese
+  { value: 'gbk', text: 'GBK' },
+  { value: 'gb18030', text: 'GB18030' },
+  { value: 'big5', text: 'Big5 (Traditional Chinese)' },
+  // Japanese
+  { value: 'shift_jis', text: 'Shift-JIS' },
+  { value: 'euc-jp', text: 'EUC-JP' },
+  // Korean
+  { value: 'euc-kr', text: 'EUC-KR' },
+  // Western European
+  { value: 'iso-8859-1', text: 'ISO-8859-1 (Latin-1)' },
+  { value: 'iso-8859-15', text: 'ISO-8859-15 (Latin-9)' },
+  { value: 'cp1252', text: 'Windows-1252' }, // Western European
+  // Central European
+  { value: 'iso-8859-2', text: 'ISO-8859-2 (Latin-2)' },
+  { value: 'cp1250', text: 'Windows-1250' }, // Central European
+  // Cyrillic
+  { value: 'iso-8859-5', text: 'ISO-8859-5 (Cyrillic)' },
+  { value: 'cp1251', text: 'Windows-1251 (Cyrillic)' },
+  { value: 'koi8-r', text: 'KOI8-R' },
+  { value: 'koi8-u', text: 'KOI8-U' },
+  // Greek
+  { value: 'iso-8859-7', text: 'ISO-8859-7 (Greek)' },
+  { value: 'cp1253', text: 'Windows-1253 (Greek)' },
+  // Turkish
+  { value: 'iso-8859-9', text: 'ISO-8859-9 (Turkish)' },
+  { value: 'cp1254', text: 'Windows-1254 (Turkish)' },
+  // Hebrew
+  { value: 'iso-8859-8', text: 'ISO-8859-8 (Hebrew)' },
+  { value: 'cp1255', text: 'Windows-1255 (Hebrew)' },
+  // Arabic
+  { value: 'iso-8859-6', text: 'ISO-8859-6 (Arabic)' },
+  { value: 'cp1256', text: 'Windows-1256 (Arabic)' },
+  // Baltic
+  { value: 'iso-8859-4', text: 'ISO-8859-4 (Baltic)' }, // Latin-4
+  { value: 'iso-8859-13', text: 'ISO-8859-13 (Baltic)' }, // Latin-7
+  { value: 'cp1257', text: 'Windows-1257 (Baltic)' },
+  // Vietnamese
+  { value: 'cp1258', text: 'Windows-1258 (Vietnamese)' },
+  // Thai
+  { value: 'tis-620', text: 'TIS-620 (Thai)' }, // Often cp874
+  { value: 'cp874', text: 'Windows-874 (Thai)' },
+]);
+
 
 // --- 事件处理 ---
 const handleSaveRequest = () => {
@@ -89,6 +138,17 @@ const handleSaveRequest = () => {
     emit('request-save', activeTab.value.id); // 发出保存请求事件
   }
 };
+
+// +++ 新增：处理编码更改事件 +++
+const handleEncodingChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement;
+  const newEncoding = target.value;
+  if (activeTab.value && newEncoding && newEncoding !== currentSelectedEncoding.value) {
+    console.log(`[EditorContainer] Encoding changed to ${newEncoding} for tab ${activeTab.value.id}`);
+    emit('change-encoding', { tabId: activeTab.value.id, encoding: newEncoding });
+  }
+};
+
 
 // 注意：关闭/最小化按钮现在应该在 WorkspaceView 控制 Pane，而不是这里
 // const handleCloseContainer = () => { ... };
@@ -180,6 +240,21 @@ const handleKeyDown = (event: KeyboardEvent) => {
           <span v-if="currentTabIsModified" class="modified-indicator">*</span>
         </span>
         <div class="editor-actions">
+          <!-- +++ 新增：编码选择下拉菜单 +++ -->
+          <select
+            v-if="activeTab && !currentTabIsLoading"
+            :value="currentSelectedEncoding"
+            @change="handleEncodingChange"
+            class="encoding-select"
+            :title="t('fileManager.changeEncodingTooltip', '更改文件编码')"
+          >
+            <option v-for="option in encodingOptions" :key="option.value" :value="option.value">
+              {{ option.text }}
+            </option>
+          </select>
+          <span v-else-if="activeTab" class="encoding-select-placeholder">{{ t('fileManager.loadingEncoding', '加载中...') }}</span>
+          <!-- +++ 结束新增 +++ -->
+
           <span v-if="currentTabSaveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
           <span v-if="currentTabSaveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
           <span v-if="currentTabSaveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ currentTabSaveError }}</span>
@@ -276,7 +351,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
 .editor-actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.8rem; /* 稍微减小间距以容纳下拉菜单 */
 }
 
 .save-btn {
@@ -306,3 +381,34 @@ const handleKeyDown = (event: KeyboardEvent) => {
   min-height: 0;
 }
 </style>
+
+<style scoped> /* Add new styles below existing scoped styles */
+.encoding-select {
+  background-color: #444;
+  color: #f0f0f0;
+  border: 1px solid #666;
+  padding: 0.3rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.85em;
+  cursor: pointer;
+  outline: none;
+}
+
+.encoding-select:hover {
+  background-color: #555;
+}
+
+.encoding-select:focus {
+  border-color: #888;
+}
+
+.encoding-select-placeholder {
+    font-size: 0.85em;
+    color: #888;
+    padding: 0.3rem 0.5rem;
+    display: inline-block;
+    min-width: 80px; /* 与 select 大致对齐 */
+    text-align: center;
+}
+</style>
+

@@ -4,7 +4,11 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router'; // +++ 导入 useRouter +++
 import { useConnectionsStore, type ConnectionInfo } from './connections.store';
 // 导入文件编辑器相关的类型
-import type { FileTab, FileInfo } from './fileEditor.store'; // 导入 FileTab 和 FileInfo
+import type { FileTab, FileInfo } from './fileEditor.store'; // 导入 FileTab 和 FileInfo (确保 FileTab 已在 fileEditor.store.ts 中简化)
+import type { SftpReadFileSuccessPayload } from '../types/sftp.types'; // 导入更新后的类型
+// --- 修复：添加 iconv-lite 和 buffer 导入 ---
+import * as iconv from '@vscode/iconv-lite-umd';
+import { Buffer } from 'buffer/';
 
 // 导入管理器工厂函数 (用于创建实例)
 // 导入 WsConnectionStatus 类型
@@ -51,6 +55,33 @@ const getLanguageFromFilename = (filename: string): string => {
     }
 };
 
+// --- 修复：添加 decodeRawContent 辅助函数 ---
+const decodeRawContent = (rawContentBase64: string, encoding: string): string => {
+    try {
+        const buffer = Buffer.from(rawContentBase64, 'base64');
+        const normalizedEncoding = encoding.toLowerCase().replace(/[^a-z0-9]/g, ''); // Normalize encoding name
+
+        // 优先使用 TextDecoder 处理标准编码
+        if (['utf8', 'utf16le', 'utf16be'].includes(normalizedEncoding)) {
+            const decoder = new TextDecoder(encoding); // Use original encoding name for TextDecoder
+            return decoder.decode(buffer);
+        }
+        // 使用 iconv-lite 处理其他编码
+        else if (iconv.encodingExists(normalizedEncoding)) {
+            return iconv.decode(buffer, normalizedEncoding);
+        }
+        // 如果 iconv-lite 也不支持，回退到 UTF-8 并警告
+        else {
+            console.warn(`[SessionStore decodeRawContent] Unsupported encoding "${encoding}" requested. Falling back to UTF-8.`);
+            const decoder = new TextDecoder('utf-8');
+            return decoder.decode(buffer);
+        }
+    } catch (error: any) {
+        console.error(`[SessionStore decodeRawContent] Error decoding content with encoding "${encoding}":`, error);
+        return `// Error decoding content: ${error.message}`; // 返回错误信息
+    }
+};
+// --- 结束修复 ---
 
 // --- 类型定义 (导出以便其他模块使用) ---
 export type WsManagerInstance = ReturnType<typeof createWebSocketConnectionManager>;
@@ -90,6 +121,9 @@ export const useSessionStore = defineStore('session', () => {
   const { t } = useI18n();
   const connectionsStore = useConnectionsStore();
   const router = useRouter(); // +++ 获取 router 实例 +++
+
+  // --- 移除 decodeBase64Content 辅助方法 ---
+
 
   // --- State ---
   // 使用 shallowRef 避免深度响应性问题，保留管理器实例内部的响应性
@@ -299,10 +333,12 @@ export const useSessionStore = defineStore('session', () => {
     tab.saveError = null;
 
     const contentToSave = tab.content;
+    const encodingToUse = tab.selectedEncoding; // 获取选定的编码
 
     try {
-      await sftpManager.writeFile(tab.filePath, contentToSave);
-      console.log(`[SessionStore] 文件 ${tab.filePath} (会话 ${sessionId}) 保存成功。`);
+      // --- 修改：传递 selectedEncoding 给 writeFile ---
+      await sftpManager.writeFile(tab.filePath, contentToSave, encodingToUse);
+      console.log(`[SessionStore] 文件 ${tab.filePath} (会话 ${sessionId}) 使用编码 ${encodingToUse} 保存成功。`);
       tab.isSaving = false;
       tab.saveStatus = 'success';
       tab.saveError = null;
@@ -456,24 +492,24 @@ export const useSessionStore = defineStore('session', () => {
       console.log(`[SessionStore] 会话 ${sessionId} 中已存在文件 ${fileInfo.fullPath} 的标签页，已激活: ${existingTab.id}`);
     } else {
       // 创建新标签页
+      // 创建新标签页 (使用简化后的 FileTab 接口)
+      // --- 修复：初始化 rawContentBase64 ---
       const newTab: FileTab = {
-        id: generateSessionId(), // 复用会话 ID 生成逻辑创建唯一标签页 ID
-        filename: fileInfo.name, // 使用 filename 匹配 FileTab 接口
-        filePath: fileInfo.fullPath, // 使用 filePath 匹配 FileTab 接口
-        // content, originalContent, language, encoding 将在 FileEditorContainer 或 fileEditor.store 中处理
-        content: '', // 初始内容为空
-        originalContent: '', // 初始原始内容为空
-        language: 'plaintext', // 初始语言，稍后会根据文件名更新
-        encoding: 'utf8', // 默认编码
-        isModified: false, // 使用 isModified 匹配 FileTab 接口
-        isLoading: false, // 初始化为 boolean
-        loadingError: null, // 使用 loadingError 匹配 FileTab 接口
-        // --- 编辑器状态相关 ---
+        id: generateSessionId(), // 使用独立 ID
+        sessionId: sessionId,
+        filePath: fileInfo.fullPath,
+        filename: fileInfo.name,
+        content: '', // 将由后端填充
+        originalContent: '', // 将由后端填充
+        rawContentBase64: null, // 初始化为 null
+        language: getLanguageFromFilename(fileInfo.name),
+        selectedEncoding: 'utf-8', // 初始默认，将由后端更新
+        isLoading: true,
+        loadingError: null,
         isSaving: false,
         saveStatus: 'idle',
         saveError: null,
-        // --- 关联会话 ID ---
-        sessionId: sessionId, // 记录此标签页属于哪个会话
+        isModified: false,
       };
       // session.editorTabs.value.push(newTab); // 移除重复的 push
       session.editorTabs.value.push(newTab);
@@ -481,64 +517,67 @@ export const useSessionStore = defineStore('session', () => {
       console.log(`[SessionStore] 已在会话 ${sessionId} 中为文件 ${fileInfo.fullPath} 创建新标签页: ${newTab.id}`);
 
       // --- 新增：异步加载文件内容 ---
+      // --- 修改：异步加载文件内容 (处理后端解码后的内容) ---
       const loadContent = async () => {
-        const tabToLoad = session.editorTabs.value.find(t => t.id === newTab.id);
-        if (!tabToLoad) return; // Tab might have been closed quickly
+          const tabIndex = session.editorTabs.value.findIndex(t => t.id === newTab.id);
+          if (tabIndex === -1) return; // Tab might have been closed quickly
 
-        tabToLoad.isLoading = true;
-        tabToLoad.loadingError = null;
+          // 更新加载状态 (使用 splice 保证响应性)
+          const loadingTab = { ...session.editorTabs.value[tabIndex], isLoading: true, loadingError: null };
+          session.editorTabs.value.splice(tabIndex, 1, loadingTab);
 
-        try {
-          // 获取默认的 sftpManager 实例来执行读取操作
-          const sftpManager = getOrCreateSftpManager(sessionId, 'primary');
-          if (!sftpManager) {
-              throw new Error(t('fileManager.errors.sftpManagerNotFound'));
-          }
-          console.log(`[SessionStore ${sessionId}] 使用 primary sftpManager 读取文件 ${fileInfo.fullPath}`);
-          const fileData = await sftpManager.readFile(fileInfo.fullPath);
-          console.log(`[SessionStore ${sessionId}] 文件 ${fileInfo.fullPath} 读取成功。编码: ${fileData.encoding}`);
+          try {
+            // 获取默认的 sftpManager 实例来执行读取操作
+            const sftpManager = getOrCreateSftpManager(sessionId, 'primary');
+            if (!sftpManager) {
+                throw new Error(t('fileManager.errors.sftpManagerNotFound'));
+            }
+            console.log(`[SessionStore ${sessionId}] 使用 primary sftpManager 读取文件 ${fileInfo.fullPath}`);
 
-          let decodedContent = '';
-          let finalEncoding: 'utf8' | 'base64' = 'utf8';
+            // 调用 sftpManager.readFile (不带编码参数，让后端自动检测)
+            // 后端现在返回 { content: string, encodingUsed: string }
+            const fileData: SftpReadFileSuccessPayload = await sftpManager.readFile(fileInfo.fullPath);
+            console.log(`[SessionStore ${sessionId}] 文件 ${fileInfo.fullPath} 读取成功。后端使用编码: ${fileData.encodingUsed}`);
 
-          if (fileData.encoding === 'base64') {
-              finalEncoding = 'base64';
-              try {
-                  const binaryString = atob(fileData.content);
-                  const bytes = new Uint8Array(binaryString.length);
-                  for (let i = 0; i < binaryString.length; i++) {
-                      bytes[i] = binaryString.charCodeAt(i);
-                  }
-                  const decoder = new TextDecoder('utf-8');
-                  decodedContent = decoder.decode(bytes);
-              } catch (decodeError) {
-                  console.error(`[SessionStore ${sessionId}] Base64 解码错误 for ${fileInfo.fullPath}:`, decodeError);
-                  tabToLoad.loadingError = t('fileManager.errors.fileDecodeError');
-                  decodedContent = `// ${tabToLoad.loadingError}\n// Original Base64 content:\n${fileData.content}`;
+            // 更新标签页状态 (使用 splice 保证响应性)
+            const currentTabState = session.editorTabs.value.find(t => t.id === newTab.id); // 获取最新状态
+            if (!currentTabState) return; // 可能在请求期间关闭了
+
+            // --- 修复：使用 decodeRawContent 解码并存储原始数据 ---
+            const initialContent = decodeRawContent(fileData.rawContentBase64, fileData.encodingUsed);
+            const updatedTab: FileTab = {
+                ...currentTabState,
+                content: initialContent,
+                originalContent: initialContent, // 初始原始内容
+                rawContentBase64: fileData.rawContentBase64, // 存储原始 Base64 数据
+                selectedEncoding: fileData.encodingUsed, // 存储后端实际使用的编码
+                isLoading: false,
+                isModified: false,
+                loadingError: null,
+            };
+            const finalTabIndex = session.editorTabs.value.findIndex(t => t.id === newTab.id); // 重新获取索引
+            if (finalTabIndex !== -1) {
+                session.editorTabs.value.splice(finalTabIndex, 1, updatedTab);
+                console.log(`[SessionStore ${sessionId}] 文件 ${fileInfo.fullPath} 内容已加载并设置到标签页 ${newTab.id}。`);
+            } else {
+                 console.warn(`[SessionStore ${sessionId}] 尝试更新标签页 ${newTab.id} 时未找到索引。`);
+            }
+
+          } catch (err: any) {
+              console.error(`[SessionStore ${sessionId}] 读取文件 ${fileInfo.fullPath} 失败:`, err);
+              // 更新错误状态 (使用 splice 保证响应性)
+              const errorTabIndex = session.editorTabs.value.findIndex(t => t.id === newTab.id);
+              if (errorTabIndex !== -1) {
+                  const errorTab = {
+                      ...session.editorTabs.value[errorTabIndex],
+                      isLoading: false,
+                      loadingError: `${t('fileManager.errors.readFileFailed')}: ${err.message || err}`,
+                      content: `// 加载错误: ${err.message || err}`
+                  };
+                  session.editorTabs.value.splice(errorTabIndex, 1, errorTab);
               }
-          } else {
-              finalEncoding = 'utf8';
-              decodedContent = fileData.content;
-              if (decodedContent.includes('\uFFFD')) {
-                  console.warn(`[SessionStore ${sessionId}] 文件 ${fileInfo.fullPath} 内容可能包含无效字符。`);
-              }
           }
-
-          // 更新标签页状态
-          tabToLoad.content = decodedContent;
-          tabToLoad.originalContent = decodedContent;
-          tabToLoad.encoding = finalEncoding;
-          tabToLoad.language = getLanguageFromFilename(fileInfo.name); // 根据文件名设置语言
-          tabToLoad.isModified = false;
-
-        } catch (err: any) {
-            console.error(`[SessionStore ${sessionId}] 读取文件 ${fileInfo.fullPath} 失败:`, err);
-            tabToLoad.loadingError = `${t('fileManager.errors.readFileFailed')}: ${err.message || err}`;
-            tabToLoad.content = `// ${tabToLoad.loadingError}`;
-        } finally {
-            tabToLoad.isLoading = false;
-        }
-      };
+        };
 
       loadContent(); // 启动内容加载
     }
@@ -594,6 +633,84 @@ export const useSessionStore = defineStore('session', () => {
     } else {
       console.warn(`[SessionStore] 尝试激活会话 ${sessionId} 中不存在的标签页 ID: ${tabId}`);
     }
+  };
+
+
+  /**
+   * 在指定会话中更改文件编码并重新解码
+   */
+  // --- 修改：更改文件编码（通过请求后端重新读取） ---
+  const changeEncodingInSession = async (sessionId: string, tabId: string, newEncoding: string) => {
+      const session = sessions.value.get(sessionId);
+      if (!session) {
+          console.warn(`[SessionStore] 尝试更改不存在的会话 ${sessionId} 中标签页 ${tabId} 的编码。`);
+          return;
+      }
+      const tabIndex = session.editorTabs.value.findIndex(t => t.id === tabId);
+      if (tabIndex === -1) {
+          console.warn(`[SessionStore] 尝试更改会话 ${sessionId} 中不存在的标签页 ${tabId} 的编码。`);
+          return;
+      }
+
+      // 获取默认的 sftpManager 实例
+      const sftpManager = getOrCreateSftpManager(sessionId, 'primary');
+      if (!sftpManager) {
+          console.error(`[SessionStore] 无法获取会话 ${sessionId} 的 primary sftpManager 来更改编码。`);
+          // 更新错误状态
+          const errorTab = { ...session.editorTabs.value[tabIndex], isLoading: false, loadingError: '无法获取 SFTP 实例' };
+          session.editorTabs.value.splice(tabIndex, 1, errorTab);
+          return;
+      }
+
+      const tab = session.editorTabs.value[tabIndex];
+      console.log(`[SessionStore] 请求使用新编码 "${newEncoding}" 重新读取文件: ${tab.filePath} (会话 ${sessionId}, Tab ID: ${tabId})`);
+
+      // 设置加载状态 (使用 splice)
+      const loadingTab = { ...tab, isLoading: true, loadingError: null };
+      session.editorTabs.value.splice(tabIndex, 1, loadingTab);
+
+      try {
+          // 向后端发送 readFile 请求，并指定编码
+          const fileData: SftpReadFileSuccessPayload = await sftpManager.readFile(tab.filePath, newEncoding);
+          console.log(`[SessionStore ${sessionId}] 文件 ${tab.filePath} 使用编码 "${newEncoding}" 重新读取成功。后端实际使用编码: ${fileData.encodingUsed}`);
+
+          // 更新标签页状态 (使用 splice)
+          const currentTabState = session.editorTabs.value.find(t => t.id === tabId); // 获取最新状态
+          if (!currentTabState) return; // 可能在请求期间关闭了
+
+          // --- 修复：使用 decodeRawContent 解码并更新原始数据 ---
+          const newDecodedContent = decodeRawContent(fileData.rawContentBase64, fileData.encodingUsed);
+          const updatedTab: FileTab = {
+              ...currentTabState,
+              content: newDecodedContent,
+              rawContentBase64: fileData.rawContentBase64, // 更新原始 Base64 数据
+              // originalContent 保持不变
+              selectedEncoding: fileData.encodingUsed, // 使用后端确认的编码
+              isLoading: false,
+              loadingError: null,
+              // isModified 状态保持不变
+          };
+          const finalTabIndex = session.editorTabs.value.findIndex(t => t.id === tabId); // 重新获取索引
+          if (finalTabIndex !== -1) {
+              session.editorTabs.value.splice(finalTabIndex, 1, updatedTab);
+          } else {
+               console.warn(`[SessionStore ${sessionId}] 尝试更新标签页 ${tabId} 时未找到索引 (changeEncoding)。`);
+          }
+
+      } catch (err: any) {
+          console.error(`[SessionStore ${sessionId}] 使用编码 "${newEncoding}" 重新读取文件 ${tab.filePath} 失败:`, err);
+          const errorMsg = `${t('fileManager.errors.readFileFailed')} (编码: ${newEncoding}): ${err.message || err}`;
+          // 更新错误状态 (使用 splice)
+          const errorTabIndex = session.editorTabs.value.findIndex(t => t.id === tabId);
+          if (errorTabIndex !== -1) {
+              const errorTab = {
+                  ...session.editorTabs.value[errorTabIndex],
+                  isLoading: false,
+                  loadingError: errorMsg,
+              };
+              session.editorTabs.value.splice(errorTabIndex, 1, errorTab);
+          }
+      }
   };
 
 
@@ -694,6 +811,7 @@ export const useSessionStore = defineStore('session', () => {
     setActiveEditorTabInSession,
     updateFileContentInSession, // 导出更新内容 Action
     saveFileInSession,          // 导出保存文件 Action
+    changeEncodingInSession,    // 导出更改编码 Action
     // --- RDP Modal Actions ---
     openRdpModal,           // 导出打开 RDP 模态框 Action
     closeRdpModal,          // 导出关闭 RDP 模态框 Action

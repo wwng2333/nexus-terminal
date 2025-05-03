@@ -26,3 +26,15 @@ export interface EditorFileContent {
 
 // 类型定义：编辑器保存状态 (从 useFileEditor 迁移)
 export type SaveStatus = 'idle' | 'saving' | 'success' | 'error';
+
+// 类型定义：后端 readFile 请求的 payload 结构
+export interface SftpReadFileRequestPayload {
+    path: string;
+    encoding?: string; // 可选：请求使用的特定编码
+}
+
+// 类型定义：后端 readFile 成功时返回的 payload 结构 (更新)
+export interface SftpReadFileSuccessPayload {
+    rawContentBase64: string; // Base64 编码的原始文件内容
+    encodingUsed: string; // 后端自动检测或用户请求时实际使用的编码
+}

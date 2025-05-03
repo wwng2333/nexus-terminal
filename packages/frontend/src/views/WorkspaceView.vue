@@ -372,6 +372,23 @@ const handleCloseEditorTab = (tabId: string) => {
    }
  };
 
+ // +++ 新增：处理编辑器编码更改事件 +++
+ const handleChangeEncoding = (payload: { tabId: string; encoding: string }) => {
+   const isShared = shareFileEditorTabsBoolean.value;
+   console.log(`[WorkspaceView] handleChangeEncoding for tab ${payload.tabId} to ${payload.encoding}, Shared mode: ${isShared}`);
+   if (isShared) {
+     fileEditorStore.changeEncoding(payload.tabId, payload.encoding);
+   } else {
+     const currentActiveSessionId = activeSessionId.value;
+     if (currentActiveSessionId) {
+       // 假设 sessionStore 有一个 changeEncodingInSession 方法
+       sessionStore.changeEncodingInSession(currentActiveSessionId, payload.tabId, payload.encoding);
+     } else {
+       console.warn('[WorkspaceView] Cannot change editor encoding: No active session in independent mode.');
+     }
+   }
+ };
+
  // --- 连接列表操作处理 (用于 WorkspaceConnectionList) ---
  const handleConnectRequest = (id: number) => {
     console.log(`[WorkspaceView] Received 'connect-request' event for ID: ${id}`);
@@ -433,6 +450,7 @@ const handleCloseEditorTab = (tabId: string) => {
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
         @clear-terminal="handleClearTerminal"
+        @change-encoding="handleChangeEncoding" 
       ></LayoutRenderer> <!-- 修正：使用单独的结束标签 -->
       <div v-else class="pane-placeholder"> <!-- 确保 v-else 紧随 v-if -->
         {{ t('layout.loading', '加载布局中...') }}

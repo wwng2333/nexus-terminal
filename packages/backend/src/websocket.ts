@@ -1080,16 +1080,26 @@ connectionName: connInfo?.name || 'Unknown', // 添加连接名称 (使用可选
                                     else throw new Error("Missing 'path' in payload for stat");
                                     break;
                                 case 'sftp:readfile':
-                                     if (payload?.path) sftpService.readFile(sessionId, payload.path, requestId);
-                                     else throw new Error("Missing 'path' in payload for readfile");
+                                     // --- 修改：提取并传递可选的 encoding 参数 ---
+                                     if (payload?.path) {
+                                         const requestedEncoding = payload?.encoding; // 获取可选的 encoding
+                                         sftpService.readFile(sessionId, payload.path, requestId, requestedEncoding); // 传递给 service 方法
+                                     } else {
+                                          throw new Error("Missing 'path' in payload for readfile");
+                                     }
                                      break;
+                                     // --- 结束修改 ---
                                 case 'sftp:writefile':
                                     const fileContent = payload?.content ?? payload?.data ?? '';
+                                    // --- 修改：提取可选的 encoding 参数 ---
+                                    const encoding = payload?.encoding; // 获取可选的 encoding
                                     if (payload?.path) {
                                         const dataToSend = (typeof fileContent === 'string') ? fileContent : '';
-                                        sftpService.writefile(sessionId, payload.path, dataToSend, requestId);
+                                        // --- 修改：将 encoding 传递给 service 方法 ---
+                                        sftpService.writefile(sessionId, payload.path, dataToSend, requestId, encoding);
                                     } else throw new Error("Missing 'path' in payload for writefile");
                                     break;
+                                    // --- 结束修改 ---
                                 case 'sftp:mkdir':
                                      if (payload?.path) sftpService.mkdir(sessionId, payload.path, requestId);
                                      else throw new Error("Missing 'path' in payload for mkdir");

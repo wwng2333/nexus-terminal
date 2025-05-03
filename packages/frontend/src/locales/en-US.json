@@ -333,7 +333,9 @@
     "noOpenFile": "No file open",
     "selectFileToEdit": "Select a file from the file manager to start editing.",
     "searchPlaceholder": "Search files...",
-    "dropFilesHere": "Drop files here to upload"
+    "dropFilesHere": "Drop files here to upload",
+    "changeEncodingTooltip": "Change file encoding",
+    "loadingEncoding": "Loading..."
   },
   "statusMonitor": {
     "title": "Server Status",

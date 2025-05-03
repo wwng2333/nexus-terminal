@@ -2,7 +2,9 @@ import { ref, computed, readonly, watch, nextTick } from 'vue'; // Import nextTi
 import { defineStore } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useSessionStore } from './session.store'; // 导入会话 Store
-import type { EditorFileContent, SaveStatus } from '../types/sftp.types'; // 保持导入 SaveStatus
+import type { SaveStatus, SftpReadFileSuccessPayload } from '../types/sftp.types'; // 移除 SftpReadFileRequestPayload, 因为 readFile 不再需要它
+import * as iconv from '@vscode/iconv-lite-umd'; // +++ 导入 iconv-lite +++
+import { Buffer } from 'buffer/'; // +++ 导入 Buffer (需要安装 buffer 依赖) +++
 
 // --- 类型定义 ---
 // 文件信息，用于打开文件操作
@@ -12,24 +14,23 @@ export interface FileInfo {
 }
 
 // 编辑器标签页状态
+// 编辑器标签页状态 (简化)
 export interface FileTab {
-    id: string; // 唯一标识符，例如 `${sessionId}:${filePath}`
+    id: string;
     sessionId: string;
     filePath: string;
-    filename: string; // 文件名，用于标签显示
-    content: string; // 当前编辑器内容
-    originalContent: string; // 加载或上次保存时的内容
+    filename: string;
+    content: string; // 当前解码后的内容 (前端解码)
+    originalContent: string; // 初始加载或上次保存时解码后的内容 (前端解码)
+    rawContentBase64: string | null; // +++ 新增：存储原始 Base64 数据 +++
     language: string;
-    encoding: 'utf8' | 'base64'; // 原始编码
+    selectedEncoding: string; // 当前选择或自动检测到的编码
     isLoading: boolean;
     loadingError: string | null;
     isSaving: boolean;
     saveStatus: SaveStatus;
     saveError: string | null;
-    isModified: boolean; // 内容是否已修改
-    // 添加 sessionId 以便在共享模式下区分来源 (虽然此 store 主要用于共享模式)
-    // 或者在独立模式下，此 store 可能不被使用或以不同方式使用
-    // sessionId: string; // 暂时不加，因为 session.store 已处理独立模式
+    isModified: boolean;
 }
 
 // --- 辅助函数 (移到外部并导出) ---
@@ -68,6 +69,33 @@ export const getLanguageFromFilename = (filename: string): string => {
 export const getFilenameFromPath = (filePath: string): string => {
     return filePath.split('/').pop() || filePath;
 };
+
+// +++ 新增：前端解码辅助函数 +++
+const decodeRawContent = (rawContentBase64: string, encoding: string): string => {
+    try {
+        const buffer = Buffer.from(rawContentBase64, 'base64');
+        const normalizedEncoding = encoding.toLowerCase().replace(/[^a-z0-9]/g, ''); // Normalize encoding name
+
+        // 优先使用 TextDecoder 处理标准编码
+        if (['utf8', 'utf16le', 'utf16be'].includes(normalizedEncoding)) {
+            const decoder = new TextDecoder(encoding); // Use original encoding name for TextDecoder
+            return decoder.decode(buffer);
+        }
+        // 使用 iconv-lite 处理其他编码
+        else if (iconv.encodingExists(normalizedEncoding)) {
+            return iconv.decode(buffer, normalizedEncoding);
+        }
+        // 如果 iconv-lite 也不支持，回退到 UTF-8 并警告
+        else {
+            console.warn(`[decodeRawContent] Unsupported encoding "${encoding}" requested. Falling back to UTF-8.`);
+            const decoder = new TextDecoder('utf-8');
+            return decoder.decode(buffer);
+        }
+    } catch (error: any) {
+        console.error(`[decodeRawContent] Error decoding content with encoding "${encoding}":`, error);
+        return `// Error decoding content: ${error.message}`; // 返回错误信息
+    }
+};
 // --- End Helper Functions ---
 
 export const useFileEditorStore = defineStore('fileEditor', () => {
@@ -97,6 +125,9 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
             }
         },
     });
+
+    // --- 移除 decodeBase64Content 辅助方法 ---
+
 
     // --- 核心方法 ---
 
@@ -135,23 +166,23 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
             return;
         }
 
-        // 创建新标签页
+        // 创建新标签页 (使用简化后的 FileTab)
         const newTab: FileTab = {
             id: tabId,
             sessionId: sessionId,
             filePath: targetFilePath,
             filename: getFilenameFromPath(targetFilePath),
-            content: '', // 初始为空
-            originalContent: '', // 初始为空
+            content: '', // 将在加载后由前端解码填充
+            originalContent: '', // 将在加载后由前端解码填充
+            rawContentBase64: null, // +++ 初始化为 null +++
             language: getLanguageFromFilename(targetFilePath),
-            encoding: 'utf8', // 默认为 utf8
-            isLoading: true, // 开始加载
+            selectedEncoding: 'utf-8', // 初始默认，将由后端更新
+            isLoading: true,
             loadingError: null,
             isSaving: false,
             saveStatus: 'idle',
             saveError: null,
             isModified: false,
-            // sessionId: sessionId, // 记录来源会话
         };
         tabs.value.set(tabId, newTab);
         // setActiveTab(tabId); // 移除同步激活
@@ -179,51 +210,33 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
 
         // 读取文件内容
         try {
-            const fileData = await sftpManager.readFile(targetFilePath);
-            console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 读取成功。编码: ${fileData.encoding}`);
+            // 调用 sftpManager.readFile 获取原始数据和编码
+            const fileData: SftpReadFileSuccessPayload = await sftpManager.readFile(targetFilePath);
+            console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 原始数据读取成功。后端使用编码: ${fileData.encodingUsed}`);
 
-            let decodedContent = '';
-            let finalEncoding: 'utf8' | 'base64' = 'utf8';
-
-            if (fileData.encoding === 'base64') {
-                finalEncoding = 'base64';
-                try {
-                    const binaryString = atob(fileData.content);
-                    const bytes = new Uint8Array(binaryString.length);
-                    for (let i = 0; i < binaryString.length; i++) {
-                        bytes[i] = binaryString.charCodeAt(i);
-                    }
-                    const decoder = new TextDecoder('utf-8'); // 显式使用 UTF-8
-                    decodedContent = decoder.decode(bytes);
-                    console.log(`[文件编辑器 Store] Base64 文件 ${targetFilePath} 已解码为 UTF-8。`);
-                } catch (decodeError) {
-                    console.error(`[文件编辑器 Store] Base64 或 UTF-8 解码错误 for ${targetFilePath}:`, decodeError);
-                    const errorMsg = t('fileManager.errors.fileDecodeError');
-                    decodedContent = `// ${errorMsg}\n// Original Base64 content:\n${fileData.content}`;
-                    // 更新标签页状态以反映错误
-                    const tabToUpdate = tabs.value.get(tabId);
-                    if (tabToUpdate) {
-                        tabToUpdate.loadingError = errorMsg;
-                    }
-                }
-            } else {
-                finalEncoding = 'utf8';
-                decodedContent = fileData.content;
-                console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 已按 ${finalEncoding} 处理。`);
-                if (decodedContent.includes('\uFFFD')) {
-                    console.warn(`[文件编辑器 Store] 文件 ${targetFilePath} 内容可能包含无效字符，原始编码可能不是 UTF-8。`);
-                }
+            const tabToUpdate = tabs.value.get(tabId);
+            if (!tabToUpdate) {
+                 console.error(`[文件编辑器 Store] 无法更新标签页 ${tabId}，因为它在加载完成前被关闭了。`);
+                 return;
             }
+
+            // +++ 前端解码 +++
+            const initialContent = decodeRawContent(fileData.rawContentBase64, fileData.encodingUsed);
 
             // 更新标签页状态
-            const tabToUpdate = tabs.value.get(tabId);
-            if (tabToUpdate) {
-                tabToUpdate.content = decodedContent;
-                tabToUpdate.originalContent = decodedContent; // 设置初始内容
-                tabToUpdate.encoding = finalEncoding;
-                tabToUpdate.isLoading = false;
-                tabToUpdate.isModified = false; // 初始未修改
-            }
+            const updatedTab: FileTab = {
+                ...tabToUpdate,
+                rawContentBase64: fileData.rawContentBase64, // 存储原始数据
+                content: initialContent,
+                originalContent: initialContent, // 初始原始内容
+                selectedEncoding: fileData.encodingUsed, // 存储后端实际使用的编码
+                isLoading: false,
+                isModified: false,
+                loadingError: null,
+            };
+            tabs.value.set(tabId, updatedTab); // 替换以确保响应性
+
+            console.log(`[文件编辑器 Store] 文件 ${targetFilePath} 内容已解码 (${fileData.encodingUsed}) 并设置到标签页 ${tabId}。`);
 
         } catch (err: any) {
             console.error(`[文件编辑器 Store] 读取文件 ${targetFilePath} 失败:`, err);
@@ -323,10 +336,12 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         tab.saveError = null;
 
         const contentToSave = tab.content;
+        const encodingToUse = tab.selectedEncoding; // 获取选定的编码
 
         try {
-            await sftpManager.writeFile(tab.filePath, contentToSave);
-            console.log(`[文件编辑器 Store] 文件 ${tab.filePath} 保存成功。`);
+            // --- 修改：传递 selectedEncoding 给 writeFile ---
+            await sftpManager.writeFile(tab.filePath, contentToSave, encodingToUse);
+            console.log(`[文件编辑器 Store] 文件 ${tab.filePath} 使用编码 ${encodingToUse} 保存成功。`);
             tab.isSaving = false;
             tab.saveStatus = 'success';
             tab.saveError = null;
@@ -427,6 +442,63 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         }
     };
 
+    // +++ 修改：更改文件编码（通过请求后端重新读取） +++
+    // +++ 修改：changeEncoding 现在在前端解码 +++
+    const changeEncoding = (tabId: string, newEncoding: string) => {
+        const tab = tabs.value.get(tabId);
+        if (!tab) {
+            console.warn(`[文件编辑器 Store] 尝试更改不存在的标签页 ${tabId} 的编码。`);
+            return;
+        }
+        if (!tab.rawContentBase64) {
+            console.error(`[文件编辑器 Store] 无法更改编码：标签页 ${tabId} 没有原始文件数据。`);
+            // 可以设置错误状态
+            tab.loadingError = '缺少原始文件数据，无法更改编码';
+            return;
+        }
+        if (tab.selectedEncoding === newEncoding) {
+            console.log(`[文件编辑器 Store] 编码已经是 ${newEncoding}，无需更改。`);
+            return;
+        }
+
+        console.log(`[文件编辑器 Store] 使用新编码 "${newEncoding}" 在前端重新解码文件: ${tab.filePath} (Tab ID: ${tabId})`);
+
+        // 设置加载状态（可选，解码通常很快，但可以防止 UI 闪烁）
+        // tab.isLoading = true;
+        // tab.loadingError = null;
+
+        try {
+            // 使用新编码解码存储的原始数据
+            const newContent = decodeRawContent(tab.rawContentBase64, newEncoding);
+
+            // 更新标签页状态
+            const updatedTab: FileTab = {
+                ...tab,
+                content: newContent,
+                selectedEncoding: newEncoding, // 更新选择的编码
+                isLoading: false, // 解码完成
+                loadingError: null,
+                // isModified 状态保持不变
+            };
+            tabs.value.set(tabId, updatedTab);
+            console.log(`[文件编辑器 Store] 文件 ${tab.filePath} 使用新编码 "${newEncoding}" 解码完成。`);
+
+        } catch (err: any) { // catch 应该在 decodeRawContent 内部处理了，但以防万一
+            console.error(`[文件编辑器 Store] 使用编码 "${newEncoding}" 在前端解码文件 ${tab.filePath} 失败:`, err);
+            const errorMsg = `前端解码失败 (编码: ${newEncoding}): ${err.message || err}`;
+            // 更新错误状态
+             const errorTab: FileTab = {
+                ...tab,
+                isLoading: false,
+                loadingError: errorMsg,
+            };
+            tabs.value.set(tabId, errorTab);
+        }
+        // finally {
+        //     if (tab) tab.isLoading = false; // 确保加载状态被重置
+        // }
+    };
+
     // 移除旧的 updateContent，因为它只更新活动标签页
     // const updateContent = (newContent: string) => { ... };
 
@@ -487,6 +559,7 @@ export const useFileEditorStore = defineStore('fileEditor', () => {
         closeAllTabs,
         setActiveTab,
         updateFileContent, // 暴露新的更新方法
+        changeEncoding, // +++ 暴露更改编码的方法 +++
         triggerPopup, // 暴露新的触发方法
         // setEditorVisibility, // 移除
     };

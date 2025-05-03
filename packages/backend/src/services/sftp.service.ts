@@ -194,15 +194,15 @@ export class SftpService {
         }
     }
 
-    /** 读取文件内容 */
-    async readFile(sessionId: string, path: string, requestId: string): Promise<void> {
-         const state = this.clientStates.get(sessionId);
-         if (!state || !state.sftp) {
-             console.warn(`[SFTP] SFTP 未准备好，无法在 ${sessionId} 上执行 readFile (ID: ${requestId})`);
-             state?.ws.send(JSON.stringify({ type: 'sftp:readfile:error', path: path, payload: 'SFTP 会话未就绪', requestId: requestId }));
-             return;
-         }
-        console.debug(`[SFTP ${sessionId}] Received readFile request for ${path} (ID: ${requestId})`);
+    /** 读取文件内容 (支持指定编码) */
+    async readFile(sessionId: string, path: string, requestId: string, requestedEncoding?: string): Promise<void> {
+        const state = this.clientStates.get(sessionId);
+        if (!state || !state.sftp) {
+            console.warn(`[SFTP] SFTP 未准备好，无法在 ${sessionId} 上执行 readFile (ID: ${requestId})`);
+            state?.ws.send(JSON.stringify({ type: 'sftp:readfile:error', path: path, payload: 'SFTP 会话未就绪', requestId: requestId }));
+            return;
+        }
+        console.debug(`[SFTP ${sessionId}] Received readFile request for ${path} (ID: ${requestId}, Requested Encoding: ${requestedEncoding ?? 'auto'})`);
         try {
             const readStream = state.sftp.createReadStream(path);
             let fileData = Buffer.alloc(0);
@@ -215,74 +215,122 @@ export class SftpService {
                 state.ws.send(JSON.stringify({ type: 'sftp:readfile:error', path: path, payload: `读取文件流错误: ${err.message}`, requestId: requestId }));
             });
             readStream.on('end', () => {
-                if (!errorOccurred) {
-                    console.log(`[SFTP ${sessionId}] readFile ${path} success, size: ${fileData.length} bytes (ID: ${requestId}). Detecting encoding...`);
-                    let contentUtf8: string;
-                    try {
-                        // 1. Detect encoding
+                if (errorOccurred) return;
+
+                console.log(`[SFTP ${sessionId}] readFile ${path} success, size: ${fileData.length} bytes (ID: ${requestId}). Processing content...`);
+                let encodingUsed: string = 'utf-8'; // Default encoding
+                let decodedContent: string = '';
+                let decodeError: string | null = null;
+
+                try {
+                    if (requestedEncoding) {
+                        // 用户指定了编码
+                        encodingUsed = requestedEncoding;
+                        console.log(`[SFTP ${sessionId}] Using requested encoding: ${encodingUsed} (ID: ${requestId})`);
+                        const normalizedEncoding = encodingUsed.toLowerCase().replace(/[^a-z0-9]/g, ''); // Normalize more aggressively
+                        if (iconv.encodingExists(normalizedEncoding)) {
+                            decodedContent = iconv.decode(fileData, normalizedEncoding);
+                            encodingUsed = normalizedEncoding; // Use the normalized name if valid
+                        } else {
+                            console.warn(`[SFTP ${sessionId}] Requested encoding "${requestedEncoding}" is not supported by iconv-lite. Falling back to UTF-8. (ID: ${requestId})`);
+                            encodingUsed = 'utf-8'; // Fallback
+                            decodedContent = iconv.decode(fileData, encodingUsed);
+                            // Optionally add a warning?
+                        }
+                    } else {
+                        // 自动检测编码
+                        console.log(`[SFTP ${sessionId}] Detecting encoding for ${path} (ID: ${requestId})`);
                         const detection = jschardet.detect(fileData);
-                        const detectedEncoding = detection.encoding.toLowerCase();
-                        const confidence = detection.confidence;
-                        console.log(`[SFTP ${sessionId}] Detected encoding for ${path}: ${detectedEncoding} (confidence: ${confidence})`);
+                        const detectedEncodingRaw = detection.encoding ? detection.encoding.toLowerCase() : 'utf-8'; // Default to utf-8 if detection fails
+                        const confidence = detection.confidence || 0;
+                        console.log(`[SFTP ${sessionId}] Detected encoding: ${detectedEncodingRaw} (confidence: ${confidence})`);
 
-                        // 2. Decode to UTF-8 with improved logic for low confidence and Chinese encodings
-                        const chineseEncodings = ['gbk', 'gb2312', 'gb18030', 'big5', 'euc-tw']; // Common Chinese/Taiwanese encodings
+                        const chineseEncodings = ['gbk', 'gb2312', 'gb18030', 'big5', 'euc-tw'];
+                        let normalizedDetected = detectedEncodingRaw.replace(/[^a-z0-9]/g, '');
+                        if (normalizedDetected === 'windows1252') normalizedDetected = 'cp1252';
+                        else if (normalizedDetected === 'gb2312') normalizedDetected = 'gbk'; // Prefer gbk
 
-                        if (detectedEncoding === 'utf-8' || detectedEncoding === 'ascii') {
-                            contentUtf8 = fileData.toString('utf8');
+                        if (normalizedDetected === 'utf8' || normalizedDetected === 'ascii') {
+                            encodingUsed = 'utf-8';
+                            decodedContent = fileData.toString('utf8');
                             console.log(`[SFTP ${sessionId}] Decoded ${path} as UTF-8/ASCII.`);
-                        } else if (chineseEncodings.includes(detectedEncoding)) {
+                        } else if (chineseEncodings.includes(normalizedDetected)) {
                             // If detected as a common Chinese encoding, trust it and use gb18030 for broader compatibility
-                            contentUtf8 = iconv.decode(fileData, 'gb18030');
-                            console.log(`[SFTP ${sessionId}] Decoded ${path} from detected Chinese encoding (${detectedEncoding}) as gb18030.`);
-                        } else if (confidence < 0.90) { // Low confidence threshold (adjustable, e.g., 0.90 or 0.85)
-                            console.warn(`[SFTP ${sessionId}] Low confidence detection (${detectedEncoding}, ${confidence}) for ${path}. Attempting GB18030 decode first.`);
+                            encodingUsed = 'gb18030'; // Report gb18030 as used
+                            decodedContent = iconv.decode(fileData, encodingUsed);
+                            console.log(`[SFTP ${sessionId}] Decoded ${path} from detected Chinese encoding (${normalizedDetected}) as ${encodingUsed}.`);
+                        } else if (confidence < 0.90) { // Low confidence threshold
+                            console.warn(`[SFTP ${sessionId}] Low confidence detection (${normalizedDetected}, ${confidence}) for ${path}. Attempting GB18030 decode first.`);
                             try {
-                                // Try decoding as GB18030 first for low confidence cases, common for Chinese Windows ANSI
-                                contentUtf8 = iconv.decode(fileData, 'gb18030');
-                                // Basic check for Mojibake (presence of replacement char � U+FFFD)
-                                if (contentUtf8.includes('\uFFFD')) {
-                                     console.warn(`[SFTP ${sessionId}] GB18030 decoding resulted in replacement characters. Falling back to original detection (${detectedEncoding}) or UTF-8.`);
+                                // Try decoding as GB18030 first
+                                const tempContent = iconv.decode(fileData, 'gb18030');
+                                // Basic check for Mojibake
+                                if (tempContent.includes('\uFFFD')) {
+                                     console.warn(`[SFTP ${sessionId}] GB18030 decoding resulted in replacement characters. Falling back to original detection (${normalizedDetected}) or UTF-8.`);
                                      // Fallback: Try the originally detected encoding if supported, otherwise UTF-8
-                                     if (iconv.encodingExists(detectedEncoding)) {
-                                         contentUtf8 = iconv.decode(fileData, detectedEncoding);
-                                         console.log(`[SFTP ${sessionId}] Falling back to decoding ${path} as originally detected ${detectedEncoding}.`);
+                                     if (iconv.encodingExists(normalizedDetected)) {
+                                         encodingUsed = normalizedDetected;
+                                         decodedContent = iconv.decode(fileData, encodingUsed);
+                                         console.log(`[SFTP ${sessionId}] Falling back to decoding ${path} as originally detected ${encodingUsed}.`);
                                      } else {
-                                         contentUtf8 = fileData.toString('utf8');
+                                         encodingUsed = 'utf-8';
+                                         decodedContent = fileData.toString('utf8');
                                          console.log(`[SFTP ${sessionId}] Falling back to decoding ${path} as UTF-8.`);
                                      }
                                 } else {
-                                     console.log(`[SFTP ${sessionId}] Decoded ${path} as GB18030 due to low confidence detection.`);
+                                     encodingUsed = 'gb18030'; // Success with GB18030
+                                     decodedContent = tempContent;
+                                     console.log(`[SFTP ${sessionId}] Decoded ${path} as ${encodingUsed} due to low confidence detection.`);
                                 }
                             } catch (gbkError) {
-                                console.warn(`[SFTP ${sessionId}] Error decoding as GB18030, falling back to original detection (${detectedEncoding}) or UTF-8:`, gbkError);
+                                console.warn(`[SFTP ${sessionId}] Error decoding as GB18030, falling back to original detection (${normalizedDetected}) or UTF-8:`, gbkError);
                                 // Fallback: Try the originally detected encoding if supported, otherwise UTF-8
-                                if (iconv.encodingExists(detectedEncoding)) {
-                                    contentUtf8 = iconv.decode(fileData, detectedEncoding);
-                                    console.log(`[SFTP ${sessionId}] Falling back to decoding ${path} as originally detected ${detectedEncoding}.`);
+                                if (iconv.encodingExists(normalizedDetected)) {
+                                    encodingUsed = normalizedDetected;
+                                    decodedContent = iconv.decode(fileData, encodingUsed);
+                                    console.log(`[SFTP ${sessionId}] Falling back to decoding ${path} as originally detected ${encodingUsed}.`);
                                 } else {
-                                    contentUtf8 = fileData.toString('utf8');
+                                    encodingUsed = 'utf-8';
+                                    decodedContent = fileData.toString('utf8');
                                     console.log(`[SFTP ${sessionId}] Falling back to decoding ${path} as UTF-8.`);
                                 }
                             }
-                        } else if (iconv.encodingExists(detectedEncoding)) {
+                        } else if (iconv.encodingExists(normalizedDetected)) {
                             // Higher confidence, non-Chinese, supported encoding
-                            contentUtf8 = iconv.decode(fileData, detectedEncoding);
-                            console.log(`[SFTP ${sessionId}] Decoded ${path} from ${detectedEncoding} to UTF-8 using iconv-lite (high confidence).`);
+                            encodingUsed = normalizedDetected;
+                            decodedContent = iconv.decode(fileData, encodingUsed);
+                            console.log(`[SFTP ${sessionId}] Decoded ${path} from ${encodingUsed} using iconv-lite (high confidence).`);
                         } else {
-                            console.warn(`[SFTP ${sessionId}] Unsupported or unknown encoding detected for ${path}: ${detectedEncoding}. Falling back to UTF-8.`);
-                            contentUtf8 = fileData.toString('utf8'); // Final fallback
+                            console.warn(`[SFTP ${sessionId}] Unsupported or unknown encoding detected for ${path}: ${normalizedDetected}. Falling back to UTF-8.`);
+                            encodingUsed = 'utf-8'; // Final fallback
+                            decodedContent = fileData.toString('utf8');
                         }
-                    } catch (decodeError: any) {
-                         console.error(`[SFTP ${sessionId}] Error detecting/decoding file ${path} (ID: ${requestId}):`, decodeError);
-                         // Send error if decoding fails
-                         state.ws.send(JSON.stringify({ type: 'sftp:readfile:error', path: path, payload: `文件编码检测或转换失败: ${decodeError.message}`, requestId: requestId }));
-                         return; // Stop further processing
                     }
 
-                    // 3. Send UTF-8 content to frontend
-                    state.ws.send(JSON.stringify({ type: 'sftp:readfile:success', path: path, payload: { content: contentUtf8 }, requestId: requestId })); // Send UTF-8 string directly
+                    // Final check for replacement characters after deciding the encoding
+                    if (decodedContent.includes('\uFFFD')) {
+                         console.warn(`[SFTP ${sessionId}] Final decoded content for ${path} (using ${encodingUsed}) contains replacement characters (U+FFFD). Decoding might be incorrect. (ID: ${requestId})`);
+                         // decodeError = `解码内容可能不正确 (使用 ${encodingUsed})，检测到无效字符。`; // Optionally set error
+                    }
+
+                } catch (err: any) {
+                    console.error(`[SFTP ${sessionId}] Error detecting/decoding file content for ${path} (ID: ${requestId}):`, err);
+                    decodeError = `文件编码检测或转换失败: ${err.message}`;
+                    state.ws.send(JSON.stringify({ type: 'sftp:readfile:error', path: path, payload: decodeError, requestId: requestId }));
+                    return; // Stop processing
                 }
+
+                // 发送 Base64 编码的原始数据和实际使用的编码
+                console.log(`[SFTP ${sessionId}] Sending raw content (Base64) and encoding used (${encodingUsed}) for ${path} (ID: ${requestId})`);
+                state.ws.send(JSON.stringify({
+                    type: 'sftp:readfile:success',
+                    path: path,
+                    payload: {
+                        rawContentBase64: fileData.toString('base64'), // 发送 Base64 字符串
+                        encodingUsed: encodingUsed // 发送实际使用的编码
+                    },
+                    requestId: requestId
+                }));
             });
         } catch (error: any) {
              console.error(`[SFTP ${sessionId}] readFile ${path} caught unexpected error (ID: ${requestId}):`, error);
@@ -290,17 +338,30 @@ export class SftpService {
         }
     }
 
-    /** 写入文件内容 */
-    async writefile(sessionId: string, path: string, data: string, requestId: string): Promise<void> {
+    /** 写入文件内容 (支持指定编码) */
+    // --- 修改：添加 encoding 参数 ---
+    async writefile(sessionId: string, path: string, data: string, requestId: string, encoding?: string): Promise<void> {
          const state = this.clientStates.get(sessionId);
          if (!state || !state.sftp) {
              console.warn(`[SFTP] SFTP 未准备好，无法在 ${sessionId} 上执行 writefile (ID: ${requestId})`);
              state?.ws.send(JSON.stringify({ type: 'sftp:writefile:error', path: path, payload: 'SFTP 会话未就绪', requestId: requestId }));
              return;
          }
-        console.debug(`[SFTP ${sessionId}] Received writefile request for ${path} (ID: ${requestId})`);
+        // --- 修改：使用传入的 encoding 或默认 utf-8 ---
+        const targetEncoding = encoding || 'utf-8';
+        console.debug(`[SFTP ${sessionId}] Received writefile request for ${path} (ID: ${requestId}, Encoding: ${targetEncoding})`);
         try {
-            const buffer = Buffer.from(data, 'utf8');
+            // --- 修改：使用 iconv-lite 根据指定编码创建 Buffer ---
+            let buffer: Buffer;
+            try {
+                buffer = iconv.encode(data, targetEncoding);
+                console.log(`[SFTP ${sessionId}] Encoded content for ${path} using ${targetEncoding} (Buffer size: ${buffer.length})`);
+            } catch (encodeError: any) {
+                 console.error(`[SFTP ${sessionId}] Failed to encode content for ${path} with encoding ${targetEncoding} (ID: ${requestId}):`, encodeError);
+                 state.ws.send(JSON.stringify({ type: 'sftp:writefile:error', path: path, payload: `无效的编码或编码失败: ${targetEncoding}`, requestId: requestId }));
+                 return;
+            }
+
             console.debug(`[SFTP ${sessionId}] Creating write stream for ${path} (ID: ${requestId})`);
             const writeStream = state.sftp.createWriteStream(path);
             let errorOccurred = false;

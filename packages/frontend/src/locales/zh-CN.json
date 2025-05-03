@@ -333,7 +333,9 @@
     "noOpenFile": "未打开文件",
     "selectFileToEdit": "请从文件管理器中选择文件以开始编辑。",
     "searchPlaceholder": "搜索文件...",
-    "dropFilesHere": "将文件拖拽到此处上传"
+    "dropFilesHere": "将文件拖拽到此处上传",
+    "changeEncodingTooltip": "更改文件编码",
+    "loadingEncoding": "加载中..."
   },
   "statusMonitor": {
     "title": "服务器状态",

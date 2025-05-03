@@ -65,6 +65,7 @@ const emit = defineEmits({
   'find-previous': null, // ()
   'close-search': null, // ()
   'clear-terminal': null, // () +++ 添加 clear-terminal 事件 +++
+  'change-encoding': null, // +++ 添加 change-encoding 事件 +++
   // --- 移除 RDP 事件 ---
 });
  
@@ -203,6 +204,8 @@ const componentProps = computed(() => {
         onActivateTab: (tabId: string) => emit('activateEditorTab', tabId),
         'onUpdate:content': (payload: { tabId: string; content: string }) => emit('updateEditorContent', payload), // 注意事件名
         onRequestSave: (tabId: string) => emit('saveEditorTab', tabId),
+        // +++ 添加：转发 change-encoding 事件 +++
+        onChangeEncoding: (payload: { tabId: string; encoding: string }) => emit('change-encoding', payload),
       };
     case 'commandBar':
        // CommandInputBar 需要转发 send-command 事件
@@ -510,6 +513,7 @@ onMounted(() => {
                         @find-previous="emit('find-previous')"
                         @close-search="emit('close-search')"
                         @clear-terminal="() => emit('clear-terminal')"
+                        @change-encoding="emit('change-encoding', $event)"
                         class="flex-grow overflow-auto"
                     />
                   </pane>
