@@ -284,7 +284,12 @@ const isElementVisibleAndFocusable = (element: HTMLElement): boolean => {
     </header>
 
     <main>
-      <RouterView /> <!-- 路由对应的组件将在这里渲染 -->
+      <!-- 使用 KeepAlive 包裹 RouterView，并指定缓存 WorkspaceView -->
+      <RouterView v-slot="{ Component }">
+        <KeepAlive include="WorkspaceView">
+          <component :is="Component" />
+        </KeepAlive>
+      </RouterView>
     </main>
 
     <!-- 添加全局通知显示 -->
