@@ -375,7 +375,8 @@
     "category": {
       "security": "Security Settings",
       "appearance": "Appearance Settings",
-      "system": "System Settings"
+      "system": "System Settings",
+      "about": "About"
     },
     
       "timezone": {
@@ -686,6 +687,9 @@
       "error": {
         "saveFailed": "Failed to save sync target."
       }
+    },
+    "about": {
+      "version": "Version"
     }
   },
 "notificationController": {

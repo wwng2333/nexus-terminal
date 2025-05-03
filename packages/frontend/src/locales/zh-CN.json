@@ -375,7 +375,8 @@
     "category": {
       "security": "安全设置",
       "appearance": "外观设置",
-      "system": "系统设置"
+      "system": "系统设置",
+      "about": "关于"
     },
     "timezone": {
       "title": "时区设置",
@@ -687,6 +688,9 @@
         "saveFailed": "保存同步目标失败。"
       }
 
+    },
+    "about": {
+      "version": "版本"
     }
 },
 "notificationController": {
