@@ -17,6 +17,7 @@ interface ConnectionBase {
     updated_at: number;
     last_connected_at: number | null;
     ssh_key_id?: number | null; // +++ Add ssh_key_id here as well +++
+notes?: string | null; // 新增备注字段
 }
 
 // ConnectionWithTagsRow implicitly includes 'type' and 'ssh_key_id' via ConnectionBase
@@ -35,6 +36,7 @@ export interface FullConnectionData extends ConnectionBase {
     encrypted_password?: string | null;
     encrypted_private_key?: string | null;
     encrypted_passphrase?: string | null;
+notes?: string | null; // 新增备注字段
     tag_ids?: number[];
 }
 
@@ -61,7 +63,7 @@ interface FullConnectionDbRow extends FullConnectionData {
 export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]> => {
     const sql = `
         SELECT
-            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.ssh_key_id, -- +++ Select ssh_key_id +++
+            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.ssh_key_id, c.notes, -- +++ Select ssh_key_id and notes +++
             c.created_at, c.updated_at, c.last_connected_at,
             GROUP_CONCAT(ct.tag_id) as tag_ids_str
          FROM connections c
@@ -87,7 +89,7 @@ export const findAllConnectionsWithTags = async (): Promise<ConnectionWithTags[]
 export const findConnectionByIdWithTags = async (id: number): Promise<ConnectionWithTags | null> => {
     const sql = `
         SELECT
-            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.ssh_key_id, -- +++ Select ssh_key_id +++
+            c.id, c.name, c.type, c.host, c.port, c.username, c.auth_method, c.proxy_id, c.ssh_key_id, c.notes, -- +++ Select ssh_key_id and notes +++
             c.created_at, c.updated_at, c.last_connected_at,
             GROUP_CONCAT(ct.tag_id) as tag_ids_str
          FROM connections c
@@ -140,7 +142,7 @@ export const findFullConnectionById = async (id: number): Promise<FullConnection
   * 根据名称查找连接 (用于检查名称是否重复)
   */
  export const findConnectionByName = async (name: string): Promise<ConnectionBase | null> => {
-     const sql = `SELECT id, name, type, host, port, username, auth_method, proxy_id, ssh_key_id, created_at, updated_at, last_connected_at FROM connections WHERE name = ?`;
+     const sql = `SELECT id, name, type, host, port, username, auth_method, proxy_id, ssh_key_id, notes, created_at, updated_at, last_connected_at FROM connections WHERE name = ?`;
      try {
          const db = await getDbInstance();
          const row = await getDbRow<ConnectionBase>(db, sql, [name]);
@@ -154,13 +156,13 @@ export const findFullConnectionById = async (id: number): Promise<FullConnection
  
  /**
   * 创建新连接 (不处理标签)
- */
+  */
 // Update input type to reflect FullConnectionData now has 'type'
 export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at' | 'tag_ids'>): Promise<number> => {
     const now = Math.floor(Date.now() / 1000);
     const sql = `
-        INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, ssh_key_id, created_at, updated_at) -- +++ Add ssh_key_id column +++
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // +++ Add placeholder for ssh_key_id +++
+        INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, ssh_key_id, notes, created_at, updated_at) -- +++ Add ssh_key_id and notes columns +++
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // +++ Add placeholders for ssh_key_id and notes +++
     const params = [
         data.name ?? null,
         data.type, // Add type parameter
@@ -168,6 +170,7 @@ export const createConnection = async (data: Omit<FullConnectionData, 'id' | 'cr
         data.encrypted_password ?? null, data.encrypted_private_key ?? null, data.encrypted_passphrase ?? null,
         data.proxy_id ?? null,
         data.ssh_key_id ?? null, // +++ Add ssh_key_id parameter +++
+data.notes ?? null, // Add notes parameter
         now, now
     ];
     try {
@@ -345,7 +348,7 @@ export const bulkInsertConnections = async (
     connections: Array<Omit<FullConnectionData, 'id' | 'created_at' | 'updated_at' | 'last_connected_at'> & { tag_ids?: number[] }>
 ): Promise<{ connectionId: number, originalData: any }[]> => {
 
-    const insertConnSql = `INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // Add type column and placeholder
+    const insertConnSql = `INSERT INTO connections (name, type, host, port, username, auth_method, encrypted_password, encrypted_private_key, encrypted_passphrase, proxy_id, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`; // Add type and notes columns and placeholders
     const results: { connectionId: number, originalData: any }[] = [];
     const now = Math.floor(Date.now() / 1000);
 
@@ -356,6 +359,7 @@ export const bulkInsertConnections = async (
             connData.encrypted_private_key || null,
             connData.encrypted_passphrase || null,
             connData.proxy_id || null,
+connData.notes || null, // Add notes parameter
             now, now
         ];
         try {

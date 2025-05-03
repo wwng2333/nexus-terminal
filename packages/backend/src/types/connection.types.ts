@@ -12,6 +12,7 @@ export interface ConnectionBase {
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;
+notes?: string | null; // 新增备注字段
 }
 
 export interface ConnectionWithTags extends ConnectionBase {
@@ -32,6 +33,7 @@ export interface CreateConnectionInput {
     ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_id?: number | null;
     tag_ids?: number[];
+notes?: string | null; // 新增备注字段
 }
 
 
@@ -47,6 +49,7 @@ export interface UpdateConnectionInput {
     passphrase?: string;
     ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_id?: number | null;
+notes?: string | null; // 新增备注字段
     tag_ids?: number[];
 }
 
@@ -65,6 +68,7 @@ export interface FullConnectionData {
     ssh_key_id?: number | null; // +++ Add ssh_key_id +++
     proxy_id: number | null;
     created_at: number;
+notes: string | null; // 新增备注字段 (数据库原始字段)
     updated_at: number;
     last_connected_at: number | null;
 }

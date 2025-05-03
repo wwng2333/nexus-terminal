@@ -136,6 +136,8 @@
             "sectionAuth": "認証情報",
             "sectionBasic": "基本情報",
             "tags": "タグ:",
+            "notes": "備考：",
+"notesPlaceholder": "接続に関する備考を入力してください...",
             "testConnection": "接続をテスト",
             "testing": "テスト中...",
             "title": "新しい接続を追加",

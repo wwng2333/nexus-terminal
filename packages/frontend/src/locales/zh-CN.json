@@ -160,6 +160,8 @@
       "proxy": "代理:",
       "noProxy": "无代理",
       "tags": "标签:",
+"notes": "备注:",
+      "notesPlaceholder": "输入连接备注...",
 "connectionType": "连接类型",
       "typeSsh": "SSH",
       "typeRdp": "RDP",

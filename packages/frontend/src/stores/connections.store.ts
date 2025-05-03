@@ -16,6 +16,7 @@ export interface ConnectionInfo {
     created_at: number;
     updated_at: number;
     last_connected_at: number | null;
+notes?: string | null; // 新增备注字段
 }
 
 // 定义 Store State 的接口

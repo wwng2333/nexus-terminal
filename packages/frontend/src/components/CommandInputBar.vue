@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed } from 'vue';
+import { ref, watch, nextTick, onMounted, onBeforeUnmount, defineExpose, computed, defineOptions } from 'vue'; // Import defineOptions
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import { useSessionStore } from '../stores/session.store'; // +++ 导入 Session Store +++
@@ -8,6 +8,9 @@ import { useSettingsStore } from '../stores/settings.store';
 import { useQuickCommandsStore } from '../stores/quickCommands.store';
 import { useCommandHistoryStore } from '../stores/commandHistory.store';
 import QuickCommandsModal from './QuickCommandsModal.vue'; // +++ Import the modal component +++
+
+// Disable attribute inheritance as this component has multiple root nodes (div + modal)
+defineOptions({ inheritAttrs: false });
 
 const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search', 'clear-terminal']); // 添加 clear-terminal 事件
 const { t } = useI18n();
@@ -267,7 +270,7 @@ const handleQuickCommandExecute = (command: string) => {
 </script>
 
 <template>
-  <div class="flex items-center px-2 py-1.5 bg-background gap-2">
+  <div :class="$attrs.class" class="flex items-center px-2 py-1.5 bg-background gap-2"> <!-- Bind $attrs.class -->
     <div class="flex-grow flex items-center bg-transparent relative gap-2">
       <!-- Clear Terminal Button -->
       <button

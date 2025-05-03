@@ -42,6 +42,7 @@ const initialFormData = {
   selected_ssh_key_id: null as number | null, // +++ Add field for selected key ID +++
   proxy_id: null as number | null,
   tag_ids: [] as number[], // 新增 tag_ids 字段
+notes: '', // 新增备注字段
   // Add RDP specific fields later if needed, e.g., domain
 };
 const formData = reactive({ ...initialFormData });
@@ -85,6 +86,7 @@ watch(() => props.connectionToEdit, (newVal) => {
         formData.username = newVal.username;
         formData.auth_method = newVal.auth_method;
         formData.proxy_id = newVal.proxy_id ?? null;
+formData.notes = newVal.notes ?? ''; // 填充备注
        formData.tag_ids = newVal.tag_ids ? [...newVal.tag_ids] : []; // 填充 tag_ids (深拷贝)
 
        // +++ 填充 selected_ssh_key_id (如果认证方式是 key) +++
@@ -104,6 +106,7 @@ watch(() => props.connectionToEdit, (newVal) => {
        Object.assign(formData, initialFormData);
        formData.tag_ids = []; // 确保 tag_ids 也被重置为空数组
        formData.selected_ssh_key_id = null; // 确保添加模式下也重置
+formData.notes = ''; // 重置备注
     }
 }, { immediate: true });
 
@@ -202,6 +205,7 @@ const handleSubmit = async () => {
       name: formData.name,
       host: formData.host,
       port: formData.port,
+notes: formData.notes, // 添加备注
       username: formData.username,
       proxy_id: formData.proxy_id || null,
       tag_ids: formData.tag_ids || [], // 发送 tag_ids
@@ -527,6 +531,13 @@ const testButtonText = computed(() => {
              />
              <div v-if="isTagLoading" class="mt-1 text-xs text-text-secondary">{{ t('tags.loading') }}</div>
              <div v-if="tagStoreError" class="mt-1 text-xs text-error">{{ t('tags.error', { error: tagStoreError }) }}</div>
+           </div>
+           <!-- Notes Section -->
+           <div>
+             <label for="conn-notes" class="block text-sm font-medium text-text-secondary mb-1">{{ t('connections.form.notes', '备注') }}</label>
+             <textarea id="conn-notes" v-model="formData.notes" rows="3"
+                       class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                       :placeholder="t('connections.form.notesPlaceholder', '输入连接备注...')"></textarea>
            </div>
          </div>
 

@@ -130,6 +130,7 @@ export const createConnection = async (input: CreateConnectionInput): Promise<Co
         encrypted_private_key: encryptedPrivateKey, // Null if using ssh_key_id or RDP
         encrypted_passphrase: encryptedPassphrase, // Null if using ssh_key_id or RDP
         ssh_key_id: sshKeyIdToSave, // +++ Add ssh_key_id +++
+notes: input.notes ?? null, // Add notes field
         proxy_id: input.proxy_id ?? null,
     };
     // Remove ssh_key_id property if it's null before logging/saving if repository expects exact type match without optional nulls
@@ -186,6 +187,7 @@ export const updateConnection = async (id: number, input: UpdateConnectionInput)
     if (input.host !== undefined) dataToUpdate.host = input.host;
     if (input.port !== undefined) dataToUpdate.port = input.port;
     if (input.username !== undefined) dataToUpdate.username = input.username;
+if (input.notes !== undefined) dataToUpdate.notes = input.notes; // Add notes update
     if (input.proxy_id !== undefined) dataToUpdate.proxy_id = input.proxy_id;
     // Handle ssh_key_id update (can be set to null or a new ID)
     if (input.ssh_key_id !== undefined) dataToUpdate.ssh_key_id = input.ssh_key_id;

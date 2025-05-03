@@ -107,6 +107,20 @@ const definedMigrations: Migration[] = [
             );
         `
     }
+,
+{
+        id: 4,
+        name: 'Add notes column to connections table',
+        check: async (db: Database): Promise<boolean> => {
+            const notesColumnExists = await columnExists(db, 'connections', 'notes');
+            // Only run if the column does NOT exist
+            return !notesColumnExists;
+        },
+        sql: `
+            -- Add the notes column to the connections table, allowing NULL values
+            ALTER TABLE connections ADD COLUMN notes TEXT NULL;
+        `
+    },
     // --- 未来可以添加更多迁移 ---
 ];
 

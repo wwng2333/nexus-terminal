@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS connections (
     encrypted_passphrase TEXT NULL,
     proxy_id INTEGER NULL,
     ssh_key_id INTEGER NULL, -- 新增 ssh_key_id 列
+notes TEXT NULL,
     created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
     last_connected_at INTEGER NULL,

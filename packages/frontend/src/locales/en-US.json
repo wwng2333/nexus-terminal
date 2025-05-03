@@ -160,6 +160,8 @@
       "proxy": "Proxy:",
       "noProxy": "No Proxy",
       "tags": "Tags:",
+"notes": "Notes:",
+      "notesPlaceholder": "Enter connection notes...",
 "connectionType": "Connection Type:",
       "typeSsh": "SSH",
       "typeRdp": "RDP",
