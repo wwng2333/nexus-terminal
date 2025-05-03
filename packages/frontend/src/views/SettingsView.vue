@@ -1269,15 +1269,23 @@ const handleUpdateCaptchaSettings = async () => {
     captchaMessage.value = '';
     captchaSuccess.value = false;
     try {
-        // Prepare DTO, ensuring keys are present even if empty
+        // Prepare DTO, only sending secret keys if they have been entered
         const dto: UpdateCaptchaSettingsDto = {
             enabled: captchaForm.enabled,
             provider: captchaForm.provider,
+            // Site keys are not sensitive, send them if present
             hcaptchaSiteKey: captchaForm.hcaptchaSiteKey || '',
-            hcaptchaSecretKey: captchaForm.hcaptchaSecretKey || '', // Send secret key
             recaptchaSiteKey: captchaForm.recaptchaSiteKey || '',
-            recaptchaSecretKey: captchaForm.recaptchaSecretKey || '', // Send secret key
         };
+
+        // Only include secret keys in the DTO if the user entered a value
+        if (captchaForm.hcaptchaSecretKey) {
+            dto.hcaptchaSecretKey = captchaForm.hcaptchaSecretKey;
+        }
+        if (captchaForm.recaptchaSecretKey) {
+            dto.recaptchaSecretKey = captchaForm.recaptchaSecretKey;
+        }
+
         await settingsStore.updateCaptchaSettings(dto);
         captchaMessage.value = t('settings.captcha.success.saved'); // Need translation
         captchaSuccess.value = true;
