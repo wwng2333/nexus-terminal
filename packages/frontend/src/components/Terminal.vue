@@ -344,7 +344,25 @@ onMounted(() => {
             }
         });
     }
-    // --- 结束添加复制粘贴 ---
+
+
+    // --- 添加右键粘贴功能 ---
+    if (terminalRef.value) {
+      terminalRef.value.addEventListener('contextmenu', async (event: MouseEvent) => {
+        event.preventDefault(); // 阻止默认右键菜单
+        try {
+          const text = await navigator.clipboard.readText();
+          if (text && terminal) {
+            // 将粘贴的文本发送到后端
+            emit('data', text);
+            console.log('[Terminal] Pasted via Right Click');
+          }
+        } catch (err) {
+          console.error('[Terminal] Failed to paste via Right Click:', err);
+        }
+      });
+    }
+
 
     // 重新添加鼠标滚轮缩放功能
     if (terminalRef.value) {
@@ -412,6 +430,10 @@ onBeforeUnmount(() => {
   // 在卸载前清理选择监听器
   if (selectionListenerDisposable) {
       selectionListenerDisposable.dispose();
+  }
+
+  if (terminalRef.value) {
+
   }
 });
 
