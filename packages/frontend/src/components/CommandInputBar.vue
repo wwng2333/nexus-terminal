@@ -278,8 +278,8 @@ const handleQuickCommandExecute = (command: string) => {
 </script>
 
 <template>
-  <div :class="$attrs.class" class="flex items-center px-2 py-1.5 bg-background gap-2"> <!-- Bind $attrs.class -->
-    <div class="flex-grow flex items-center bg-transparent relative gap-2">
+  <div :class="$attrs.class" class="flex items-center px-2 py-1.5 bg-background gap-1"> <!-- Bind $attrs.class -->
+    <div class="flex-grow flex items-center bg-transparent relative gap-1">
       <!-- Clear Terminal Button -->
       <button
         @click="emit('clear-terminal')"
