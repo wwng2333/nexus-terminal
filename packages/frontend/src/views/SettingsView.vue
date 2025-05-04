@@ -301,7 +301,7 @@
            <div class="bg-background border border-border rounded-lg shadow-sm overflow-hidden">
              <h2 class="text-lg font-semibold text-foreground px-6 py-4 border-b border-border bg-header/50">{{ $t('settings.category.about') }}</h2>
              <div class="p-6 space-y-4"> <!-- Reduced space-y for tighter layout -->
-                <div class="flex items-center space-x-4 text-sm text-text-secondary"> <!-- Flex container for info items -->
+                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-text-secondary"> <!-- Flex container for info items, allow wrap -->
                    <span class="font-medium">{{ $t('settings.about.version') }}: {{ appVersion }}</span>
                    <!-- Version Check Status -->
                    <span v-if="isCheckingVersion" class="inline-block text-xs ml-2 px-2 py-0.5 rounded-full bg-blue-500 text-white italic">
