@@ -1173,7 +1173,8 @@ connectionName: connInfo?.name || 'Unknown', // 添加连接名称 (使用可选
                             console.error(`WebSocket: 收到来自 ${ws.username} (会话: ${sessionId}) 的 ${type} 请求，但缺少 uploadId, chunkIndex 或 data。`);
                             return;
                         }
-                        sftpService.handleUploadChunk(sessionId, payload.uploadId, payload.chunkIndex, payload.data);
+                        // --- FIX: Add await for async backpressure handling ---
+                        await sftpService.handleUploadChunk(sessionId, payload.uploadId, payload.chunkIndex, payload.data);
                         break;
                     }
                     case 'sftp:upload:cancel': {

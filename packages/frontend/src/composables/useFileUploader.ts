@@ -52,6 +52,7 @@ export function useFileUploader(
         const reader = new FileReader();
         let offset = startByte;
         let chunkIndex = 0; // Initialize chunk index counter
+        let currentChunkSize = 0; // Store the size of the chunk being processed
 
         reader.onload = (e) => {
             const currentUpload = uploads[uploadId];
@@ -72,8 +73,8 @@ export function useFileUploader(
                     payload: { uploadId, chunkIndex: chunkIndex++, data: chunkBase64, isLast } // Add and increment chunkIndex
                 });
 
-                // 注意：直接使用 base64 长度估算字节大小并不完全准确，但对于进度条来说足够了
-                offset += chunkBase64.length * 3 / 4;
+                // --- FIX: Update offset based on the actual chunk size that was read ---
+                offset += currentChunkSize; // Use the stored size of the slice
                 currentUpload.progress = Math.min(100, Math.round((offset / file.size) * 100));
 
                 if (!isLast) {
@@ -105,6 +106,7 @@ export function useFileUploader(
             // 读取下一个块之前再次检查状态
             if (offset < file.size && uploads[uploadId]?.status === 'uploading') {
                 const slice = file.slice(offset, offset + chunkSize);
+                currentChunkSize = slice.size; // Store the actual size of the slice being read
                 reader.readAsDataURL(slice);
             }
         };
