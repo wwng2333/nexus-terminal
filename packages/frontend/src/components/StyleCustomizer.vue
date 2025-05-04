@@ -884,17 +884,17 @@ const handleFocusAndSelect = (event: FocusEvent) => {
 
 <template>
   <div class="fixed inset-0 bg-black/60 flex justify-center items-center z-[1000]" @click.self="closeCustomizer">
-    <div class="bg-background text-foreground rounded-lg shadow-lg w-[95%] sm:w-[90%] max-w-full sm:max-w-[800px] h-auto max-h-[90vh] sm:max-h-[700px] flex flex-col overflow-hidden"> <!-- Adjusted width, max-width, height -->
+    <div class="bg-background text-foreground rounded-lg shadow-lg w-[90%] max-w-[800px] h-[85vh] max-h-[700px] flex flex-col overflow-hidden">
       <header class="flex justify-between items-center px-4 py-3 border-b border-border bg-header flex-shrink-0">
         <h2 class="m-0 text-xl text-foreground">{{ t('styleCustomizer.title') }}</h2>
         <button @click="closeCustomizer" class="bg-transparent border-none text-3xl leading-none cursor-pointer text-text-secondary px-2 py-1 rounded hover:text-foreground hover:bg-black/10">&times;</button>
       </header>
-      <div class="flex flex-col md:flex-row flex-grow overflow-hidden"> <!-- Changed to flex-col on mobile -->
-        <nav class="w-full md:w-[180px] border-b md:border-b-0 md:border-r border-border p-2 md:p-4 bg-header flex-shrink-0 flex flex-wrap justify-center md:block overflow-x-auto md:overflow-y-auto"> <!-- Mobile: top nav, horizontal scroll -->
+      <div class="flex flex-grow overflow-hidden">
+        <nav class="w-[180px] border-r border-border p-4 bg-header flex-shrink-0 overflow-y-auto">
           <button
             @click="currentTab = 'ui'"
             :class="[
-              'block md:w-full px-3 py-2 md:py-[0.7rem] m-1 md:mb-2 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary whitespace-nowrap', // Adjusted padding, margin, text size, alignment for mobile
+              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'ui' } /* Added !important */
             ]"
           >
@@ -903,7 +903,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
           <button
             @click="currentTab = 'terminal'"
             :class="[
-              'block md:w-full px-3 py-2 md:py-[0.7rem] m-1 md:mb-2 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary whitespace-nowrap', // Adjusted padding, margin, text size, alignment for mobile
+              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'terminal' && !isEditingTheme } /* Added !important */
             ]"
             :disabled="isEditingTheme"
@@ -913,7 +913,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
            <button
             @click="currentTab = 'background'"
             :class="[
-              'block md:w-full px-3 py-2 md:py-[0.7rem] m-1 md:mb-2 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary whitespace-nowrap', // Adjusted padding, margin, text size, alignment for mobile
+              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'background' } /* Added !important */
             ]"
             :disabled="isEditingTheme"
@@ -923,7 +923,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
           <button
             @click="currentTab = 'other'"
             :class="[
-              'block md:w-full px-3 py-2 md:py-[0.7rem] m-1 md:mb-2 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary whitespace-nowrap', // Adjusted padding, margin, text size, alignment for mobile
+              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'other' } /* Added !important */
             ]"
             :disabled="isEditingTheme"
@@ -931,11 +931,11 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             {{ t('styleCustomizer.otherSettings') }} <!-- 需要添加翻译 -->
           </button>
         </nav>
-        <main class="flex-grow p-3 md:p-4 md:px-6 overflow-y-auto"> <!-- Adjusted padding for mobile -->
+        <main class="flex-grow p-4 md:px-6 overflow-y-auto">
           <section v-if="currentTab === 'ui'">
             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.uiStyles') }}</h3>
             <!-- 新增：主题模式选择 -->
-            <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr] items-center gap-x-3 gap-y-2 mb-6"> <!-- Stack on mobile -->
+            <div class="grid grid-cols-[auto_1fr] items-center gap-3 mb-6">
                 <label class="text-left text-foreground text-sm font-medium">{{ t('styleCustomizer.themeModeLabel', '主题模式:') }}</label> <!-- TODO: 添加翻译 -->
                 <div class="flex gap-2 justify-start">
                     <button @click="handleResetUiTheme" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap">{{ t('styleCustomizer.defaultMode', '默认模式') }}</button> <!-- TODO: 添加翻译 -->
@@ -944,10 +944,10 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             </div>
             <p class="text-text-secondary text-sm leading-relaxed mb-3">{{ t('styleCustomizer.uiDescription') }}</p>
             <!-- 动态生成 UI 样式编辑控件 -->
-            <div v-for="(value, key) in editableUiTheme" :key="key" class="grid grid-cols-1 sm:grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 mb-3"> <!-- Stack on mobile -->
-              <label :for="`ui-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full sm:w-auto">{{ formatLabel(key) }}:</label> <!-- Allow label to take full width on mobile -->
+            <div v-for="(value, key) in editableUiTheme" :key="key" class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 mb-3">
+              <label :for="`ui-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ formatLabel(key) }}:</label>
               <!-- Container for color picker and text display -->
-              <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full"> <!-- Stack color picker/input vertically on mobile -->
+              <div class="flex items-center gap-2 w-full">
                 <!-- Color Picker -->
                 <input
                   v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
@@ -961,7 +961,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                   v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
                   type="text"
                   :value="editableUiTheme[key]"
-                  class="flex-grow min-w-[80px] bg-background cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full sm:w-auto box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                  class="flex-grow min-w-[80px] bg-background cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   @focus="handleFocusAndSelect"
                   @input="editableUiTheme[key] = ($event.target as HTMLInputElement).value"
                 />
@@ -996,18 +996,18 @@ const handleFocusAndSelect = (event: FocusEvent) => {
           <section v-if="currentTab === 'terminal' && !isEditingTheme">
             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.terminalStyles') }}</h3>
             <!-- 终端字体设置 -->
-            <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 mb-3"> <!-- Stack on mobile -->
+            <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 mb-3">
                 <label for="terminalFontFamily" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.terminalFontFamily') }}:</label>
-                <input type="text" id="terminalFontFamily" v-model="editableTerminalFontFamily" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full sm:w-auto box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" :placeholder="t('styleCustomizer.terminalFontPlaceholder')"/> <!-- Allow full width on mobile -->
-                <button @click="handleSaveTerminalFont" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start sm:justify-self-auto">{{ t('common.save') }}</button> <!-- Adjust button alignment -->
+                <input type="text" id="terminalFontFamily" v-model="editableTerminalFontFamily" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" :placeholder="t('styleCustomizer.terminalFontPlaceholder')"/>
+                <button @click="handleSaveTerminalFont" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start">{{ t('common.save') }}</button> <!-- Applied inline button styles -->
             </div>
             <p class="text-xs text-text-secondary -mt-1 mb-2">{{ t('styleCustomizer.terminalFontDescription') }}</p>
 
             <!-- 终端字体大小设置 -->
-            <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 mb-3"> <!-- Stack on mobile -->
+            <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 mb-3">
                 <label for="terminalFontSize" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.terminalFontSize') }}:</label> <!-- 需要添加翻译 -->
-                <input type="number" id="terminalFontSize" v-model.number="editableTerminalFontSize" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full sm:max-w-[100px] justify-self-start box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" min="1" /> <!-- Allow full width on mobile -->
-                <button @click="handleSaveTerminalFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start sm:justify-self-auto">{{ t('common.save') }}</button> <!-- Adjust button alignment -->
+                <input type="number" id="terminalFontSize" v-model.number="editableTerminalFontSize" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground max-w-[100px] justify-self-start box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" min="1" />
+                <button @click="handleSaveTerminalFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start">{{ t('common.save') }}</button> <!-- Applied inline button styles -->
             </div>
 
             <hr>
@@ -1049,13 +1049,13 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                  </li>
                  <li v-else v-for="(theme, index) in filteredAndSortedThemes" :key="theme._id"
                     :class="[
-                      'grid grid-cols-1 sm:grid-cols-[1fr_auto] items-start sm:items-center px-3 py-2.5 text-[0.95rem] transition-colors duration-200 ease-in-out gap-2 hover:bg-header', // Stack on mobile, align items start
+                      'grid grid-cols-[1fr_auto] items-center px-3 py-2.5 text-[0.95rem] transition-colors duration-200 ease-in-out gap-2 hover:bg-header',
                       index < filteredAndSortedThemes.length - 1 ? 'border-b border-border' : '', // Add border-b unless it's the last item
                       { 'bg-button text-button-text': theme._id === activeTerminalThemeId?.toString() } // Compare as strings
                     ]"
                  >
-                     <span class="col-start-1 col-end-2 overflow-hidden text-ellipsis whitespace-nowrap mb-1 sm:mb-0" :class="theme._id === activeTerminalThemeId?.toString() ? 'font-bold text-button-text' : 'text-foreground'" :title="theme.name">{{ theme.name }}</span> <!-- Add bottom margin on mobile -->
-                     <div class="col-start-1 sm:col-start-2 col-end-3 flex-shrink-0 flex flex-wrap gap-2 justify-start sm:justify-end"> <!-- Buttons take full width and wrap on mobile -->
+                     <span class="col-start-1 col-end-2 overflow-hidden text-ellipsis whitespace-nowrap" :class="theme._id === activeTerminalThemeId?.toString() ? 'font-bold text-button-text' : 'text-foreground'" :title="theme.name">{{ theme.name }}</span>
+                     <div class="col-start-2 col-end-3 flex-shrink-0 flex gap-2 justify-end">
                           <button
                               @click="handleApplyTheme(theme)"
                               :disabled="theme._id === activeTerminalThemeId?.toString()"
@@ -1089,7 +1089,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             <section v-if="isEditingTheme && editingTheme">
                 <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ editingTheme._id ? t('styleCustomizer.editThemeTitle') : t('styleCustomizer.newThemeTitle') }}</h3>
                  <p v-if="saveThemeError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mb-3">{{ saveThemeError }}</p> <!-- Adjusted error styles -->
-                <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 mb-2"> <!-- Stack on mobile -->
+                <div class="grid grid-cols-[auto_1fr] items-center gap-2 mb-2"> <!-- Theme editor uses 2-col grid -->
                     <label for="editingThemeName" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.themeName') }}:</label>
                     <input type="text" id="editingThemeName" v-model="editingTheme.name" required class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"/>
                 </div>
@@ -1098,10 +1098,10 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                  <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalThemeColorEditorTitle') }}</h4> <!-- TODO: Add translation -->
 
                  <!-- 动态生成终端样式编辑控件 -->
-              <div v-for="(value, key) in editingTheme.themeData" :key="key" class="grid grid-cols-1 sm:grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 mb-2"> <!-- Stack on mobile -->
-                <label :for="`xterm-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full sm:w-auto">{{ formatXtermLabel(key as keyof ITheme) }}:</label> <!-- Allow label full width on mobile -->
+              <div v-for="(value, key) in editingTheme.themeData" :key="key" class="grid grid-cols-[auto_1fr] items-center gap-2 mb-2"> <!-- Theme editor uses 2-col grid -->
+                <label :for="`xterm-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ formatXtermLabel(key as keyof ITheme) }}:</label>
                  <!-- Container for color picker and text display -->
-                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full"> <!-- Stack color picker/input vertically on mobile -->
+                <div class="flex items-center gap-2 w-full"> <!-- Applied flex, gap, width -->
                   <!-- Color Picker -->
                   <input
                     v-if="typeof value === 'string' && value.startsWith('#')"
@@ -1115,9 +1115,9 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                     v-if="typeof value === 'string' && value.startsWith('#')"
                     type="text"
                     :value="(editingTheme.themeData as any)[key]"
-                    class="flex-grow min-w-[80px] bg-background cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full sm:w-auto box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    readonly
+                    class="flex-grow min-w-[80px] bg-header cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     @focus="handleFocusAndSelect"
-                    @input="(editingTheme.themeData as any)[key] = ($event.target as HTMLInputElement).value"
                   />
                   <!-- Fallback for non-color values -->
                   <input
@@ -1174,8 +1174,8 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                 <hr class="my-8 border-border"> <!-- Replaced inline style with Tailwind -->
 
                 <!-- 终端背景 -->
-                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-2"> <!-- Stack on mobile -->
-                  <h4 class="m-0 text-base font-semibold text-foreground flex-shrink-0">{{ t('styleCustomizer.terminalBackground') }}</h4> <!-- Prevent shrinking -->
+                <div class="flex items-center justify-between mb-3"> <!-- 使用 flex 布局 -->
+                  <h4 class="m-0 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalBackground') }}</h4>
                   <!-- 开关按钮 -->
                   <button
                     type="button"
@@ -1202,7 +1202,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                    <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: terminalBackgroundImage ? `url(${terminalBackgroundImage})` : 'none' }">
                        <span v-if="!terminalBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span>
                    </div>
-                 <div class="flex flex-col sm:flex-row gap-2 mb-4 flex-wrap items-stretch sm:items-center"> <!-- Stack buttons vertically on mobile -->
+                 <div class="flex gap-2 mb-4 flex-wrap items-center">
                     <button @click="handleTriggerTerminalBgUpload" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.uploadTerminalBg') }}</button>
                     <button @click="handleRemoveTerminalBg" :disabled="!terminalBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removeTerminalBg') }}</button> <!-- Applied danger button styles -->
                     <input type="file" ref="terminalBgFileInput" @change="handleTerminalBgUpload" accept="image/*" class="hidden" /> <!-- Use hidden class -->
@@ -1217,15 +1217,15 @@ const handleFocusAndSelect = (event: FocusEvent) => {
            <section v-if="currentTab === 'other'">
              <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.otherSettings') }}</h3> <!-- 需要添加翻译 -->
              <!-- 编辑器字体大小设置 -->
-             <div class="grid grid-cols-1 sm:grid-cols-[auto_1fr_auto] items-center gap-x-3 gap-y-2 mb-3"> <!-- Stack on mobile -->
+             <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 mb-3">
                  <label for="editorFontSize" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.editorFontSize') }}:</label> <!-- 需要添加翻译 -->
-                 <input type="number" id="editorFontSize" v-model.number="editableEditorFontSize" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full sm:max-w-[100px] justify-self-start box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" min="1" /> <!-- Allow full width on mobile -->
-                 <button @click="handleSaveEditorFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start sm:justify-self-auto">{{ t('common.save') }}</button> <!-- Adjust button alignment -->
+                 <input type="number" id="editorFontSize" v-model.number="editableEditorFontSize" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground max-w-[100px] justify-self-start box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" min="1" />
+                 <button @click="handleSaveEditorFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start">{{ t('common.save') }}</button> <!-- Applied inline button styles -->
              </div>
            </section>
         </main>
       </div>
-      <footer class="flex flex-wrap justify-center sm:justify-end gap-2 p-3 sm:p-4 border-t border-border bg-footer flex-shrink-0"> <!-- Center buttons and wrap on mobile, adjust padding -->
+      <footer class="flex justify-end p-4 border-t border-border bg-footer flex-shrink-0">
         <!-- 根据当前 tab 或状态显示不同的按钮 -->
         <button v-if="currentTab === 'ui'" @click="handleResetUiTheme" class="px-5 py-2 rounded font-bold ml-2 border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.resetUiTheme') }}</button>
         <button v-if="currentTab === 'ui'" @click="handleSaveUiTheme" class="px-5 py-2 rounded font-bold ml-2 border border-button bg-button text-button-text hover:bg-button-hover hover:border-button-hover disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.saveUiTheme') }}</button>
