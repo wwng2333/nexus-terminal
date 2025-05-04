@@ -658,7 +658,7 @@ const toggleVirtualKeyboard = () => {
   display: flex;
   background-color: transparent;
   flex-direction: column;
-  height: 100vh; /* 默认占据整个视口高度 */
+  height: 100dvh; /* 使用动态视口高度 */
   overflow: hidden;
   transition: height 0.3s ease; /* 可选：添加过渡效果 */
 }
@@ -666,7 +666,7 @@ const toggleVirtualKeyboard = () => {
 /* 当 Header 可见时，调整高度 */
 .workspace-view.with-header {
   /* 假设 Header 高度为 55px (根据 App.vue CSS) */
-  height: calc(100vh - 55px);
+  height: calc(100dvh - 55px); /* 使用动态视口高度计算 */
 }
 
 .main-content-area {
