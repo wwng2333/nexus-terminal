@@ -1,6 +1,6 @@
 services:
   frontend:
-    image: heavrnl/nexus-terminal-frontend
+    image: heavrnl/nexus-terminal-frontend:latest
     container_name: nexus-terminal-frontend
     ports:
       - "18111:80"
@@ -11,7 +11,7 @@ services:
       - nexus-terminal-network
 
   backend:
-    image: heavrnl/nexus-terminal-backend
+    image: heavrnl/nexus-terminal-backend:latest
     container_name: nexus-terminal-backend
     env_file:
       - .env    
