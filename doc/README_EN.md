@@ -153,6 +153,7 @@ Here are some implicit practical features.
 2. **Sidebar**: The expanded sidebar can have its width adjusted by dragging.
 3. **Tab Bar**: Right-clicking on the SSH tab bar or the file manager tab bar will open a context menu with the following options: Close, Close Tabs to the Left, Close Other Tabs, and Close Tabs to the Right.
 4. **Tab Group Fold Bar**: You can directly click on the tab name in the view to rename the tab.
+5. **Automatic Reconnection**: When the connection is lost, you can press Enter in the command input box or terminal, or click the same SSH connection in the connection list to trigger automatic reconnection.
 
 
 
