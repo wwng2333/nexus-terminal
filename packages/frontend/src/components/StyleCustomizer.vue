@@ -883,18 +883,21 @@ const handleFocusAndSelect = (event: FocusEvent) => {
 
 
 <template>
-  <div class="fixed inset-0 bg-black/60 flex justify-center items-center z-[1000]" @click.self="closeCustomizer">
-    <div class="bg-background text-foreground rounded-lg shadow-lg w-[90%] max-w-[800px] h-[85vh] max-h-[700px] flex flex-col overflow-hidden">
+  <!-- 添加 md: 前缀以应用到中等及以上屏幕，小屏幕默认全屏 -->
+  <div class="fixed inset-0 bg-black/60 flex justify-center items-center z-[1000] p-2 md:p-4" @click.self="closeCustomizer">
+    <!-- 小屏幕默认 w-full h-full，md 及以上恢复原状 -->
+    <div class="bg-background text-foreground rounded-lg shadow-lg w-full h-full md:w-[90%] md:max-w-[800px] md:h-[85vh] md:max-h-[700px] flex flex-col overflow-hidden">
       <header class="flex justify-between items-center px-4 py-3 border-b border-border bg-header flex-shrink-0">
-        <h2 class="m-0 text-xl text-foreground">{{ t('styleCustomizer.title') }}</h2>
-        <button @click="closeCustomizer" class="bg-transparent border-none text-3xl leading-none cursor-pointer text-text-secondary px-2 py-1 rounded hover:text-foreground hover:bg-black/10">&times;</button>
+        <h2 class="m-0 text-lg md:text-xl text-foreground">{{ t('styleCustomizer.title') }}</h2>
+        <button @click="closeCustomizer" class="bg-transparent border-none text-2xl md:text-3xl leading-none cursor-pointer text-text-secondary px-2 py-1 rounded hover:text-foreground hover:bg-black/10">&times;</button>
       </header>
-      <div class="flex flex-grow overflow-hidden">
-        <nav class="w-[180px] border-r border-border p-4 bg-header flex-shrink-0 overflow-y-auto">
+      <div class="flex flex-grow overflow-hidden flex-col md:flex-row"> 
+        
+        <nav class="w-full md:w-[180px] border-b md:border-b-0 md:border-r border-border p-2 md:p-4 bg-header flex-shrink-0 overflow-y-auto flex flex-row md:flex-col flex-wrap md:flex-nowrap justify-center md:justify-start"> 
           <button
             @click="currentTab = 'ui'"
             :class="[
-              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'ui' } /* Added !important */
             ]"
           >
@@ -903,7 +906,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
           <button
             @click="currentTab = 'terminal'"
             :class="[
-              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'terminal' && !isEditingTheme } /* Added !important */
             ]"
             :disabled="isEditingTheme"
@@ -913,7 +916,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
            <button
             @click="currentTab = 'background'"
             :class="[
-              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'background' } /* Added !important */
             ]"
             :disabled="isEditingTheme"
@@ -923,7 +926,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
           <button
             @click="currentTab = 'other'"
             :class="[
-              'block w-full px-3 py-[0.7rem] mb-2 text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
+              'block w-auto md:w-full px-3 py-2 md:py-[0.7rem] mb-0 md:mb-2 mx-1 md:mx-0 text-center md:text-left bg-transparent border border-transparent rounded cursor-pointer text-foreground text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out hover:bg-black/5 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-transparent disabled:text-text-secondary',
               { '!bg-button !text-button-text !font-bold': currentTab === 'other' } /* Added !important */
             ]"
             :disabled="isEditingTheme"
@@ -931,23 +934,24 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             {{ t('styleCustomizer.otherSettings') }} <!-- 需要添加翻译 -->
           </button>
         </nav>
-        <main class="flex-grow p-4 md:px-6 overflow-y-auto">
+        
+        <main class="flex-grow p-3 md:p-4 md:px-6 overflow-y-auto">
           <section v-if="currentTab === 'ui'">
             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.uiStyles') }}</h3>
-            <!-- 新增：主题模式选择 -->
-            <div class="grid grid-cols-[auto_1fr] items-center gap-3 mb-6">
-                <label class="text-left text-foreground text-sm font-medium">{{ t('styleCustomizer.themeModeLabel', '主题模式:') }}</label> <!-- TODO: 添加翻译 -->
-                <div class="flex gap-2 justify-start">
+            <!-- 新增：主题模式选择 - 小屏幕堆叠 -->
+            <div class="grid grid-cols-1 md:grid-cols-[auto_1fr] items-start md:items-center gap-2 md:gap-3 mb-6">
+                <label class="text-left text-foreground text-sm font-medium mb-1 md:mb-0">{{ t('styleCustomizer.themeModeLabel', '主题模式:') }}</label> <!-- TODO: 添加翻译 -->
+                <div class="flex gap-2 justify-start flex-wrap"> 
                     <button @click="handleResetUiTheme" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap">{{ t('styleCustomizer.defaultMode', '默认模式') }}</button> <!-- TODO: 添加翻译 -->
                     <button @click="applyDarkMode" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap">{{ t('styleCustomizer.darkMode', '黑暗模式') }}</button> <!-- TODO: 添加翻译 -->
                 </div>
             </div>
             <p class="text-text-secondary text-sm leading-relaxed mb-3">{{ t('styleCustomizer.uiDescription') }}</p>
-            <!-- 动态生成 UI 样式编辑控件 -->
-            <div v-for="(value, key) in editableUiTheme" :key="key" class="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1 mb-3">
-              <label :for="`ui-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ formatLabel(key) }}:</label>
+            <!-- 动态生成 UI 样式编辑控件 - 小屏幕堆叠 -->
+            <div v-for="(value, key) in editableUiTheme" :key="key" class="grid grid-cols-1 md:grid-cols-[auto_1fr] items-start md:items-center gap-x-3 gap-y-1 mb-3">
+              <label :for="`ui-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ formatLabel(key) }}:</label>
               <!-- Container for color picker and text display -->
-              <div class="flex items-center gap-2 w-full">
+              <div class="flex items-center gap-2 w-full flex-wrap"> 
                 <!-- Color Picker -->
                 <input
                   v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
@@ -995,43 +999,41 @@ const handleFocusAndSelect = (event: FocusEvent) => {
          </section>
           <section v-if="currentTab === 'terminal' && !isEditingTheme">
             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.terminalStyles') }}</h3>
-            <!-- 终端字体设置 -->
-            <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 mb-3">
-                <label for="terminalFontFamily" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.terminalFontFamily') }}:</label>
+            
+            <div class="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-start md:items-center gap-2 md:gap-3 mb-3">
+                <label for="terminalFontFamily" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ t('styleCustomizer.terminalFontFamily') }}:</label>
                 <input type="text" id="terminalFontFamily" v-model="editableTerminalFontFamily" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" :placeholder="t('styleCustomizer.terminalFontPlaceholder')"/>
-                <button @click="handleSaveTerminalFont" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start">{{ t('common.save') }}</button> <!-- Applied inline button styles -->
+                <button @click="handleSaveTerminalFont" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start mt-1 md:mt-0">{{ t('common.save') }}</button>
             </div>
             <p class="text-xs text-text-secondary -mt-1 mb-2">{{ t('styleCustomizer.terminalFontDescription') }}</p>
 
-            <!-- 终端字体大小设置 -->
-            <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 mb-3">
-                <label for="terminalFontSize" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.terminalFontSize') }}:</label> <!-- 需要添加翻译 -->
+            
+            <div class="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-start md:items-center gap-2 md:gap-3 mb-3">
+                <label for="terminalFontSize" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ t('styleCustomizer.terminalFontSize') }}:</label>
                 <input type="number" id="terminalFontSize" v-model.number="editableTerminalFontSize" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground max-w-[100px] justify-self-start box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" min="1" />
-                <button @click="handleSaveTerminalFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start">{{ t('common.save') }}</button> <!-- Applied inline button styles -->
+                <button @click="handleSaveTerminalFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start mt-1 md:mt-0">{{ t('common.save') }}</button>
             </div>
 
-            <hr>
+            <hr class="my-4 md:my-6"> 
 
-            <!-- 终端主题选择与管理 -->
+            
             <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalThemeSelection') }}</h4>
-             <!-- 显示当前激活主题 -->
-             <div class="mb-4 py-2 text-[0.95rem] flex items-center gap-3">
+             
+             <div class="mb-4 py-2 text-sm md:text-[0.95rem] flex flex-col md:flex-row items-start md:items-center gap-1 md:gap-3"> 
                  <span class="text-text-secondary">{{ t('styleCustomizer.activeTheme') }}:</span>
                  <strong class="text-foreground font-semibold">{{ activeThemeName }}</strong>
-                 <!-- 导出按钮移到管理按钮区域 -->
              </div>
 
-             <!-- 主题管理按钮 -->
+             
              <div class="mt-4 mb-6 flex gap-2 flex-wrap items-center pb-4 border-b border-dashed border-border">
                  <button @click="handleAddNewTheme" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.addNewTheme') }}</button>
                  <button @click="handleTriggerImport" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.importTheme') }}</button>
-                 <!-- <button @click="handleExportActiveTheme" :disabled="!activeTerminalThemeId" class="px-2 py-1 text-xs border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed" :title="t('styleCustomizer.exportActiveThemeTooltip', 'Export the currently active theme as a JSON file')">{{ t('styleCustomizer.exportActiveTheme', 'Export Active Theme') }}</button> -->
-                 <input type="file" ref="themeImportInput" @change="handleImportThemeFile" accept=".json" class="hidden" /> <!-- Use hidden class -->
-                 <p v-if="importError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm w-full flex-grow m-0 text-left">{{ importError }}</p> <!-- Adjusted error styles -->
+                 <input type="file" ref="themeImportInput" @change="handleImportThemeFile" accept=".json" class="hidden" />
+                 <p v-if="importError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm w-full flex-grow m-0 text-left">{{ importError }}</p>
              </div>
 
 
-             <!-- 搜索框移到列表上方 -->
+             
              <div class="mb-4">
                   <input
                       type="text"
@@ -1041,27 +1043,26 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                   />
              </div>
 
-             <!-- 主题列表 -->
-             <ul class="list-none p-0 mt-4 max-h-[280px] overflow-y-auto border border-border rounded bg-background">
-                 <!-- 添加空状态提示 -->
-                 <li v-if="filteredAndSortedThemes.length === 0" class="col-span-full text-center text-text-secondary p-4 italic">
+             
+             <ul class="list-none p-0 mt-4 max-h-[200px] md:max-h-[280px] overflow-y-auto border border-border rounded bg-background"> 
+                 <li v-if="filteredAndSortedThemes.length === 0" class="text-center text-text-secondary p-4 italic">
                      {{ t('styleCustomizer.noThemesFound', 'No matching themes found') }}
                  </li>
                  <li v-else v-for="(theme, index) in filteredAndSortedThemes" :key="theme._id"
                     :class="[
-                      'grid grid-cols-[1fr_auto] items-center px-3 py-2.5 text-[0.95rem] transition-colors duration-200 ease-in-out gap-2 hover:bg-header',
-                      index < filteredAndSortedThemes.length - 1 ? 'border-b border-border' : '', // Add border-b unless it's the last item
-                      { 'bg-button text-button-text': theme._id === activeTerminalThemeId?.toString() } // Compare as strings
+                      'block md:grid md:grid-cols-[1fr_auto] items-center px-3 py-2.5 text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out gap-2 hover:bg-header', /* 小屏幕块状显示 */
+                      index < filteredAndSortedThemes.length - 1 ? 'border-b border-border' : '',
+                      { 'bg-button text-button-text': theme._id === activeTerminalThemeId?.toString() }
                     ]"
                  >
-                     <span class="col-start-1 col-end-2 overflow-hidden text-ellipsis whitespace-nowrap" :class="theme._id === activeTerminalThemeId?.toString() ? 'font-bold text-button-text' : 'text-foreground'" :title="theme.name">{{ theme.name }}</span>
-                     <div class="col-start-2 col-end-3 flex-shrink-0 flex gap-2 justify-end">
+                     <span class="block md:col-start-1 md:col-end-2 overflow-hidden text-ellipsis whitespace-nowrap mb-2 md:mb-0" :class="theme._id === activeTerminalThemeId?.toString() ? 'font-bold text-button-text' : 'text-foreground'" :title="theme.name">{{ theme.name }}</span>
+                     <div class="flex md:col-start-2 md:col-end-3 flex-shrink-0 gap-2 justify-start md:justify-end flex-wrap"> 
                           <button
                               @click="handleApplyTheme(theme)"
                               :disabled="theme._id === activeTerminalThemeId?.toString()"
                               :title="t('styleCustomizer.applyThemeTooltip', 'Apply this theme')"
                               :class="[
-                                'px-3 py-1.5 text-sm border rounded transition-colors duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed',
+                                'px-3 py-1.5 text-xs md:text-sm border rounded transition-colors duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed', /* 调整字体大小 */
                                 theme._id === activeTerminalThemeId?.toString() ? 'text-button-text border-white/30 bg-white/10 hover:bg-white/20 hover:border-white/50 disabled:opacity-50 disabled:cursor-default disabled:bg-transparent disabled:border-transparent' : 'border-border bg-header text-foreground hover:bg-border hover:border-text-secondary'
                               ]"
                           >
@@ -1069,40 +1070,39 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                           </button>
                          <button @click="handleEditTheme(theme)" :title="theme.isPreset ? t('styleCustomizer.editAsCopy', 'Edit as Copy') : t('common.edit')"
                             :class="[
-                              'px-3 py-1.5 text-sm border rounded transition-colors duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed',
+                              'px-3 py-1.5 text-xs md:text-sm border rounded transition-colors duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed', /* 调整字体大小 */
                               theme._id === activeTerminalThemeId?.toString() ? 'text-button-text border-white/30 bg-white/10 hover:bg-white/20 hover:border-white/50' : 'border-border bg-header text-foreground hover:bg-border hover:border-text-secondary'
                             ]"
                          >{{ t('common.edit') }}</button>
                          <button @click="handleDeleteTheme(theme)" :disabled="theme.isPreset" :title="theme.isPreset ? t('styleCustomizer.cannotDeletePreset', 'Cannot delete preset theme') : t('common.delete')"
                             :class="[
-                              'px-3 py-1.5 text-sm border rounded transition-colors duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed',
-                              theme._id === activeTerminalThemeId?.toString() ? 'text-button-text border-white/30 bg-white/10 hover:bg-white/20 hover:border-white/50' : 'bg-error/10 text-error border-error/30 hover:bg-error/20' // Danger styles for non-active
+                              'px-3 py-1.5 text-xs md:text-sm border rounded transition-colors duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed', /* 调整字体大小 */
+                              theme._id === activeTerminalThemeId?.toString() ? 'text-button-text border-white/30 bg-white/10 hover:bg-white/20 hover:border-white/50' : 'bg-error/10 text-error border-error/30 hover:bg-error/20'
                             ]"
                          >{{ t('common.delete') }}</button>
                      </div>
                  </li>
              </ul>
- 
+
            </section>
 
-            <!-- 主题编辑器 -->
+            
             <section v-if="isEditingTheme && editingTheme">
                 <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ editingTheme._id ? t('styleCustomizer.editThemeTitle') : t('styleCustomizer.newThemeTitle') }}</h3>
-                 <p v-if="saveThemeError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mb-3">{{ saveThemeError }}</p> <!-- Adjusted error styles -->
-                <div class="grid grid-cols-[auto_1fr] items-center gap-2 mb-2"> <!-- Theme editor uses 2-col grid -->
-                    <label for="editingThemeName" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.themeName') }}:</label>
+                 <p v-if="saveThemeError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mb-3">{{ saveThemeError }}</p>
+                <div class="grid grid-cols-1 md:grid-cols-[auto_1fr] items-start md:items-center gap-2 mb-2">
+                    <label for="editingThemeName" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ t('styleCustomizer.themeName') }}:</label>
                     <input type="text" id="editingThemeName" v-model="editingTheme.name" required class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"/>
                 </div>
 
-                 <hr class="my-8 border-border"> <!-- Replaced inline style with Tailwind -->
-                 <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalThemeColorEditorTitle') }}</h4> <!-- TODO: Add translation -->
+                 <hr class="my-4 md:my-8 border-border">
+                 <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalThemeColorEditorTitle') }}</h4>
 
-                 <!-- 动态生成终端样式编辑控件 -->
-              <div v-for="(value, key) in editingTheme.themeData" :key="key" class="grid grid-cols-[auto_1fr] items-center gap-2 mb-2"> <!-- Theme editor uses 2-col grid -->
-                <label :for="`xterm-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ formatXtermLabel(key as keyof ITheme) }}:</label>
-                 <!-- Container for color picker and text display -->
-                <div class="flex items-center gap-2 w-full"> <!-- Applied flex, gap, width -->
-                  <!-- Color Picker -->
+                 
+              <div v-for="(value, key) in editingTheme.themeData" :key="key" class="grid grid-cols-1 md:grid-cols-[auto_1fr] items-start md:items-center gap-2 mb-2">
+                <label :for="`xterm-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ formatXtermLabel(key as keyof ITheme) }}:</label>
+                <div class="flex items-center gap-2 w-full flex-wrap"> 
+                  
                   <input
                     v-if="typeof value === 'string' && value.startsWith('#')"
                     type="color"
@@ -1110,7 +1110,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                     v-model="(editingTheme.themeData as any)[key]"
                     class="p-0.5 h-[34px] min-w-[40px] max-w-[50px] rounded border border-border flex-shrink-0 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                   />
-                  <!-- Readonly text input to display and copy color value -->
+                  
                   <input
                     v-if="typeof value === 'string' && value.startsWith('#')"
                     type="text"
@@ -1119,64 +1119,52 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                     class="flex-grow min-w-[80px] bg-header cursor-text border border-border px-[0.7rem] py-2 rounded text-sm text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     @focus="handleFocusAndSelect"
                   />
-                  <!-- Fallback for non-color values -->
+                  
                   <input
                     v-else
                     type="text"
                     :id="`xterm-${key}`"
                     v-model="(editingTheme.themeData as any)[key]"
-                    class="col-span-full border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground w-full box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
              </div>
-              <!-- 显示解析错误（如果颜色选择器下方也需要的话） -->
-              <!-- <p v-if="terminalThemeParseError" class="error-message full-width-group">{{ terminalThemeParseError }}</p> --> <!-- 错误消息统一显示在 Textarea 下方 -->
 
-                <!-- Terminal Theme Textarea -->
-                <hr class="my-8 border-border"> <!-- Replaced inline style with Tailwind -->
-                <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</h4> <!-- TODO: Add translation -->
-                <p class="text-text-secondary text-sm leading-relaxed mb-3">{{ t('styleCustomizer.terminalThemeJsonEditorDesc') }}</p> <!-- TODO: Add translation -->
-                <div class="mt-4"> <!-- Removed form-group, added margin -->
+                
+                <hr class="my-4 md:my-8 border-border">
+                <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</h4>
+                <p class="text-text-secondary text-sm leading-relaxed mb-3">{{ t('styleCustomizer.terminalThemeJsonEditorDesc') }}</p>
+                <div class="mt-4">
                    <label for="terminalThemeTextarea" class="sr-only">{{ t('styleCustomizer.terminalThemeJsonEditorTitle') }}</label>
                    <textarea
                      id="terminalThemeTextarea"
                      v-model="editableTerminalThemeString"
                      @blur="handleTerminalThemeStringChange"
-                     rows="15"
+                     rows="10"
                      :placeholder="terminalThemePlaceholder"
                      spellcheck="false"
-                     class="w-full font-mono text-sm leading-snug border border-border rounded p-3 bg-background text-foreground resize-y min-h-[200px] box-border whitespace-pre-wrap break-words transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                     class="w-full font-mono text-sm leading-snug border border-border rounded p-3 bg-background text-foreground resize-y min-h-[150px] md:min-h-[200px] box-border whitespace-pre-wrap break-words transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                    ></textarea>
                 </div>
-                 <p v-if="terminalThemeParseError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mt-2">{{ terminalThemeParseError }}</p> <!-- Adjusted error styles -->
+                 <p v-if="terminalThemeParseError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mt-2">{{ terminalThemeParseError }}</p>
             <div class="mt-4 flex justify-end gap-2 pt-4 border-t border-border">
-                 <button @click="handleCancelEditingTheme" class="px-5 py-2 rounded font-bold border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed">{{ t('common.cancel') }}</button>
-                 <button @click="handleSaveEditingTheme" class="px-5 py-2 rounded font-bold border border-button bg-button text-button-text hover:bg-button-hover hover:border-button-hover disabled:opacity-60 disabled:cursor-not-allowed">{{ t('common.save') }}</button>
+                 <button @click="handleCancelEditingTheme" class="px-4 md:px-5 py-2 rounded font-bold border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base">{{ t('common.cancel') }}</button> 
+                 <button @click="handleSaveEditingTheme" class="px-4 md:px-5 py-2 rounded font-bold border border-button bg-button text-button-text hover:bg-button-hover hover:border-button-hover disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base">{{ t('common.save') }}</button> 
              </div>
            </section>
 
            <section v-if="currentTab === 'background'">
                 <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.backgroundSettings') }}</h3>
 
-                <!-- 页面背景 (暂时隐藏) -->
-                <!-- <h4 class="mt-6 mb-2 text-base font-semibold text-foreground">{{ t('styleCustomizer.pageBackground') }}</h4> -->
-                <!-- <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: pageBackgroundImage ? `url(${pageBackgroundImage})` : 'none' }"> -->
-                    <!-- <span v-if="!pageBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span> -->
-                <!-- </div> -->
-                <!-- <div class="flex gap-2 mb-4 flex-wrap items-center"> -->
-                    <!-- <button @click="handleTriggerPageBgUpload" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.uploadPageBg') }}</button> -->
-                    <!-- <button @click="handleRemovePageBg" :disabled="!pageBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removePageBg') }}</button> --> <!-- Applied danger button styles -->
-                    <!-- <input type="file" ref="pageBgFileInput" @change="handlePageBgUpload" accept="image/*" class="hidden" /> --> <!-- Use hidden class -->
-                <!-- </div> -->
-                 <!-- Removed Opacity Slider -->
-                 <!-- <p v-if="uploadError" class="text-error-text bg-error/10 border border-error/30 px-3 py-2 rounded text-sm mt-2">{{ uploadError }}</p> --> <!-- Adjusted error styles -->
+                
+                
 
-                <hr class="my-8 border-border"> <!-- Replaced inline style with Tailwind -->
+                <hr class="my-4 md:my-8 border-border">
 
-                <!-- 终端背景 -->
-                <div class="flex items-center justify-between mb-3"> <!-- 使用 flex 布局 -->
+                
+                <div class="flex items-center justify-between mb-3">
                   <h4 class="m-0 text-base font-semibold text-foreground">{{ t('styleCustomizer.terminalBackground') }}</h4>
-                  <!-- 开关按钮 -->
+                  
                   <button
                     type="button"
                     @click="handleToggleTerminalBackground"
@@ -1196,42 +1184,39 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                     ></span>
                   </button>
                 </div>
- 
-                 <!-- 条件渲染背景设置区域 -->
+
+                 
                  <div v-if="localTerminalBackgroundEnabled">
-                   <div class="w-full h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: terminalBackgroundImage ? `url(${terminalBackgroundImage})` : 'none' }">
+                   <div class="w-full h-[100px] md:h-[150px] border border-dashed border-border mb-2 flex justify-center items-center text-text-secondary bg-cover bg-center bg-no-repeat rounded bg-header relative overflow-hidden" :style="{ backgroundImage: terminalBackgroundImage ? `url(${terminalBackgroundImage})` : 'none' }"> 
                        <span v-if="!terminalBackgroundImage" class="bg-white/80 px-3 py-1.5 rounded text-sm font-medium text-foreground shadow-sm">{{ t('styleCustomizer.noBackground') }}</span>
                    </div>
                  <div class="flex gap-2 mb-4 flex-wrap items-center">
                     <button @click="handleTriggerTerminalBgUpload" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.uploadTerminalBg') }}</button>
-                    <button @click="handleRemoveTerminalBg" :disabled="!terminalBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removeTerminalBg') }}</button> <!-- Applied danger button styles -->
-                    <input type="file" ref="terminalBgFileInput" @change="handleTerminalBgUpload" accept="image/*" class="hidden" /> <!-- Use hidden class -->
+                    <button @click="handleRemoveTerminalBg" :disabled="!terminalBackgroundImage" class="px-3 py-1.5 text-sm border rounded transition duration-200 ease-in-out whitespace-nowrap bg-error/10 text-error border-error/30 hover:bg-error/20 disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.removeTerminalBg') }}</button>
+                    <input type="file" ref="terminalBgFileInput" @change="handleTerminalBgUpload" accept="image/*" class="hidden" />
                  </div>
-                 <!-- Removed Opacity Slider -->
-                </div> <!-- End v-if="localTerminalBackgroundEnabled" -->
-                <div v-else class="p-4 text-center text-text-secondary italic border border-dashed border-border/50 rounded-md">
-                   {{ t('styleCustomizer.terminalBgDisabled', '终端背景功能已禁用。') }} <!-- 需要添加翻译 -->
                 </div>
- 
+                <div v-else class="p-4 text-center text-text-secondary italic border border-dashed border-border/50 rounded-md">
+                   {{ t('styleCustomizer.terminalBgDisabled', '终端背景功能已禁用。') }}
+                </div>
+
            </section>
            <section v-if="currentTab === 'other'">
-             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.otherSettings') }}</h3> <!-- 需要添加翻译 -->
-             <!-- 编辑器字体大小设置 -->
-             <div class="grid grid-cols-[auto_1fr_auto] items-center gap-3 mb-3">
-                 <label for="editorFontSize" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full">{{ t('styleCustomizer.editorFontSize') }}:</label> <!-- 需要添加翻译 -->
+             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.otherSettings') }}</h3>
+             
+             <div class="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-start md:items-center gap-2 md:gap-3 mb-3">
+                 <label for="editorFontSize" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ t('styleCustomizer.editorFontSize') }}:</label>
                  <input type="number" id="editorFontSize" v-model.number="editableEditorFontSize" class="border border-border px-[0.7rem] py-2 rounded text-sm bg-background text-foreground max-w-[100px] justify-self-start box-border transition duration-200 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" min="1" />
-                 <button @click="handleSaveEditorFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start">{{ t('common.save') }}</button> <!-- Applied inline button styles -->
+                 <button @click="handleSaveEditorFontSize" class="px-3 py-1.5 text-sm border border-border rounded bg-header hover:bg-border transition duration-200 ease-in-out whitespace-nowrap justify-self-start mt-1 md:mt-0">{{ t('common.save') }}</button>
              </div>
            </section>
         </main>
       </div>
-      <footer class="flex justify-end p-4 border-t border-border bg-footer flex-shrink-0">
-        <!-- 根据当前 tab 或状态显示不同的按钮 -->
-        <button v-if="currentTab === 'ui'" @click="handleResetUiTheme" class="px-5 py-2 rounded font-bold ml-2 border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.resetUiTheme') }}</button>
-        <button v-if="currentTab === 'ui'" @click="handleSaveUiTheme" class="px-5 py-2 rounded font-bold ml-2 border border-button bg-button text-button-text hover:bg-button-hover hover:border-button-hover disabled:opacity-60 disabled:cursor-not-allowed">{{ t('styleCustomizer.saveUiTheme') }}</button>
-        <!-- 终端字体和主题选择是即时保存的，不需要单独的保存按钮 -->
-        <!-- 背景设置也是即时保存的 -->
-        <button @click="closeCustomizer" class="px-5 py-2 rounded font-bold ml-2 border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed">{{ t('common.close') }}</button> <!-- 添加一个通用的关闭按钮 -->
+      
+      <footer class="flex justify-end p-3 md:p-4 border-t border-border bg-footer flex-shrink-0 flex-wrap gap-2"> 
+        <button v-if="currentTab === 'ui'" @click="handleResetUiTheme" class="px-4 md:px-5 py-2 rounded font-bold ml-2 border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base">{{ t('styleCustomizer.resetUiTheme') }}</button> 
+        <button v-if="currentTab === 'ui'" @click="handleSaveUiTheme" class="px-4 md:px-5 py-2 rounded font-bold ml-2 border border-button bg-button text-button-text hover:bg-button-hover hover:border-button-hover disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base">{{ t('styleCustomizer.saveUiTheme') }}</button> 
+        <button @click="closeCustomizer" class="px-4 md:px-5 py-2 rounded font-bold ml-2 border border-border bg-header text-foreground hover:bg-border disabled:opacity-60 disabled:cursor-not-allowed text-sm md:text-base">{{ t('common.close') }}</button> 
       </footer>
     </div>
   </div>
