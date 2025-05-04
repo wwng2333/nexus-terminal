@@ -66,6 +66,7 @@ const showLayoutConfigurator = ref(false); // 控制布局配置器可见性
 // --- 搜索状态 ---
 const currentSearchTerm = ref(''); // 当前搜索的关键词
 const mobileTerminalRef = ref<InstanceType<typeof Terminal> | null>(null); // +++ 添加 mobileTerminalRef +++
+const isVirtualKeyboardVisible = ref(true); // +++ State for virtual keyboard visibility +++
 
 // --- 新增：处理全局键盘事件 ---
 const handleGlobalKeyDown = (event: KeyboardEvent) => {
@@ -475,6 +476,11 @@ const handleVirtualKeyPress = (keySequence: string) => {
  }
 };
 
+// +++ Function to toggle virtual keyboard visibility +++
+const toggleVirtualKeyboard = () => {
+ isVirtualKeyboardVisible.value = !isVirtualKeyboardVisible.value;
+};
+
 // RDP 事件处理方法已被移除
 
  // --- 标签页关闭操作处理 ---
@@ -614,9 +620,12 @@ const handleVirtualKeyPress = (keySequence: string) => {
         @find-previous="handleFindPrevious"
         @close-search="handleCloseSearch"
         @clear-terminal="handleClearTerminal"
+        :is-virtual-keyboard-visible="isVirtualKeyboardVisible"
+        @toggle-virtual-keyboard="toggleVirtualKeyboard"
       />
-      <!-- +++ 添加虚拟键盘，监听事件 +++ -->
+      <!-- +++ Use v-show for VirtualKeyboard and bind visibility +++ -->
       <VirtualKeyboard
+        v-show="isVirtualKeyboardVisible"
         class="mobile-virtual-keyboard"
         @send-key="handleVirtualKeyPress"
       />

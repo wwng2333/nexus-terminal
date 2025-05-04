@@ -12,7 +12,15 @@ import QuickCommandsModal from './QuickCommandsModal.vue'; // +++ Import the mod
 // Disable attribute inheritance as this component has multiple root nodes (div + modal)
 defineOptions({ inheritAttrs: false });
 
-const emit = defineEmits(['send-command', 'search', 'find-next', 'find-previous', 'close-search', 'clear-terminal']); // 添加 clear-terminal 事件
+const emit = defineEmits([
+  'send-command',
+  'search',
+  'find-next',
+  'find-previous',
+  'close-search',
+  'clear-terminal',
+  'toggle-virtual-keyboard' // +++ Add new emit +++
+]);
 const { t } = useI18n();
 const focusSwitcherStore = useFocusSwitcherStore();
 const settingsStore = useSettingsStore();
@@ -35,8 +43,8 @@ const { updateSessionCommandInput } = sessionStore;
 // Props definition is now empty as search results are no longer handled here
 const props = defineProps<{
   // No props defined here currently
-  // +++ Add isMobile prop +++
   isMobile?: boolean;
+  isVirtualKeyboardVisible?: boolean; // +++ Add prop to receive state +++
 }>();
 // --- 移除本地 commandInput ref ---
 // const commandInput = ref('');
@@ -305,7 +313,11 @@ const handleQuickCommandExecute = (command: string) => {
         v-model="currentSessionCommandInput"
         :placeholder="t('commandInputBar.placeholder')"
         class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
-        :class="{ 'basis-3/4': !props.isMobile && isSearching, 'basis-full': !isSearching }" 
+        :class="{
+          'basis-3/4': !props.isMobile && isSearching,      // Desktop searching: 3/4 width
+          'basis-full': !props.isMobile && !isSearching   // Desktop non-searching: full width
+          // Mobile non-searching: No basis class, rely on flex-grow
+        }"
         ref="commandInputRef"
         data-focus-id="commandInput"
         @keydown="handleCommandInputKeydown"
@@ -329,7 +341,17 @@ const handleQuickCommandExecute = (command: string) => {
       />
 
       <!-- Search Controls -->
-      <div class="flex items-center gap-1 flex-shrink-0"> <!-- Adjusted gap -->
+      <div class="flex items-center gap-1 flex-shrink-0">
+        <!-- +++ Toggle Virtual Keyboard Button (Moved here, Mobile only) +++ -->
+        <button
+          v-if="props.isMobile"
+          @click="emit('toggle-virtual-keyboard')"
+          class="flex-shrink-0 flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
+          :title="props.isVirtualKeyboardVisible ? t('commandInputBar.hideKeyboard', '隐藏虚拟键盘') : t('commandInputBar.showKeyboard', '显示虚拟键盘')"
+        >
+          <i class="fas fa-keyboard text-base" :class="{ 'opacity-50': !props.isVirtualKeyboardVisible }"></i>
+        </button>
+        <!-- Search Toggle Button -->
         <button
           @click="toggleSearch"
           class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"

@@ -82,13 +82,17 @@ const keys: KeyDefinition[] = [
   { label: 'End', sequence: '\x1b[4~', type: 'navigation' }, // +++ End +++
   { label: 'PgUp', sequence: '\x1b[5~', type: 'navigation' }, // +++ PageUp +++
   { label: 'PgDn', sequence: '\x1b[6~', type: 'navigation' }, // +++ PageDown +++
-  // Row 3: Example character keys for combinations
-  { label: 'A', type: 'char' },
-  { label: 'B', type: 'char' },
-  { label: 'C', type: 'char' }, 
-  { label: 'D', type: 'char' },
-  { label: 'F', type: 'char' },
-  // Add more letters, numbers, or symbols as needed
+  // Row 3: Alphabet Keys (A-Z)
+  { label: 'A', type: 'char' }, { label: 'B', type: 'char' }, { label: 'C', type: 'char' },
+  { label: 'D', type: 'char' }, { label: 'E', type: 'char' }, { label: 'F', type: 'char' },
+  { label: 'G', type: 'char' }, { label: 'H', type: 'char' }, { label: 'I', type: 'char' },
+  { label: 'J', type: 'char' }, { label: 'K', type: 'char' }, { label: 'L', type: 'char' },
+  { label: 'M', type: 'char' }, { label: 'N', type: 'char' }, { label: 'O', type: 'char' },
+  { label: 'P', type: 'char' }, { label: 'Q', type: 'char' }, { label: 'R', type: 'char' },
+  { label: 'S', type: 'char' }, { label: 'T', type: 'char' }, { label: 'U', type: 'char' },
+  { label: 'V', type: 'char' }, { label: 'W', type: 'char' }, { label: 'X', type: 'char' },
+  { label: 'Y', type: 'char' }, { label: 'Z', type: 'char' },
+  // Add numbers or other symbols if needed
 ];
 </script>
 
