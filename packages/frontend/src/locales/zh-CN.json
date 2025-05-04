@@ -337,7 +337,8 @@
     "searchPlaceholder": "搜索文件...",
     "dropFilesHere": "将文件拖拽到此处上传",
     "changeEncodingTooltip": "更改文件编码",
-    "loadingEncoding": "加载中..."
+    "loadingEncoding": "加载中...",
+"noSearchResults": "未找到匹配的搜索结果"
   },
   "statusMonitor": {
     "title": "服务器状态",

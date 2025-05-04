@@ -331,7 +331,8 @@
             "moveSameDirectory": "同じディレクトリ内で切り取りと貼り付けはできません。"
         },
         "changeEncodingTooltip": "ファイルエンコーディングを変更",
-        "loadingEncoding": "読み込み中..."
+        "loadingEncoding": "読み込み中...",
+        "noSearchResults": "検索結果が見つかりませんでした"
     },
     "focusSwitcher": {
         "allInputsConfigured": "すべての利用可能な入力ソースが設定されました",

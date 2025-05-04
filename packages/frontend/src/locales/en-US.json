@@ -337,7 +337,8 @@
     "searchPlaceholder": "Search files...",
     "dropFilesHere": "Drop files here to upload",
     "changeEncodingTooltip": "Change file encoding",
-    "loadingEncoding": "Loading..."
+    "loadingEncoding": "Loading...",
+    "noSearchResults": "No search results found"
   },
   "statusMonitor": {
     "title": "Server Status",
