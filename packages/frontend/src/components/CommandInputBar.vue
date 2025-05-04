@@ -278,8 +278,8 @@ const handleQuickCommandExecute = (command: string) => {
 </script>
 
 <template>
-  <div :class="$attrs.class" class="flex items-center px-2 py-1.5 bg-background gap-1"> <!-- Bind $attrs.class -->
-    <div class="flex-grow flex items-center bg-transparent relative gap-1">
+  <div :class="$attrs.class" class="flex items-center py-1.5 bg-background"> <!-- Bind $attrs.class, removed px-2 and gap-1 -->
+    <div class="flex-grow flex items-center bg-transparent relative gap-1 px-2"> <!-- Added px-2 here -->
       <!-- Clear Terminal Button -->
       <button
         @click="emit('clear-terminal')"
@@ -331,7 +331,7 @@ const handleQuickCommandExecute = (command: string) => {
         v-model="searchTerm"
         :placeholder="t('commandInputBar.searchPlaceholder')"
         class="flex-grow min-w-0 px-4 py-1.5 border border-border/50 rounded-lg bg-input text-foreground text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-300 ease-in-out"
-        :class="{ 'basis-1/4': !props.isMobile, 'basis-full': props.isMobile }"
+        :class="{ 'basis-1/4': !props.isMobile }"
         data-focus-id="terminalSearch"
         @keydown.enter.prevent="findNext"
         @keydown.shift.enter.prevent="findPrevious"
@@ -353,6 +353,7 @@ const handleQuickCommandExecute = (command: string) => {
         </button>
         <!-- Search Toggle Button -->
         <button
+          v-if="!props.isMobile"
           @click="toggleSearch"
           class="flex items-center justify-center w-8 h-8 border border-border/50 rounded-lg text-text-secondary transition-colors duration-200 hover:bg-border hover:text-foreground"
           :title="isSearching ? t('commandInputBar.closeSearch') : t('commandInputBar.openSearch')"
