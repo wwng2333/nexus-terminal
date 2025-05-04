@@ -740,6 +740,8 @@ const toggleVirtualKeyboard = () => {
 
 .mobile-virtual-keyboard {
   flex-shrink: 0; /* 防止虚拟键盘缩小 */
+  width: 100%; /* 确保宽度为 100% */
+  box-sizing: border-box; /* 边框和内边距包含在宽度内 */
   /* 可以添加更多样式，例如背景色、边框等 */
 }
 

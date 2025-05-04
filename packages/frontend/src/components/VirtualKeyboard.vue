@@ -82,7 +82,14 @@ const keys: KeyDefinition[] = [
   { label: 'End', sequence: '\x1b[4~', type: 'navigation' }, // +++ End +++
   { label: 'PgUp', sequence: '\x1b[5~', type: 'navigation' }, // +++ PageUp +++
   { label: 'PgDn', sequence: '\x1b[6~', type: 'navigation' }, // +++ PageDown +++
-  // Row 3: Alphabet Keys (A-Z)
+  // Row 3: Function Keys (F1-F12)
+  { label: 'F1', sequence: '\x1b[11~', type: 'special' }, { label: 'F2', sequence: '\x1b[12~', type: 'special' },
+  { label: 'F3', sequence: '\x1b[13~', type: 'special' }, { label: 'F4', sequence: '\x1b[14~', type: 'special' },
+  { label: 'F5', sequence: '\x1b[15~', type: 'special' }, { label: 'F6', sequence: '\x1b[17~', type: 'special' },
+  { label: 'F7', sequence: '\x1b[18~', type: 'special' }, { label: 'F8', sequence: '\x1b[19~', type: 'special' },
+  { label: 'F9', sequence: '\x1b[20~', type: 'special' }, { label: 'F10', sequence: '\x1b[21~', type: 'special' },
+  { label: 'F11', sequence: '\x1b[23~', type: 'special' }, { label: 'F12', sequence: '\x1b[24~', type: 'special' },
+  // Row 4: Alphabet Keys (A-Z)
   { label: 'A', type: 'char' }, { label: 'B', type: 'char' }, { label: 'C', type: 'char' },
   { label: 'D', type: 'char' }, { label: 'E', type: 'char' }, { label: 'F', type: 'char' },
   { label: 'G', type: 'char' }, { label: 'H', type: 'char' }, { label: 'I', type: 'char' },
