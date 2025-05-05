@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, type PropType, ref, watch, defineExpose, onMounted, onBeforeUnmount } from 'vue'; // 添加 ref, watch, defineExpose, onMounted, onBeforeUnmount
+import { computed, type PropType, ref, watch, defineExpose, onMounted, onBeforeUnmount, nextTick } from 'vue'; // 添加 nextTick
 import { useI18n } from 'vue-i18n';
 // import { storeToRefs } from 'pinia'; // 移除 storeToRefs
 import MonacoEditor from './MonacoEditor.vue'; // 导入 Monaco Editor 组件
@@ -49,12 +49,55 @@ const activeTab = computed((): FileTab | null => {
 
 // Monaco Editor 的 v-model 处理
 const localEditorContent = ref('');
+const encodingSelectRef = ref<HTMLSelectElement | null>(null); // Ref for the select element
 
-// 监听 activeTab 的变化，重置 localEditorContent
+// Function to calculate and set the select width
+const updateSelectWidth = () => {
+  nextTick(() => { // Ensure DOM is updated before measuring
+    if (!encodingSelectRef.value) return;
+
+    const selectElement = encodingSelectRef.value;
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+    if (!selectedOption) return;
+
+    // Create a temporary span to measure text width
+    const tempSpan = document.createElement('span');
+    // Copy relevant styles (adjust as needed for accurate measurement)
+    const styles = window.getComputedStyle(selectElement);
+    tempSpan.style.fontSize = styles.fontSize;
+    tempSpan.style.fontFamily = styles.fontFamily;
+    tempSpan.style.fontWeight = styles.fontWeight;
+    tempSpan.style.letterSpacing = styles.letterSpacing;
+    tempSpan.style.paddingLeft = styles.paddingLeft; // Include padding for accuracy
+    tempSpan.style.paddingRight = styles.paddingRight;
+    // tempSpan.style.borderLeftWidth = styles.borderLeftWidth; // Border might not be needed for width calc
+    // tempSpan.style.borderRightWidth = styles.borderRightWidth;
+    tempSpan.style.visibility = 'hidden'; // Make it invisible
+    tempSpan.style.position = 'absolute'; // Prevent layout shift
+    tempSpan.style.whiteSpace = 'nowrap'; // Prevent wrapping
+    tempSpan.style.left = '-9999px'; // Move off-screen
+
+    tempSpan.textContent = selectedOption.text;
+    document.body.appendChild(tempSpan);
+
+    const textWidth = tempSpan.offsetWidth;
+    document.body.removeChild(tempSpan);
+
+    // Set the select width (add extra space for dropdown arrow, adjust as needed)
+    const arrowPadding = 25; // Increased padding for arrow and visual spacing
+    selectElement.style.width = `${textWidth + arrowPadding}px`;
+    // console.log(`[EditorContainer] Setting select width for "${selectedOption.text}" to ${textWidth + arrowPadding}px`);
+  });
+};
+
+
+// 监听 activeTab 的变化，重置 localEditorContent 并更新 select 宽度
 watch(activeTab, (newTab) => {
     // console.log('[EditorContainer] Active tab changed, updating local content.');
     localEditorContent.value = newTab?.content ?? '';
-}, { immediate: true });
+    updateSelectWidth(); // Update select width when tab changes
+}, { immediate: true }); // immediate: true ensures it runs on initial load too
 
 // 移除用于调试的 watch 函数
 // 当本地编辑器内容变化时，通知父组件 (WorkspaceView)
@@ -82,6 +125,11 @@ const currentTabFilePath = computed(() => activeTab.value?.filePath ?? '');
 const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false); // 用于显示修改状态
 // +++ 新增：计算当前选择的编码 +++
 const currentSelectedEncoding = computed(() => activeTab.value?.selectedEncoding ?? 'utf-8');
+
+// Watch for changes in the selected encoding to update width
+watch(currentSelectedEncoding, () => {
+  updateSelectWidth();
+});
 
 // +++ 新增：编码选项 +++
 // 注意：这里的 value 需要与 iconv-lite 支持的标签匹配 (后端使用)
@@ -248,17 +296,19 @@ const handleKeyDown = (event: KeyboardEvent) => {
         </span>
         <div class="editor-actions">
           <!-- +++ 新增：编码选择下拉菜单 +++ -->
-          <select
-            v-if="activeTab && !currentTabIsLoading"
-            :value="currentSelectedEncoding"
-            @change="handleEncodingChange"
-            class="encoding-select"
-            :title="t('fileManager.changeEncodingTooltip', '更改文件编码')"
-          >
-            <option v-for="option in encodingOptions" :key="option.value" :value="option.value">
-              {{ option.text }}
-            </option>
-          </select>
+          <div class="encoding-select-wrapper" v-if="activeTab && !currentTabIsLoading">
+            <select
+              ref="encodingSelectRef"
+              :value="currentSelectedEncoding"
+              @change="handleEncodingChange"
+              class="encoding-select"
+              :title="t('fileManager.changeEncodingTooltip', '更改文件编码')"
+            >
+              <option v-for="option in encodingOptions" :key="option.value" :value="option.value">
+                {{ option.text }}
+              </option>
+            </select>
+          </div>
           <span v-else-if="activeTab" class="encoding-select-placeholder">{{ t('fileManager.loadingEncoding', '加载中...') }}</span>
           <!-- +++ 结束新增 +++ -->
 
@@ -390,15 +440,23 @@ const handleKeyDown = (event: KeyboardEvent) => {
 </style>
 
 <style scoped> /* Add new styles below existing scoped styles */
+.encoding-select-wrapper {
+  display: inline-block; /* 让 wrapper 包裹内容 */
+  vertical-align: middle; /* 垂直居中对齐 */
+}
+
 .encoding-select {
   background-color: #444;
   color: #f0f0f0;
   border: 1px solid #666;
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem 0.5rem; /* 恢复内边距 */
   border-radius: 3px;
   font-size: 0.85em;
   cursor: pointer;
   outline: none;
+  /* width: auto; */ /* JS will control width via style property */
+  /* 移除 flex-shrink */
+  /* 确保没有其他样式覆盖，例如内联样式或更高优先级的选择器 */
 }
 
 .encoding-select:hover {
