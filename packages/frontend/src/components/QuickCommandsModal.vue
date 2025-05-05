@@ -56,7 +56,7 @@ onUnmounted(() => {
       <!-- Title -->
       <h3 class="text-lg font-semibold text-center mb-3 flex-shrink-0">快捷指令</h3>
       <!-- Quick Commands View Embedded -->
-      <div class="flex-grow overflow-hidden border border-border rounded">
+      <div class="flex-grow overflow-y-auto border border-border rounded">
         <QuickCommandsView @execute-command="handleCommandExecute" />
       </div>
     </div>
