@@ -39,6 +39,11 @@ const props = defineProps({
     type: String as PropType<string | null>,
     default: null,
   },
+  // +++ Add layoutLocked prop +++
+  layoutLocked: {
+    type: Boolean,
+    default: false,
+  },
   // Removed terminalManager prop definition
 });
 
@@ -488,8 +493,10 @@ onMounted(() => {
             <template v-if="layoutNode.type === 'container' && layoutNode.children && layoutNode.children.length > 0">
               <splitpanes
                   :horizontal="layoutNode.direction === 'vertical'"
-                  class="default-theme flex-grow"
+                  :class="['default-theme flex-grow', { 'layout-locked': props.layoutLocked }]"
                   @resized="handlePaneResize"
+                  :push-other-panes="false"
+                  :dbl-click-splitter="!props.layoutLocked"
               >
                   <pane
                     v-for="childNode in layoutNode.children"
@@ -754,6 +761,17 @@ onMounted(() => {
 .splitpanes--horizontal > .splitpanes__splitter {
   border-color: var(--border-color) !important;
   height: 1px !important;
+}
+
+/* --- Styles for Locked Layout --- */
+.splitpanes.layout-locked .splitpanes__splitter {
+  pointer-events: none !important; /* Disable dragging */
+  cursor: default !important; /* Change cursor */
+  background-color: var(--border-color) !important; /* Ensure no hover effect */
+}
+
+.splitpanes.layout-locked .splitpanes__splitter:hover {
+  background-color: var(--border-color) !important; /* Override hover effect */
 }
 
 </style>

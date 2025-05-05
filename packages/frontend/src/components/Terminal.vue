@@ -82,12 +82,27 @@ const debouncedEmitResize = debounce((term: Terminal) => {
 
 // 立即执行 Fit 并发送 Resize 的函数
 const fitAndEmitResizeNow = (term: Terminal) => {
-    if (!term) return;
+    if (!term || !terminalRef.value) return; // 添加 terminalRef.value 检查
     try {
-        fitAddon?.fit();
-        const dimensions = { cols: term.cols, rows: term.rows };
-        console.log(`[Terminal ${props.sessionId}] Immediate resize emit:`, dimensions);
-        emit('resize', dimensions);
+        // 确保容器可见且有尺寸
+        if (terminalRef.value.offsetHeight > 0 && terminalRef.value.offsetWidth > 0) {
+            fitAddon?.fit();
+            const dimensions = { cols: term.cols, rows: term.rows };
+            console.log(`[Terminal ${props.sessionId}] Immediate resize emit:`, dimensions);
+            emit('resize', dimensions);
+
+            // *** 恢复：仅使用 nextTick 触发 window resize ***
+            // 使用 nextTick 确保 fit() 的效果已反映，再触发 resize
+            nextTick(() => {
+                // 再次检查终端实例是否仍然存在
+                if (terminal && terminalRef.value) {
+                    console.log(`[Terminal ${props.sessionId}] Triggering window resize event after immediate fit.`);
+                    window.dispatchEvent(new Event('resize'));
+                }
+            });
+        } else {
+             console.log(`[Terminal ${props.sessionId}] Immediate fit skipped (container not visible or has no dimensions).`);
+        }
     } catch (e) {
         console.warn("Immediate fit/resize failed:", e);
     }
@@ -390,26 +405,31 @@ onMounted(() => {
         // 只在按下Ctrl键时才触发缩放
         if (event.ctrlKey) {
           event.preventDefault(); // 阻止默认的滚动行为
-          
-          // 根据滚轮方向调整字体大小
-          // 直接读取和修改 terminal 实例的字体大小
+
           if (terminal) {
             let newSize;
+            const currentSize = terminal.options.fontSize ?? currentTerminalFontSize.value;
             if (event.deltaY < 0) {
               // 向上滚动，增大字体
-              newSize = Math.min((terminal.options.fontSize ?? currentTerminalFontSize.value) + 1, 40); // 使用当前实例值或 store 值作为基础
+              newSize = Math.min(currentSize + 1, 40);
             } else {
               // 向下滚动，减小字体
-              newSize = Math.max((terminal.options.fontSize ?? currentTerminalFontSize.value) - 1, 8); // 使用当前实例值或 store 值作为基础
+              newSize = Math.max(currentSize - 1, 8);
             }
-            // 立即更新视觉效果
-            terminal.options.fontSize = newSize;
-            fitAddon?.fit();
-            // 注意：fit() 内部可能不会触发 resize 事件，如果需要精确通知后端，可能需要额外处理，但 fitAndEmitResizeNow 应该足够
-            // emit('resize', { cols: terminal.cols, rows: terminal.rows }); // 避免重复发送 resize
 
-            // 调用防抖函数来保存设置
-            debouncedSetTerminalFontSize(newSize);
+            if (newSize !== currentSize) { // 仅在字体大小实际改变时执行
+                console.log(`[Terminal ${props.sessionId}] Font size changed via wheel: ${newSize}`);
+                // 立即更新视觉效果 - fitAndEmitResizeNow 会处理
+                // terminal.options.fontSize = newSize; // fitAndEmitResizeNow 内部会设置
+                // fitAddon?.fit(); // fitAndEmitResizeNow 会处理
+
+                // *** 修改：调用 fitAndEmitResizeNow 来处理 fit 和事件触发 ***
+                terminal.options.fontSize = newSize; // 先更新选项
+                fitAndEmitResizeNow(terminal); // 调用统一函数
+
+                // 调用防抖函数来保存设置
+                debouncedSetTerminalFontSize(newSize);
+            }
           }
         }
       });
