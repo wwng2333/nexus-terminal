@@ -55,6 +55,7 @@ interface SettingsState {
   dashboardSortOrder?: SortOrder;
   showConnectionTags?: string; // 'true' or 'false'
   showQuickCommandTags?: string; // 'true' or 'false'
+  layoutLocked?: string; // 'true' or 'false' - NEW: 布局锁定状态
   [key: string]: string | undefined;
 }
 
@@ -261,9 +262,16 @@ export const useSettingsStore = defineStore('settings', () => {
       }
       if (settings.value.showQuickCommandTags === undefined) {
           settings.value.showQuickCommandTags = 'true'; // 默认显示
+      } // +++ Add missing closing brace +++
+      // NEW: Layout locked default - Only set if not provided by backend
+      if (settings.value.layoutLocked === undefined) {
+          settings.value.layoutLocked = 'false'; // 默认不锁定
+          console.log('[SettingsStore] layoutLocked not found in fetched settings, set to default: false');
+      } else {
+          console.log(`[SettingsStore] layoutLocked found in fetched settings: ${settings.value.layoutLocked}`);
       }
-
-
+    
+    
       // --- 语言设置 ---
       const langFromSettings = settings.value.language;
       console.log(`[SettingsStore] Language from fetched settings: ${langFromSettings}`); // <-- 添加日志
@@ -348,7 +356,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'dashboardSortBy',
         'dashboardSortOrder',
         'showConnectionTags', // NEW
-        'showQuickCommandTags' // NEW
+        'showQuickCommandTags', // NEW
+        'layoutLocked' // NEW
       ];
       if (!allowedKeys.includes(key)) {
           console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -432,7 +441,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'dashboardSortBy',
         'dashboardSortOrder',
         'showConnectionTags', // NEW
-        'showQuickCommandTags' // NEW
+        'showQuickCommandTags', // NEW
+        'layoutLocked' // NEW
       ];
       const filteredUpdates: Partial<SettingsState> = {};
       let languageUpdate: string | undefined = undefined;
@@ -702,6 +712,11 @@ export const useSettingsStore = defineStore('settings', () => {
       return settings.value.showQuickCommandTags !== 'false'; // Default to true
   });
 
+  // NEW: Getter for layout locked status
+  const layoutLockedBoolean = computed(() => {
+      return settings.value.layoutLocked === 'true';
+  });
+
 
  return {
     settings, // 只包含通用设置
@@ -741,5 +756,7 @@ export const useSettingsStore = defineStore('settings', () => {
     // NEW: Expose tag visibility getters
     showConnectionTagsBoolean,
     showQuickCommandTagsBoolean,
+    // NEW: Expose layout locked getter
+    layoutLockedBoolean,
   };
   });

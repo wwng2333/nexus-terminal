@@ -2,8 +2,12 @@
 import { ref, computed, watch, type Ref, nextTick } from 'vue'; // Import nextTick
 import { useI18n } from 'vue-i18n';
 import { useLayoutStore, type LayoutNode, type PaneName } from '../stores/layout.store';
+import { useSettingsStore } from '../stores/settings.store'; // +++ Import settings store +++
+import { storeToRefs } from 'pinia'; // +++ Import storeToRefs +++
 import draggable from 'vuedraggable';
 import LayoutNodeEditor from './LayoutNodeEditor.vue';
+// +++ Import a switch component if available, otherwise use checkbox +++
+// Assuming a simple checkbox for now
 
 // --- Props ---
 const props = defineProps({
@@ -19,6 +23,8 @@ const emit = defineEmits(['close']);
 // --- Setup ---
 const { t } = useI18n();
 const layoutStore = useLayoutStore();
+const settingsStore = useSettingsStore(); // +++ Initialize settings store +++
+const { layoutLockedBoolean } = storeToRefs(settingsStore); // +++ Get reactive state +++
 
 // --- State ---
 const localLayoutTree: Ref<LayoutNode | null> = ref(null);
@@ -160,6 +166,23 @@ const paneLabels = computed(() => ({ // Assuming labels might depend on i18n
 }));
 
 // --- Methods ---
+// +++ Method to update layout lock setting +++
+const handleLayoutLockChange = async () => { // Removed event parameter
+  const isLocked = !layoutLockedBoolean.value; // Toggle the current state
+  console.log(`[LayoutConfigurator] Layout lock toggled: ${isLocked}`);
+  try {
+    // +++ Convert boolean to string before sending +++
+    await settingsStore.updateSetting('layoutLocked', String(isLocked));
+    // No need to update local state directly, store watcher should handle it if needed,
+    // but the button's appearance relies on layoutLockedBoolean which comes from the store.
+  } catch (error) {
+    console.error('[LayoutConfigurator] Failed to update layout lock setting:', error);
+    // Optionally show an error message
+    // No UI element state to revert directly here, the button state depends on layoutLockedBoolean
+    alert(t('layoutConfigurator.lockUpdateError', '更新布局锁定状态失败。'));
+  }
+};
+
 const closeDialog = () => {
   // Use the computed property for the check
   if (isModified.value) {
@@ -388,7 +411,32 @@ const handleAvailablePaneDragEnd = (event: any) => {
         <div class="flex flex-col">
             <!-- Main Layout Preview -->
             <section class="flex flex-col min-w-[350px] flex-grow">
-              <h3 class="mt-0 mb-4 text-base font-semibold text-text-secondary">{{ t('layoutConfigurator.layoutPreview', '主布局预览（拖拽到此处）') }}</h3>
+              <div class="flex justify-between items-center mb-4"> <!-- +++ Flex container for title and switch +++ -->
+                <h3 class="mt-0 mb-0 text-base font-semibold text-text-secondary">{{ t('layoutConfigurator.layoutPreview', '主布局预览（拖拽到此处）') }}</h3>
+                <!-- +++ Layout Lock Switch +++ -->
+                <div class="flex items-center gap-2">
+                   <label id="layout-lock-label" class="text-sm text-text-secondary cursor-pointer select-none" @click="handleLayoutLockChange">{{ t('layoutConfigurator.lockLayout', '锁定布局') }}</label>
+                   <button
+                     type="button"
+                     @click="handleLayoutLockChange"
+                     :class="[
+                       'relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary',
+                       layoutLockedBoolean ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                     ]"
+                     role="switch"
+                     :aria-checked="layoutLockedBoolean.toString()"
+                     aria-labelledby="layout-lock-label"
+                   >
+                     <span
+                       aria-hidden="true"
+                       :class="[
+                         'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition ease-in-out duration-200',
+                         layoutLockedBoolean ? 'translate-x-5' : 'translate-x-0'
+                       ]"
+                     ></span>
+                   </button>
+                 </div>
+              </div>
               <div class="flex-grow border-2 border-dashed border-border-alt rounded p-4 bg-background-alt flex flex-col overflow-auto min-h-[250px]">
                 <LayoutNodeEditor
                   v-if="localLayoutTree"

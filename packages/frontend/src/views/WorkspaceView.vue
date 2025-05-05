@@ -22,8 +22,8 @@ import type { ISearchOptions } from '@xterm/addon-search';
 
 // --- Setup ---
 const { t } = useI18n();
-const sessionStore = useSessionStore(); 
-const settingsStore = useSettingsStore();
+const sessionStore = useSessionStore();
+const settingsStore = useSettingsStore(); // Keep settingsStore instance
 const fileEditorStore = useFileEditorStore();
 const layoutStore = useLayoutStore();
 const commandHistoryStore = useCommandHistoryStore();
@@ -34,7 +34,7 @@ const isMobile = breakpoints.smaller('md'); // +++ 定义 isMobile (小于 md �
 
 // --- 从 Store 获取响应式状态和 Getters ---
 const { sessionTabsWithStatus, activeSessionId, activeSession, isRdpModalOpen, rdpConnectionInfo } = storeToRefs(sessionStore); // 使用 storeToRefs 获取 RDP 状态
-const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore);
+const { shareFileEditorTabsBoolean, layoutLockedBoolean } = storeToRefs(settingsStore); // +++ Add layoutLockedBoolean +++
 const { orderedTabs: globalEditorTabs, activeTabId: globalActiveEditorTabId } = storeToRefs(fileEditorStore);
 const { layoutTree } = storeToRefs(layoutStore); // 只获取布局树
 
@@ -563,6 +563,7 @@ const toggleVirtualKeyboard = () => {
           :is-root-renderer="true"
           :layout-node="layoutTree"
           :active-session-id="activeSessionId"
+          :layout-locked="layoutLockedBoolean"
           class="layout-renderer-wrapper"
           :editor-tabs="editorTabs"
           :active-editor-tab-id="activeEditorTabId"
