@@ -484,6 +484,26 @@
                      </div>
                  </form>
               </div>
+              <hr class="border-border/50"> <!-- NEW: Separator -->
+              <!-- Terminal Scrollback Limit -->
+              <div class="settings-section-content">
+                 <h3 class="text-base font-semibold text-foreground mb-3">{{ t('settings.terminalScrollback.title', '终端回滚行数') }}</h3>
+                 <form @submit.prevent="handleUpdateTerminalScrollbackLimit" class="space-y-4">
+                   <div>
+                     <label for="terminalScrollbackLimitInput" class="block text-sm font-medium text-text-secondary mb-1">{{ t('settings.terminalScrollback.limitLabel', '最大行数') }}</label>
+                     <input type="number" id="terminalScrollbackLimitInput" v-model.number="terminalScrollbackLimitLocal" min="0" step="1" placeholder="5000"
+                            class="w-full px-3 py-2 border border-border rounded-md shadow-sm bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
+                     <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.terminalScrollback.limitHint', '设置终端保留的最大输出行数。0 或留空表示无限制 (使用默认值 5000)。此设置将在下次打开终端时生效。') }}</small>
+                   </div>
+                   <div class="flex items-center justify-between">
+                      <button type="submit" :disabled="terminalScrollbackLimitLoading"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                        {{ terminalScrollbackLimitLoading ? t('common.loading') : t('settings.terminalScrollback.saveButton', '保存') }}
+                      </button>
+                      <p v-if="terminalScrollbackLimitMessage" :class="['text-sm', terminalScrollbackLimitSuccess ? 'text-success' : 'text-error']">{{ terminalScrollbackLimitMessage }}</p>
+                   </div>
+                 </form>
+              </div>
             </div>
           </div>
 
@@ -666,6 +686,7 @@ const {
     ipBlacklistEnabledBoolean, // <-- Import IP Blacklist enabled getter
     showConnectionTagsBoolean, // NEW: Import connection tag visibility getter
     showQuickCommandTagsBoolean, // NEW: Import quick command tag visibility getter
+    terminalScrollbackLimitNumber, // NEW: Import terminal scrollback limit getter
 } = storeToRefs(settingsStore);
 
 // Removed Passkey state import from authStore
@@ -692,6 +713,7 @@ const commandInputSyncTargetLocal = ref<'none' | 'quickCommands' | 'commandHisto
 const ipBlacklistEnabled = ref(true); // <-- Local state for IP Blacklist switch
 const showConnectionTagsLocal = ref(true); // NEW: Local state for connection tags switch
 const showQuickCommandTagsLocal = ref(true); // NEW: Local state for quick command tags switch
+const terminalScrollbackLimitLocal = ref<number | null>(null); // NEW: Local state for terminal scrollback limit input (allow null for empty input)
 
 // --- Local UI feedback state ---
 const ipWhitelistLoading = ref(false);
@@ -742,6 +764,9 @@ const showConnectionTagsSuccess = ref(false); // NEW
 const showQuickCommandTagsLoading = ref(false); // NEW
 const showQuickCommandTagsMessage = ref(''); // NEW
 const showQuickCommandTagsSuccess = ref(false); // NEW
+const terminalScrollbackLimitLoading = ref(false); // NEW
+const terminalScrollbackLimitMessage = ref(''); // NEW
+const terminalScrollbackLimitSuccess = ref(false); // NEW
 // CAPTCHA Form State
 const captchaForm = reactive<UpdateCaptchaSettingsDto>({ // Use reactive for the form object
     enabled: false,
@@ -792,6 +817,8 @@ watch(settings, (newSettings, oldSettings) => {
   ipBlacklistEnabled.value = ipBlacklistEnabledBoolean.value; // <-- Sync IP Blacklist enabled state
   showConnectionTagsLocal.value = showConnectionTagsBoolean.value; // NEW: Sync connection tags state
   showQuickCommandTagsLocal.value = showQuickCommandTagsBoolean.value; // NEW: Sync quick command tags state
+  // NEW: Directly sync terminal scrollback limit from store getter to local state
+  terminalScrollbackLimitLocal.value = terminalScrollbackLimitNumber.value;
 
 }, { deep: true, immediate: true }); // immediate: true to run on initial load
 
@@ -815,6 +842,9 @@ watch(captchaSettings, (newCaptchaSettings) => {
     }
 }, { immediate: true }); // immediate: true to run on initial load
 
+
+// Watcher specifically for terminalScrollbackLimitNumber is redundant if the main settings watcher handles it.
+// Let's remove the specific watcher for simplicity, the main one should suffice.
 
 // --- Popup Editor setting method ---
 const handleUpdatePopupEditorSetting = async () => {
@@ -1017,6 +1047,34 @@ const handleUpdateShowQuickCommandTags = async () => {
     } finally {
         showQuickCommandTagsLoading.value = false;
         // Keep message visible until next save attempt
+    }
+};
+
+// --- Terminal Scrollback Limit setting method ---
+const handleUpdateTerminalScrollbackLimit = async () => {
+    terminalScrollbackLimitLoading.value = true;
+    terminalScrollbackLimitMessage.value = '';
+    terminalScrollbackLimitSuccess.value = false;
+    try {
+        const limitValue = terminalScrollbackLimitLocal.value;
+
+        // Validate: must be a non-negative integer or null/undefined (treat null/undefined as default 5000)
+        if (limitValue !== null && limitValue !== undefined && (isNaN(limitValue) || !Number.isInteger(limitValue) || limitValue < 0)) {
+            throw new Error(t('settings.terminalScrollback.error.invalidInput', '请输入一个有效的非负整数。'));
+        }
+
+        // If input is empty (null/undefined), save the default value '5000'. Otherwise, save the entered number as string.
+        const valueToSave = (limitValue === null || limitValue === undefined) ? '5000' : String(limitValue);
+
+        await settingsStore.updateSetting('terminalScrollbackLimit', valueToSave);
+        terminalScrollbackLimitMessage.value = t('settings.terminalScrollback.success.saved', '终端回滚行数设置已保存。');
+        terminalScrollbackLimitSuccess.value = true;
+    } catch (error: any) {
+        console.error('更新终端回滚行数设置失败:', error);
+        terminalScrollbackLimitMessage.value = error.message || t('settings.terminalScrollback.error.saveFailed', '保存终端回滚行数设置失败。');
+        terminalScrollbackLimitSuccess.value = false;
+    } finally {
+        terminalScrollbackLimitLoading.value = false;
     }
 };
 

@@ -56,6 +56,7 @@ interface SettingsState {
   showConnectionTags?: string; // 'true' or 'false'
   showQuickCommandTags?: string; // 'true' or 'false'
   layoutLocked?: string; // 'true' or 'false' - NEW: 布局锁定状态
+  terminalScrollbackLimit?: string; // NEW: 终端回滚行数上限 (e.g., '5000', '0' for unlimited)
   [key: string]: string | undefined;
 }
 
@@ -270,6 +271,11 @@ export const useSettingsStore = defineStore('settings', () => {
       } else {
           console.log(`[SettingsStore] layoutLocked found in fetched settings: ${settings.value.layoutLocked}`);
       }
+      // NEW: Terminal scrollback limit default
+      if (settings.value.terminalScrollbackLimit === undefined) {
+          settings.value.terminalScrollbackLimit = '5000'; // 默认 5000 行
+          console.log(`[SettingsStore] terminalScrollbackLimit not found, set to default: ${settings.value.terminalScrollbackLimit}`);
+      }
     
     
       // --- 语言设置 ---
@@ -357,7 +363,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'dashboardSortOrder',
         'showConnectionTags', // NEW
         'showQuickCommandTags', // NEW
-        'layoutLocked' // NEW
+        'layoutLocked', // NEW
+        'terminalScrollbackLimit' // NEW
       ];
       if (!allowedKeys.includes(key)) {
           console.error(`[SettingsStore] 尝试更新不允许的设置键: ${key}`);
@@ -442,7 +449,8 @@ export const useSettingsStore = defineStore('settings', () => {
         'dashboardSortOrder',
         'showConnectionTags', // NEW
         'showQuickCommandTags', // NEW
-        'layoutLocked' // NEW
+        'layoutLocked', // NEW
+        'terminalScrollbackLimit' // NEW
       ];
       const filteredUpdates: Partial<SettingsState> = {};
       let languageUpdate: string | undefined = undefined;
@@ -717,6 +725,18 @@ export const useSettingsStore = defineStore('settings', () => {
       return settings.value.layoutLocked === 'true';
   });
 
+  // NEW: Getter for terminal scrollback limit, returning number (0 means Infinity for xterm)
+  const terminalScrollbackLimitNumber = computed(() => {
+      const valStr = settings.value.terminalScrollbackLimit;
+      if (valStr === null || valStr === undefined || valStr.trim() === '') {
+          return 5000; // Default value if not set or empty
+      }
+      const val = parseInt(valStr, 10);
+      if (isNaN(val) || val < 0) {
+          return 5000; // Default value if invalid number or negative
+      }
+      return val; // Return 0 if it's 0, or the positive number
+  });
 
  return {
     settings, // 只包含通用设置
@@ -758,5 +778,6 @@ export const useSettingsStore = defineStore('settings', () => {
     showQuickCommandTagsBoolean,
     // NEW: Expose layout locked getter
     layoutLockedBoolean,
+    terminalScrollbackLimitNumber, // NEW: Expose terminal scrollback limit getter
   };
   });

@@ -640,6 +640,19 @@
       "showQuickCommandTagsLabel": "Show tags in quick command list",
       "showQuickCommandTagsDescription": "Disable to hide tags in the quick command list and exclude them from search."
     },
+    "terminalScrollback": {
+      "title": "Terminal Scrollback Limit",
+      "limitLabel": "Maximum Lines",
+      "limitHint": "Set the maximum number of output lines the terminal keeps. 0 means unlimited (uses default 5000). This setting takes effect the next time a terminal is opened.",
+      "saveButton": "Save",
+      "success": {
+        "saved": "Terminal scrollback limit setting saved successfully."
+      },
+      "error": {
+        "saveFailed": "Failed to save terminal scrollback limit setting.",
+        "invalidInput": "Please enter a valid non-negative integer."
+      }
+    },
     "ipBlacklist": {
       "title": "IP Blacklist Management",
       "description": "Configure login attempt limits and automatic ban duration. Local addresses (127.0.0.1, ::1) will not be banned.",

@@ -874,6 +874,19 @@
             "showQuickCommandTagsLabel": "クイックコマンドリストにタグを表示",
             "showQuickCommandTagsDescription": "無効にすると、クイックコマンドリストのタグが非表示になり、検索から除外されます。"
         },
+        "terminalScrollback": {
+          "title": "ターミナルスクロールバック制限",
+          "limitLabel": "最大行数",
+          "limitHint": "ターミナルが保持する最大出力行数を設定します。0 は無制限を意味します (デフォルト値 5000 を使用)。この設定は、次にターミナルを開いたときに有効になります。",
+          "saveButton": "保存",
+          "success": {
+            "saved": "ターミナルスクロールバック制限の設定が正常に保存されました。"
+          },
+          "error": {
+            "saveFailed": "ターミナルスクロールバック制限の設定の保存に失敗しました。",
+            "invalidInput": "有効な非負整数を入力してください。"
+          }
+        },
         "about": {
             "version": "バージョン",
             "checkingUpdate": "更新を確認中...",

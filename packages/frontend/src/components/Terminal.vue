@@ -46,7 +46,10 @@ const {
  
 // --- Settings Store ---
 const settingsStore = useSettingsStore(); // +++ 实例化设置 store +++
-const { autoCopyOnSelectBoolean } = storeToRefs(settingsStore); // +++ 获取选中即复制状态 +++
+const {
+  autoCopyOnSelectBoolean,
+  terminalScrollbackLimitNumber // NEW: Import scrollback limit getter
+} = storeToRefs(settingsStore); // +++ 获取选中即复制状态 +++
 
 // 防抖函数
 const debounce = (func: Function, delay: number) => {
@@ -119,6 +122,14 @@ const debouncedSetTerminalFontSize = debounce(async (size: number) => {
     }
 }, 500); // 500ms 防抖延迟，可以调整
 
+// NEW: Helper function to convert setting value to xterm scrollback value
+const getScrollbackValue = (limit: number): number => {
+  if (limit === 0) {
+    return Infinity; // 0 means unlimited for xterm
+  }
+  return Math.max(0, limit); // Ensure non-negative, return the number otherwise
+};
+
 // 初始化终端
 onMounted(() => {
   if (terminalRef.value) {
@@ -132,7 +143,7 @@ onMounted(() => {
       allowTransparency: true,
       disableStdin: false,
       convertEol: true,
-      scrollback: 1000, // 减少可滚动历史行数
+      scrollback: getScrollbackValue(terminalScrollbackLimitNumber.value), // NEW: Use setting from store
       scrollOnUserInput: true, // 输入时滚动到底部
       ...props.options, // 合并外部传入的选项
     });
