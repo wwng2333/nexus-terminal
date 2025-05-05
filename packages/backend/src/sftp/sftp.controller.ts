@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import path from 'path';
-import { clientStates } from '../websocket';
+import { clientStates, ClientState } from '../websocket'; // +++ 导入 ClientState +++
 import archiver from 'archiver'; // +++ 引入 archiver +++
 import { SFTPWrapper, Stats } from 'ssh2'; // +++ 移除 Dirent 导入 +++
 // 移除 ssh2-streams 导入
@@ -25,33 +25,39 @@ export const downloadFile = async (req: Request, res: Response): Promise<void> =
 
     console.log(`SFTP 下载请求：用户 ${userId}, 连接 ${connectionId}, 路径 ${remotePath}`);
 
-    // 查找与当前用户会话关联的活动 WebSocket 连接和 SFTP 会话
-    let userSftpSession = null;
-    // 注意：这种查找方式效率不高，实际应用中可能需要更优化的结构来按 userId 查找连接
+    // --- 修改：查找与 userId 和 connectionId 匹配的活动 SFTP 会话 ---
+    let targetState: ClientState | null = null;
+    const targetDbConnectionId = parseInt(connectionId, 10); // 将查询参数字符串转换为数字
+
+    if (isNaN(targetDbConnectionId)) {
+        res.status(400).json({ message: '无效的 connectionId。' });
+        return;
+    }
+
+    console.log(`SFTP 下载：正在查找用户 ${userId} 且连接 ID 为 ${targetDbConnectionId} 的会话...`);
     for (const [sessionId, state] of clientStates.entries()) {
-        const ws = state.ws;
-        const connData = state;
-        // 假设 AuthenticatedWebSocket 上存储了 userId
-        if (ws.userId === userId && connData.sftp) {
-            // 这里简单地取第一个找到的匹配连接，没有处理 connectionId 的匹配
-            // TODO: 需要一种方式将 HTTP 请求与特定的 WebSocket/SSH/SFTP 会话关联起来
-            // 临时方案：假设一个用户只有一个活动的 SSH/SFTP 会话
-            userSftpSession = connData.sftp;
-            console.log(`找到用户 ${userId} 的活动 SFTP 会话。`);
+        // 检查 userId 和 dbConnectionId 是否都匹配，并且 sftp 实例存在
+        if (state.ws.userId === userId && state.dbConnectionId === targetDbConnectionId && state.sftp) {
+            targetState = state;
+            console.log(`SFTP 下载：找到匹配的会话 (Session ID: ${sessionId})。`);
             break;
         }
     }
 
-    if (!userSftpSession) {
-        console.warn(`SFTP 下载失败：未找到用户 ${userId} 的活动 SFTP 会话。`);
-        res.status(404).json({ message: '未找到活动的 SFTP 会话。请确保您已通过 WebSocket 连接到目标服务器。' });
+    if (!targetState || !targetState.sftp) {
+        console.warn(`SFTP 下载失败：未找到用户 ${userId} 且连接 ID 为 ${targetDbConnectionId} 的活动 SFTP 会话。`);
+        res.status(404).json({ message: '未找到指定的活动 SFTP 会话。请确保目标连接处于活动状态。' });
         return;
     }
+
+    const userSftpSession = targetState.sftp; // 获取正确的 SFTP 实例
+    // --- 结束修改 ---
 
     try {
         // 获取文件状态以确定文件大小（可选，但有助于设置 Content-Length）
         const stats = await new Promise<import('ssh2').Stats>((resolve, reject) => {
-            userSftpSession!.lstat(remotePath, (err, stats) => {
+            // +++ 修正类型注解 +++
+            userSftpSession!.lstat(remotePath, (err: Error | undefined, stats: import('ssh2').Stats) => {
                 if (err) return reject(err);
                 resolve(stats);
             });
@@ -126,29 +132,39 @@ export const downloadDirectory = async (req: Request, res: Response): Promise<vo
 
     console.log(`SFTP 文件夹下载请求：用户 ${userId}, 连接 ${connectionId}, 路径 ${remotePath}`);
 
-    // 查找与当前用户会话关联的活动 WebSocket 连接和 SFTP 会话 (与 downloadFile 逻辑相同)
-    let userSftpSession = null;
+    // --- 修改：查找与 userId 和 connectionId 匹配的活动 SFTP 会话 ---
+    let targetState: ClientState | null = null;
+    const targetDbConnectionId = parseInt(connectionId, 10); // 将查询参数字符串转换为数字
+
+    if (isNaN(targetDbConnectionId)) {
+        res.status(400).json({ message: '无效的 connectionId。' });
+        return;
+    }
+
+    console.log(`SFTP 文件夹下载：正在查找用户 ${userId} 且连接 ID 为 ${targetDbConnectionId} 的会话...`);
     for (const [sessionId, state] of clientStates.entries()) {
-        const ws = state.ws;
-        const connData = state;
-        if (ws.userId === userId && connData.sftp) {
-            // TODO: 关联特定的 connectionId
-            userSftpSession = connData.sftp;
-            console.log(`找到用户 ${userId} 的活动 SFTP 会话。`);
+        // 检查 userId 和 dbConnectionId 是否都匹配，并且 sftp 实例存在
+        if (state.ws.userId === userId && state.dbConnectionId === targetDbConnectionId && state.sftp) {
+            targetState = state;
+            console.log(`SFTP 文件夹下载：找到匹配的会话 (Session ID: ${sessionId})。`);
             break;
         }
     }
 
-    if (!userSftpSession) {
-        console.warn(`SFTP 文件夹下载失败：未找到用户 ${userId} 的活动 SFTP 会话。`);
-        res.status(404).json({ message: '未找到活动的 SFTP 会话。请确保您已通过 WebSocket 连接到目标服务器。' });
+    if (!targetState || !targetState.sftp) {
+        console.warn(`SFTP 文件夹下载失败：未找到用户 ${userId} 且连接 ID 为 ${targetDbConnectionId} 的活动 SFTP 会话。`);
+        res.status(404).json({ message: '未找到指定的活动 SFTP 会话。请确保目标连接处于活动状态。' });
         return;
     }
+
+    const userSftpSession = targetState.sftp; // 获取正确的 SFTP 实例
+    // --- 结束修改 ---
 
     try {
         // 1. 验证路径是否为目录
         const stats = await new Promise<import('ssh2').Stats>((resolve, reject) => {
-            userSftpSession!.lstat(remotePath, (err, stats) => {
+             // +++ 修正类型注解 +++
+            userSftpSession!.lstat(remotePath, (err: Error | undefined, stats: import('ssh2').Stats) => {
                 if (err) return reject(err);
                 resolve(stats);
             });

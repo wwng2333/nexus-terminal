@@ -678,16 +678,26 @@ let connInfo: SshService.DecryptedConnectionDetails | null = null; // 将 connIn
                             const newSessionId = uuidv4();
                             ws.sessionId = newSessionId;
 
+                            // --- 修正：确保 dbConnectionId 存储为数字 ---
+                            const dbConnectionIdAsNumber = parseInt(dbConnectionId, 10);
+                            if (isNaN(dbConnectionIdAsNumber)) {
+                                // 如果转换失败，记录错误并可能关闭连接
+                                console.error(`WebSocket: 无效的 dbConnectionId '${dbConnectionId}' (非数字)，无法创建会话 ${newSessionId}。`);
+                                ws.send(JSON.stringify({ type: 'ssh:error', payload: '无效的连接 ID。' }));
+                                sshClient.end(); // 关闭 SSH 连接
+                                ws.close(1008, 'Invalid Connection ID'); // 关闭 WebSocket
+                                return; // 停止执行
+                            }
                             const newState: ClientState = {
                                 ws: ws,
                                 sshClient: sshClient,
-                                dbConnectionId: dbConnectionId,
+                                dbConnectionId: dbConnectionIdAsNumber, // 存储数字类型
                                 connectionName: connInfo!.name, // 填充 connectionName (non-null assertion)
                                 ipAddress: clientIp, // 存储 IP 地址
                                 isShellReady: false, // 初始化 Shell 状态为未就绪
                             };
                             clientStates.set(newSessionId, newState);
-                            console.log(`WebSocket: 为用户 ${ws.username} (IP: ${clientIp}) 创建新会话 ${newSessionId} (DB ID: ${dbConnectionId})`);
+                            console.log(`WebSocket: 为用户 ${ws.username} (IP: ${clientIp}) 创建新会话 ${newSessionId} (DB ID: ${dbConnectionIdAsNumber})`);
 
                             // 4. 立即打开 Shell (使用默认尺寸)
                             ws.send(JSON.stringify({ type: 'ssh:status', payload: 'SSH 连接成功，正在打开 Shell...' }));
