@@ -103,7 +103,7 @@
                                 <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-text-secondary': true }">{{ cmd.command }}</span>
                             </div>
                             <!-- Actions (Structure remains the same) -->
-                            <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                            <div class="flex items-center flex-shrink-0 focus-within:opacity-100 transition-opacity duration-150">
                                 <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2 text-text-secondary" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
                                 <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('common.edit', '编辑')">
                                     <i class="fas fa-edit text-sm"></i>
@@ -132,7 +132,7 @@
                         <span class="text-xs truncate font-mono" :class="{ 'text-sm': !cmd.name, 'text-text-secondary': true }">{{ cmd.command }}</span>
                     </div>
                     <!-- Actions -->
-                    <div class="flex items-center flex-shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-150">
+                    <div class="flex items-center flex-shrink-0 focus-within:opacity-100 transition-opacity duration-150">
                         <span class="text-xs bg-border px-1.5 py-0.5 rounded mr-2 text-text-secondary" :title="t('quickCommands.usageCount', '使用次数')">{{ cmd.usage_count }}</span>
                         <button @click.stop="openEditForm(cmd)" class="p-1.5 rounded hover:bg-black/10 transition-colors duration-150 text-text-secondary hover:text-primary" :title="$t('common.edit', '编辑')">
                             <i class="fas fa-edit text-sm"></i>
