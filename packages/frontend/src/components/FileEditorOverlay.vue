@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'; // + nextTick
 import { useI18n } from 'vue-i18n';
 import { storeToRefs } from 'pinia';
 import MonacoEditor from './MonacoEditor.vue';
@@ -40,6 +40,7 @@ const {
    closeOtherTabs, // 修正：移除 Global 后缀
    closeTabsToTheRight, // 修正：移除 Global 后缀
    closeTabsToTheLeft, // 修正：移除 Global 后缀
+   changeEncoding: changeGlobalEncoding, // +++ 添加全局编码更改 action +++
 } = fileEditorStore;
 
 // 会话 Store Actions (用于非共享模式)
@@ -52,6 +53,7 @@ const {
    closeOtherTabsInSession,
    closeTabsToTheRightInSession,
    closeTabsToTheLeftInSession,
+   changeEncodingInSession, // +++ 添加会话编码更改 action +++
 } = sessionStore;
 
 // --- 移除本地文件状态 ---
@@ -78,6 +80,7 @@ const startWidthPx = ref(0);
 const startHeightPx = ref(0);
 const minWidth = 400; // 最小宽度
 const minHeight = 300; // 最小高度
+const encodingSelectRef = ref<HTMLSelectElement | null>(null); // +++ Ref for the select element +++
 
 // --- 计算属性，用于模板绑定 ---
 const popupStyle = computed(() => ({
@@ -86,6 +89,44 @@ const popupStyle = computed(() => ({
 }));
 
 // --- 动态计算属性 (根据模式选择数据源) ---
+
+// +++ Function to calculate and set the select width (copied from FileEditorContainer) +++
+const updateSelectWidth = () => {
+  nextTick(() => { // Ensure DOM is updated before measuring
+    if (!encodingSelectRef.value) return;
+
+    const selectElement = encodingSelectRef.value;
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+
+    if (!selectedOption) return;
+
+    // Create a temporary span to measure text width
+    const tempSpan = document.createElement('span');
+    // Copy relevant styles (adjust as needed for accurate measurement)
+    const styles = window.getComputedStyle(selectElement);
+    tempSpan.style.fontSize = styles.fontSize;
+    tempSpan.style.fontFamily = styles.fontFamily;
+    tempSpan.style.fontWeight = styles.fontWeight;
+    tempSpan.style.letterSpacing = styles.letterSpacing;
+    tempSpan.style.paddingLeft = styles.paddingLeft; // Include padding for accuracy
+    tempSpan.style.paddingRight = styles.paddingRight;
+    tempSpan.style.visibility = 'hidden'; // Make it invisible
+    tempSpan.style.position = 'absolute'; // Prevent layout shift
+    tempSpan.style.whiteSpace = 'nowrap'; // Prevent wrapping
+    tempSpan.style.left = '-9999px'; // Move off-screen
+
+    tempSpan.textContent = selectedOption.text;
+    document.body.appendChild(tempSpan);
+
+    const textWidth = tempSpan.offsetWidth;
+    document.body.removeChild(tempSpan);
+
+    // Set the select width (add extra space for dropdown arrow, adjust as needed)
+    const arrowPadding = 25; // Increased padding for arrow and visual spacing
+    selectElement.style.width = `${textWidth + arrowPadding}px`;
+    // console.log(`[EditorOverlay] Setting select width for "${selectedOption.text}" to ${textWidth + arrowPadding}px`);
+  });
+};
 
 // 获取当前弹窗关联的会话 (仅非共享模式需要)
 const currentSession = computed(() => {
@@ -160,6 +201,8 @@ const currentTabSaveError = computed(() => activeTab.value?.saveError ?? null);
 const currentTabLanguage = computed(() => activeTab.value?.language ?? 'plaintext');
 const currentTabFilePath = computed(() => activeTab.value?.filePath ?? '');
 const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false);
+// +++ 新增：计算当前选择的编码 (与 Container 逻辑一致) +++
+const currentSelectedEncoding = computed(() => activeTab.value?.selectedEncoding ?? 'utf-8');
 // +++ 新增：计算当前活动标签的会话名称 (与 Container 逻辑一致) +++
 const currentTabSessionName = computed(() => {
   const sessionId = activeTab.value?.sessionId;
@@ -169,6 +212,57 @@ const currentTabSessionName = computed(() => {
 });
 
 // --- 事件处理 (根据模式调用不同 action) ---
+
+// +++ 新增：编码选项 (copied from FileEditorContainer) +++
+// 注意：这里的 value 需要与 iconv-lite 支持的标签匹配 (后端使用)
+const encodingOptions = ref([
+  // Unicode
+  { value: 'utf-8', text: 'UTF-8' },
+  { value: 'utf-16le', text: 'UTF-16 LE' },
+  { value: 'utf-16be', text: 'UTF-16 BE' },
+  // Chinese
+  { value: 'gbk', text: 'GBK' },
+  { value: 'gb18030', text: 'GB18030' },
+  { value: 'big5', text: 'Big5 (Traditional Chinese)' },
+  // Japanese
+  { value: 'shift_jis', text: 'Shift-JIS' },
+  { value: 'euc-jp', text: 'EUC-JP' },
+  // Korean
+  { value: 'euc-kr', text: 'EUC-KR' },
+  // Western European
+  { value: 'iso-8859-1', text: 'ISO-8859-1 (Latin-1)' },
+  { value: 'iso-8859-15', text: 'ISO-8859-15 (Latin-9)' },
+  { value: 'cp1252', text: 'Windows-1252' }, // Western European
+  // Central European
+  { value: 'iso-8859-2', text: 'ISO-8859-2 (Latin-2)' },
+  { value: 'cp1250', text: 'Windows-1250' }, // Central European
+  // Cyrillic
+  { value: 'iso-8859-5', text: 'ISO-8859-5 (Cyrillic)' },
+  { value: 'cp1251', text: 'Windows-1251 (Cyrillic)' },
+  { value: 'koi8-r', text: 'KOI8-R' },
+  { value: 'koi8-u', text: 'KOI8-U' },
+  // Greek
+  { value: 'iso-8859-7', text: 'ISO-8859-7 (Greek)' },
+  { value: 'cp1253', text: 'Windows-1253 (Greek)' },
+  // Turkish
+  { value: 'iso-8859-9', text: 'ISO-8859-9 (Turkish)' },
+  { value: 'cp1254', text: 'Windows-1254 (Turkish)' },
+  // Hebrew
+  { value: 'iso-8859-8', text: 'ISO-8859-8 (Hebrew)' },
+  { value: 'cp1255', text: 'Windows-1255 (Hebrew)' },
+  // Arabic
+  { value: 'iso-8859-6', text: 'ISO-8859-6 (Arabic)' },
+  { value: 'cp1256', text: 'Windows-1256 (Arabic)' },
+  // Baltic
+  { value: 'iso-8859-4', text: 'ISO-8859-4 (Baltic)' }, // Latin-4
+  { value: 'iso-8859-13', text: 'ISO-8859-13 (Baltic)' }, // Latin-7
+  { value: 'cp1257', text: 'Windows-1257 (Baltic)' },
+  // Vietnamese
+  { value: 'cp1258', text: 'Windows-1258 (Vietnamese)' },
+  // Thai
+  { value: 'tis-620', text: 'TIS-620 (Thai)' }, // Often cp874
+  { value: 'cp874', text: 'Windows-874 (Thai)' },
+]);
 
 // 保存当前激活的标签页
 const handleSaveRequest = () => {
@@ -258,6 +352,27 @@ const handleCloseLeftTabs = (targetTabId: string) => {
     }
 };
 
+// +++ 新增：处理编码更改事件 +++
+const handleEncodingChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement;
+  const newEncoding = target.value;
+  const currentActiveTab = activeTab.value;
+
+  if (currentActiveTab && newEncoding && newEncoding !== currentSelectedEncoding.value) {
+    console.log(`[EditorOverlay] Encoding changed to ${newEncoding} for tab ${currentActiveTab.id}`);
+    if (shareFileEditorTabsBoolean.value) {
+        changeGlobalEncoding(currentActiveTab.id, newEncoding); // 全局 Store
+    } else {
+        const sessionId = popupFileInfo.value?.sessionId;
+        if (sessionId) {
+            changeEncodingInSession(sessionId, currentActiveTab.id, newEncoding); // 会话 Store
+        } else {
+             console.error("[FileEditorOverlay] 无法更改编码：非共享模式下缺少 sessionId。");
+        }
+    }
+  }
+};
+
 // 关闭弹窗 (保持不变)
 const handleCloseContainer = () => {
     // 关闭前不再检查本地修改状态，因为没有本地状态了
@@ -331,6 +446,16 @@ watch(popupTrigger, () => {
 
 });
 
+// +++ 监听 activeTab 的变化，更新 select 宽度 +++
+watch(activeTab, () => {
+    updateSelectWidth();
+}, { immediate: true }); // immediate: true ensures it runs on initial load too
+
+// +++ Watch for changes in the selected encoding to update width +++
+watch(currentSelectedEncoding, () => {
+  updateSelectWidth();
+});
+
 
 // 组件卸载时清理事件监听器
 onBeforeUnmount(() => {
@@ -363,6 +488,23 @@ onBeforeUnmount(() => {
           <span v-if="currentTabIsModified" class="modified-indicator">*</span>
         </span>
         <div class="editor-actions">
+          <!-- +++ 新增：编码选择下拉菜单 +++ -->
+          <div class="encoding-select-wrapper" v-if="activeTab && !currentTabIsLoading">
+            <select
+              ref="encodingSelectRef"
+              :value="currentSelectedEncoding"
+              @change="handleEncodingChange"
+              class="encoding-select"
+              :title="t('fileManager.changeEncodingTooltip', '更改文件编码')"
+            >
+              <option v-for="option in encodingOptions" :key="option.value" :value="option.value">
+                {{ option.text }}
+              </option>
+            </select>
+          </div>
+          <span v-else-if="activeTab" class="encoding-select-placeholder">{{ t('fileManager.loadingEncoding', '加载中...') }}</span>
+          <!-- +++ 结束新增 +++ -->
+
           <span v-if="currentTabSaveStatus === 'saving'" class="save-status saving">{{ t('fileManager.saving') }}...</span>
           <span v-if="currentTabSaveStatus === 'success'" class="save-status success">✅ {{ t('fileManager.saveSuccess') }}</span>
           <span v-if="currentTabSaveStatus === 'error'" class="save-status error">❌ {{ t('fileManager.saveError') }}: {{ currentTabSaveError }}</span>
@@ -504,7 +646,7 @@ onBeforeUnmount(() => {
 .editor-actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.8rem; /* 稍微减小间距以容纳下拉菜单 */
 }
 
 .save-btn {
@@ -582,4 +724,39 @@ onBeforeUnmount(() => {
     cursor: pointer;
 }
 */
+
+/* +++ 新增：编码选择器样式 (copied from FileEditorContainer) +++ */
+.encoding-select-wrapper {
+  display: inline-block; /* 让 wrapper 包裹内容 */
+  vertical-align: middle; /* 垂直居中对齐 */
+}
+
+.encoding-select {
+  background-color: #444;
+  color: #f0f0f0;
+  border: 1px solid #666;
+  padding: 0.3rem 0.5rem; /* 恢复内边距 */
+  border-radius: 3px;
+  font-size: 0.85em;
+  cursor: pointer;
+  outline: none;
+  /* width: auto; */ /* JS will control width via style property */
+}
+
+.encoding-select:hover {
+  background-color: #555;
+}
+
+.encoding-select:focus {
+  border-color: #888;
+}
+
+.encoding-select-placeholder {
+    font-size: 0.85em;
+    color: #888;
+    padding: 0.3rem 0.5rem;
+    display: inline-block;
+    min-width: 80px; /* 与 select 大致对齐 */
+    text-align: center;
+}
 </style>

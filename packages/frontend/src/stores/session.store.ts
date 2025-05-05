@@ -679,7 +679,7 @@ export const useSessionStore = defineStore('session', () => {
    * 在指定会话中更改文件编码并重新解码
    */
   // --- 修改：更改文件编码（通过请求后端重新读取） ---
-  const changeEncodingInSession = async (sessionId: string, tabId: string, newEncoding: string) => {
+  const changeEncodingInSession = (sessionId: string, tabId: string, newEncoding: string) => {
       const session = sessions.value.get(sessionId);
       if (!session) {
           console.warn(`[SessionStore] 尝试更改不存在的会话 ${sessionId} 中标签页 ${tabId} 的编码。`);
@@ -691,64 +691,48 @@ export const useSessionStore = defineStore('session', () => {
           return;
       }
 
-      // 获取默认的 sftpManager 实例
-      const sftpManager = getOrCreateSftpManager(sessionId, 'primary');
-      if (!sftpManager) {
-          console.error(`[SessionStore] 无法获取会话 ${sessionId} 的 primary sftpManager 来更改编码。`);
+      const tab = session.editorTabs.value[tabIndex];
+
+      if (!tab.rawContentBase64) {
+          console.error(`[SessionStore] 无法更改编码：会话 ${sessionId} 标签页 ${tabId} 没有原始文件数据。`);
           // 更新错误状态
-          const errorTab = { ...session.editorTabs.value[tabIndex], isLoading: false, loadingError: '无法获取 SFTP 实例' };
+          const errorTab = { ...tab, isLoading: false, loadingError: '缺少原始文件数据，无法更改编码' };
           session.editorTabs.value.splice(tabIndex, 1, errorTab);
           return;
       }
+      if (tab.selectedEncoding === newEncoding) {
+          console.log(`[SessionStore] 会话 ${sessionId} 标签页 ${tabId} 编码已经是 ${newEncoding}，无需更改。`);
+          return;
+      }
 
-      const tab = session.editorTabs.value[tabIndex];
-      console.log(`[SessionStore] 请求使用新编码 "${newEncoding}" 重新读取文件: ${tab.filePath} (会话 ${sessionId}, Tab ID: ${tabId})`);
-
-      // 设置加载状态 (使用 splice)
-      const loadingTab = { ...tab, isLoading: true, loadingError: null };
-      session.editorTabs.value.splice(tabIndex, 1, loadingTab);
+      console.log(`[SessionStore] 使用新编码 "${newEncoding}" 在前端重新解码文件: ${tab.filePath} (会话 ${sessionId}, Tab ID: ${tabId})`);
 
       try {
-          // 向后端发送 readFile 请求，并指定编码
-          const fileData: SftpReadFileSuccessPayload = await sftpManager.readFile(tab.filePath, newEncoding);
-          console.log(`[SessionStore ${sessionId}] 文件 ${tab.filePath} 使用编码 "${newEncoding}" 重新读取成功。后端实际使用编码: ${fileData.encodingUsed}`);
+          // 使用新编码解码存储的原始数据
+          const newContent = decodeRawContent(tab.rawContentBase64, newEncoding);
 
-          // 更新标签页状态 (使用 splice)
-          const currentTabState = session.editorTabs.value.find(t => t.id === tabId); // 获取最新状态
-          if (!currentTabState) return; // 可能在请求期间关闭了
-
-          // --- 修复：使用 decodeRawContent 解码并更新原始数据 ---
-          const newDecodedContent = decodeRawContent(fileData.rawContentBase64, fileData.encodingUsed);
+          // 更新标签页状态 (使用 splice 保证响应性)
           const updatedTab: FileTab = {
-              ...currentTabState,
-              content: newDecodedContent,
-              rawContentBase64: fileData.rawContentBase64, // 更新原始 Base64 数据
-              // originalContent 保持不变
-              selectedEncoding: fileData.encodingUsed, // 使用后端确认的编码
-              isLoading: false,
+              ...tab,
+              content: newContent,
+              selectedEncoding: newEncoding, // 更新选择的编码
+              isLoading: false, // 解码完成 (移除加载状态)
               loadingError: null,
               // isModified 状态保持不变
           };
-          const finalTabIndex = session.editorTabs.value.findIndex(t => t.id === tabId); // 重新获取索引
-          if (finalTabIndex !== -1) {
-              session.editorTabs.value.splice(finalTabIndex, 1, updatedTab);
-          } else {
-               console.warn(`[SessionStore ${sessionId}] 尝试更新标签页 ${tabId} 时未找到索引 (changeEncoding)。`);
-          }
+          session.editorTabs.value.splice(tabIndex, 1, updatedTab);
+          console.log(`[SessionStore] 文件 ${tab.filePath} (会话 ${sessionId}) 使用新编码 "${newEncoding}" 解码完成。`);
 
-      } catch (err: any) {
-          console.error(`[SessionStore ${sessionId}] 使用编码 "${newEncoding}" 重新读取文件 ${tab.filePath} 失败:`, err);
-          const errorMsg = `${t('fileManager.errors.readFileFailed')} (编码: ${newEncoding}): ${err.message || err}`;
+      } catch (err: any) { // catch 应该在 decodeRawContent 内部处理了，但以防万一
+          console.error(`[SessionStore] 使用编码 "${newEncoding}" 在前端解码文件 ${tab.filePath} (会话 ${sessionId}) 失败:`, err);
+          const errorMsg = `前端解码失败 (编码: ${newEncoding}): ${err.message || err}`;
           // 更新错误状态 (使用 splice)
-          const errorTabIndex = session.editorTabs.value.findIndex(t => t.id === tabId);
-          if (errorTabIndex !== -1) {
-              const errorTab = {
-                  ...session.editorTabs.value[errorTabIndex],
-                  isLoading: false,
-                  loadingError: errorMsg,
-              };
-              session.editorTabs.value.splice(errorTabIndex, 1, errorTab);
-          }
+          const errorTab: FileTab = {
+              ...tab,
+              isLoading: false,
+              loadingError: errorMsg,
+          };
+          session.editorTabs.value.splice(tabIndex, 1, errorTab);
       }
   };
 
