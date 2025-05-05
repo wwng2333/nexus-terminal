@@ -424,7 +424,7 @@ const handleAvailablePaneDragEnd = (event: any) => {
                        layoutLockedBoolean ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
                      ]"
                      role="switch"
-                     :aria-checked="layoutLockedBoolean.toString()"
+                     :aria-checked="layoutLockedBoolean"
                      aria-labelledby="layout-lock-label"
                    >
                      <span
