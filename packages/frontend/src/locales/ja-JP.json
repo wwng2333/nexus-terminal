@@ -393,7 +393,9 @@
         "resetDefault": "デフォルトに戻す",
         "rightSidebar": "右サイドバーパネル",
         "saveError": "レイアウトの保存中にエラーが発生しました。後でもう一度お試しください。",
-        "title": "レイアウトマネージャー"
+        "title": "レイアウトマネージャー",
+        "lockLayout": "レイアウトをロック",
+        "lockUpdateError": "レイアウトロック状態の更新に失敗しました。"
     },
     "layoutNodeEditor": {
         "addHorizontalContainer": "水平コンテナーを追加",

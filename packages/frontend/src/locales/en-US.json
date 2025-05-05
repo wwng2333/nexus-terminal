@@ -770,7 +770,9 @@
     "rightSidebar": "Right Sidebar Panes",
     "dropHere": "Drop panes from available list here",
     "saveError": "Error saving layout. Please try again later.",
-    "confirmClearLayout": "Are you sure you want to clear the entire layout? All panes will return to the available list."
+    "confirmClearLayout": "Are you sure you want to clear the entire layout? All panes will return to the available list.",
+    "lockLayout": "Lock Layout",
+    "lockUpdateError": "Failed to update layout lock status."
   },
   "layoutNodeEditor": {
     "containerLabel": "Container ({direction})",
