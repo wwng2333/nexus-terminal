@@ -7,9 +7,15 @@ import FileEditorTabs from './FileEditorTabs.vue'; // 导入标签栏组件 (路
 // import { useFileEditorStore } from '../stores/fileEditor.store'; // 移除 Store 导入
 import type { FileTab } from '../stores/fileEditor.store'; // 保留类型导入
 import { useFocusSwitcherStore } from '../stores/focusSwitcher.store'; // +++ 导入焦点切换 Store +++
+import { useSessionStore } from '../stores/session.store'; // +++ 导入会话 Store +++
+import { useSettingsStore } from '../stores/settings.store'; // +++ 导入设置 Store +++
+import { storeToRefs } from 'pinia'; // +++ 导入 storeToRefs +++
 
 const { t } = useI18n();
 const focusSwitcherStore = useFocusSwitcherStore(); // +++ 实例化焦点切换 Store +++
+const sessionStore = useSessionStore(); // +++ 实例化会话 Store +++
+const settingsStore = useSettingsStore(); // +++ 实例化设置 Store +++
+const { shareFileEditorTabsBoolean } = storeToRefs(settingsStore); // +++ 获取共享设置 +++
 
 // --- Props ---
 const props = defineProps({
@@ -125,6 +131,12 @@ const currentTabFilePath = computed(() => activeTab.value?.filePath ?? '');
 const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false); // 用于显示修改状态
 // +++ 新增：计算当前选择的编码 +++
 const currentSelectedEncoding = computed(() => activeTab.value?.selectedEncoding ?? 'utf-8');
+// +++ 新增：计算当前活动标签的会话名称 +++
+const currentTabSessionName = computed(() => {
+  const sessionId = activeTab.value?.sessionId;
+  if (!sessionId) return null;
+  return sessionStore.sessions.get(sessionId)?.connectionName ?? null; // 修正：使用 connectionName
+});
 
 // Watch for changes in the selected encoding to update width
 watch(currentSelectedEncoding, () => {
@@ -291,7 +303,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
       <!-- 移除关闭/最小化按钮，这些由 WorkspaceView 控制 -->
       <div v-if="activeTab" class="editor-header">
         <span>
-          {{ t('fileManager.editingFile') }}: {{ currentTabFilePath }}
+          {{ t('fileManager.editingFile') }}<template v-if="shareFileEditorTabsBoolean && currentTabSessionName">({{ currentTabSessionName }})</template>: {{ currentTabFilePath }}
           <span v-if="currentTabIsModified" class="modified-indicator">*</span>
         </span>
         <div class="editor-actions">

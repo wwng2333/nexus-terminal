@@ -160,6 +160,13 @@ const currentTabSaveError = computed(() => activeTab.value?.saveError ?? null);
 const currentTabLanguage = computed(() => activeTab.value?.language ?? 'plaintext');
 const currentTabFilePath = computed(() => activeTab.value?.filePath ?? '');
 const currentTabIsModified = computed(() => activeTab.value?.isModified ?? false);
+// +++ 新增：计算当前活动标签的会话名称 (与 Container 逻辑一致) +++
+const currentTabSessionName = computed(() => {
+  const sessionId = activeTab.value?.sessionId;
+  if (!sessionId) return null;
+  // sessionStore 已在 setup 中实例化
+  return sessionStore.sessions.get(sessionId)?.connectionName ?? null; // 修正：使用 connectionName
+});
 
 // --- 事件处理 (根据模式调用不同 action) ---
 
@@ -352,7 +359,7 @@ onBeforeUnmount(() => {
       <!-- 编辑器头部 (使用动态计算属性) -->
       <div v-if="activeTab" class="editor-header">
         <span>
-          {{ t('fileManager.editingFile') }}: {{ currentTabFilePath }}
+          {{ t('fileManager.editingFile') }}<template v-if="shareFileEditorTabsBoolean && currentTabSessionName">({{ currentTabSessionName }})</template>: {{ currentTabFilePath }}
           <span v-if="currentTabIsModified" class="modified-indicator">*</span>
         </span>
         <div class="editor-actions">
