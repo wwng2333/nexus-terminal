@@ -155,6 +155,9 @@ Here are some implicit practical features.
 4. **Tab Group Fold Bar**: You can directly click on the tab name in the view to rename the tab.
 5. **Automatic Reconnection**: When the connection is lost, you can press Enter in the command input box or terminal, or click the same SSH connection in the connection list to trigger automatic reconnection.
 
+### Others
+
+1. After adjusting the layout, be sure to enable **"Lock Layout"** in the layout manager to prevent page flickering caused by accidental dragging of split lines when the mouse moves across the interface. This ensures the best user experience.
 
 
 ## ⚠️ Notes
