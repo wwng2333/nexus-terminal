@@ -935,7 +935,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
           </button>
         </nav>
         
-        <main class="flex-grow p-3 md:p-4 md:px-6 overflow-y-auto">
+        <main class="flex-grow p-3 md:p-4 md:px-6 overflow-y-auto min-h-0">
           <section v-if="currentTab === 'ui'">
             <h3 class="mt-0 border-b border-border pb-2 mb-4 text-lg font-semibold text-foreground">{{ t('styleCustomizer.uiStyles') }}</h3>
             <!-- 新增：主题模式选择 - 小屏幕堆叠 -->
@@ -951,7 +951,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
             <div v-for="(value, key) in editableUiTheme" :key="key" class="grid grid-cols-1 md:grid-cols-[auto_1fr] items-start md:items-center gap-x-3 gap-y-1 mb-3">
               <label :for="`ui-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ formatLabel(key) }}:</label>
               <!-- Container for color picker and text display -->
-              <div class="flex items-center gap-2 w-full flex-wrap"> 
+              <div class="flex items-center gap-2 w-full">
                 <!-- Color Picker -->
                 <input
                   v-if="typeof value === 'string' && (value.startsWith('#') || value.startsWith('rgb') || value.startsWith('hsl'))"
@@ -1101,7 +1101,7 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                  
               <div v-for="(value, key) in editingTheme.themeData" :key="key" class="grid grid-cols-1 md:grid-cols-[auto_1fr] items-start md:items-center gap-2 mb-2">
                 <label :for="`xterm-${key}`" class="text-left text-foreground text-sm font-medium overflow-hidden text-ellipsis block w-full mb-1 md:mb-0">{{ formatXtermLabel(key as keyof ITheme) }}:</label>
-                <div class="flex items-center gap-2 w-full flex-wrap"> 
+                <div class="flex items-center gap-2 w-full">
                   
                   <input
                     v-if="typeof value === 'string' && value.startsWith('#')"
