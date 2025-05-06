@@ -456,8 +456,8 @@
                      </div>
                      <p class="text-xs text-text-secondary mt-1">{{ $t('settings.workspace.showConnectionTagsDescription', '关闭后将隐藏连接列表中的标签，并从搜索中排除标签。') }}</p>
                      <div class="flex items-center justify-between pt-2">
-                        <button type="submit" :disabled="showConnectionTagsLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                        <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
                           {{ $t('common.save') }}
                         </button>
                         <p v-if="showConnectionTagsMessage" :class="['text-sm', showConnectionTagsSuccess ? 'text-success' : 'text-error']">{{ showConnectionTagsMessage }}</p>
@@ -476,8 +476,8 @@
                      </div>
                      <p class="text-xs text-text-secondary mt-1">{{ $t('settings.workspace.showQuickCommandTagsDescription', '关闭后将隐藏快捷指令列表中的标签，并从搜索中排除标签。') }}</p>
                      <div class="flex items-center justify-between pt-2">
-                        <button type="submit" :disabled="showQuickCommandTagsLoading"
-                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
+                        <button type="submit"
+                                class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
                           {{ $t('common.save') }}
                         </button>
                         <p v-if="showQuickCommandTagsMessage" :class="['text-sm', showQuickCommandTagsSuccess ? 'text-success' : 'text-error']">{{ showQuickCommandTagsMessage }}</p>
@@ -496,9 +496,9 @@
                      <small class="block mt-1 text-xs text-text-secondary">{{ t('settings.terminalScrollback.limitHint', '设置终端保留的最大输出行数。0 或留空表示无限制 (使用默认值 5000)。此设置将在下次打开终端时生效。') }}</small>
                    </div>
                    <div class="flex items-center justify-between">
-                      <button type="submit" :disabled="terminalScrollbackLimitLoading"
-                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out text-sm font-medium">
-                        {{ terminalScrollbackLimitLoading ? t('common.loading') : t('settings.terminalScrollback.saveButton', '保存') }}
+                      <button type="submit"
+                              class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium">
+                        {{ t('settings.terminalScrollback.saveButton', '保存') }}
                       </button>
                       <p v-if="terminalScrollbackLimitMessage" :class="['text-sm', terminalScrollbackLimitSuccess ? 'text-success' : 'text-error']">{{ terminalScrollbackLimitMessage }}</p>
                    </div>
