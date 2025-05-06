@@ -128,6 +128,40 @@ const commandInputRef = ref<HTMLInputElement | null>(null); // Ref for command i
 // Removed debug computed property
 
 const handleCommandInputKeydown = (event: KeyboardEvent) => {
+  // --- 移动到外部：优先处理 Enter 键执行选中项 ---
+  if (!event.altKey && event.key === 'Enter') {
+    const target = commandInputSyncTarget.value;
+    let selectedCommand: string | undefined;
+    let resetSelection: (() => void) | undefined;
+
+    if (target === 'quickCommands' && quickCommandsSelectedIndex.value >= 0) {
+      const commands = quickCommandsFiltered.value;
+      if (quickCommandsSelectedIndex.value < commands.length) {
+        selectedCommand = commands[quickCommandsSelectedIndex.value].command;
+        resetSelection = resetQuickCommandsSelection;
+      }
+    } else if (target === 'commandHistory' && historySelectedIndex.value >= 0) {
+      const history = historyFiltered.value;
+      if (historySelectedIndex.value < history.length) {
+        selectedCommand = history[historySelectedIndex.value].command;
+        resetSelection = resetHistorySelection;
+      }
+    }
+
+    if (selectedCommand !== undefined) {
+      event.preventDefault();
+      console.log(`[CommandInputBar] Enter detected with selection. Sending selected command: ${selectedCommand}`);
+      emit('send-command', selectedCommand); // 发送选中命令 (移除多余的 \n)
+      if (activeSessionId.value) {
+        updateSessionCommandInput(activeSessionId.value, ''); // 清空输入框
+      }
+      resetSelection?.(); // 重置列表选中状态
+      return; // 阻止后续的 Enter 处理
+    }
+    // 如果没有选中项，则继续执行下面的默认 Enter 逻辑
+  }
+  // --- 结束：优先处理 Enter 键执行选中项 ---
+
   if (event.ctrlKey && event.key === 'f') {
     event.preventDefault(); // 阻止浏览器默认的查找行为
     isSearching.value = true;
@@ -152,45 +186,27 @@ const handleCommandInputKeydown = (event: KeyboardEvent) => {
       event.preventDefault();
       commandHistoryStore.selectNextCommand();
     }
-  } else if (event.altKey && event.key === 'Enter') {
-    const target = commandInputSyncTarget.value;
-    let selectedCommand: string | undefined;
-
-    if (target === 'quickCommands') {
-      const index = quickCommandsSelectedIndex.value;
-      const commands = quickCommandsFiltered.value;
-      if (index >= 0 && index < commands.length) {
-        selectedCommand = commands[index].command;
-        resetQuickCommandsSelection(); // Reset selection after execution
-      }
-    } else if (target === 'commandHistory') {
-      const index = historySelectedIndex.value;
-      const history = historyFiltered.value;
-      if (index >= 0 && index < history.length) {
-        selectedCommand = history[index].command;
-        resetHistorySelection(); // Reset selection after execution
-      }
-    }
-
-    if (selectedCommand !== undefined) {
-      event.preventDefault();
-      console.log(`[CommandInputBar] Alt+Enter detected. Sending selected command: ${selectedCommand}`);
-      emit('send-command', selectedCommand + '\n');
-      // 清空 store 中的值
-      if (activeSessionId.value) {
-        updateSessionCommandInput(activeSessionId.value, '');
-      }
-    }
   } else if (event.ctrlKey && event.key === 'c' && currentSessionCommandInput.value === '') { // 检查计算属性的值
     // Handle Ctrl+C when input is empty
     event.preventDefault();
     console.log('[CommandInputBar] Ctrl+C detected with empty input. Sending SIGINT.');
     emit('send-command', '\x03'); // Send ETX character (Ctrl+C)
   } else if (!event.altKey && event.key === 'Enter') {
-     // Handle regular Enter key press - send current input
+     // Handle regular Enter key press - send current input (empty or not)
      event.preventDefault(); // Prevent default if needed, e.g., form submission
      sendCommand(); // Call the existing sendCommand function
-  }
+ } else {
+   // --- 新增：处理其他按键，取消列表选中状态 ---
+   // 检查按下的键是否是普通输入键或删除键等，而不是导航键或修饰键
+   if (!['ArrowUp', 'ArrowDown', 'Enter', 'Shift', 'Control', 'Alt', 'Meta', 'Tab', 'Escape'].includes(event.key)) {
+       const target = commandInputSyncTarget.value;
+       if (target === 'quickCommands' && quickCommandsSelectedIndex.value >= 0) {
+           resetQuickCommandsSelection();
+       } else if (target === 'commandHistory' && historySelectedIndex.value >= 0) {
+           resetHistorySelection();
+       }
+   }
+ }
 };
 
 // NEW: Handle blur event on command input
