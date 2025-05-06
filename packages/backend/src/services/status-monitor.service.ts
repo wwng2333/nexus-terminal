@@ -7,11 +7,11 @@ import { settingsService } from './settings.service';
 interface ServerStatus {
     cpuPercent?: number;
     memPercent?: number;
-    memUsed?: number; // MB
-    memTotal?: number; // MB
+    memUsed?: number; // KB
+    memTotal?: number; // KB
     swapPercent?: number;
-    swapUsed?: number; // MB
-    swapTotal?: number; // MB
+    swapUsed?: number; // KB
+    swapTotal?: number; // KB
     diskPercent?: number;
     diskUsed?: number; // KB
     diskTotal?: number; // KB
@@ -155,15 +155,15 @@ export class StatusMonitorService {
 
 
              try {
-                 const freeOutput = await this.executeSshCommand(sshClient, 'free -m');
+                 const freeOutput = await this.executeSshCommand(sshClient, 'free');
                  const lines = freeOutput.split('\n');
                  const memLine = lines.find(line => line.startsWith('Mem:'));
                  const swapLine = lines.find(line => line.startsWith('Swap:'));
                  if (memLine) {
                      const parts = memLine.split(/\s+/);
                      if (parts.length >= 4) {
-                         const total = parseInt(parts[1], 10);
-                         const used = parseInt(parts[2], 10);
+                         const total = parseInt(parts[1], 10) / 1024;
+                         const used = parseInt(parts[2], 10) / 1024.0;
                          if (!isNaN(total) && !isNaN(used)) {
                              status.memTotal = total; status.memUsed = used;
                              status.memPercent = total > 0 ? parseFloat(((used / total) * 100).toFixed(1)) : 0;
@@ -173,8 +173,8 @@ export class StatusMonitorService {
                  if (swapLine) {
                      const parts = swapLine.split(/\s+/);
                      if (parts.length >= 4) {
-                         const total = parseInt(parts[1], 10);
-                         const used = parseInt(parts[2], 10);
+                         const total = parseInt(parts[1], 10) / 1024;
+                         const used = parseInt(parts[2], 10) / 1024;
                          if (!isNaN(total) && !isNaN(used)) {
                              status.swapTotal = total; status.swapUsed = used;
                              status.swapPercent = total > 0 ? parseFloat(((used / total) * 100).toFixed(1)) : 0;
