@@ -1050,9 +1050,10 @@ const handleFocusAndSelect = (event: FocusEvent) => {
                  </li>
                  <li v-else v-for="(theme, index) in filteredAndSortedThemes" :key="theme._id"
                     :class="[
-                      'block md:grid md:grid-cols-[1fr_auto] items-center px-3 py-2.5 text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out gap-2 hover:bg-header', /* 小屏幕块状显示 */
+                      'block md:grid md:grid-cols-[1fr_auto] items-center px-3 py-2.5 text-sm md:text-[0.95rem] transition-colors duration-200 ease-in-out gap-2', /* 小屏幕块状显示 */
                       index < filteredAndSortedThemes.length - 1 ? 'border-b border-border' : '',
-                      { 'bg-button text-button-text': theme._id === activeTerminalThemeId?.toString() }
+                      { 'bg-button text-button-text': theme._id === activeTerminalThemeId?.toString() },
+                      { 'hover:bg-header': theme._id !== activeTerminalThemeId?.toString() }
                     ]"
                  >
                      <span class="block md:col-start-1 md:col-end-2 overflow-hidden text-ellipsis whitespace-nowrap mb-2 md:mb-0" :class="theme._id === activeTerminalThemeId?.toString() ? 'font-bold text-button-text' : 'text-foreground'" :title="theme.name">{{ theme.name }}</span>
