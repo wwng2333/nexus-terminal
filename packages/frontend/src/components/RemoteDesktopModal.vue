@@ -451,7 +451,7 @@ const computedModalStyle = computed(() => {
 
 </script>
 <template>
-  <div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4 backdrop-blur-sm">
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-4">
      <div
         :style="computedModalStyle"
         class="bg-background text-foreground rounded-lg shadow-xl flex flex-col overflow-hidden border border-border"
