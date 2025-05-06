@@ -330,7 +330,7 @@ animation="150"
         </template>
       </draggable>
       <!-- Add Tab Button -->
-      <button class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150 flex-shrink-0"
+      <button class="flex items-center justify-center px-3 h-full border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150 flex-shrink-0"
               @click="togglePopup" title="新建连接标签页">
         <i class="fas fa-plus text-sm"></i>
       </button>
