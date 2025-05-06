@@ -163,7 +163,7 @@ export class StatusMonitorService {
                      const parts = memLine.split(/\s+/);
                      if (parts.length >= 4) {
                          const total = parseInt(parts[1], 10) / 1024;
-                         const used = parseInt(parts[2], 10) / 1024.0;
+                         const used = parseInt(parts[2], 10) / 1024;
                          if (!isNaN(total) && !isNaN(used)) {
                              status.memTotal = total; status.memUsed = used;
                              status.memPercent = total > 0 ? parseFloat(((used / total) * 100).toFixed(1)) : 0;
