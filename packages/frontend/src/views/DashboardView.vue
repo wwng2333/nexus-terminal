@@ -248,7 +248,7 @@ const getTagNames = (tagIds: number[] | undefined): string[] => {
       <!-- Connection List -->
       <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border min-h-[400px]">
         <div class="px-4 py-3 border-b border-border flex justify-between items-center">
-          <h2 class="text-lg font-medium">{{ t('dashboard.connectionList', '连接列表') }}</h2>
+          <h2 class="text-lg font-medium">{{ t('dashboard.connectionList', '连接列表') }} ({{ filteredAndSortedConnections.length }})</h2>
           <div class="flex items-center space-x-2 flex-wrap gap-y-2"> <!-- Added flex-wrap and gap-y for responsiveness -->
              <!-- Tag Filter Dropdown -->
              <select
