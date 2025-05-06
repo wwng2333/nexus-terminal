@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, PropType, onMounted, onBeforeUnmount, watch } from 'vue'; // + onBeforeUnmount
+import { ref, computed, PropType, onMounted, onBeforeUnmount, watch } from 'vue';
+import draggable from 'vuedraggable';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import WorkspaceConnectionListComponent from './WorkspaceConnectionList.vue';
-import TabBarContextMenu from './TabBarContextMenu.vue'; // + Import context menu
+import TabBarContextMenu from './TabBarContextMenu.vue';
 import { useSessionStore } from '../stores/session.store';
 import { useConnectionsStore, type ConnectionInfo } from '../stores/connections.store';
 import { useLayoutStore, type PaneName } from '../stores/layout.store';
@@ -47,6 +48,7 @@ const emit = defineEmits<{
   (e: 'close-other-sessions', sessionId: string): void;
   (e: 'close-sessions-to-right', sessionId: string): void;
   (e: 'close-sessions-to-left', sessionId: string): void;
+  (e: 'update:sessions', newSessions: SessionTabInfoWithStatus[]): void; // + Add event for reordering
 }>();
 
 
@@ -64,6 +66,13 @@ const closeSession = (event: MouseEvent, sessionId: string) => {
 // --- 本地状态 ---
 const sessionStore = useSessionStore(); // Session store 保持不变
 const showConnectionListPopup = ref(false); // 连接列表弹出状态
+const draggableSessions = ref<SessionTabInfoWithStatus[]>([]); // + Local state for draggable
+
+// + Watch prop changes to update local state
+watch(() => props.sessions, (newSessions) => {
+  // Create a shallow copy to avoid modifying the prop directly
+  draggableSessions.value = [...newSessions];
+}, { immediate: true, deep: true });
 
 // +++ 右键菜单状态 +++
 const contextMenuVisible = ref(false);
@@ -237,6 +246,11 @@ onBeforeUnmount(() => {
 
 
 // 切换主导航栏可见性 (只在 workspace 路由下生效)
+// + Handler for when draggable updates the model
+const handleSessionsUpdate = (newSessions: SessionTabInfoWithStatus[]) => {
+  // v-model handles updating draggableSessions.value automatically
+  emit('update:sessions', newSessions);
+};
 const toggleHeader = () => {
   if (isWorkspaceRoute.value) {
     console.log('[TabBar] Toggling header visibility');
@@ -260,6 +274,15 @@ const toggleButtonTitle = computed(() => {
   return isHeaderVisible.value ? t('header.hide', '隐藏顶部导航') : t('header.show', '显示顶部导航');
 });
 
+// + Handler to hide the default drag image
+const handleDragStart = (event: DragEvent) => {
+  if (event.dataTransfer) {
+    // Use a 1x1 transparent pixel as the drag image to hide the default ghost
+    const img = new Image();
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    event.dataTransfer.setDragImage(img, 0, 0);
+  }
+};
 
 </script>
 
@@ -270,14 +293,24 @@ const toggleButtonTitle = computed(() => {
                props.isMobile ? 'h-8' : 'h-10' // Mobile height h-8, Desktop h-10 - Use props.isMobile
               ]">
     <div class="flex items-center overflow-x-auto flex-shrink min-w-0 h-full"> <!-- Ensure inner div has h-full -->
-      <ul class="flex list-none p-0 m-0 h-full flex-shrink-0">
-        <li
-          v-for="session in sessions"
-          :key="session.sessionId"
-          :class="['flex items-center px-3 h-full cursor-pointer border-r border-border transition-colors duration-150 relative group',
-                   session.sessionId === activeSessionId ? 'bg-background text-foreground' : 'bg-header text-text-secondary hover:bg-border']"
-          @click="activateSession(session.sessionId)"
+      <draggable
+        v-model="draggableSessions"
+        item-key="sessionId"
+        tag="ul"
+        class="flex list-none p-0 m-0 h-full flex-shrink-0"
+        @update:modelValue="handleSessionsUpdate"
+ghost-class="opacity-50"
+        drag-class="opacity-75"
+animation="150"
+      >
+        <template #item="{ element: session }">
+          <li
+            :key="session.sessionId"
+            :class="['flex items-center px-3 h-full cursor-pointer border-r border-border transition-colors duration-150 relative group',
+                     session.sessionId === activeSessionId ? 'bg-background text-foreground' : 'bg-header text-text-secondary hover:bg-border']"
+            @click="activateSession(session.sessionId)"
           @contextmenu.prevent="showContextMenu($event, session.sessionId)"
+          @dragstart="handleDragStart"
           :title="session.connectionName"
         >
           <!-- Status dot -->
@@ -292,9 +325,10 @@ const toggleButtonTitle = computed(() => {
             <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
-          </button>
-        </li>
-      </ul>
+            </button>
+          </li>
+        </template>
+      </draggable>
       <!-- Add Tab Button -->
       <button class="flex items-center justify-center px-3 h-full border-l border-border text-text-secondary hover:bg-border hover:text-foreground transition-colors duration-150 flex-shrink-0"
               @click="togglePopup" title="新建连接标签页">
