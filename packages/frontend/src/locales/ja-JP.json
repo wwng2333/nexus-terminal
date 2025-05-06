@@ -195,6 +195,10 @@
             "type": "タイプ",
             "updated": "更新日時"
         },
+        "filterTags": {
+            "all": "すべてのタグ"
+        },
+        "noConnectionsWithTag": "このタグには接続記録がありません",
         "viewAllConnections": "すべての接続を表示",
         "viewFullAuditLog": "完全な監査ログを表示"
     },

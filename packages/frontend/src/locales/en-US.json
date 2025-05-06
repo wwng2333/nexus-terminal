@@ -1039,7 +1039,11 @@
       "type": "Type",
       "updated": "Updated",
       "created": "Created"
-    }
+    },
+    "filterTags": {
+      "all": "All Tags"
+    },
+    "noConnectionsWithTag": "No connections found with this tag"
   },
   "terminalTabBar": {
     "selectServerTitle": "Select server to connect"

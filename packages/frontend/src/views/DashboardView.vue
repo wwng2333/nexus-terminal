@@ -3,6 +3,8 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useConnectionsStore } from '../stores/connections.store';
 import { useAuditLogStore } from '../stores/audit.store';
 import { useSessionStore } from '../stores/session.store';
+import { useTagsStore } from '../stores/tags.store'; // +++ 添加标签 store +++
+import type { TagInfo } from '../stores/tags.store'; // +++ 修正标签类型导入 +++
 // Removed settings store import for sorting
 import type { SortField, SortOrder } from '../stores/settings.store'; // Keep type import
 import { useI18n } from 'vue-i18n';
@@ -18,19 +20,29 @@ const router = useRouter();
 const connectionsStore = useConnectionsStore();
 const auditLogStore = useAuditLogStore();
 const sessionStore = useSessionStore();
+const tagsStore = useTagsStore(); // +++ 实例化标签 store +++
 // Removed settings store instantiation
 
 const { connections, isLoading: isLoadingConnections } = storeToRefs(connectionsStore);
 const { logs: auditLogs, isLoading: isLoadingLogs, totalLogs } = storeToRefs(auditLogStore);
+const { tags, isLoading: isLoadingTags } = storeToRefs(tagsStore); // +++ 获取标签数据和加载状态 +++
 // Removed refs from settings store
 
 // Local state for sorting with localStorage persistence
 const LS_SORT_BY_KEY = 'dashboard_connections_sort_by';
 const LS_SORT_ORDER_KEY = 'dashboard_connections_sort_order';
+const LS_FILTER_TAG_KEY = 'dashboard_connections_filter_tag'; // +++ 添加标签筛选的 localStorage key +++
 
 // Initialize with localStorage values or defaults
 const localSortBy = ref<SortField>(localStorage.getItem(LS_SORT_BY_KEY) as SortField || 'last_connected_at');
 const localSortOrder = ref<SortOrder>(localStorage.getItem(LS_SORT_ORDER_KEY) as SortOrder || 'desc');
+// +++ 初始化标签筛选状态，从 localStorage 读取，注意类型转换 (修正 ref 初始化) +++
+const getInitialSelectedTagId = (): number | null => {
+  const storedValue = localStorage.getItem(LS_FILTER_TAG_KEY);
+  // 如果存储的值是 'null' 字符串或空，则返回 null，否则解析为数字
+  return storedValue && storedValue !== 'null' ? parseInt(storedValue, 10) : null;
+};
+const selectedTagId = ref<number | null>(getInitialSelectedTagId());
 
 const maxRecentLogs = 5;
 
@@ -42,12 +54,20 @@ const sortOptions: { value: SortField; labelKey: string }[] = [
   { value: 'created_at', labelKey: 'dashboard.sortOptions.created' },
 ];
 
-const sortedConnections = computed(() => {
-  const sortBy = localSortBy.value; // Use local state
-  const sortOrderVal = localSortOrder.value; // Use local state
+// +++ 修改计算属性，先筛选再排序 +++
+const filteredAndSortedConnections = computed(() => {
+  const sortBy = localSortBy.value;
+  const sortOrderVal = localSortOrder.value;
   const factor = sortOrderVal === 'desc' ? -1 : 1;
+  const filterTagId = selectedTagId.value;
 
-  return [...connections.value].sort((a, b) => {
+  // 1. Filter by selected tag
+  const filtered = filterTagId === null
+    ? [...connections.value] // No tag selected, show all
+    : connections.value.filter(conn => conn.tag_ids?.includes(filterTagId));
+
+  // 2. Sort the filtered connections
+  return filtered.sort((a, b) => {
     let valA: any;
     let valB: any;
 
@@ -69,10 +89,8 @@ const sortedConnections = computed(() => {
         valB = b.updated_at ?? 0;
         return (valA - valB) * factor;
       case 'last_connected_at':
-        // Handle null/undefined last_connected_at based on sort order for consistent sorting
         valA = a.last_connected_at ?? (sortOrderVal === 'desc' ? -Infinity : Infinity);
         valB = b.last_connected_at ?? (sortOrderVal === 'desc' ? -Infinity : Infinity);
-        // Ensure consistent comparison for potentially infinite values
         if (valA === valB) return 0;
         if (valA < valB) return -1 * factor;
         return 1 * factor;
@@ -87,8 +105,9 @@ const recentAuditLogs = computed(() => {
 });
 
 onMounted(async () => {
-  // Load saved sort preferences from localStorage (already done during ref initialization)
+  // Load saved preferences from localStorage (already done during ref initialization)
 
+  // Fetch connections if not already loaded
   if (connections.value.length === 0) {
     try {
       await connectionsStore.fetchConnections();
@@ -96,6 +115,8 @@ onMounted(async () => {
       console.error("加载连接列表失败:", error);
     }
   }
+
+  // Fetch recent audit logs
   try {
     await auditLogStore.fetchLogs({
         page: 1,
@@ -105,6 +126,13 @@ onMounted(async () => {
     });
   } catch (error) {
     console.error("加载审计日志失败:", error);
+  }
+
+  // +++ Fetch tags for filtering +++
+  try {
+    await tagsStore.fetchTags();
+  } catch (error) {
+    console.error("加载标签列表失败:", error);
   }
 });
 
@@ -126,6 +154,12 @@ watch(localSortBy, (newValue) => {
 
 watch(localSortOrder, (newValue) => {
   localStorage.setItem(LS_SORT_ORDER_KEY, newValue);
+});
+
+// +++ Watch for changes in selected tag and save to localStorage +++
+watch(selectedTagId, (newValue) => {
+  // Store 'null' as a string or the number
+  localStorage.setItem(LS_FILTER_TAG_KEY, newValue === null ? 'null' : String(newValue));
 });
 
 const dateFnsLocales: Record<string, Locale> = {
@@ -189,6 +223,20 @@ const isFailedAction = (actionType: string): boolean => {
   // 检查常见的失败关键词
   return lowerCaseAction.includes('fail') || lowerCaseAction.includes('error') || lowerCaseAction.includes('denied');
 };
+
+// +++ 恢复：根据 tag_ids 获取标签名称数组 +++
+const getTagNames = (tagIds: number[] | undefined): string[] => {
+  if (!tagIds || tagIds.length === 0) {
+    return [];
+  }
+  const allTags = tags.value as TagInfo[];
+  return tagIds
+    .map(id => allTags.find(tag => tag.id === id)?.name)
+    .filter((name): name is string => !!name); // 过滤掉未找到的标签并确保类型为 string
+};
+
+// --- 移除 selectTagFilter 函数 ---
+
 </script>
 
 <template>
@@ -201,7 +249,24 @@ const isFailedAction = (actionType: string): boolean => {
       <div class="bg-card text-card-foreground shadow rounded-lg overflow-hidden border border-border min-h-[400px]">
         <div class="px-4 py-3 border-b border-border flex justify-between items-center">
           <h2 class="text-lg font-medium">{{ t('dashboard.connectionList', '连接列表') }}</h2>
-          <div class="flex items-center space-x-2">
+          <div class="flex items-center space-x-2 flex-wrap gap-y-2"> <!-- Added flex-wrap and gap-y for responsiveness -->
+             <!-- Tag Filter Dropdown -->
+             <select
+                v-model="selectedTagId"
+                class="h-8 px-2 py-1 text-sm border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none bg-no-repeat bg-right pr-8"
+                style="background-image: url('data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'%3e%3cpath fill=\'none\' stroke=\'%236c757d\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M2 5l6 6 6-6\'/%3e%3c/svg%3e'); background-position: right 0.5rem center; background-size: 16px 12px;"
+                aria-label="Filter connections by tag"
+                :disabled="isLoadingTags"
+              >
+                <option :value="null">{{ t('dashboard.filterTags.all', '所有标签') }}</option>
+                <option v-if="isLoadingTags" disabled>{{ t('common.loading') }}</option>
+                <!-- 修正 v-for 循环中的类型 -->
+                <option v-for="tag in (tags as TagInfo[])" :key="tag.id" :value="tag.id">
+                  {{ tag.name }}
+                </option>
+              </select>
+
+             <!-- Sort By Dropdown -->
              <select
                 v-model="localSortBy"
                 class="h-8 px-2 py-1 text-sm border border-border rounded bg-input text-foreground focus:outline-none focus:ring-1 focus:ring-primary appearance-none bg-no-repeat bg-right pr-8"
@@ -212,6 +277,8 @@ const isFailedAction = (actionType: string): boolean => {
                   {{ t(option.labelKey, option.value.replace('_', ' ')) }}
                 </option>
               </select>
+
+              <!-- Sort Order Button -->
               <button
                 @click="toggleSortOrder"
                 class="h-8 px-1.5 py-1 border border-border rounded hover:bg-muted focus:outline-none focus:ring-1 focus:ring-primary flex items-center justify-center"
@@ -223,9 +290,11 @@ const isFailedAction = (actionType: string): boolean => {
           </div>
         </div>
         <div class="p-4">
-          <div v-if="isLoadingConnections && sortedConnections.length === 0" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
-          <ul v-else-if="sortedConnections.length > 0" class="space-y-3">
-            <li v-for="conn in sortedConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-header/50 border border-border/50 rounded transition duration-150 ease-in-out">
+          <!-- Use filteredAndSortedConnections and check its length -->
+          <div v-if="isLoadingConnections && filteredAndSortedConnections.length === 0" class="text-center text-text-secondary">{{ t('common.loading') }}</div>
+          <ul v-else-if="filteredAndSortedConnections.length > 0" class="space-y-3">
+            <!-- Iterate over filteredAndSortedConnections -->
+            <li v-for="conn in filteredAndSortedConnections" :key="conn.id" class="flex items-center justify-between p-3 bg-header/50 border border-border/50 rounded transition duration-150 ease-in-out">
               <div class="flex-grow mr-4 overflow-hidden">
                 <span class="font-medium block truncate flex items-center" :title="conn.name || ''">
                   <i :class="['fas', conn.type === 'RDP' ? 'fa-desktop' : 'fa-server', 'mr-2 w-4 text-center text-text-secondary']"></i>
@@ -234,15 +303,26 @@ const isFailedAction = (actionType: string): boolean => {
                 <span class="text-sm text-text-secondary block truncate" :title="`${conn.username}@${conn.host}:${conn.port}`">
                   {{ conn.username }}@{{ conn.host }}:{{ conn.port }}
                 </span>
-                <span class="text-xs text-text-alt block">
+                <span class="text-xs text-text-alt block mb-1"> <!-- Added margin-bottom -->
                   {{ t('dashboard.lastConnected', '上次连接:') }} {{ formatRelativeTime(conn.last_connected_at) }}
                 </span>
+                <div v-if="getTagNames(conn.tag_ids).length > 0" class="flex flex-wrap gap-1 mt-1">
+                  <span
+                    v-for="tagName in getTagNames(conn.tag_ids)"
+                    :key="tagName"
+                    class="px-1.5 py-0.5 text-xs rounded bg-muted text-muted-foreground border border-border"
+                  >
+                    {{ tagName }}
+                  </span>
+                </div>
               </div>
               <button @click="connectTo(conn)" class="px-4 py-2 bg-button text-button-text rounded-md shadow-sm hover:bg-button-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition duration-150 ease-in-out text-sm font-medium flex-shrink-0"> <!-- Applied standard button style -->
                 {{ t('connections.actions.connect') }}
               </button>
             </li>
           </ul>
+          <!-- Adjust no connections message based on filtering -->
+          <div v-else-if="!isLoadingConnections && selectedTagId !== null" class="text-center text-text-secondary">{{ t('dashboard.noConnectionsWithTag', '该标签下没有连接记录') }}</div>
           <div v-else class="text-center text-text-secondary">{{ t('dashboard.noConnections', '没有连接记录') }}</div>
         </div>
       </div>

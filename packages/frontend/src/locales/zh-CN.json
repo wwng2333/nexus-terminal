@@ -1042,7 +1042,11 @@
       "type": "类型",
       "updated": "修改时间",
       "created": "创建时间"
-    }
+    },
+    "filterTags": {
+      "all": "所有标签"
+    },
+    "noConnectionsWithTag": "该标签下没有连接记录"
   },
   "terminalTabBar": {
     "selectServerTitle": "选择要连接的服务器"
