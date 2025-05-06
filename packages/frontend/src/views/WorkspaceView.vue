@@ -183,9 +183,13 @@ onBeforeUnmount(() => {
 
    if (terminalManager && typeof terminalManager.sendData === 'function') {
      const commandToSend = command.trim();
-     console.log(`[WorkspaceView] Sending command to active session ${currentSession.sessionId}: ${commandToSend}`);
-     terminalManager.sendData(command + '\r');
-     if (commandToSend.length > 0) {
+     console.log(`[WorkspaceView] Sending command/data to active session ${currentSession.sessionId}: ${JSON.stringify(command)}`); // Log raw command
+     // Only append '\r' for regular commands, not for control characters like Ctrl+C (\x03)
+     const dataToSend = command === '\x03' ? command : command + '\r';
+     terminalManager.sendData(dataToSend);
+     // Add to history only if it's a user-typed command (not just Enter or control chars)
+     const commandToHistory = command.trim();
+     if (commandToHistory.length > 0 && command !== '\x03') {
        commandHistoryStore.addCommand(commandToSend);
      }
    } else {
