@@ -684,7 +684,7 @@ const cancelEditingTag = () => {
                  v-for="conn in groupData.connections"
                  :key="conn.id"
                  class="group my-0.5 py-2 pr-3 pl-4 cursor-pointer flex items-center rounded-md whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-primary/10 transition-colors duration-150"
-                 :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }"
+                 :class="{ 'bg-primary/20 font-medium': conn.id === highlightedConnectionId }"
                  :data-conn-id="conn.id"
                  @click.left="handleConnect(conn.id)"
                  @click.right.prevent
@@ -704,7 +704,7 @@ const cancelEditingTag = () => {
                 v-for="conn in flatFilteredConnections"
                 :key="conn.id"
                 class="group my-0.5 py-2 pr-3 pl-4 cursor-pointer flex items-center rounded-md whitespace-nowrap overflow-hidden text-ellipsis text-foreground hover:bg-primary/10 transition-colors duration-150"
-                :class="{ 'bg-primary/20 text-white font-medium': conn.id === highlightedConnectionId }"
+                :class="{ 'bg-primary/20 font-medium': conn.id === highlightedConnectionId }"
                 :data-conn-id="conn.id"
                 @click.left="handleConnect(conn.id)"
                 @click.right.prevent
