@@ -58,7 +58,7 @@ const formatTimestamp = (timestamp: number | null): string => {
              <i class="fas fa-user mr-1 text-xs opacity-70"></i> {{ proxy.username }}
           </div>
           <div class="text-xs text-text-secondary pt-1"> <!-- Updated At -->
-            <i class="fas fa-clock mr-1 opacity-70"></i> {{ t('common.updated') }}: {{ formatTimestamp(proxy.updated_at) }}
+            <i class="fas fa-clock mr-1 opacity-70"></i> {{ formatTimestamp(proxy.updated_at) }}
           </div>
         </div>
         <div class="flex items-center flex-shrink-0 space-x-3 pt-1"> <!-- Actions section -->
